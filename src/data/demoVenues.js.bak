@@ -1,0 +1,476 @@
+/**
+ * BACKUP of demoVenues.js before adding 5 new venues
+ * Date: 2026-02-14
+ */
+
+// [Original content of demoVenues.js]
+/**
+ * DemoVenue Layer
+ * ───────────────
+ * Each object represents ONE example venue from a target hospitality company.
+ * These pins appear on the SunStay sales-demo map.
+ *
+ * ⚠️  Demo-only data — coordinates and venue names are illustrative.
+ *     Do not treat as canonical venue data.
+ *
+ * To expand: add more DemoVenue objects under the same companyName.
+ * The map logic is keyed on DemoVenue.id, not companyName, so you
+ * can add "many venues per company" without changing map code.
+ */
+
+// ── Target Companies (from Airtable / outreach list) ──────────────
+// This array is the "source of truth" for which companies we're
+// pitching. Each entry can have metadata used in popups & emails.
+export const targetCompanies = [
+    {
+        name: 'Australian Venue Co',
+        segment: 'Large Group',
+        priority: 'High',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Good Company',
+        segment: 'Premium Group',
+        priority: 'High',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'ALH Group (Endeavour)',
+        segment: 'Pub Network',
+        priority: 'High',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Sand Hill Road',
+        segment: 'Boutique Group',
+        priority: 'High',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Pacific Concepts',
+        segment: 'Dining Group',
+        priority: 'Medium',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Commune Group',
+        segment: 'Multi-Venue',
+        priority: 'Medium',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Dixon Hospitality',
+        segment: 'Hotel & Bars',
+        priority: 'Medium',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Melbourne Pub Group',
+        segment: 'Pub Network',
+        priority: 'Medium',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Lucas Restaurants',
+        segment: 'Fine Dining',
+        priority: 'Medium',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Worksmith',
+        segment: 'Cafe & Co-Work',
+        priority: 'Medium',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Common Man Group',
+        segment: 'Independent',
+        priority: 'Medium',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Trader House',
+        segment: 'Bar Group',
+        priority: 'Medium',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Lancemore Group',
+        segment: 'Boutique Hotels',
+        priority: 'Low',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Hostplus Venues',
+        segment: 'Sports & Events',
+        priority: 'Low',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Kennards Hire (Events)',
+        segment: 'Events',
+        priority: 'Low',
+        status: 'Outreach Planned',
+    },
+    {
+        name: 'Mary Martin Bookshop (Cafe)',
+        segment: 'Independent Cafe',
+        priority: 'Low',
+        status: 'Outreach Planned',
+    },
+];
+
+// Helper: quick company lookup
+export const companyByName = Object.fromEntries(
+    targetCompanies.map(c => [c.name, c])
+);
+
+
+// ── Demo Venues ───────────────────────────────────────────────────
+export const demoVenues = [
+    // ─── Real venues we already know ───
+    {
+        id: 'dv-01',
+        companyName: 'Australian Venue Co',
+        venueName: 'Wonderland Bar',
+        address: '37 Chapel St, Windsor',
+        suburb: 'Windsor',
+        lat: -37.8556,
+        lng: 144.9947,
+        emoji: '🌿',
+        vibe: 'Beer Garden',
+        tags: ['Sunny', 'Garden', 'Beer Garden', 'Pet Friendly', 'Pram Friendly', 'Shaded', 'Umbrellas', 'Afternoon Sun'],
+        price: '$$',
+        capacity: 450,
+        notes: 'Real AVC venue — used as flagship demo pin.',
+    },
+    {
+        id: 'dv-02',
+        companyName: 'Australian Venue Co',
+        venueName: 'The Emerson Rooftop',
+        address: '141 Commercial Rd, South Yarra',
+        suburb: 'South Yarra',
+        lat: -37.8394,
+        lng: 145.0008,
+        emoji: '🍸',
+        vibe: 'Rooftop Club',
+        tags: ['Party', 'Views', 'Rooftop', 'Smoking Area', 'Shaded', 'Views'],
+        price: '$$$',
+        capacity: 300,
+        notes: 'Real AVC venue — rooftop.',
+    },
+    {
+        id: 'dv-03',
+        companyName: 'Good Company',
+        venueName: 'The Vineyard',
+        address: '71A Acland St, St Kilda',
+        suburb: 'St Kilda',
+        lat: -37.8679,
+        lng: 144.9797,
+        emoji: '🍷',
+        vibe: 'Outdoor Streetside',
+        tags: ['People Watching', 'Sunny', 'Pet Friendly', 'Smoking Area', 'Afternoon Sun'],
+        price: '$$',
+        capacity: 120,
+        notes: 'Real Good Company venue.',
+    },
+    {
+        id: 'dv-04',
+        companyName: 'Good Company',
+        venueName: 'CBCo Brewing',
+        address: '89 Bertie St, Port Melbourne',
+        suburb: 'Port Melbourne',
+        lat: -37.8363,
+        lng: 144.9353,
+        emoji: '🍻',
+        vibe: 'Brewery & Beer Garden',
+        tags: ['Pet Friendly', 'Large Groups', 'Beer Garden', 'Pram Friendly', 'Wheelchair Accessible'],
+        notes: 'Real Good Company venue (brewery).',
+    },
+    {
+        id: 'dv-05',
+        companyName: 'Good Company',
+        venueName: 'Dick Whittington Tavern',
+        address: '32 Chapel St, St Kilda',
+        suburb: 'St Kilda',
+        lat: -37.8597,
+        lng: 144.9953,
+        emoji: '🎱',
+        vibe: 'Tavern',
+        tags: ['Fireplace', 'Pub Grub', 'Pet Friendly', 'Smoking Area'],
+        notes: 'Real Good Company venue.',
+    },
+    {
+        id: 'dv-06',
+        companyName: 'Sand Hill Road',
+        venueName: 'Garden State Hotel',
+        address: '101 Flinders Ln, Melbourne',
+        suburb: 'CBD',
+        lat: -37.8152,
+        lng: 144.9690,
+        emoji: '🌳',
+        vibe: 'Multi-Level Bar',
+        tags: ['Rooftop', 'Beer Garden', 'Large Groups', 'Wheelchair Accessible', 'Shaded'],
+        price: '$$',
+        capacity: 800,
+        notes: 'Real Sand Hill Road venue.',
+    },
+    {
+        id: 'dv-07',
+        companyName: 'Sand Hill Road',
+        venueName: 'Welcome to Thornbury',
+        address: '520 High St, Thornbury',
+        suburb: 'Thornbury',
+        lat: -37.7608,
+        lng: 145.0125,
+        emoji: '🚚',
+        vibe: 'Food Truck Park',
+        tags: ['Pram Friendly', 'Beer Garden', 'Pet Friendly', 'Wheelchair Accessible'],
+        notes: 'Real Sand Hill Road venue.',
+    },
+    {
+        id: 'dv-08',
+        companyName: 'ALH Group (Endeavour)',
+        venueName: 'Royal Standard Hotel',
+        address: '171 Bourke St, Melbourne',
+        suburb: 'CBD',
+        lat: -37.8136,
+        lng: 144.9670,
+        emoji: '🍺',
+        vibe: 'Classic Pub',
+        tags: ['Beer Garden', 'Smoking Area', 'Wheelchair Accessible'],
+        notes: 'Example ALH Group venue for outreach deck.',
+    },
+    {
+        id: 'dv-09',
+        companyName: 'Pacific Concepts',
+        venueName: 'CQ City Bar',
+        address: '113 Queen St, Melbourne',
+        suburb: 'CBD',
+        lat: -37.8136,
+        lng: 144.9631,
+        emoji: '🔥',
+        vibe: 'Rooftop Courtyard',
+        tags: ['Cozy', 'After Work', 'Rooftop', 'Wheelchair Accessible'],
+        notes: 'Real Pacific Concepts venue.',
+    },
+    {
+        id: 'dv-10',
+        companyName: 'Commune Group',
+        venueName: 'Howler',
+        address: '7-11 Dawson St, Brunswick',
+        suburb: 'Brunswick',
+        lat: -37.7686,
+        lng: 144.9597,
+        emoji: '🎸',
+        vibe: 'Warehouse & Garden',
+        tags: ['Garden', 'Arts', 'Beer Garden', 'Pet Friendly', 'Pram Friendly'],
+        notes: 'Real Commune Group venue.',
+    },
+    {
+        id: 'dv-11',
+        companyName: 'Dixon Hospitality',
+        venueName: 'Good Heavens Rooftop',
+        address: '79 Bourke St, Melbourne',
+        suburb: 'CBD',
+        lat: -37.8140,
+        lng: 144.9685,
+        emoji: '🍹',
+        vibe: 'Palm Springs Style',
+        tags: ['Cocktails', 'Sunny', 'Rooftop', 'Smoking Area'],
+        notes: 'Example Dixon Hospitality venue for outreach deck.',
+    },
+    {
+        id: 'dv-12',
+        companyName: 'Melbourne Pub Group',
+        venueName: 'Railway Hotel Windsor',
+        address: '29 Chapel St, Windsor',
+        suburb: 'Windsor',
+        lat: -37.8553,
+        lng: 144.9945,
+        emoji: '🍺',
+        vibe: 'Pub Deck',
+        tags: ['24h License', 'Deck', 'Beer Garden', 'Smoking Area', 'Wheelchair Accessible'],
+        notes: 'Example Melbourne Pub Group venue for outreach deck.',
+    },
+    {
+        id: 'dv-13',
+        companyName: 'Lucas Restaurants',
+        venueName: 'Chin Chin Garden Terrace',
+        address: '125 Flinders Ln, Melbourne',
+        suburb: 'CBD',
+        lat: -37.8163,
+        lng: 144.9695,
+        emoji: '🌶️',
+        vibe: 'Southeast Asian Garden',
+        tags: ['Premium', 'Sunny', 'Large Groups'],
+        notes: 'Demo-only example venue for outreach deck.',
+    },
+    {
+        id: 'dv-14',
+        companyName: 'Worksmith',
+        venueName: 'Worksmith Collingwood',
+        address: '99 Smith St, Collingwood',
+        suburb: 'Collingwood',
+        lat: -37.7983,
+        lng: 144.9876,
+        emoji: '☕',
+        vibe: 'Cafe & Co-Work',
+        tags: ['Sunny', 'Pet Friendly', 'Wheelchair Accessible'],
+        notes: 'Demo-only example venue for outreach deck.',
+    },
+    {
+        id: 'dv-15',
+        companyName: 'Common Man Group',
+        venueName: 'Common Man South Wharf',
+        address: '39 South Wharf Prom, South Wharf',
+        suburb: 'South Wharf',
+        lat: -37.8225,
+        lng: 144.9530,
+        emoji: '🥂',
+        vibe: 'Waterfront Bar',
+        tags: ['River', 'Sunny', 'Wheelchair Accessible', 'Smoking Area'],
+        notes: 'Demo-only example venue for outreach deck.',
+    },
+    {
+        id: 'dv-16',
+        companyName: 'Trader House',
+        venueName: 'Trader Bar Prahran',
+        address: '68 Commercial Rd, Prahran',
+        suburb: 'Prahran',
+        lat: -37.8445,
+        lng: 144.9922,
+        emoji: '🛋️',
+        vibe: 'Cocktail Lounge',
+        tags: ['Pub', 'Historic', 'Wheelchair Accessible', 'Shaded'],
+        notes: 'Demo-only example venue for outreach deck.',
+    },
+    {
+        id: 'dv-17',
+        companyName: 'Lancemore Group',
+        venueName: 'Lancemore Crossley Terrace',
+        address: '51 Little Bourke St, Melbourne',
+        suburb: 'CBD',
+        lat: -37.8118,
+        lng: 144.9715,
+        emoji: '🏛️',
+        vibe: 'Boutique Hotel Terrace',
+        tags: ['Premium', 'Rooftop', 'Wheelchair Accessible'],
+        notes: 'Demo-only example venue for outreach deck.',
+    },
+    {
+        id: 'dv-18',
+        companyName: 'Hostplus Venues',
+        venueName: 'AAMI Park Pavilion (Demo)',
+        address: '60 Olympic Blvd, Melbourne',
+        suburb: 'Melbourne',
+        lat: -37.8253,
+        lng: 144.9834,
+        emoji: '🏟️',
+        vibe: 'Stadium Beer Garden',
+        tags: ['Large Groups', 'Beer Garden', 'Wheelchair Accessible'],
+        notes: 'Demo-only example venue for outreach deck.',
+    },
+    {
+        id: 'dv-19',
+        companyName: 'Kennards Hire (Events)',
+        venueName: 'Pop-Up Marquee Docklands (Demo)',
+        address: '300 Victoria Harbour Prom, Docklands',
+        suburb: 'Docklands',
+        lat: -37.8155,
+        lng: 144.9415,
+        emoji: '🎪',
+        vibe: 'Event Pop-Up',
+        tags: ['Sunny', 'Large Groups', 'Wheelchair Accessible'],
+        notes: 'Demo-only example venue for outreach deck.',
+    },
+    {
+        id: 'dv-20',
+        companyName: 'Mary Martin Bookshop (Cafe)',
+        venueName: 'Mary Martin Bookshop Cafe',
+        address: '560 Lonsdale St, Melbourne',
+        suburb: 'CBD',
+        lat: -37.8115,
+        lng: 144.9590,
+        emoji: '📚',
+        vibe: 'Bookshop Cafe',
+        tags: ['Cozy', 'Sunny', 'Wheelchair Accessible'],
+        notes: 'Demo-only example venue for outreach deck.',
+    },
+    // Bonus: Beach & iconic
+    {
+        id: 'dv-21',
+        companyName: 'Australian Venue Co',
+        venueName: 'The Espy',
+        address: '11 The Esplanade, St Kilda',
+        suburb: 'St Kilda',
+        lat: -37.8673,
+        lng: 144.9753,
+        emoji: '🎸',
+        vibe: 'Iconic Pub',
+        tags: ['Live Music', 'Views', 'Rooftop', 'Beer Garden', 'Wheelchair Accessible'],
+        notes: 'Real AVC venue — iconic St Kilda pub.',
+    },
+    {
+        id: 'dv-22',
+        companyName: 'Pacific Concepts',
+        venueName: 'Arbory Afloat',
+        address: '2 Flinders Walk, Melbourne',
+        suburb: 'CBD',
+        lat: -37.8183,
+        lng: 144.9671,
+        emoji: '🌊',
+        vibe: 'Floating Bar',
+        tags: ['River', 'Premium', 'Wheelchair Accessible', 'Smoking Area', 'Shaded'],
+        notes: 'Real Pacific Concepts venue.',
+    },
+    {
+        id: 'dv-23',
+        companyName: 'Sand Hill Road',
+        venueName: 'The Standard',
+        address: '293 Fitzroy St, Fitzroy',
+        suburb: 'Fitzroy',
+        lat: -37.7997,
+        lng: 144.9789,
+        emoji: '🌿',
+        vibe: 'Maze Garden',
+        tags: ['Hidden', 'Vines', 'Beer Garden', 'Pet Friendly'],
+        notes: 'Real Sand Hill Road venue.',
+    },
+];
+
+
+// ── Helpers ───────────────────────────────────────────────────────
+
+/**
+ * Look up the target company object for a given DemoVenue.
+ * Returns undefined if no match (shouldn't happen with clean data).
+ */
+export function getCompanyForVenue(demoVenue) {
+    return companyByName[demoVenue.companyName];
+}
+
+/**
+ * Get all demo venues for a given company name.
+ */
+export function getVenuesForCompany(companyName) {
+    return demoVenues.filter(v => v.companyName === companyName);
+}
+
+
+// Re-export filter categories so the rest of the app still works
+export const FILTER_CATEGORIES = [
+    { id: 'rooftop', label: 'Rooftop', icon: '🏙️', tag: 'Rooftop' },
+    { id: 'beer-garden', label: 'Beer Garden', icon: '🍺', tag: 'Beer Garden' },
+    { id: 'pram-friendly', label: 'Pram Friendly', icon: '👶', tag: 'Pram Friendly' },
+    { id: 'pet-friendly', label: 'Pet Friendly', icon: '🐕', tag: 'Pet Friendly' },
+    { id: 'wheelchair', label: 'Wheelchair Accessible', icon: '♿', tag: 'Wheelchair Accessible' },
+    { id: 'smoking', label: 'Smoking Area', icon: '🚬', tag: 'Smoking Area' },
+    { id: 'shade', label: 'Shade/Cover', icon: '⛱️', tag: 'Shaded' },
+];
+
+// Melbourne center coordinates for initial map view
+export const MELBOURNE_CENTER = {
+    lat: -37.8136,
+    lng: 44.9631,
+};
