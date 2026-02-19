@@ -426,53 +426,87 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             {/* Overlay for Loading, Error, or Missing Token */}
             {showOverlay && (
-                <div className="ss-map-overlay-error">
-                    <div className="max-w-md p-8 text-center">
-                        {(isTokenMissing || mapError) ? (
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="space-y-4"
-                            >
-                                <div className="text-5xl mb-4">{mapError && !isTokenMissing ? '⚠️' : '🗺️'}</div>
-                                <h3 className="text-xl font-bold text-gray-800">
-                                    {mapError && !isTokenMissing ? 'Map Failed to Load' : 'Mapbox Setup Required'}
-                                </h3>
-                                <p className="text-sm text-gray-600">
-                                    {mapError && !isTokenMissing
-                                        ? 'Your Mapbox token may be expired or invalid. Please update it in your .env file.'
-                                        : 'To see the live venue map, please add your Mapbox token to the .env file in the project root.'
-                                    }
-                                </p>
-                                <div className="bg-amber-50 p-4 rounded-xl text-left border border-amber-100">
-                                    <p className="text-xs font-bold text-amber-800 mb-2 uppercase tracking-wider">Quick Instructions:</p>
-                                    <ol className="text-xs text-amber-700 space-y-1.5 list-decimal pl-4">
-                                        <li>Go to <a href="https://account.mapbox.com/access-tokens/" target="_blank" rel="noopener noreferrer" className="underline font-bold">mapbox.com/access-tokens</a></li>
-                                        <li>Copy your <b>Default public token</b> (starts with <code className="font-mono">pk.</code>)</li>
-                                        <li>Open <code className="font-mono">.env</code> in the project root</li>
-                                        <li>Set <code className="font-mono">VITE_MAPBOX_TOKEN=pk.your_token_here</code></li>
-                                        <li>Restart the dev server (<code className="font-mono">npm run dev</code>)</li>
-                                    </ol>
-                                </div>
-                                {mapError && !isTokenMissing && (
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="mt-2 px-5 py-2.5 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all text-sm"
-                                    >
-                                        🔄 Reload App
-                                    </button>
-                                )}
-                                <p className="text-[10px] text-gray-400 italic">
-                                    Tip: You can find detailed steps in <code className="font-mono">API_SETUP.md</code>
-                                </p>
-                            </motion.div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="animate-spin-slow text-6xl mb-4">☀️</div>
-                                <p className="text-gray-600 font-semibold italic">Waking up the map...</p>
+                <div className="ss-map-overlay-error bg-slate-900">
+                    {/* High-Fidelity Fallback UI: Sun Intelligence Heatmap */}
+                    {(isTokenMissing || mapError) ? (
+                        <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                            {/* Heatmap Background */}
+                            <img
+                                src="https://images.unsplash.com/photo-1548680373-f6c651ee8944?auto=format&fit=crop&q=80&w=2000"
+                                alt="Melbourne Sun Intelligence Heatmap"
+                                className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-screen"
+                                onError={(e) => {
+                                    e.target.src = 'https://images.unsplash.com/photo-1518173946687-a4c8a9833d8e?auto=format&fit=crop&q=80&w=2000';
+                                }}
+                            />
+
+                            {/* Map UI Shield / Pattern */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-transparent to-slate-900/60" />
+                            <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: 'radial-gradient(#fbbf24 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }} />
+
+                            {/* Fallback Search/Marker Layer (Interactive) */}
+                            <div className="relative z-10 w-full h-full">
+                                {demoVenues.map((venue) => {
+                                    const isFiltered = filteredVenueIds === null || filteredVenueIds.includes(venue.id);
+                                    if (!isFiltered) return null;
+
+                                    {/* Manual projection for Melbourne CBD focused heatmap */ }
+                                    const left = ((venue.lng - INITIAL_VIEW_STATE.longitude + 0.1) / 0.2) * 100;
+                                    const top = ((-venue.lat + INITIAL_VIEW_STATE.latitude + 0.08) / 0.16) * 100;
+
+                                    return (
+                                        <motion.div
+                                            key={venue.id}
+                                            initial={{ scale: 0, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 group"
+                                            style={{ left: `${left}%`, top: `${top}%` }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onVenueSelect(venue);
+                                            }}
+                                        >
+                                            <div className={`ss-marker-pill ss-marker-${weatherColorFn(weather, venue)} shadow-xl border-2 border-white/30`}>
+                                                <span className="ss-marker-emoji">{venue.emoji}</span>
+                                            </div>
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/80 text-white text-[10px] px-2 py-1 rounded-full pointer-events-none">
+                                                {venue.venueName}
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
                             </div>
-                        )}
-                    </div>
+
+                            {/* Bottom Fallback Info Chip */}
+                            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
+                                <motion.div
+                                    initial={{ y: 20, opacity: 0 }}
+                                    animate={{ y: 0, opacity: 1 }}
+                                    className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2"
+                                >
+                                    <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                    <span className="text-[10px] font-bold text-white uppercase tracking-widest">Demo Mode: Sun Intelligence Static Overlay</span>
+                                </motion.div>
+                            </div>
+
+                            {/* Token Missing Warning Banner (Discreet) */}
+                            {!mapLoaded && (isTokenMissing || mapError) && (
+                                <div className="absolute top-6 right-6 z-20">
+                                    <button
+                                        onClick={() => setMapError(false)} // Toggle to show instructions if user wants
+                                        className="bg-amber-400/20 hover:bg-amber-400/40 text-amber-200 text-[10px] font-bold px-3 py-1.5 rounded-full backdrop-blur-sm border border-amber-400/20 transition-all"
+                                    >
+                                        Map Setup Info
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="animate-spin-slow text-6xl mb-4">☀️</div>
+                            <p className="text-gray-400 font-semibold italic">Waking up the map...</p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
