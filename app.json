@@ -18,7 +18,8 @@
         "web": {
             "bundler": "metro",
             "output": "single",
-            "favicon": "./public/favicon.ico"
+            "favicon": "./public/favicon.ico",
+            "scheme": "sunstay-melb"
         },
         "ios": {
             "supportsTablet": true,

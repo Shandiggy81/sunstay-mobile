@@ -10,7 +10,14 @@
  */
 
 import React, { useState, useRef, useCallback } from 'react';
-import { formatMelbourneTime, MELBOURNE_TZ } from '../../utils/platform';
+
+const MELBOURNE_TZ = 'Australia/Melbourne';
+const formatMelbourneTime = (date = new Date()) =>
+    new Intl.DateTimeFormat('en-AU', {
+        timeZone: MELBOURNE_TZ,
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(date);
 
 // ── Availability Mock ───────────────────────────────────────────────
 
