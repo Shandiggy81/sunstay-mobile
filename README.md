@@ -77,25 +77,81 @@ The app is fully optimized for mobile devices with:
 ## 🏗️ Project Structure
 
 ```
-sunstay-app/
+sunstay-mobile/
 ├── src/
+│   ├── api/
+│   │   └── venues.js              # Brevity Fetch API (brief/detail)
 │   ├── components/
-│   │   ├── MapView.jsx          # Mapbox integration
-│   │   ├── VenueCard.jsx        # Glassmorphism venue details
-│   │   ├── WeatherBackground.jsx # Dynamic background
-│   │   └── SunnyMascot.jsx      # Animated FAB
+│   │   ├── Map/
+│   │   │   └── VenueMap.js        # GL-optimized map (SymbolLayer)
+│   │   ├── MapView.jsx            # Original Mapbox integration
+│   │   ├── VenueCard.jsx          # Glassmorphism venue details
+│   │   ├── WeatherBackground.jsx  # Dynamic background
+│   │   └── SunnyMascot.jsx        # Animated FAB
 │   ├── context/
-│   │   └── WeatherContext.jsx   # Weather state & Sunstay Score
+│   │   └── WeatherContext.jsx     # Weather state & Sunstay Score
+│   ├── hooks/
+│   │   └── useWeather.js          # Weather API caching (15-min TTL)
+│   ├── screens/
+│   │   └── Booking/
+│   │       └── BookingSummary.js   # Booking flow (race condition fix)
+│   ├── store/
+│   │   └── slices/
+│   │       └── bookingSlice.js    # Weather-booking sync
+│   ├── utils/
+│   │   ├── platform.js            # Cross-platform abstraction
+│   │   ├── sunCalcLogic.js
+│   │   └── sunScore.js
 │   ├── data/
-│   │   └── venues.js            # 22 Melbourne venues
+│   │   ├── demoVenues.js          # Demo venue data
+│   │   └── venues.js              # Melbourne venues
 │   ├── config/
-│   │   └── mapConfig.js         # Mapbox configuration
-│   ├── App.jsx                  # Main app component
-│   ├── main.jsx                 # Entry point
-│   └── index.css                # Global styles
+│   │   └── mapConfig.js           # Mapbox configuration
+│   ├── App.jsx                    # Main app component
+│   ├── main.jsx                   # Entry point
+│   └── index.css                  # Global styles
+├── app.json                       # Expo web configuration
 ├── index.html
 ├── tailwind.config.js
 └── package.json
+```
+
+## 🔄 Cross-Platform Setup
+
+This codebase includes a platform abstraction layer designed for future React Native / Expo deployment.
+
+### Web (Current — Vite)
+
+```bash
+npm install
+npm run dev            # http://localhost:5173
+npm run build          # Production bundle → dist/
+```
+
+### Expo Web (Future)
+
+```bash
+npx expo install react-native-web react-dom
+npx expo start --web   # Runs on Expo's Metro bundler
+```
+
+### Platform Abstraction
+
+The `src/utils/platform.js` module auto-detects the runtime and provides:
+
+| Feature | Web | Mobile (Future) |
+|---------|-----|-----------------|
+| Storage | `localStorage` | `AsyncStorage` |
+| Maps | `mapbox-gl` | `@rnmapbox/maps` |
+| Detection | `typeof window` | `Platform.OS` |
+
+All new modules (`useWeather`, `BookingSummary`, `bookingSlice`, `venues` API) use `PlatformStorage`, making them portable across platforms without code changes.
+
+### Melbourne Test Coordinates
+
+```
+Latitude:  -37.8136
+Longitude: 144.9631
 ```
 
 ## 🎯 Key Components
@@ -103,9 +159,35 @@ sunstay-app/
 ### WeatherContext
 
 - Fetches live weather from OpenWeather API
+- **15-minute cache** with coordinate rounding (2 decimals) to batch nearby venues
 - Calculates dynamic theme (sunny/rainy/cloudy)
 - Computes Sunstay Score (0-100) for each venue
 - Manages "Fireplace Mode" for rainy days
+
+### VenueMap (New — Optimized)
+
+- **GL-native symbol layer** instead of DOM markers
+- Handles 1000+ venues efficiently
+- Memoized sunshine overlay (camera-pan stable)
+- Click handling via GL events
+
+### BookingSummary (New)
+
+- **Double-tap prevention** via `useRef` mutex
+- Server-side availability check (pre-payment)
+- Melbourne timezone timestamps
+- Phased flow: verify → pay → confirm
+
+### bookingSlice (New)
+
+- **Weather severity listener** — auto re-checks availability on Sunny→Stormy transitions
+- React Context + useReducer (no Redux dependency)
+
+### Venue API (New)
+
+- **`fetchVenuesBrief()`** — 4 fields only (id, lat, lon, sunshineScore) for map markers
+- **`fetchVenueDetails(id)`** — full venue data on selection
+- ~10x payload reduction for map rendering
 
 ### VenueCard
 
@@ -114,7 +196,7 @@ sunstay-app/
 - Premium tag badges
 - Glowing "Book Now" CTA
 
-### MapView
+### MapView (Original)
 
 - Custom emoji pill markers
 - Smooth fly-to animations
@@ -138,8 +220,8 @@ sunstay-app/
 
 - The app uses placeholder API keys by default
 - Replace with your actual keys before testing
-- Weather data refreshes every 30 minutes
-- All 22 venues are geocoded with accurate Melbourne coordinates
+- Weather data is cached for 15 minutes (previously refreshed every 30 minutes)
+- All 22+ venues are geocoded with accurate Melbourne coordinates
 
 ## 🚢 Deployment
 
