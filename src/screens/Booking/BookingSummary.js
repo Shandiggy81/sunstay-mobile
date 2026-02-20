@@ -44,22 +44,19 @@ const verifyAvailability = async (venueId, dateISO, guests = 1) => {
     return { available: true };
 };
 
-/**
- * Process payment after availability is confirmed.
- *
- * @param {object} bookingPayload
- * @returns {Promise<{ success: boolean, bookingId?: string, error?: string }>}
- */
-const processPayment = async (bookingPayload) => {
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    console.log('[BookingSummary] Payment processed:', bookingPayload);
-
-    return {
-        success: true,
-        bookingId: `BK-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    };
+// Simulated payment processor for investor demo
+const processPayment = async () => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            console.log("[SunStay Demo] Mock payment successful.");
+            resolve({
+                success: true,
+                status: "success",
+                bookingId: "DEMO-" + Math.floor(Math.random() * 10000),
+                transactionId: "DEMO-" + Math.floor(Math.random() * 10000),
+            });
+        }, 1500); // 1.5-second fake loading delay for realism
+    });
 };
 
 // ── BookingSummary Component ────────────────────────────────────────

@@ -97,7 +97,7 @@ const ChatWidget = ({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 20, scale: 0.9 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="fixed bottom-28 right-6 z-40 w-[350px] max-w-[calc(100vw-3rem)]"
+                    className="fixed bottom-24 right-6 z-[9999] w-[350px] max-w-[calc(100vw-3rem)]"
                 >
                     {/* Chat window */}
                     <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
