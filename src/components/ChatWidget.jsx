@@ -106,7 +106,7 @@ const ChatWidget = ({
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/50 shadow-md">
                                     <img
-                                        src="/assets/sunny-mascot.jpg"
+                                        src={`${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
                                         alt="Sunny"
                                         className="w-full h-full object-cover"
                                     />

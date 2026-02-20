@@ -391,7 +391,7 @@ const AppContent = () => {
                     {/* Logo */}
                     <div className="ss-header-logo">
                         <motion.img
-                            src="/assets/sun-badge.jpg"
+                            src={`${import.meta.env.BASE_URL}assets/sun-badge.jpg`}
                             alt="Sunstay"
                             className="ss-header-logo-img"
                             animate={{ rotate: [0, 5, -5, 0] }}
@@ -662,7 +662,7 @@ const AppContent = () => {
                 transition={{ duration: 0.6, delay: 0.6 }}
                 className="ss-footer-badge"
             >
-                <img src="/assets/fire-icon.jpg" alt="" className="ss-footer-badge-icon" />
+                <img src={`${import.meta.env.BASE_URL}assets/fire-icon.jpg`} alt="" className="ss-footer-badge-icon" />
                 Sales Demo · {demoVenues.length} Partner Venues
             </motion.div>
         </div>

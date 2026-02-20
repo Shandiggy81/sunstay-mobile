@@ -40,7 +40,7 @@ const SunnyMascot = ({ onClick, isChatOpen }) => {
 
                 {/* Sunny mascot image */}
                 <motion.img
-                    src="/assets/sunny-mascot.jpg"
+                    src={`${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
                     alt="Sunny"
                     className={`w-full h-full rounded-full object-cover relative z-10 border-4 ${isChatOpen ? 'border-green-400/70' : 'border-white/50'
                         }`}

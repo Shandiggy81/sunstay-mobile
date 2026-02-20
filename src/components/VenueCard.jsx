@@ -575,7 +575,7 @@ const VenueCard = ({ venue, onClose }) => {
                                 <div className="mb-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <img src="/assets/sun-badge.jpg" alt="Score" className="w-5 h-5 rounded-full" />
+                                            <img src={`${import.meta.env.BASE_URL}assets/sun-badge.jpg`} alt="Score" className="w-5 h-5 rounded-full" />
                                             Sunstay Score
                                             {weather && (
                                                 <span className="text-xs text-gray-400 font-normal">(Live)</span>
