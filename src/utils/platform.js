@@ -1,18 +1,22 @@
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
+/**
+ * Cross-platform storage adapter
+ * Web: localStorage (direct)
+ * Mobile: AsyncStorage (dynamic import, only loaded on RN)
+ */
 export const storage = {
     getItem: async (key) => {
-        if (Platform.OS === 'web') {
-            return window.localStorage.getItem(key);
+        if (typeof window !== 'undefined' && window.localStorage) {
+            return window.localStorage.getItem(key); // Web
         }
+        // Mobile only — dynamic import so Vite never bundles it
+        const { default: AsyncStorage } = await import(/* @vite-ignore */ '@react-native-async-storage/async-storage');
         return await AsyncStorage.getItem(key);
     },
     setItem: async (key, value) => {
-        if (Platform.OS === 'web') {
-            window.localStorage.setItem(key, value);
-        } else {
-            await AsyncStorage.setItem(key, value);
+        if (typeof window !== 'undefined' && window.localStorage) {
+            return window.localStorage.setItem(key, value); // Web
         }
+        const { default: AsyncStorage } = await import(/* @vite-ignore */ '@react-native-async-storage/async-storage');
+        return await AsyncStorage.setItem(key, value);
     }
 };
