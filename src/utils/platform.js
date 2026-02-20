@@ -1,22 +1,22 @@
 /**
- * Cross-platform storage adapter
- * Web: localStorage (direct)
- * Mobile: AsyncStorage (dynamic import, only loaded on RN)
+ * Vite-Safe Platform Storage Adapter
+ * Bypasses Vite's static import analyzer by relying on standard web APIs
  */
+
 export const storage = {
     getItem: async (key) => {
         if (typeof window !== 'undefined' && window.localStorage) {
-            return window.localStorage.getItem(key); // Web
+            return window.localStorage.getItem(key);
         }
-        // Mobile only — dynamic import so Vite never bundles it
-        const { default: AsyncStorage } = await import(/* @vite-ignore */ '@react-native-async-storage/async-storage');
-        return await AsyncStorage.getItem(key);
+        console.warn(`[SunStay] Storage not available for key: ${key}`);
+        return null;
     },
+
     setItem: async (key, value) => {
         if (typeof window !== 'undefined' && window.localStorage) {
-            return window.localStorage.setItem(key, value); // Web
+            window.localStorage.setItem(key, value);
+            return;
         }
-        const { default: AsyncStorage } = await import(/* @vite-ignore */ '@react-native-async-storage/async-storage');
-        return await AsyncStorage.setItem(key, value);
+        console.warn(`[SunStay] Storage not available for key: ${key}`);
     }
 };
