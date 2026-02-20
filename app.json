@@ -1,0 +1,42 @@
+{
+    "expo": {
+        "name": "SunStay",
+        "slug": "sunstay-mobile",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./public/sunstay-icon.png",
+        "userInterfaceStyle": "automatic",
+        "splash": {
+            "backgroundColor": "#f59e0b",
+            "resizeMode": "contain"
+        },
+        "platforms": [
+            "ios",
+            "android",
+            "web"
+        ],
+        "web": {
+            "bundler": "metro",
+            "output": "single",
+            "favicon": "./public/favicon.ico"
+        },
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.sunstay.mobile"
+        },
+        "android": {
+            "adaptiveIcon": {
+                "backgroundColor": "#f59e0b"
+            },
+            "package": "com.sunstay.mobile"
+        },
+        "extra": {
+            "mapboxToken": "",
+            "openWeatherApiKey": "",
+            "melbourneCoords": {
+                "lat": -37.8136,
+                "lon": 144.9631
+            }
+        }
+    }
+}

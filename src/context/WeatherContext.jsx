@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { fetchWeatherWithCache } from '../hooks/useWeather';
 
 const WeatherContext = createContext(null);
 
@@ -65,33 +66,13 @@ export const WeatherProvider = ({ children }) => {
             ]
         };
 
-        // Skip API call if no valid key is set
-        if (!WEATHER_API_KEY) {
-            console.log('Weather API key not configured, using demo weather data');
-            setWeather(DEMO_WEATHER);
-            setTheme('sunny');
-            setLoading(false);
-            return;
-        }
-
         try {
-            // Standard weather call
-            const response = await axios.get(
-                `https://api.openweathermap.org/data/2.5/weather?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}&units=metric`
+            // Use the caching layer — handles cache hit, API call, and fallback
+            const weatherData = await fetchWeatherWithCache(
+                MELBOURNE_COORDS.lat,
+                MELBOURNE_COORDS.lon,
+                WEATHER_API_KEY
             );
-
-            const weatherData = response.data;
-
-            // Try to fetch UV if it's not in the main response (standard /weather doesn't have it)
-            try {
-                const uvResponse = await axios.get(
-                    `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
-                );
-                weatherData.uvi = uvResponse.data.value;
-            } catch (uvErr) {
-                console.log('UV API failed or not available, using default based on conditions');
-                weatherData.uvi = weatherData.weather[0].main === 'Clear' ? 8 : 2;
-            }
 
             setWeather(weatherData);
 
@@ -103,7 +84,7 @@ export const WeatherProvider = ({ children }) => {
             setLoading(false);
         } catch (error) {
             console.error('Error fetching weather:', error);
-            // Use demo weather as fallback if API fails
+            // Use demo weather as fallback if everything fails
             console.log('Using demo weather data as fallback');
             setWeather(DEMO_WEATHER);
             setTheme('sunny');
