@@ -450,23 +450,23 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             {/* Overlay for Loading, Error, or Missing Token */}
             {showOverlay && (
-                <div className="ss-map-overlay-error bg-[#fffcf5]">
+                <div className="ss-map-overlay-error bg-[#fffbf0]">
                     {/* High-Fidelity Fallback UI: Sun Intelligence Heatmap */}
                     {(isTokenMissing || mapError) ? (
                         <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                            {/* Heatmap Background - Brighter Aerial Photo */}
+                            {/* Heatmap Background - High quality aerial */}
                             <img
                                 src="https://images.unsplash.com/photo-1549443542-99086fd59379?auto=format&fit=crop&q=80&w=2000"
                                 alt="Melbourne Aerial View"
-                                className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-multiply"
+                                className="absolute inset-0 w-full h-full object-cover opacity-15 mix-blend-multiply grayscale-[20%]"
                                 onError={(e) => {
                                     e.target.src = 'https://images.unsplash.com/photo-1518173946687-a4c8a9833d8e?auto=format&fit=crop&q=80&w=2000';
                                 }}
                             />
 
                             {/* Map UI Shield / Pattern - Warm Sunny Gradients */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-amber-100/40 via-white/10 to-transparent" />
-                            <div className="absolute inset-0 pointer-events-none opacity-40" style={{ backgroundImage: 'radial-gradient(#f59e0b 0.8px, transparent 0.8px)', backgroundSize: '32px 32px' }} />
+                            <div className="absolute inset-0 bg-gradient-to-br from-amber-200/30 via-transparent to-amber-100/20" />
+                            <div className="absolute inset-0 pointer-events-none opacity-50" style={{ backgroundImage: 'radial-gradient(#f59e0b 0.6px, transparent 0.6px)', backgroundSize: '30px 30px' }} />
 
                             {/* Fallback Search/Marker Layer (Interactive) */}
                             <div className="relative z-10 w-full h-full">
