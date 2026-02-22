@@ -52,10 +52,10 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
         const loadTimeout = setTimeout(() => {
             if (!map.current || !mapLoaded) {
-                console.warn('Map loading timed out after 12 seconds.');
+                console.warn('Map loading timed out after 8 seconds.');
                 setMapError(true);
             }
-        }, 12000);
+        }, 8000);
 
         try {
             map.current = new mapboxgl.Map({
@@ -76,15 +76,14 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             map.current.on('error', (e) => {
                 console.error('Mapbox error:', e.error);
-                const errMsg = e.error?.message || e.error?.toString() || '';
-                if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('access token') || errMsg.includes('Not Authorized')) {
-                    clearTimeout(loadTimeout);
-                    setMapError(true);
-                }
+                // Broaden error detection to trigger fallback on any critical Mapbox error
+                clearTimeout(loadTimeout);
+                setMapError(true);
             });
 
             // Compact navigation controls
-            map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+            // Move controls to top-right to avoid overlap with Sunny mascot in bottom-right
+            map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
         } catch (error) {
             console.error('Error initializing map:', error);
             clearTimeout(loadTimeout);
