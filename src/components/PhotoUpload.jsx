@@ -306,6 +306,8 @@ const PhotoUpload = ({ venue, onPhotoUploaded, categoryConfig }) => {
     const captureSubtext = cc.captureSubtext || 'Camera or gallery';
     const uploadButtonText = cc.uploadButtonText || 'Upload Weather-Tagged Photo';
 
+    const isVibeCategory = cc.category === 'hotel' || cc.category === 'airbnb';
+
     return (
         <>
             {/* Share Photo Button */}
@@ -314,11 +316,14 @@ const PhotoUpload = ({ venue, onPhotoUploaded, categoryConfig }) => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setIsOpen(true)}
-                className="w-full py-3 bg-white/70 backdrop-blur-sm border border-gray-200 text-gray-700 font-bold text-sm rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group"
+                className={isVibeCategory
+                    ? "w-full py-3 bg-[#FFEA00] text-gray-900 font-black text-sm rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group"
+                    : "w-full py-3 bg-white/70 backdrop-blur-sm border border-gray-200 text-gray-700 font-bold text-sm rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group"
+                }
             >
-                <Camera size={18} className="text-orange-500 group-hover:text-orange-600 transition-colors" />
+                {!isVibeCategory && <Camera size={18} className="text-orange-500 group-hover:text-orange-600 transition-colors" />}
                 <span>{buttonText}</span>
-                <span className="text-xs text-gray-400 font-normal">{buttonSubtext}</span>
+                {!isVibeCategory && <span className="text-xs text-gray-400 font-normal">{buttonSubtext}</span>}
             </motion.button>
 
             {/* Upload Modal */}
@@ -331,7 +336,7 @@ const PhotoUpload = ({ venue, onPhotoUploaded, categoryConfig }) => {
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={handleCancel}
-                            className="fixed inset-0 bg-black/40 z-[60]"
+                            className="fixed inset-0 bg-black/40 z-[999999]"
                         />
 
                         {/* Modal */}
@@ -340,7 +345,7 @@ const PhotoUpload = ({ venue, onPhotoUploaded, categoryConfig }) => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className="fixed inset-x-4 top-[10%] z-[61] mx-auto max-w-md"
+                            className="fixed inset-x-4 top-[10%] z-[999999] mx-auto max-w-md"
                         >
                             <div className="photo-upload-modal bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
                                 {/* Header */}

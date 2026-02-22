@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import sunnyMascotImg from '../assets/sunny-mascot.jpg';
 
 const SunnyMascot = ({ onClick, isChatOpen }) => {
     const [isHovered, setIsHovered] = useState(false);
 
     return (
         <motion.div
-            className="fixed bottom-6 right-6 z-30"
+            className="fixed bottom-6 right-6 z-10 pointer-events-none"
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', damping: 15, delay: 0.5 }}
@@ -17,7 +18,7 @@ const SunnyMascot = ({ onClick, isChatOpen }) => {
                 onHoverEnd={() => setIsHovered(false)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                className="w-20 h-20 rounded-full shadow-2xl flex items-center justify-center cursor-pointer group relative overflow-hidden"
+                className="w-20 h-20 rounded-full shadow-2xl flex items-center justify-center cursor-pointer group relative overflow-hidden pointer-events-auto"
                 animate={{
                     y: isChatOpen ? 0 : [0, -8, 0],
                 }}
@@ -40,7 +41,7 @@ const SunnyMascot = ({ onClick, isChatOpen }) => {
 
                 {/* Sunny mascot image */}
                 <motion.img
-                    src="/assets/sunny-mascot.jpg"
+                    src={sunnyMascotImg}
                     alt="Sunny"
                     className={`w-full h-full rounded-full object-cover relative z-10 border-4 ${isChatOpen ? 'border-green-400/70' : 'border-white/50'
                         }`}

@@ -9,7 +9,7 @@ import {
     generateHourlyForecast,
 } from '../data/windIntelligence';
 
-const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn }, ref) => {
+const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyMode }, ref) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const markers = useRef([]);
@@ -155,6 +155,25 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             pill.className = `ss-marker-pill ss-marker-${color}`;
         });
     }, [weather, weatherColorFn]);
+
+    // Handle Cozy Mode Glow
+    useEffect(() => {
+        markers.current.forEach(({ marker, venue }) => {
+            const el = marker.getElement();
+            const pill = el.querySelector('.ss-marker-pill');
+            if (!pill) return;
+
+            const isCozy = (venue.tags || []).some(tag =>
+                ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(tag)
+            );
+
+            if (cozyMode && isCozy) {
+                pill.classList.add('ss-marker-cozy-glow');
+            } else {
+                pill.classList.remove('ss-marker-cozy-glow');
+            }
+        });
+    }, [cozyMode]);
 
     const addDemoVenueMarkers = () => {
         demoVenues.forEach((venue) => {
@@ -466,7 +485,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                                                 onVenueSelect(venue);
                                             }}
                                         >
-                                            <div className={`ss-marker-pill ss-marker-${weatherColorFn(weather, venue)} shadow-xl border-2 border-white/30`}>
+                                            <div className={`ss-marker-pill ss-marker-${weather && weatherColorFn ? weatherColorFn(weather, venue) : 'sunny'} shadow-xl border-2 border-white/30 ${(cozyMode && (venue.tags || []).some(t => ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t))) ? 'ss-marker-cozy-glow' : ''}`}>
                                                 <span className="ss-marker-emoji">{venue.emoji}</span>
                                             </div>
                                             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/80 text-white text-[10px] px-2 py-1 rounded-full pointer-events-none">

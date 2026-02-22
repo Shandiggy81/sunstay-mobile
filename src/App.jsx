@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
+import sunBadgeImg from './assets/sun-badge.jpg';
+import fireIconImg from './assets/fire-icon.jpg';
 
 // Loading fallback component
 const LoadingScreen = () => (
@@ -173,6 +175,7 @@ const AppContent = () => {
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState] = useState('peek'); // 'peek', 'expanded', 'closed'
     const [mapQuickFilter, setMapQuickFilter] = useState(null);
+    const [cozyMode, setCozyMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const mapRef = useRef(null);
     const listRef = useRef(null);
@@ -181,9 +184,10 @@ const AppContent = () => {
     // Calculate filtered venue IDs based on active filters (Types + Intents + Tags)
     const filteredVenueIds = useMemo(() => {
         // Separate filter types
-        const typeFilters = activeFilters.filter(f => f.startsWith('all-'));
-        const intentFilters = activeFilters.filter(f => f.startsWith('sun-'));
-        const tagFilters = activeFilters.filter(f => !f.startsWith('all-') && !f.startsWith('sun-'));
+        const filters = activeFilters || [];
+        const typeFilters = filters.filter(f => f.startsWith('all-'));
+        const intentFilters = filters.filter(f => f.startsWith('sun-'));
+        const tagFilters = filters.filter(f => !f.startsWith('all-') && !f.startsWith('sun-'));
 
         // Match logic
         const categoryData = FILTER_CATEGORIES;
@@ -230,15 +234,20 @@ const AppContent = () => {
 
                 // 3. Tag matching - look up the 'tag' property for each filter ID
                 const vTags = v.tags || [];
-                const hasTagMatch = tagFilters.length === 0 || tagFilters.every(id => {
+                const hasTagMatch = tagFilters.length === 0 || tagFilters.some(id => {
                     const filter = categoryData.find(c => c.id === id);
                     return filter ? vTags.includes(filter.tag) : false;
                 });
 
                 return hasTagMatch;
             })
+            .filter(v => {
+                if (!cozyMode) return true;
+                const cozyTags = ['Fireplace', 'Heaters', 'Indoor Warmth'];
+                return (v.tags || []).some(tag => cozyTags.includes(tag));
+            })
             .map(v => v.id);
-    }, [activeFilters]);
+    }, [activeFilters, cozyMode]);
 
     // Get filtered + searched venues for list
     const filteredVenues = useMemo(() => {
@@ -320,19 +329,19 @@ const AppContent = () => {
 
     // Chat actions
     const handleFindWheelchair = useCallback(() => {
-        setActiveFilters(['Wheelchair Accessible']);
+        setActiveFilters(['wheelchair']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
 
     const handleFindDogFriendly = useCallback(() => {
-        setActiveFilters(['Pet Friendly']);
+        setActiveFilters(['pet-friendly']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
 
     const handleFindSmoking = useCallback(() => {
-        setActiveFilters(['Smoking Area']);
+        setActiveFilters(['smoking']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
@@ -346,13 +355,13 @@ const AppContent = () => {
     }, [handleVenueSelect]);
 
     const handleFindFamily = useCallback(() => {
-        setActiveFilters(['Pram Friendly']);
+        setActiveFilters(['pram-friendly']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
 
     const handleFindBusiness = useCallback(() => {
-        setActiveFilters(['Large Groups']);
+        setActiveFilters(['large-groups']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
@@ -391,7 +400,7 @@ const AppContent = () => {
                     {/* Logo */}
                     <div className="ss-header-logo">
                         <motion.img
-                            src="/assets/sun-badge.jpg"
+                            src={sunBadgeImg}
                             alt="Sunstay"
                             className="ss-header-logo-img"
                             animate={{ rotate: [0, 5, -5, 0] }}
@@ -432,8 +441,6 @@ const AppContent = () => {
                             placeholder="Search venues, suburbs…"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            onFocus={() => setSearchFocused(true)}
-                            onBlur={() => setSearchFocused(false)}
                             className="ss-search-input"
                             id="venue-search"
                         />
@@ -505,6 +512,13 @@ const AppContent = () => {
                                 <span>{f.label}</span>
                             </button>
                         ))}
+                        <button
+                            onClick={() => setCozyMode(!cozyMode)}
+                            className={`ss-map-pill ${cozyMode ? 'bg-orange-500 text-white border-orange-600 shadow-[0_0_10px_rgba(255,100,0,0.5)]' : ''}`}
+                        >
+                            <span>🔥</span>
+                            <span>Cozy Mode</span>
+                        </button>
                     </div>
 
                     {/* Map container */}
@@ -515,6 +529,7 @@ const AppContent = () => {
                             filteredVenueIds={filteredVenueIds}
                             mapRef={mapRef}
                             weatherColorFn={getMarkerWeatherColor}
+                            cozyMode={cozyMode}
                         />
                     </div>
 
@@ -662,7 +677,7 @@ const AppContent = () => {
                 transition={{ duration: 0.6, delay: 0.6 }}
                 className="ss-footer-badge"
             >
-                <img src="/assets/fire-icon.jpg" alt="" className="ss-footer-badge-icon" />
+                <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
                 Sales Demo · {demoVenues.length} Partner Venues
             </motion.div>
         </div>

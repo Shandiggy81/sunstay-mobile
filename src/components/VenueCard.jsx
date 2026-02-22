@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import sunBadgeImg from '../assets/sun-badge.jpg';
 import {
     MapPin, Thermometer, CloudRain, Sun, Cloud, Wind, Sunset,
     Flame, BarChart3, ShieldCheck, TrendingUp, X, Clock, Loader2,
@@ -260,7 +261,7 @@ const VenueCard = ({ venue, onClose }) => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/25 z-40"
+                        className="fixed inset-0 bg-black/25 z-[999999]"
                     />
 
                     {/* Bottom sheet card */}
@@ -269,12 +270,12 @@ const VenueCard = ({ venue, onClose }) => {
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-                        className="fixed inset-0 z-50 flex flex-col pt-[2vh] sm:pt-0"
+                        className="fixed inset-0 z-[999999] flex flex-col pt-[2vh] sm:pt-0"
                     >
                         <div className={`relative flex-1 min-h-0 bg-white rounded-t-[40px] shadow-[-10px_0_30px_rgba(0,0,0,0.15)] border-t ${cardAccent} flex flex-col overflow-hidden mx-auto max-w-2xl w-full`}>
 
                             {/* Sticky Premium Header */}
-                            <div className={`sticky top-0 z-[60] px-6 py-4 bg-gradient-to-r ${getButtonGradient()} flex items-center justify-between shadow-md`}>
+                            <div className={`sticky top-0 z-[999999] px-6 py-4 bg-gradient-to-r ${getButtonGradient()} flex items-center justify-between shadow-md`}>
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shadow-inner border border-white/10">
                                         {venue.emoji}
@@ -575,7 +576,7 @@ const VenueCard = ({ venue, onClose }) => {
                                 <div className="mb-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <img src="/assets/sun-badge.jpg" alt="Score" className="w-5 h-5 rounded-full" />
+                                            <img src={sunBadgeImg} alt="Score" className="w-5 h-5 rounded-full" />
                                             Sunstay Score
                                             {weather && (
                                                 <span className="text-xs text-gray-400 font-normal">(Live)</span>

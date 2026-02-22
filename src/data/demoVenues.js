@@ -329,7 +329,7 @@ export const demoVenues = [
         lng: 144.96260,
         emoji: '🔥',
         vibe: 'Rooftop Courtyard',
-        tags: ['Cozy', 'After Work', 'Rooftop', 'Wheelchair Accessible'],
+        tags: ['Cozy', 'After Work', 'Rooftop', 'Wheelchair Accessible', 'Fireplace'],
         notes: 'Real Pacific Concepts venue.',
     },
     {
@@ -381,7 +381,7 @@ export const demoVenues = [
         lng: 144.97038,
         emoji: '🌶️',
         vibe: 'Southeast Asian Garden',
-        tags: ['Premium', 'Sunny', 'Large Groups'],
+        tags: ['Premium', 'Sunny', 'Large Groups', 'Indoor Warmth'],
         notes: 'Demo-only example venue for outreach deck.',
     },
     {
@@ -420,7 +420,7 @@ export const demoVenues = [
         lng: 144.99610,
         emoji: '🛋️',
         vibe: 'Cocktail Lounge',
-        tags: ['Pub', 'Historic', 'Wheelchair Accessible', 'Shaded'],
+        tags: ['Pub', 'Historic', 'Wheelchair Accessible', 'Shaded', 'Fireplace'],
         notes: 'Demo-only example venue for outreach deck.',
     },
     {
@@ -472,7 +472,7 @@ export const demoVenues = [
         lng: 144.95559,
         emoji: '📚',
         vibe: 'Bookshop Cafe',
-        tags: ['Cozy', 'Sunny', 'Wheelchair Accessible'],
+        tags: ['Cozy', 'Sunny', 'Wheelchair Accessible', 'Heaters'],
         notes: 'Demo-only example venue for outreach deck.',
     },
     // Bonus: Beach & iconic
@@ -499,7 +499,7 @@ export const demoVenues = [
         lng: 144.96577,
         emoji: '🌊',
         vibe: 'Floating Bar',
-        tags: ['River', 'Premium', 'Wheelchair Accessible', 'Smoking Area', 'Shaded'],
+        tags: ['River', 'Premium', 'Wheelchair Accessible', 'Smoking Area', 'Shaded', 'Indoor Warmth'],
         notes: 'Real Pacific Concepts venue.',
     },
     {
@@ -512,7 +512,7 @@ export const demoVenues = [
         lng: 144.97672,
         emoji: '🌿',
         vibe: 'Maze Garden',
-        tags: ['Hidden', 'Vines', 'Beer Garden', 'Pet Friendly'],
+        tags: ['Hidden', 'Vines', 'Beer Garden', 'Pet Friendly', 'Heaters'],
         notes: 'Real Sand Hill Road venue.',
     },
     {
@@ -555,7 +555,7 @@ export const demoVenues = [
         lng: 144.99350,
         emoji: '🧘',
         vibe: 'Neighbourhood Bar',
-        tags: ['Cozy', 'Covered', 'Shaded', 'Calm', 'Local'],
+        tags: ['Cozy', 'Covered', 'Shaded', 'Calm', 'Local', 'Indoor Warmth'],
         price: '$',
         capacity: 80,
         notes: 'Independent neighbourhood gem in Balaclava.',
@@ -604,7 +604,7 @@ export const demoVenues = [
         vibe: 'Luxury Hotel',
         typeCategory: 'Hotel',
         typeLabel: 'Hotel',
-        tags: ['Hotel', 'Business Friendly', 'All-weather', 'Short Walk to…', 'Premium'],
+        tags: ['Hotel', 'Business Friendly', 'All-weather', 'Short Walk to…', 'Premium', 'Fireplace'],
         price: '$$$$',
         notes: 'Demo hotel for ALH Hotels.',
     },
@@ -620,7 +620,7 @@ export const demoVenues = [
         vibe: 'Premium Corporate Hotel',
         typeCategory: 'Hotel',
         typeLabel: 'Hotel',
-        tags: ['Hotel', 'Conference', 'Business Friendly', 'All-weather'],
+        tags: ['Hotel', 'Conference', 'Business Friendly', 'All-weather', 'Heaters'],
         price: '$$$',
         notes: 'Demo hotel for Pullman Melbourne.',
         roomTypes: [
@@ -1010,6 +1010,7 @@ export const FILTER_CATEGORIES = [
     { id: 'pet-friendly', label: 'Pet Friendly', icon: '🐕', tag: 'Pet Friendly' },
     { id: 'wheelchair', label: 'Wheelchair Accessible', icon: '♿', tag: 'Wheelchair Accessible' },
     { id: 'smoking', label: 'Smoking Area', icon: '🚬', tag: 'Smoking Area' },
+    { id: 'large-groups', label: 'Large Groups', icon: '👥', tag: 'Large Groups' },
     { id: 'shade', label: 'Shade/Cover', icon: '⛱️', tag: 'Shaded' },
 ];
 

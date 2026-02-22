@@ -158,7 +158,7 @@ const CATEGORY_CONFIG = {
     },
 
     hotel: {
-        buttonText: 'Share your stay experience',
+        buttonText: "How's the vibe?",
         buttonSubtext: '🏨 Weather-Tagged',
         buttonIcon: '🏨',
 
@@ -178,7 +178,7 @@ const CATEGORY_CONFIG = {
     },
 
     airbnb: {
-        buttonText: "How's the outdoor space today?",
+        buttonText: "How's the vibe?",
         buttonSubtext: '🌿 Weather-Tagged',
         buttonIcon: '🏡',
 
