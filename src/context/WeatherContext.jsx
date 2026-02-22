@@ -87,7 +87,7 @@ export const WeatherProvider = ({ children }) => {
             // Use demo weather as fallback if everything fails
             console.log('Using demo weather data as fallback');
             setWeather(DEMO_WEATHER);
-            setTheme('sunny');
+            setTheme('sunny'); // Force amber theme on failure
             setLoading(false);
         }
     };

@@ -83,7 +83,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             // Compact navigation controls
             // Move controls to top-right to avoid overlap with Sunny mascot in bottom-right
-            map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+            if (!isFallbackMode) {
+                map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+            }
         } catch (error) {
             console.error('Error initializing map:', error);
             clearTimeout(loadTimeout);
@@ -173,6 +175,10 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             }
         });
     }, [cozyMode]);
+
+    // Derived state for hiding controls
+    const isFallbackMode = isTokenMissing || mapError;
+    const showControls = mapLoaded && !mapError && !comfortMode;
 
     const addDemoVenueMarkers = () => {
         demoVenues.forEach((venue) => {
@@ -280,7 +286,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     };
 
     return (
-        <div className="ss-mapview-root">
+        <div className={`ss-mapview-root ${(isTokenMissing || mapError) ? 'ssr-map-fallback-active' : ''}`}>
             <div ref={mapContainer} className="ss-mapview-canvas" />
 
             {/* UV Index Layer */}
@@ -444,23 +450,23 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             {/* Overlay for Loading, Error, or Missing Token */}
             {showOverlay && (
-                <div className="ss-map-overlay-error bg-slate-900">
+                <div className="ss-map-overlay-error bg-[#fffcf5]">
                     {/* High-Fidelity Fallback UI: Sun Intelligence Heatmap */}
                     {(isTokenMissing || mapError) ? (
                         <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                            {/* Heatmap Background */}
+                            {/* Heatmap Background - Brighter Aerial Photo */}
                             <img
-                                src="https://images.unsplash.com/photo-1548680373-f6c651ee8944?auto=format&fit=crop&q=80&w=2000"
-                                alt="Melbourne Sun Intelligence Heatmap"
-                                className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-screen"
+                                src="https://images.unsplash.com/photo-1549443542-99086fd59379?auto=format&fit=crop&q=80&w=2000"
+                                alt="Melbourne Aerial View"
+                                className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-multiply"
                                 onError={(e) => {
                                     e.target.src = 'https://images.unsplash.com/photo-1518173946687-a4c8a9833d8e?auto=format&fit=crop&q=80&w=2000';
                                 }}
                             />
 
-                            {/* Map UI Shield / Pattern */}
-                            <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-transparent to-slate-900/60" />
-                            <div className="absolute inset-0 pointer-events-none opacity-20" style={{ backgroundImage: 'radial-gradient(#fbbf24 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }} />
+                            {/* Map UI Shield / Pattern - Warm Sunny Gradients */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-amber-100/40 via-white/10 to-transparent" />
+                            <div className="absolute inset-0 pointer-events-none opacity-40" style={{ backgroundImage: 'radial-gradient(#f59e0b 0.8px, transparent 0.8px)', backgroundSize: '32px 32px' }} />
 
                             {/* Fallback Search/Marker Layer (Interactive) */}
                             <div className="relative z-10 w-full h-full">
