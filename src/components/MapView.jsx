@@ -24,6 +24,12 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const { weather, getUVIndex } = useWeather();
     const uvIndex = getUVIndex();
 
+    // Derived State (Moved to top to prevent initialization errors in production)
+    const isTokenMissing = !MAPBOX_TOKEN || !MAPBOX_TOKEN.startsWith('pk.');
+    const isFallbackMode = isTokenMissing || mapError;
+    const showOverlay = !mapLoaded || mapError;
+    const showControls = mapLoaded && !mapError && !comfortMode;
+
     // Expose flyTo method to parent via ref
     useImperativeHandle(mapRef, () => ({
         flyTo: (options) => {
@@ -48,7 +54,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             return;
         }
 
-        mapboxgl.accessToken = MAPBOX_TOKEN;
+        mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || MAPBOX_TOKEN;
 
         const loadTimeout = setTimeout(() => {
             if (!map.current || !mapLoaded) {
@@ -176,9 +182,13 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         });
     }, [cozyMode]);
 
-    // Derived state for hiding controls
-    const isFallbackMode = isTokenMissing || mapError;
-    const showControls = mapLoaded && !mapError && !comfortMode;
+    // Standard markers visibility toggle
+    useEffect(() => {
+        markers.current.forEach(({ marker }) => {
+            const el = marker.getElement();
+            el.style.display = comfortMode ? 'none' : 'block';
+        });
+    }, [comfortMode]);
 
     const addDemoVenueMarkers = () => {
         demoVenues.forEach((venue) => {
@@ -275,9 +285,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             el.style.display = comfortMode ? 'none' : 'block';
         });
     }, [comfortMode]);
-
-    const isTokenMissing = !MAPBOX_TOKEN || !MAPBOX_TOKEN.startsWith('pk.');
-    const showOverlay = !mapLoaded || mapError;
 
     const fmtHour = (h) => {
         if (h === 0 || h === 24) return '12am';
