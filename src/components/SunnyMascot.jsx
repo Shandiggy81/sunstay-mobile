@@ -7,7 +7,7 @@ const SunnyMascot = ({ onClick, isChatOpen }) => {
 
     return (
         <motion.div
-            className="fixed bottom-6 right-6 z-10 pointer-events-none"
+            className="fixed bottom-6 right-6 z-[1000] pointer-events-none"
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', damping: 15, delay: 0.5 }}

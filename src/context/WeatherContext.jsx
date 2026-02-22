@@ -93,13 +93,9 @@ export const WeatherProvider = ({ children }) => {
     };
 
     const getThemeFromCondition = (condition) => {
-        if (condition.includes('rain') || condition.includes('drizzle')) {
-            return 'rainy';
-        } else if (condition.includes('cloud')) {
-            return 'cloudy';
-        } else {
-            return 'sunny';
-        }
+        // ALWAYS return sunny to maintain the Amber aesthetic requested by the user
+        // despite real-time rain/clouds in Melbourne
+        return 'sunny';
     };
 
     const getBackgroundGradient = () => {

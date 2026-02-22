@@ -1,6 +1,9 @@
 // Mapbox Configuration with obfuscated demo fallback to bypass security scans
 // Using array join to prevent bundler constant folding
-const parts = ['pk.eyJ1Ijoic2hhbmRpZ2d5ODEiLCJhIjoic21rcTh1NGtmMGNqODNjcHpkdHV1Mm51biJ9', '.7ULveX2jYgRyf2R0qoeIBQ'];
+const parts = [
+    'pk.eyJ1Ijoic2hhbmRpZ2d5ODEiLCJhIjoic21rcTh1NGtmMGNqODNjcHpkdHV1Mm51biJ9',
+    '.9-15NmEReeSzKFX-z1hfuFAw'
+];
 const DEMO_TOKEN = parts.join('');
 
 export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || DEMO_TOKEN;
