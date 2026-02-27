@@ -12,8 +12,11 @@ const FilterBar = ({ activeFilters, onFilterToggle, onClearFilters }) => {
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={onClearFilters}
+                        whileTap={{ scale: 0.985 }}
+                        onClick={(e) => {
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                            onClearFilters(e);
+                        }}
                         className="px-4 py-2 rounded-full text-sm font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors whitespace-nowrap"
                     >
                         Clear All ✕
@@ -31,8 +34,11 @@ const FilterBar = ({ activeFilters, onFilterToggle, onClearFilters }) => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
                             whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => onFilterToggle(filter.id)}
+                            whileTap={{ scale: 0.985 }}
+                            onClick={() => {
+                                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                                onFilterToggle(filter.id);
+                            }}
                             className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap flex items-center gap-1.5 touch-pan-x ${isActive
                                 ? 'bg-orange-50 text-[#c2410c] border-[#c2410c] shadow-sm'
                                 : 'bg-white/80 text-gray-700 hover:bg-white border border-gray-200'

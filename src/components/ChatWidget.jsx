@@ -98,7 +98,7 @@ const ChatWidget = ({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 20, scale: 0.9 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="fixed bottom-28 right-6 z-[999999] w-[350px] max-w-[calc(100vw-3rem)]"
+                    className="fixed bottom-28 right-6 z-[999999] w-[320px] max-w-[calc(100vw-3rem)]"
                 >
                     {/* Chat window */}
                     <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
@@ -160,8 +160,11 @@ const ChatWidget = ({
                                             animate={{ opacity: 1, scale: 1 }}
                                             transition={{ delay: index * 0.08 }}
                                             whileHover={{ scale: 1.05 }}
-                                            whileTap={{ scale: 0.95 }}
-                                            onClick={() => handleQuickReply(reply.action, reply.text, reply.response)}
+                                            whileTap={{ scale: 0.985 }}
+                                            onClick={() => {
+                                                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                                                handleQuickReply(reply.action, reply.text, reply.response);
+                                            }}
                                             className="flex-shrink-0 snap-start h-[48px] px-6 bg-white border-2 border-gray-100 rounded-full text-[14px] font-black text-gray-700 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap"
                                         >
                                             <span>{reply.text}</span>
@@ -173,8 +176,11 @@ const ChatWidget = ({
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    onClick={resetChat}
+                                    whileTap={{ scale: 0.985 }}
+                                    onClick={() => {
+                                        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                                        resetChat();
+                                    }}
                                     className="w-full h-[52px] bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl text-[15px] font-black text-white flex items-center justify-center gap-2 shadow-lg shadow-orange-100"
                                 >
                                     <MessageCircle size={18} />

@@ -28,15 +28,15 @@ body,
 /* Glassmorphism utility */
 .glass {
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .glass-dark {
   background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -53,8 +53,8 @@ body,
 
 .venue-marker-pill {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   border: 2px solid rgba(255, 255, 255, 0.8);
   border-radius: 20px;
   padding: 6px 14px;
@@ -126,6 +126,7 @@ body,
 
 .mapboxgl-ctrl-group button {
   background: rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 
@@ -2536,6 +2537,31 @@ body,
   flex-shrink: 0;
 }
 
+@media (max-width: 767px) {
+  .ss-header {
+    padding: 6px 8px;
+  }
+
+  .ss-header-inner {
+    padding: 6px 12px;
+    margin-bottom: 4px;
+    border-radius: 14px;
+  }
+
+  .ss-header-logo-img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .ss-header-title {
+    font-size: 16px;
+  }
+
+  .ss-header-tagline {
+    font-size: 9px;
+  }
+}
+
 @media (min-width: 768px) {
   .ss-header {
     padding: 12px 16px 8px;
@@ -2600,6 +2626,27 @@ body,
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.5);
   z-index: 45;
+}
+
+.ss-cta-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.2);
+  transition: all 0.2s ease;
+}
+
+.ss-cta-btn:hover {
+  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.3);
+  transform: translateY(-1px);
 }
 
 /* ── Main Split Layout ─────────────────────────────────── */
@@ -2949,6 +2996,27 @@ body,
   display: flex;
   flex-direction: column;
   min-width: 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ss-map-area--expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: white;
+}
+
+.ss-map-area--expanded .ss-map-container {
+  border-radius: 0;
+  border: none;
+}
+
+.ss-map-area--expanded .ss-map-expand-btn {
+  bottom: auto;
+  top: 12px;
+  right: 12px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .ss-map-container {
@@ -3186,6 +3254,33 @@ body,
   gap: 6px;
   margin-bottom: 8px;
   flex-wrap: wrap;
+  padding: 4px 8px;
+}
+
+@media (max-width: 767px) {
+  .ss-map-pills {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    padding: 0 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    pointer-events: auto;
+  }
+
+  .ss-map-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ss-map-pill {
+    padding: 6px 12px;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 }
 
 .ss-map-pill {
@@ -3326,23 +3421,31 @@ body,
 /* ── Map Expand Button (mobile only) ───────────────────── */
 
 .ss-map-expand-btn {
-  display: none;
-  /* mobile only */
+  display: flex;
   position: absolute;
-  bottom: 8px;
-  right: 8px;
-  z-index: 10;
+  bottom: 80px;
+  right: 16px;
+  z-index: 50;
   align-items: center;
-  gap: 4px;
-  padding: 6px 14px;
+  gap: 6px;
+  padding: 8px 16px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  font-size: 11px;
-  font-weight: 700;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  font-weight: 800;
   color: #374151;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .ss-map-expand-btn {
+    display: none;
+  }
 }
 
 
@@ -5024,6 +5127,55 @@ body,
   background: linear-gradient(135deg, #fff7ed, #ffedd5);
   color: #9a3412;
   box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15);
+}
+
+/* ── Map Markers ───────────────────────────────────────── */
+.ss-map-marker {
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 1;
+}
+
+.ss-map-marker:hover {
+  transform: scale(1.4) translateY(-4px) !important;
+  z-index: 100 !important;
+}
+
+.ss-map-marker:active {
+  transform: scale(0.9) !important;
+}
+
+.ss-marker-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 2px solid white;
+  transition: inherit;
+}
+
+.ss-map-marker:hover .ss-marker-pill {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.ss-marker-pill::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 16px;
+  background: inherit;
+  opacity: 0;
+  z-index: -1;
+  transition: all 0.3s ease;
+}
+
+.ss-map-marker:hover .ss-marker-pill::after {
+  opacity: 0.2;
+  inset: -10px;
 }
 
 /* ── Guest Counter ───────────────────────────── */

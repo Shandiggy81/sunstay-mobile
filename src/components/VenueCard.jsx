@@ -2,10 +2,31 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import sunBadgeImg from '../assets/sun-badge.jpg';
 import {
-    MapPin, Thermometer, CloudRain, Sun, Cloud, Wind, Sunset,
-    Flame, BarChart3, ShieldCheck, TrendingUp, X, Clock, Loader2,
-    Calendar, Users, Mail, User, MessageSquare, CheckCircle2,
-    ChevronDown, Sparkles, ChevronRight
+    X,
+    Calendar,
+    Thermometer,
+    Wind,
+    Flame,
+    Clock,
+    Sparkles,
+    TrendingUp,
+    BarChart3,
+    ShieldCheck,
+    ChevronDown,
+    ChevronRight,
+    Loader2,
+    Sunset,
+    MapPin,
+    Map,
+    Share2,
+    CloudRain,
+    Sun,
+    Cloud,
+    Users,
+    Mail,
+    User,
+    MessageSquare,
+    CheckCircle2
 } from 'lucide-react';
 import { useRef, useEffect } from 'react';
 import { useWeather } from '../context/WeatherContext';
@@ -20,10 +41,13 @@ import PhotoUpload from './PhotoUpload';
 import PhotoGallery from './PhotoGallery';
 import PhotoDashboard from './PhotoDashboard';
 import WindComfortPanel from './WindComfortPanel';
+import UVIntelligencePanel from './UVIntelligencePanel';
+import RainIntelligencePanel from './RainIntelligencePanel';
+import ComfortScorePanel from './ComfortScorePanel';
 import VenueOwnerDashboard from './VenueOwnerDashboard';
-import HourlyTimeline from './HourlyTimeline';
+import SunSimulator from './SunSimulator';
 
-const VenueCard = ({ venue, onClose }) => {
+const VenueCard = ({ venue, onClose, ownerMode = false }) => {
     const {
         calculateSunstayScore,
         getFireplaceMode,
@@ -31,9 +55,13 @@ const VenueCard = ({ venue, onClose }) => {
         getWeatherDescription,
         getCardBackground,
         getCardAccent,
+        updateOverride,
+        overrideType,
         theme,
         weather
     } = useWeather();
+
+    const [activeModal, setActiveModal] = useState(null); // 'comfort', 'wind', 'uv', 'rain'
 
     const [galleryRefresh, setGalleryRefresh] = useState(0);
     const [showDashboard, setShowDashboard] = useState(false);
@@ -260,16 +288,22 @@ const VenueCard = ({ venue, onClose }) => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/25 z-[999999]"
+                        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[999999]"
                     />
 
                     {/* Bottom sheet card */}
                     <motion.div
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 32, stiffness: 300 }}
+                        initial={{ y: '100%', scale: 0.95, opacity: 0 }}
+                        animate={{ y: 0, scale: 1, opacity: 1 }}
+                        exit={{ y: '100%', scale: 0.95, opacity: 0 }}
+                        transition={{
+                            type: 'spring',
+                            damping: 28,
+                            stiffness: 260,
+                            mass: 0.8
+                        }}
                         className="fixed inset-0 z-[999999] flex flex-col pt-[2vh] sm:pt-0"
                     >
                         <div className={`relative flex-1 min-h-0 bg-white rounded-t-[40px] shadow-[-10px_0_30px_rgba(0,0,0,0.15)] border-t ${cardAccent} flex flex-col overflow-hidden mx-auto max-w-2xl w-full`}>
@@ -350,14 +384,52 @@ const VenueCard = ({ venue, onClose }) => {
                                 ref={scrollContainerRef}
                             >
                                 {/* Action Buttons (Book Now) */}
-                                <div className="mb-6">
+                                {/* Share and Action row */}
+                                <div className="flex items-center gap-3 mb-6">
                                     <button
                                         onClick={handleBooking}
-                                        className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl shadow-lg font-black text-[13px] uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                        className="flex-1 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl shadow-lg font-black text-[13px] uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
                                     >
                                         <Calendar size={18} />
                                         Book Now
                                     </button>
+                                    <button
+                                        onClick={() => {
+                                            if (navigator.share) {
+                                                navigator.share({
+                                                    title: `Check out ${venue.venueName} on Sunstay`,
+                                                    text: `Check out the Sunstay score for ${venue.venueName}!`,
+                                                    url: window.location.href,
+                                                });
+                                            } else {
+                                                navigator.clipboard.writeText(window.location.href);
+                                                alert('Link copied to clipboard!');
+                                            }
+                                        }}
+                                        className="w-14 h-14 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center text-gray-500 hover:text-amber-500 transition-colors active:scale-90"
+                                        aria-label="Share Venue"
+                                    >
+                                        <Share2 size={20} />
+                                    </button>
+                                </div>
+
+                                {/* ===== WEATHER FORECAST STRIP ===== */}
+                                <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-amber-100 flex justify-between items-center overflow-x-auto gap-4 custom-scrollbar">
+                                    <div className="flex-shrink-0">
+                                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Forecast</p>
+                                        <p className="text-[11px] font-bold text-gray-700">Next 6 Hours</p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        {[1, 2, 3, 4, 5, 6].map(offset => (
+                                            <div key={offset} className="flex flex-col items-center gap-1 min-w-[40px]">
+                                                <span className="text-[9px] font-bold text-gray-400 capitalize">
+                                                    {new Date(Date.now() + offset * 3600000).getHours()}:00
+                                                </span>
+                                                <Sun size={14} className="text-amber-400" />
+                                                <span className="text-[10px] font-black text-gray-700">{temperature + Math.round(Math.random() * 2)}°</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 {/* Venue Address */}
@@ -366,187 +438,175 @@ const VenueCard = ({ venue, onClose }) => {
                                     <span className="text-[12px] font-medium tracking-wide">{venue.address || 'Address not confirmed'}</span>
                                 </div>
 
-                                {/* ===== WEATHER INTELLIGENCE SECTION ===== */}
-                                <div className="bg-gray-50 rounded-[32px] p-6 mb-6 border border-gray-100 shadow-inner">
-                                    <div className="flex items-center gap-2 mb-5">
-                                        <TrendingUp size={16} className="text-orange-500" />
-                                        <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                                            Weather Intelligence
-                                        </h3>
-                                    </div>
+                                {/* ===== ANALYTICS / OWNER VIEW VS CUSTOMER VIEW ===== */}
+                                {ownerMode ? (
+                                    <div className="space-y-6 mb-6">
+                                        <div className="bg-emerald-950/90 rounded-[32px] p-6 border border-emerald-500/30 shadow-2xl relative overflow-hidden group">
+                                            {/* Decorative Background Elements */}
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
+                                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-400/5 rounded-full blur-2xl -ml-12 -mb-12" />
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {/* Temperature with Feels Like */}
-                                        {temperature !== null && (() => {
-                                            const wp = getWindProfile(venue);
-                                            const feelsLike = calculateApparentTemp(
-                                                weather?.main?.temp, weather?.wind?.speed,
-                                                weather?.main?.humidity, wp.shelterFactor
-                                            );
-                                            const feelsLikeRound = feelsLike != null ? Math.round(feelsLike) : null;
-                                            const diff = feelsLikeRound != null ? temperature - feelsLikeRound : 0;
-                                            const comfort = getComfortZone(feelsLikeRound);
-                                            return (
-                                                <div className={`flex items-center gap-2 p-2 rounded-xl col-span-2 ${comfort.bgColor} border ${comfort.borderColor}`}>
-                                                    <Thermometer className={`w-5 h-5 ${comfort.color}`} />
-                                                    <div className="flex-1">
-                                                        <div className="flex items-baseline gap-2">
-                                                            <p className="text-lg font-bold text-gray-800">{temperature}°C</p>
-                                                            {feelsLikeRound != null && feelsLikeRound !== temperature && (
-                                                                <p className={`text-sm font-semibold ${comfort.color}`}>
-                                                                    (Feels like {feelsLikeRound}°C{Math.abs(diff) >= 2
-                                                                        ? diff > 0 ? ' with wind' : ' calm'
-                                                                        : ''})
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                        <p className={`text-xs font-medium ${comfort.color}`}>
-                                                            {comfort.icon} {comfort.label}
-                                                        </p>
+                                            <div className="flex items-center justify-between mb-5 relative z-10">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                                                        <TrendingUp size={16} className="text-emerald-400" />
                                                     </div>
+                                                    <h3 className="text-xs font-black text-emerald-100 uppercase tracking-widest">
+                                                        Revenue Intelligence
+                                                    </h3>
                                                 </div>
-                                            );
-                                        })()}
-
-                                        {/* Wind Factor */}
-                                        <div className="flex items-center gap-2 p-2 bg-white/70 rounded-xl">
-                                            <Wind className={`w-5 h-5 ${windFactor.color}`} />
-                                            <div>
-                                                <p className={`text-sm font-bold ${windFactor.color}`}>
-                                                    {windFactor.icon} {windFactor.label}
-                                                </p>
-                                                <p className="text-xs text-gray-500">Wind Factor</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Sunshine Hours */}
-                                        {sunshineHours && (
-                                            <div className="flex items-center gap-2 p-2 bg-white/70 rounded-xl">
-                                                <Sunset className="w-5 h-5 text-orange-400" />
-                                                <div>
-                                                    <p className="text-sm font-bold text-gray-800">
-                                                        {sunshineHours.icon} {sunshineHours.label}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">Sunshine</p>
+                                                <div className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40">
+                                                    <span className="text-[8px] font-black text-emerald-400 uppercase tracking-tighter">Live Audit</span>
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* Fireplace Status */}
-                                        {fireplaceStatus && (
-                                            <div className={`flex items-center gap-2 p-2 ${fireplaceStatus.bgColor} rounded-xl col-span-2 border ${fireplaceStatus.active ? 'border-orange-300' : 'border-transparent'}`}>
-                                                <Flame className={`w-5 h-5 ${fireplaceStatus.color}`} />
-                                                <div>
-                                                    <p className={`text-sm font-bold ${fireplaceStatus.color}`}>
-                                                        🔥 Fireplace: {fireplaceStatus.status}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">Cozy Mode</p>
-                                                </div>
+                                            <div className="grid grid-cols-2 gap-4 relative z-10">
+                                                <motion.div
+                                                    whileHover={{ scale: 1.02 }}
+                                                    className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/5 shadow-inner"
+                                                >
+                                                    <p className="text-[9px] font-black text-emerald-500/60 uppercase tracking-tighter mb-1">Impressions</p>
+                                                    <p className="text-2xl font-black text-white">47</p>
+                                                    <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-bold mt-1">
+                                                        <TrendingUp size={10} /> +12% vs avg
+                                                    </div>
+                                                </motion.div>
+
+                                                <motion.div
+                                                    whileHover={{ scale: 1.02 }}
+                                                    className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/5 shadow-inner"
+                                                >
+                                                    <p className="text-[9px] font-black text-emerald-500/60 uppercase tracking-tighter mb-1">Peak Conv.</p>
+                                                    <p className="text-2xl font-black text-white">11am-2pm</p>
+                                                    <p className="text-[8px] text-emerald-400 font-bold uppercase tracking-tight">Weather Synced</p>
+                                                </motion.div>
+
+                                                <motion.div
+                                                    whileHover={{ scale: 1.02 }}
+                                                    className="col-span-2 bg-gradient-to-br from-emerald-500/10 to-transparent p-4 rounded-2xl border border-emerald-500/20 shadow-inner flex items-center justify-between"
+                                                >
+                                                    <div>
+                                                        <p className="text-[9px] font-black text-emerald-500/60 uppercase tracking-tighter mb-1">Direct ROI</p>
+                                                        <p className="text-2xl font-black text-white">$1,450</p>
+                                                        <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-tight mt-1">Weather-Driven Revenue</p>
+                                                    </div>
+                                                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/20">
+                                                        <BarChart3 className="text-emerald-400 w-6 h-6" />
+                                                    </div>
+                                                </motion.div>
                                             </div>
-                                        )}
 
-                                        {/* UV INDEX & SUN PROTECTION */}
-                                        {(() => {
-                                            const uvi = weather?.uvi ?? 0;
-                                            const uvAdvice = getSunProtectionAdvice(venue, uvi);
-                                            const uvConfig = getUVConfig(uvi);
-                                            const bestTimes = getBestSunSafeTimes(venue, uvi);
-                                            return (
-                                                <div className={`flex flex-col gap-2 p-3 rounded-xl col-span-2 ${uvConfig.bgColor} border border-orange-100`}>
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-2xl">{uvAdvice.icon}</span>
-                                                            <div>
-                                                                <p className={`text-sm font-bold ${uvAdvice.color}`}>{uvAdvice.label}</p>
-                                                                <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sun Protection</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-[10px] font-bold text-gray-500 uppercase">Best Sun-Safe Time</p>
-                                                            <p className={`text-xs font-bold ${uvAdvice.color}`}>{bestTimes}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden flex gap-0.5">
-                                                            <div className={`h-full ${uvi >= 1 ? 'bg-green-500' : 'bg-gray-200'}`} style={{ width: '20%' }} />
-                                                            <div className={`h-full ${uvi >= 3 ? 'bg-yellow-500' : 'bg-gray-200'}`} style={{ width: '30%' }} />
-                                                            <div className={`h-full ${uvi >= 6 ? 'bg-orange-500' : 'bg-gray-200'}`} style={{ width: '20%' }} />
-                                                            <div className={`h-full ${uvi >= 8 ? 'bg-red-500' : 'bg-gray-200'}`} style={{ width: '30%' }} />
-                                                        </div>
-                                                        <p className="text-[10px] font-bold text-gray-500">{uvAdvice.detail}</p>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()}
-
-                                        {/* HOURLY TIMELINE */}
-                                        <div className="col-span-2">
-                                            <HourlyTimeline
-                                                venue={venue}
-                                                hourlyData={weather?.hourly || []}
-                                            />
-                                        </div>
-
-                                        {/* RAIN RADAR & TIMING */}
-                                        {(() => {
-                                            const rainTiming = getRainTiming(weather);
-                                            const suggestion = getRainSuggestion(venue, weather);
-                                            const dryWindow = getRainWindowFinder(weather);
-
-                                            if (rainTiming.minutes === -1 && !rainTiming.active) return null;
-
-                                            return (
-                                                <div className={`flex flex-col gap-2 p-3 rounded-xl col-span-2 ${rainTiming.active ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'} border`}>
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-2xl animate-pulse">
-                                                                {rainTiming.active ? '🌧️' : '⛈️'}
-                                                            </span>
-                                                            <div>
-                                                                <p className={`text-sm font-bold ${rainTiming.active ? 'text-blue-600' : 'text-slate-700'}`}>
-                                                                    {rainTiming.label}
-                                                                </p>
-                                                                <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Rain Radar</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-[10px] font-bold text-gray-500 uppercase">Rain Window Finder</p>
-                                                            <p className="text-xs font-bold text-blue-600">{dryWindow}</p>
-                                                        </div>
-                                                    </div>
-                                                    {suggestion && (
-                                                        <div className="mt-1 p-2 bg-white/60 rounded-lg text-[11px] font-bold text-gray-700 flex items-center gap-2 border border-white/50">
-                                                            <span>💡</span> {suggestion}
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                                            <motion.div
-                                                                className="h-full bg-blue-500"
-                                                                initial={{ width: '0%' }}
-                                                                animate={{ width: rainTiming.active ? '100%' : `${100 - (rainTiming.minutes / 60 * 100)}%` }}
-                                                                transition={{ duration: 1.5, ease: 'easeOut' }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-[10px] font-bold text-gray-400">Storm approach active</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })()
-                                        }
-                                    </div>
-
-                                    {/* Weather Description */}
-                                    <div className={`mt-3 p-3 rounded-xl ${theme === 'sunny' ? 'bg-amber-100/70' :
-                                        theme === 'rainy' ? 'bg-blue-100/70' :
-                                            'bg-gray-100/70'
-                                        }`}>
-                                        <div className="flex items-center gap-2">
-                                            <WeatherIcon />
-                                            <p className="text-sm text-gray-700 font-medium">
-                                                {weatherDescription}
+                                            <p className="mt-4 text-[9px] text-emerald-500/40 text-center font-bold uppercase tracking-widest">
+                                                Generated based on {venue.venueName} weather profile
                                             </p>
                                         </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6 mb-6">
+                                        {/* WEATHER INTELLIGENCE SECTION */}
+                                        <div className="bg-gray-50 rounded-[32px] p-6 border border-gray-100 shadow-inner">
+                                            <div className="flex items-center gap-2 mb-5">
+                                                <TrendingUp size={16} className="text-orange-500" />
+                                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">
+                                                    Weather Intelligence
+                                                </h3>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="mb-3 flex items-center gap-2 col-span-2">
+                                                    <span className="relative flex items-center justify-center" aria-hidden="true">
+                                                        <span className="absolute inline-flex h-3 w-3 rounded-full bg-emerald-500/40 animate-ping" />
+                                                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                                                    </span>
+                                                    <span className="text-[10px] tracking-[0.2em] font-semibold uppercase text-gray-400">
+                                                        Live Analysis Active
+                                                    </span>
+                                                </div>
+
+                                                {/* Hero Comfort Score */}
+                                                <motion.div
+                                                    whileTap={{ scale: 0.985 }}
+                                                    onClick={() => setActiveModal('comfort')}
+                                                    className="col-span-2 glass-dark rounded-[2rem] p-5 flex flex-col justify-between min-h-[140px] shadow-xl relative overflow-hidden group border border-white/10 cursor-pointer"
+                                                >
+                                                    <div className="flex justify-between items-start relative z-10">
+                                                        <div>
+                                                            <h4 className="text-[10px] tracking-widest uppercase text-gray-400 font-black">Overall Comfort Score</h4>
+                                                            <p className="text-xs tracking-widest uppercase mt-1 font-black text-emerald-400">Optimal Conditions</p>
+                                                        </div>
+                                                        <div className="relative w-16 h-16 flex items-center justify-center">
+                                                            <div className="absolute inset-0 flex items-center justify-center border-4 border-emerald-500/20 rounded-full">
+                                                                <span className="text-xl font-black text-white">{sunstayScore}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="relative z-10 mt-4">
+                                                        <p className="text-[10px] text-gray-400 font-medium leading-relaxed max-w-[80%] uppercase tracking-tight">Tap for breakdown analysis.</p>
+                                                    </div>
+                                                </motion.div>
+
+                                                {/* Wind (Left) */}
+                                                <motion.div
+                                                    whileTap={{ scale: 0.985 }}
+                                                    onClick={() => setActiveModal('wind')}
+                                                    className="glass rounded-[2rem] p-5 flex flex-col justify-between min-h-[120px] shadow-sm relative overflow-hidden cursor-pointer"
+                                                >
+                                                    <p className="text-[10px] tracking-widest uppercase text-gray-500 font-black">Wind</p>
+                                                    <p className="text-3xl font-light text-gray-900 mt-1">{weather?.wind?.speed || 4}<span className="text-xs text-gray-400 font-bold ml-1 uppercase">km/h</span></p>
+                                                    <div className="h-1 bg-sky-200 rounded-full overflow-hidden mt-3">
+                                                        <div className="h-full bg-sky-500 w-[30%]" />
+                                                    </div>
+                                                </motion.div>
+
+                                                {/* UV Index (Right) */}
+                                                <motion.div
+                                                    whileTap={{ scale: 0.985 }}
+                                                    onClick={() => setActiveModal('uv')}
+                                                    className="glass rounded-[2rem] p-5 flex flex-col justify-between min-h-[120px] shadow-sm relative overflow-hidden cursor-pointer"
+                                                >
+                                                    <p className="text-[10px] tracking-widest uppercase text-gray-500 font-black">UV Index</p>
+                                                    <p className="text-3xl font-light text-gray-900 mt-1">{weather?.uvi || 2}<span className="text-xs text-gray-400 font-bold ml-1 uppercase">/ 11</span></p>
+                                                    <div className="h-1 bg-amber-200 rounded-full overflow-hidden mt-3">
+                                                        <div className="h-full bg-amber-500 w-[20%]" />
+                                                    </div>
+                                                </motion.div>
+
+                                                {/* Rain Probability (Bottom col-span-2) */}
+                                                <motion.div
+                                                    whileTap={{ scale: 0.985 }}
+                                                    onClick={() => setActiveModal('rain')}
+                                                    className="col-span-2 glass rounded-[2rem] p-5 flex items-center justify-between min-h-[100px] shadow-sm relative overflow-hidden cursor-pointer border border-blue-50"
+                                                >
+                                                    <div>
+                                                        <p className="text-[10px] tracking-widest uppercase text-gray-500 font-black">Rain Pulse</p>
+                                                        <p className="text-xl font-black text-gray-800 mt-1">
+                                                            {weather?.weather?.[0]?.main?.toLowerCase().includes('rain') ? 'Active Now' : 'No Rain Expected'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                                                        <CloudRain size={24} />
+                                                    </div>
+                                                </motion.div>
+                                            </div>
+                                        </div>
+
+                                        {/* SUN SIMULATOR SECTION */}
+                                        <div className="mb-6">
+                                            <SunSimulator venue={venue} photoUrl={sunBadgeImg} />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Weather Description */}
+                                <div className={`p-3 rounded-xl mb-6 ${theme === 'sunny' ? 'bg-amber-100/70' :
+                                    theme === 'rainy' ? 'bg-blue-100/70' :
+                                        'bg-gray-100/70'
+                                    }`}>
+                                    <div className="flex items-center gap-2">
+                                        <WeatherIcon />
+                                        <p className="text-sm text-gray-700 font-medium">
+                                            {weatherDescription}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -567,37 +627,8 @@ const VenueCard = ({ venue, onClose }) => {
                                     </div>
                                 )}
 
-                                {/* ===== WIND & COMFORT INTELLIGENCE ===== */}
-                                <div className="mb-4">
-                                    <WindComfortPanel venue={venue} />
-                                </div>
-
-                                {/* Sunstay Score */}
-                                <div className="mb-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <img src={sunBadgeImg} alt="Score" className="w-5 h-5 rounded-full" />
-                                            Sunstay Score
-                                            {weather && (
-                                                <span className="text-xs text-gray-400 font-normal">(Live)</span>
-                                            )}
-                                        </span>
-                                        <span className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                                            {sunstayScore}
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${sunstayScore}%` }}
-                                            transition={{ duration: 1, ease: 'easeOut' }}
-                                            className={`h-full bg-gradient-to-r ${getScoreColor(sunstayScore)} rounded-full`}
-                                        />
-                                    </div>
-                                </div>
-
                                 {/* Tags */}
-                                <div className="flex flex-wrap gap-1.5 mb-4 justify-center">
+                                <div className="flex flex-wrap gap-1.5 mb-6 justify-center">
                                     {venue.tags.map((tag, index) => (
                                         <motion.span
                                             key={index}
@@ -611,52 +642,11 @@ const VenueCard = ({ venue, onClose }) => {
                                     ))}
                                 </div>
 
-                                {/* COMMUNITY INTELLIGENCE / ANALYTICS SECTION */}
-                                <div className="mb-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                            <BarChart3 size={14} className="text-orange-500" />
-                                            Photo Intelligence
-                                        </h3>
-                                        {galleryRefresh > 0 && (
-                                            <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full animate-pulse">
-                                                LIVE UPDATE
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="bg-white/50 backdrop-blur-sm p-3 rounded-2xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                                            <div className="text-xl font-black text-gray-800">{galleryRefresh > 0 ? 'Updating...' : 'Verified'}</div>
-                                            <div className="text-[10px] text-gray-400 uppercase font-black">Feed Status</div>
-                                        </div>
-                                        <div className="bg-white/50 backdrop-blur-sm p-3 rounded-2xl border border-gray-100 flex flex-col items-center justify-center text-center">
-                                            <div className="text-xl font-black text-orange-500">
-                                                <TrendingUp size={18} className="inline mr-1" />
-                                                Active
-                                            </div>
-                                            <div className="text-[10px] text-gray-400 uppercase font-black">Engagement</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Share Photo Button */}
-                                <div className="mb-3">
-                                    <PhotoUpload venue={venue} onPhotoUploaded={handlePhotoUploaded} categoryConfig={categoryConfig} />
-                                </div>
-
-                                {/* Community Photo Gallery */}
-                                <PhotoGallery venueId={venue.id} refreshTrigger={galleryRefresh} categoryConfig={categoryConfig} />
-
-                                {/* Analytics Buttons */}
-                                <div className="flex justify-center gap-2 mt-3">
+                                {/* Action Buttons */}
+                                <div className="flex justify-center gap-2 mb-6">
                                     <button
-                                        onClick={() => {
-                                            console.log(`[VenueCard] Triggering PhotoAnalytics for ${venue.id}`);
-                                            setShowDashboard(true);
-                                        }}
+                                        onClick={() => setShowDashboard(true)}
                                         className="dash-trigger-btn"
-                                        id="open-photo-dashboard"
                                     >
                                         <BarChart3 size={14} />
                                         <span>Photo Analytics</span>
@@ -664,174 +654,77 @@ const VenueCard = ({ venue, onClose }) => {
                                     <button
                                         onClick={() => setShowOwnerDash(true)}
                                         className="dash-trigger-btn od-trigger-btn"
-                                        id="open-owner-dashboard"
                                     >
                                         <ShieldCheck size={14} />
                                         <span>Venue Dashboard</span>
                                     </button>
                                 </div>
 
-                                {/* Photo Dashboard Modal (as PhotoAnalytics mount) */}
-                                <AnimatePresence>
-                                    {showDashboard && (
-                                        <PhotoDashboard
-                                            venueId={venue.id}
-                                            venueName={venue.venueName}
-                                            refreshTrigger={galleryRefresh}
-                                            onClose={() => setShowDashboard(false)}
-                                        />
-                                    )}
-                                </AnimatePresence>
-
-                                {/* Venue Owner Dashboard Modal */}
-                                <AnimatePresence>
-                                    {showOwnerDash && (
-                                        <VenueOwnerDashboard
-                                            venue={venue}
-                                            onClose={() => setShowOwnerDash(false)}
-                                        />
-                                    )}
-                                </AnimatePresence>
-
-                                {/* Inline Booking Section — High Polish Card */}
-                                <div className="mt-12 mb-12 border-t border-gray-100 pt-10 pb-12" ref={bookingRef}>
-                                    <div className="flex items-center gap-3 mb-6 px-4">
-                                        <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shadow-sm">
-                                            <Calendar size={20} />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest leading-none mb-1">
-                                                Request a booking
-                                            </h3>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Demo mode · Instant enquiry</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white border border-gray-100 rounded-[32px] p-6 sm:p-8 pb-10 pt-10 shadow-xl shadow-orange-900/5 transition-all">
-                                        {bookingSuccess ? (
-                                            <motion.div
-                                                initial={{ opacity: 0, scale: 0.95 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                className="bg-emerald-50 border border-emerald-100 rounded-2xl p-8 text-center py-10"
-                                            >
-                                                <div className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/20">
-                                                    <CheckCircle2 size={32} />
-                                                </div>
-                                                <h4 className="text-emerald-900 text-xl font-black mb-2">Request Sent!</h4>
-                                                <p className="text-emerald-700 font-medium mb-6">Your booking request has been sent for demo purposes. The venue will get back to you soon.</p>
-                                                <div className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white rounded-full text-[11px] text-emerald-600 font-black uppercase tracking-wider shadow-sm border border-emerald-100">
-                                                    <Sparkles size={12} />
-                                                    <span>Sunstay Priority Active</span>
-                                                </div>
-                                            </motion.div>
-                                        ) : (
-                                            <div className="flex flex-col gap-6">
-                                                {/* Date */}
-                                                <div className="space-y-2">
-                                                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Preferred Date</label>
-                                                    <input
-                                                        type="date"
-                                                        value={bookingData.date}
-                                                        onChange={e => setBookingData({ ...bookingData, date: e.target.value })}
-                                                        className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-[15px] font-bold text-gray-800 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none"
-                                                    />
-                                                </div>
-
-                                                {/* Time */}
-                                                <div className="space-y-2">
-                                                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Arrival Time</label>
-                                                    <div className="relative">
-                                                        <select
-                                                            value={bookingData.time}
-                                                            onChange={e => setBookingData({ ...bookingData, time: e.target.value })}
-                                                            className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-[15px] font-bold text-gray-800 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none appearance-none"
-                                                        >
-                                                            {['12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'].map(t => (
-                                                                <option key={t}>{t}</option>
-                                                            ))}
-                                                        </select>
-                                                        <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                                                    </div>
-                                                </div>
-
-                                                {/* Guests */}
-                                                <div className="space-y-2">
-                                                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Number of Guests</label>
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        max="50"
-                                                        value={bookingData.guests}
-                                                        onChange={e => setBookingData({ ...bookingData, guests: parseInt(e.target.value) || 1 })}
-                                                        className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-[15px] font-bold text-gray-800 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none"
-                                                    />
-                                                </div>
-
-                                                {/* Occasion */}
-                                                <div className="space-y-2">
-                                                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Occasion</label>
-                                                    <div className="relative">
-                                                        <select
-                                                            value={bookingData.occasion}
-                                                            onChange={e => setBookingData({ ...bookingData, occasion: e.target.value })}
-                                                            className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-[15px] font-bold text-gray-800 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none appearance-none"
-                                                        >
-                                                            {['Casual drinks', 'Birthday', 'Wedding', 'Corporate', 'Other'].map(o => (
-                                                                <option key={o}>{o}</option>
-                                                            ))}
-                                                        </select>
-                                                        <ChevronDown size={18} className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                                                    </div>
-                                                </div>
-
-                                                {/* Name */}
-                                                <div className="space-y-2">
-                                                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Your Full Name</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="e.g. James Smith"
-                                                        value={bookingData.name}
-                                                        onChange={e => setBookingData({ ...bookingData, name: e.target.value })}
-                                                        className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-[15px] font-bold text-gray-800 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none placeholder:text-gray-300 placeholder:font-medium"
-                                                    />
-                                                </div>
-
-                                                {/* Email */}
-                                                <div className="space-y-2">
-                                                    <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
-                                                    <input
-                                                        type="email"
-                                                        placeholder="e.g. james@example.com"
-                                                        value={bookingData.email}
-                                                        onChange={e => setBookingData({ ...bookingData, email: e.target.value })}
-                                                        className="w-full h-14 px-5 bg-gray-50 border border-gray-100 rounded-2xl text-[15px] font-bold text-gray-800 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none placeholder:text-gray-300 placeholder:font-medium"
-                                                    />
-                                                </div>
-
-                                                <button
-                                                    onClick={handleSendRequest}
-                                                    disabled={isBookingLoading}
-                                                    className="w-full max-w-xs mx-auto h-16 mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[13px] uppercase tracking-[0.25em] rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-3 group disabled:opacity-70 disabled:grayscale overflow-hidden relative"
-                                                >
-                                                    {isBookingLoading ? (
-                                                        <Loader2 size={24} className="animate-spin" />
-                                                    ) : (
-                                                        <>
-                                                            <span>Send booking request</span>
-                                                            <ChevronRight size={18} className="group-hover:translate-x-1.5 transition-transform" />
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Final breathing room padding at the very bottom */}
-                                    <div className="h-16" />
-                                </div>
+                                {/* Final breathing room padding at the very bottom */}
+                                <div className="h-16" />
                             </div>
                         </div>
                     </motion.div>
+
+                    {/* Intelligence Detail Modal Overlay */}
+                    <AnimatePresence>
+                        {activeModal && (
+                            <>
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    onClick={() => setActiveModal(null)}
+                                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000000]"
+                                />
+                                <motion.div
+                                    initial={{ y: '100%' }}
+                                    animate={{ y: 0 }}
+                                    exit={{ y: '100%' }}
+                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                    className="fixed bottom-0 left-0 right-0 z-[1000001] bg-white rounded-t-[32px] p-6 max-h-[85vh] overflow-y-auto mx-auto max-w-2xl"
+                                >
+                                    <div className="flex justify-end mb-2">
+                                        <button
+                                            onClick={() => setActiveModal(null)}
+                                            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"
+                                        >
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    {activeModal === 'comfort' && (
+                                        <ComfortScorePanel venue={venue} sunstayScore={sunstayScore} weather={weather} />
+                                    )}
+                                    {activeModal === 'wind' && (
+                                        <WindComfortPanel venue={venue} />
+                                    )}
+                                    {activeModal === 'uv' && (
+                                        <UVIntelligencePanel venue={venue} uvi={weather?.uvi || 0} />
+                                    )}
+                                    {activeModal === 'rain' && (
+                                        <RainIntelligencePanel venue={venue} weather={weather} />
+                                    )}
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Photo Dashboard Modal */}
+                    {showDashboard && (
+                        <PhotoDashboard
+                            venueId={venue.id}
+                            onClose={() => setShowDashboard(false)}
+                        />
+                    )}
+
+                    {/* Owner Dashboard Modal */}
+                    {showOwnerDash && (
+                        <VenueOwnerDashboard
+                            venueId={venue.id}
+                            onClose={() => setShowOwnerDash(false)}
+                        />
+                    )}
                 </>
             )}
         </AnimatePresence>

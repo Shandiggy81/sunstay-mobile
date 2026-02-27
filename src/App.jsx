@@ -106,11 +106,19 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
         <motion.div
             layout
             whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={onClick}
-            className={`ss-venue-list-card ${isSelected ? 'ss-venue-list-card--active' : ''}`}
+            whileTap={{ scale: 0.985 }}
+            onClick={(e) => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                onClick(e);
+            }}
+            role="button"
+            aria-label={`Venue: ${venue.venueName}. ${isStay || isHotel ? venue.typeLabel : venue.vibe} in ${venue.suburb}. Sunstay Status: ${badge.label}`}
+            className={`ss-venue-list-card relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
+            {/* Shimmer Effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shimmer pointer-events-none will-change-transform" style={{ backgroundSize: '200% 100%' }} />
+
             <div className="ss-vlc-emoji">{venue.emoji}</div>
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
@@ -144,9 +152,17 @@ const VenueChip = ({ venue, isSelected, onClick, weather }) => {
     return (
         <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={onClick}
-            className={`ss-venue-chip ${isSelected ? 'ss-venue-chip--active' : ''}`}
+            onClick={(e) => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                onClick(e);
+            }}
+            role="button"
+            aria-label={`View ${venue.venueName}`}
+            className={`ss-venue-chip relative overflow-hidden ${isSelected ? 'ss-venue-chip--active' : ''}`}
         >
+            {/* Shimmer Effect (Subtle) */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer pointer-events-none will-change-transform" style={{ backgroundSize: '200% 100%' }} />
+
             <span>{venue.emoji}</span>
             <span className="ss-venue-chip-name">{venue.venueName.length > 16 ? venue.venueName.slice(0, 15) + '…' : venue.venueName}</span>
             <span className="ss-venue-chip-badge" style={{ color: badge.color }}>{badge.emoji}</span>
@@ -390,44 +406,59 @@ const AppContent = () => {
             <WeatherBackground />
 
             {/* ═══ HEADER ═══ */}
-            <motion.header
-                initial={{ y: -100, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="ss-header"
-            >
-                <div className="ss-header-inner">
-                    {/* Logo */}
-                    <div className="ss-header-logo">
-                        <motion.img
-                            src={sunBadgeImg}
-                            alt="Sunstay"
-                            className="ss-header-logo-img"
-                            animate={{ rotate: [0, 5, -5, 0] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                        />
-                        <div>
-                            <h1 className="ss-header-title">Sunstay</h1>
-                            <p className="ss-header-tagline">Find Your Perfect Spot</p>
+            <AnimatePresence>
+                {!mobileMapExpanded && (
+                    <motion.header
+                        initial={{ y: -100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -100, opacity: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="ss-header"
+                    >
+                        <div className="ss-header-inner">
+                            {/* Logo */}
+                            <div className="ss-header-logo">
+                                <motion.img
+                                    src={sunBadgeImg}
+                                    alt="Sunstay"
+                                    className="ss-header-logo-img"
+                                    animate={{ rotate: [0, 5, -5, 0] }}
+                                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                                />
+                                <div>
+                                    <h1 className="ss-header-title">Sunstay</h1>
+                                    <p className="ss-header-tagline hidden sm:block">Find Your Perfect Spot</p>
+                                </div>
+                            </div>
+
+                            {/* Weather indicator + Notifications + CTA */}
+                            <div className="ss-header-right">
+                                <WeatherIndicator />
+                                <div className="h-8 w-[1px] bg-gray-200 mx-1 hidden sm:block" />
+                                <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => window.open('https://sunstay.netlify.app/onboard', '_blank')}
+                                    className="ss-cta-btn hidden md:flex"
+                                >
+                                    <span>✨</span>
+                                    <span>List Your Venue</span>
+                                </motion.button>
+                                <NotificationCenter onVenueSelect={handleVenueSelect} />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Weather indicator + Notifications */}
-                    <div className="ss-header-right">
-                        <WeatherIndicator />
-                        <NotificationCenter onVenueSelect={handleVenueSelect} />
-                    </div>
-                </div>
-
-                {/* Filter bar */}
-                <div className="ss-header-filters">
-                    <FilterBar
-                        activeFilters={activeFilters}
-                        onFilterToggle={handleFilterToggle}
-                        onClearFilters={handleClearFilters}
-                    />
-                </div>
-            </motion.header>
+                        {/* Filter bar - Hidden on very small mobile if desired, or kept compact */}
+                        <div className="ss-header-filters transition-all">
+                            <FilterBar
+                                activeFilters={activeFilters}
+                                onFilterToggle={handleFilterToggle}
+                                onClearFilters={handleClearFilters}
+                            />
+                        </div>
+                    </motion.header>
+                )}
+            </AnimatePresence>
 
             {/* ═══ MAIN SPLIT LAYOUT ═══ */}
             <main className="ss-main">
@@ -443,6 +474,12 @@ const AppContent = () => {
                             onChange={e => setSearchQuery(e.target.value)}
                             className="ss-search-input"
                             id="venue-search"
+                        />
+                        {/* Sunny mascot FAB */}
+                        <SunnyMascot
+                            onClick={() => setIsChatOpen(!isChatOpen)}
+                            isChatOpen={isChatOpen}
+                            selectedVenue={selectedVenue}
                         />
                         {searchQuery && (
                             <button
@@ -553,38 +590,52 @@ const AppContent = () => {
                     {/* Mobile: expand/collapse map */}
                     <button
                         className="ss-map-expand-btn"
-                        onClick={() => setMobileMapExpanded(prev => !prev)}
+                        onClick={() => {
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
+                            setMobileMapExpanded(prev => !prev);
+                        }}
                     >
-                        {mobileMapExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                        <span>{mobileMapExpanded ? 'Collapse Map' : 'Expand Map'}</span>
+                        {mobileMapExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                        <span>{mobileMapExpanded ? 'Exit Full Map' : 'Expand Map'}</span>
                     </button>
                 </section>
             </main>
 
             {/* ═══ MOBILE: Horizontal venue chip strip ═══ */}
-            <div className="ss-mobile-chips">
-                <div className="ss-mobile-chips-inner">
-                    {filteredVenues.map(venue => (
-                        <VenueChip
-                            key={venue.id}
-                            venue={venue}
-                            isSelected={selectedVenue?.id === venue.id}
-                            onClick={() => handleVenueSelect(venue)}
-                            weather={weather}
-                        />
-                    ))}
-                </div>
-            </div>
+            <AnimatePresence>
+                {!mobileMapExpanded && filteredVenues.length > 0 && (
+                    <motion.div
+                        initial={{ y: 50, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 50, opacity: 0 }}
+                        className="ss-mobile-chips"
+                    >
+                        <div className="ss-mobile-chips-inner">
+                            {filteredVenues.map(venue => (
+                                <VenueChip
+                                    key={venue.id}
+                                    venue={venue}
+                                    isSelected={selectedVenue?.id === venue.id}
+                                    onClick={() => handleVenueSelect(venue)}
+                                    weather={weather}
+                                />
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ═══ MOBILE: Bottom sheet venue list ═══ */}
-            <div
-                className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
-                onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
-            >
-                <div className="ss-mobile-sheet-grab" />
-                <span>{matchingCount} venues nearby</span>
-                {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-            </div>
+            {!mobileMapExpanded && (
+                <div
+                    className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
+                    onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
+                >
+                    <div className="ss-mobile-sheet-grab" />
+                    <span>{matchingCount} venues nearby</span>
+                    {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                </div>
+            )}
 
             <AnimatePresence>
                 {mobileSheetState === 'expanded' && (

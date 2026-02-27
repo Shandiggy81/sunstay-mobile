@@ -54,7 +54,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             return;
         }
 
-        mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || MAPBOX_TOKEN;
+        mapboxgl.accessToken = MAPBOX_TOKEN; // HARDCODED Verified Token
 
         const loadTimeout = setTimeout(() => {
             if (!map.current || !mapLoaded) {
@@ -107,6 +107,34 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             }
         };
     }, []);
+
+    // ── Map Resize Handling ──────────────────────────────────────────
+    useEffect(() => {
+        if (!map.current || !mapContainer.current) return;
+
+        let resizeTimer;
+        const debounceResize = () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (map.current) {
+                    map.current.resize();
+                }
+            }, 100); // 100ms debounce
+        };
+
+        // ResizeObserver for container-level changes (e.g., panel expansion)
+        const resizeObserver = new ResizeObserver(debounceResize);
+        resizeObserver.observe(mapContainer.current);
+
+        // Fallback: Window resize listener
+        window.addEventListener('resize', debounceResize);
+
+        return () => {
+            resizeObserver.disconnect();
+            window.removeEventListener('resize', debounceResize);
+            clearTimeout(resizeTimer);
+        };
+    }, [mapLoaded]); // Re-run if map is newly loaded
 
     // Fly to venue when selected
     useEffect(() => {
@@ -244,10 +272,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             const comfort = hourData.comfort;
 
             const comfortColors = {
-                cold: '#3b82f6', cool: '#60a5fa', mild: '#22c55e',
-                warm: '#16a34a', hot: '#f97316', extreme: '#ef4444', unknown: '#9ca3af',
+                cold: '#3b82f6', // blue-500
+                cool: '#60a5fa', // blue-400
+                mild: '#22c55e', // green-500
+                warm: '#16a34a', // green-600
+                hot: '#f97316',  // orange-500
+                extreme: '#ef4444', // red-500
+                unknown: '#9ca3af' // gray-400
             };
-            const bgColor = comfortColors[comfort.level] || '#9ca3af';
+            const bgColor = comfortColors[comfort.level] || comfortColors.unknown;
 
             const el = document.createElement('div');
             el.className = 'comfort-map-marker';
@@ -294,7 +327,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
     return (
         <div className={`ss-mapview-root ${(isTokenMissing || mapError) ? 'ssr-map-fallback-active' : ''}`}>
-            <div ref={mapContainer} className="ss-mapview-canvas" />
+            <div ref={mapContainer} className="ss-mapview-canvas bg-slate-100" />
 
             {/* UV Index Layer */}
             {uvMode && (
@@ -457,7 +490,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             {/* Overlay for Loading, Error, or Missing Token */}
             {showOverlay && (
-                <div className="ss-map-overlay-error bg-[#fffbf0]">
+                <div className="ss-map-overlay-error bg-orange-50/80 backdrop-blur-sm">
                     {/* High-Fidelity Fallback UI: Sun Intelligence Heatmap */}
                     {(isTokenMissing || mapError) ? (
                         <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
@@ -473,7 +506,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
                             {/* Map UI Shield / Pattern - Warm Sunny Gradients */}
                             <div className="absolute inset-0 bg-gradient-to-br from-amber-200/30 via-transparent to-amber-100/20" />
-                            <div className="absolute inset-0 pointer-events-none opacity-50" style={{ backgroundImage: 'radial-gradient(#f59e0b 0.6px, transparent 0.6px)', backgroundSize: '30px 30px' }} />
+                            <div className="absolute inset-0 pointer-events-none opacity-50" style={{ backgroundImage: 'radial-gradient(rgb(245, 158, 11) 0.6px, transparent 0.6px)', backgroundSize: '30px 30px' }} />
 
                             {/* Fallback Search/Marker Layer (Interactive) */}
                             <div className="relative z-10 w-full h-full">

@@ -221,6 +221,7 @@ export const demoVenues = [
         price: '$$',
         capacity: 450,
         notes: 'Real AVC venue — used as flagship demo pin.',
+        proTip: 'The north-east corner gets the best winter sun until 2pm! ☀️',
     },
     {
         id: 'dv-02',
@@ -236,6 +237,7 @@ export const demoVenues = [
         price: '$$$',
         capacity: 300,
         notes: 'Real AVC venue — rooftop.',
+        proTip: 'Ideal for golden hour cocktails on the west deck. 🍸',
     },
     {
         id: 'dv-03',
@@ -251,6 +253,7 @@ export const demoVenues = [
         price: '$$',
         capacity: 120,
         notes: 'Real Good Company venue.',
+        proTip: 'The streetside tables are a people-watching goldmine in the afternoon sun! 🍷',
     },
     {
         id: 'dv-04',
@@ -292,6 +295,7 @@ export const demoVenues = [
         price: '$$',
         capacity: 800,
         notes: 'Real Sand Hill Road venue.',
+        proTip: 'The internal garden courtyard is perfectly shielded from Melbourne\'s south-westerly winds. 🌳',
     },
     {
         id: 'dv-07',
