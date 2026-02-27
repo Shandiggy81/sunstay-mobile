@@ -10,6 +10,7 @@ const SunnyMascot = ({ onClick, isChatOpen, selectedVenue }) => {
     const getMascotAdvice = () => {
         if (selectedVenue?.proTip) return `Pro Tip: ${selectedVenue.proTip}`;
 
+        const temp = weather?.temperature ?? 22;
         return `It's a beautiful ${temp}°C! Perfect for a stroll. ☀️`;
     };
 
