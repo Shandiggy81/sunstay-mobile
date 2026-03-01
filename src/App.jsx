@@ -10,7 +10,7 @@ import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
-    Wind, Sun, Cloud, X, Locate
+    Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
@@ -549,14 +549,25 @@ const AppContent = () => {
                         </div>
                     )}
 
-                    {/* Mobile: expand/collapse map */}
-                    <button
-                        className="ss-map-expand-btn"
-                        onClick={() => setMobileMapExpanded(prev => !prev)}
-                    >
-                        {mobileMapExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                        <span>{mobileMapExpanded ? 'Close Map' : 'Expand Map'}</span>
-                    </button>
+                    {/* Mobile: map bottom controls */}
+                    <div className="ss-mobile-map-controls">
+                        {mobileMapExpanded && (
+                            <button
+                                className="ss-map-filter-btn"
+                                onClick={toggleChat}
+                            >
+                                <ListFilter size={16} />
+                                <span>Filters</span>
+                            </button>
+                        )}
+                        <button
+                            className="ss-map-expand-btn"
+                            onClick={() => setMobileMapExpanded(prev => !prev)}
+                        >
+                            {mobileMapExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                            <span>{mobileMapExpanded ? 'Close Map' : 'Expand Map'}</span>
+                        </button>
+                    </div>
                 </section>
             </main>
 

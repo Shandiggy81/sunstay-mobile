@@ -3732,13 +3732,25 @@ body,
     padding: 4px 10px;
   }
 
-  /* Expand Map button: above EVERYTHING on mobile */
-  .ss-map-expand-btn {
-    z-index: 150 !important;
+  /* Mobile map bottom controls wrapper */
+  .ss-mobile-map-controls {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 150 !important;
     display: flex;
+    gap: 8px;
+    pointer-events: none;
+    /* Let clicks pass through empty space */
+  }
+
+  /* Expand Map and Filter buttons */
+  .ss-map-expand-btn,
+  .ss-map-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     border: 1.5px solid rgba(0, 0, 0, 0.1);
@@ -3747,6 +3759,7 @@ body,
     font-weight: 800;
     border-radius: 24px;
     pointer-events: auto;
+    color: #1f2937;
   }
 
   /* Recenter: move above expand button area */
