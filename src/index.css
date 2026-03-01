@@ -3719,15 +3719,7 @@ body,
 
   /* Pills: horizontal scroll, no wrap */
   .ss-map-pills {
-    overflow-x: auto;
-    white-space: nowrap;
-    max-width: 100%;
-    z-index: 10;
-    padding-bottom: 8px;
-    flex-wrap: nowrap;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    gap: 4px;
+    display: none !important;
   }
 
   .ss-map-pills::-webkit-scrollbar {
@@ -3742,10 +3734,10 @@ body,
 
   /* Expand Map button: above EVERYTHING on mobile */
   .ss-map-expand-btn {
-    z-index: 50 !important;
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
+    z-index: 150 !important;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
     display: flex;
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
@@ -3812,7 +3804,12 @@ body,
 
   /* Map area expanded: more height on phones */
   .ss-map-area--expanded {
-    height: 80vh;
+    height: 100dvh;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
   }
 
   /* Header: compact */

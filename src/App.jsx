@@ -555,7 +555,7 @@ const AppContent = () => {
                         onClick={() => setMobileMapExpanded(prev => !prev)}
                     >
                         {mobileMapExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                        <span>{mobileMapExpanded ? 'Collapse Map' : 'Expand Map'}</span>
+                        <span>{mobileMapExpanded ? 'Close Map' : 'Expand Map'}</span>
                     </button>
                 </section>
             </main>
