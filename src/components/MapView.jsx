@@ -9,10 +9,29 @@ import {
     generateHourlyForecast,
 } from '../data/windIntelligence';
 
+// ── Build a venue lookup for click handlers ──────────────────────
+const venueById = Object.fromEntries(demoVenues.map(v => [v.id, v]));
+
+// ── Convert venues to GeoJSON FeatureCollection ──────────────────
+function buildGeoJSON(venues) {
+    return {
+        type: 'FeatureCollection',
+        features: venues.map(v => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
+            properties: {
+                id: v.id,
+                emoji: v.emoji,
+                venueName: v.venueName,
+            }
+        }))
+    };
+}
+
 const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyMode }, ref) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
-    const markers = useRef([]);
+    const unclusteredMarkers = useRef([]);
     const comfortEls = useRef([]);
     const [mapLoaded, setMapLoaded] = useState(false);
     const [mapError, setMapError] = useState(false);
@@ -24,7 +43,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const { weather, getUVIndex } = useWeather();
     const uvIndex = getUVIndex();
 
-    // Derived State (Moved to top to prevent initialization errors in production)
+    // Derived State
     const isTokenMissing = !MAPBOX_TOKEN || !MAPBOX_TOKEN.startsWith('pk.');
     const isFallbackMode = isTokenMissing || mapError;
     const showOverlay = !mapLoaded || mapError;
@@ -39,6 +58,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         }
     }));
 
+    // ── Initialize Map ──────────────────────────────────────────────
     useEffect(() => {
         if (map.current) return;
 
@@ -54,7 +74,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             return;
         }
 
-        mapboxgl.accessToken = MAPBOX_TOKEN; // HARDCODED Verified Token
+        mapboxgl.accessToken = MAPBOX_TOKEN;
 
         const loadTimeout = setTimeout(() => {
             if (!map.current || !mapLoaded) {
@@ -77,18 +97,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 clearTimeout(loadTimeout);
                 setMapLoaded(true);
                 setMapError(false);
-                addDemoVenueMarkers();
+                setupClusterSource();
             });
 
             map.current.on('error', (e) => {
                 console.error('Mapbox error:', e.error);
-                // Broaden error detection to trigger fallback on any critical Mapbox error
                 clearTimeout(loadTimeout);
                 setMapError(true);
             });
 
-            // Compact navigation controls
-            // Move controls to top-right to avoid overlap with Sunny mascot in bottom-right
             if (!isFallbackMode) {
                 map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
             }
@@ -100,12 +117,174 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
         return () => {
             clearTimeout(loadTimeout);
-            markers.current.forEach(m => m.marker.remove());
+            unclusteredMarkers.current.forEach(m => m.marker.remove());
             if (map.current) {
                 map.current.remove();
                 map.current = null;
             }
         };
+    }, []);
+
+    // ── Setup GeoJSON cluster source + layers ──────────────────────
+    const setupClusterSource = useCallback(() => {
+        if (!map.current) return;
+
+        const geojson = buildGeoJSON(demoVenues);
+
+        // Add GeoJSON source with clustering
+        map.current.addSource('venues', {
+            type: 'geojson',
+            data: geojson,
+            cluster: true,
+            clusterRadius: 50,
+            clusterMaxZoom: 14,
+        });
+
+        // ── Cluster circles ─────────────────────────────────────
+        map.current.addLayer({
+            id: 'clusters',
+            type: 'circle',
+            source: 'venues',
+            filter: ['has', 'point_count'],
+            paint: {
+                'circle-color': [
+                    'step', ['get', 'point_count'],
+                    '#fbbf24',   // amber-400 for small clusters
+                    5, '#f59e0b', // amber-500 for medium
+                    10, '#d97706', // amber-600 for large
+                    20, '#b45309'  // amber-700 for very large
+                ],
+                'circle-radius': [
+                    'step', ['get', 'point_count'],
+                    18,    // small
+                    5, 22,  // medium
+                    10, 28, // large
+                    20, 34  // very large
+                ],
+                'circle-stroke-width': 3,
+                'circle-stroke-color': 'rgba(255,255,255,0.7)',
+                'circle-opacity': 0.9,
+            }
+        });
+
+        // ── Cluster count labels ─────────────────────────────────
+        map.current.addLayer({
+            id: 'cluster-count',
+            type: 'symbol',
+            source: 'venues',
+            filter: ['has', 'point_count'],
+            layout: {
+                'text-field': '{point_count_abbreviated}',
+                'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+                'text-size': 13,
+                'text-allow-overlap': true,
+            },
+            paint: {
+                'text-color': '#ffffff',
+            }
+        });
+
+        // ── Click on cluster → zoom in ───────────────────────────
+        map.current.on('click', 'clusters', (e) => {
+            const features = map.current.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+            const clusterId = features[0].properties.cluster_id;
+            map.current.getSource('venues').getClusterExpansionZoom(clusterId, (err, zoom) => {
+                if (err) return;
+                map.current.easeTo({
+                    center: features[0].geometry.coordinates,
+                    zoom: zoom,
+                    duration: 500,
+                });
+            });
+        });
+
+        // Pointer cursor on clusters
+        map.current.on('mouseenter', 'clusters', () => {
+            map.current.getCanvas().style.cursor = 'pointer';
+        });
+        map.current.on('mouseleave', 'clusters', () => {
+            map.current.getCanvas().style.cursor = '';
+        });
+
+        // ── Render unclustered points as custom DOM markers ──────
+        // We listen for map movements and render/remove markers for visible unclustered points
+        const renderUnclusteredMarkers = () => {
+            // Remove existing markers
+            unclusteredMarkers.current.forEach(m => m.marker.remove());
+            unclusteredMarkers.current = [];
+
+            if (!map.current || !map.current.isStyleLoaded()) return;
+
+            const features = map.current.queryRenderedFeatures({ layers: ['clusters'] });
+            // We need unclustered features — query the source layer for non-cluster points
+            const unclusteredFeatures = map.current.querySourceFeatures('venues', {
+                sourceLayer: '',
+                filter: ['!', ['has', 'point_count']]
+            });
+
+            // Deduplicate by venue ID (querySourceFeatures can return dupes)
+            const seen = new Set();
+            unclusteredFeatures.forEach(feature => {
+                const venueId = feature.properties.id;
+                if (seen.has(venueId)) return;
+                seen.add(venueId);
+
+                const venue = venueById[venueId];
+                if (!venue) return;
+
+                // Check if filtered
+                const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venueId));
+
+                // Get weather color
+                const colorClass = weather && weatherColorFn
+                    ? `ss-marker-${weatherColorFn(weather, venue)}`
+                    : 'ss-marker-sunny';
+
+                // Check cozy
+                const isCozy = cozyMode && (venue.tags || []).some(t =>
+                    ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t)
+                );
+
+                const el = document.createElement('div');
+                el.className = 'ss-map-marker';
+                el.style.opacity = isVisible ? '1' : '0.15';
+                el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
+                el.innerHTML = `
+                    <div class="ss-marker-pill ${colorClass} ${isCozy ? 'ss-marker-cozy-glow' : ''}">
+                        <span class="ss-marker-emoji">${venue.emoji}</span>
+                    </div>
+                `;
+
+                if (comfortMode) {
+                    el.style.display = 'none';
+                }
+
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const popups = document.getElementsByClassName('mapboxgl-popup');
+                    for (let p of popups) p.remove();
+                    onVenueSelect(venue);
+                });
+
+                const marker = new mapboxgl.Marker(el)
+                    .setLngLat([venue.lng, venue.lat])
+                    .addTo(map.current);
+
+                unclusteredMarkers.current.push({ marker, venueId: venue.id, venue });
+            });
+        };
+
+        // Render markers on map events
+        map.current.on('moveend', renderUnclusteredMarkers);
+        map.current.on('zoomend', renderUnclusteredMarkers);
+        map.current.on('sourcedata', (e) => {
+            if (e.sourceId === 'venues' && e.isSourceLoaded) {
+                renderUnclusteredMarkers();
+            }
+        });
+
+        // Initial render
+        renderUnclusteredMarkers();
     }, []);
 
     // ── Map Resize Handling ──────────────────────────────────────────
@@ -119,14 +298,11 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 if (map.current) {
                     map.current.resize();
                 }
-            }, 100); // 100ms debounce
+            }, 100);
         };
 
-        // ResizeObserver for container-level changes (e.g., panel expansion)
         const resizeObserver = new ResizeObserver(debounceResize);
         resizeObserver.observe(mapContainer.current);
-
-        // Fallback: Window resize listener
         window.addEventListener('resize', debounceResize);
 
         return () => {
@@ -134,7 +310,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             window.removeEventListener('resize', debounceResize);
             clearTimeout(resizeTimer);
         };
-    }, [mapLoaded]); // Re-run if map is newly loaded
+    }, [mapLoaded]);
 
     // Fly to venue when selected
     useEffect(() => {
@@ -148,52 +324,47 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         }
     }, [selectedVenue]);
 
-    // Update marker visibility when filter changes
+    // ── Update GeoJSON source when filter changes ─────────────────
     useEffect(() => {
+        if (!map.current || !mapLoaded) return;
+        const source = map.current.getSource('venues');
+        if (!source) return;
+
         setIsUpdating(true);
 
-        const timer = setTimeout(() => {
-            markers.current.forEach((markerObj, index) => {
-                const { marker, venueId } = markerObj;
-                const element = marker.getElement();
+        // Rebuild GeoJSON with only filtered venues for clustering
+        const filtered = filteredVenueIds === null
+            ? demoVenues
+            : demoVenues.filter(v => filteredVenueIds.includes(v.id));
 
-                // Stagger transition
-                const staggerDelay = (index % 10) * 40; // max 400ms delay
+        source.setData(buildGeoJSON(filtered));
 
-                setTimeout(() => {
-                    if (filteredVenueIds === null) {
-                        element.style.opacity = '1';
-                        element.style.transform = 'scale(1)';
-                    } else if (filteredVenueIds.includes(venueId)) {
-                        element.style.opacity = '1';
-                        element.style.transform = 'scale(1.1)';
-                    } else {
-                        element.style.opacity = '0.15';
-                        element.style.transform = 'scale(0.85)';
-                    }
-                }, staggerDelay);
-            });
+        // Also refresh unclustered markers after a tick
+        setTimeout(() => {
+            unclusteredMarkers.current.forEach(m => m.marker.remove());
+            unclusteredMarkers.current = [];
+            // Markers will be re-rendered on next moveend/sourcedata event
             setIsUpdating(false);
-        }, 150); // Initial delay to show spinner
+        }, 200);
+    }, [filteredVenueIds, mapLoaded]);
 
-        return () => clearTimeout(timer);
-    }, [filteredVenueIds]);
-
-    // Update marker colors when weather changes
+    // ── Update marker weather colors when weather changes ─────────
     useEffect(() => {
         if (!weather || !weatherColorFn) return;
-        markers.current.forEach(({ marker, venue }) => {
+        unclusteredMarkers.current.forEach(({ marker, venue }) => {
             const el = marker.getElement();
             const pill = el.querySelector('.ss-marker-pill');
             if (!pill) return;
             const color = weatherColorFn(weather, venue);
-            pill.className = `ss-marker-pill ss-marker-${color}`;
+            // Remove old color classes and add new one
+            pill.className = pill.className.replace(/ss-marker-(sunny|cloudy|windy)/g, '');
+            pill.classList.add(`ss-marker-${color}`);
         });
     }, [weather, weatherColorFn]);
 
-    // Handle Cozy Mode Glow
+    // ── Handle Cozy Mode Glow ─────────────────────────────────────
     useEffect(() => {
-        markers.current.forEach(({ marker, venue }) => {
+        unclusteredMarkers.current.forEach(({ marker, venue }) => {
             const el = marker.getElement();
             const pill = el.querySelector('.ss-marker-pill');
             if (!pill) return;
@@ -210,46 +381,22 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         });
     }, [cozyMode]);
 
-    // Standard markers visibility toggle
+    // ── Toggle markers visibility in comfort mode ─────────────────
     useEffect(() => {
-        markers.current.forEach(({ marker }) => {
+        unclusteredMarkers.current.forEach(({ marker }) => {
             const el = marker.getElement();
             el.style.display = comfortMode ? 'none' : 'block';
         });
-    }, [comfortMode]);
 
-    const addDemoVenueMarkers = () => {
-        demoVenues.forEach((venue) => {
-            // Get weather color class
-            const colorClass = weather && weatherColorFn
-                ? `ss-marker-${weatherColorFn(weather, venue)}`
-                : 'ss-marker-sunny';
-
-            // Create custom marker element
-            const el = document.createElement('div');
-            el.className = 'ss-map-marker';
-            el.innerHTML = `
-                <div class="ss-marker-pill ${colorClass}">
-                    <span class="ss-marker-emoji">${venue.emoji}</span>
-                </div>
-            `;
-
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Prevent any default popups from showing
-                const popups = document.getElementsByClassName('mapboxgl-popup');
-                for (let p of popups) p.remove();
-
-                onVenueSelect(venue);
-            });
-
-            const marker = new mapboxgl.Marker(el)
-                .setLngLat([venue.lng, venue.lat])
-                .addTo(map.current);
-
-            markers.current.push({ marker, venueId: venue.id, venue });
-        });
-    };
+        // Also hide/show cluster layers
+        if (map.current && mapLoaded) {
+            const visibility = comfortMode ? 'none' : 'visible';
+            try {
+                if (map.current.getLayer('clusters')) map.current.setLayoutProperty('clusters', 'visibility', visibility);
+                if (map.current.getLayer('cluster-count')) map.current.setLayoutProperty('cluster-count', 'visibility', visibility);
+            } catch (e) { /* layers might not be ready yet */ }
+        }
+    }, [comfortMode, mapLoaded]);
 
     // ── Comfort overlay markers ──────────────────────────────
     const updateComfortOverlay = useCallback(() => {
@@ -272,13 +419,13 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             const comfort = hourData.comfort;
 
             const comfortColors = {
-                cold: '#3b82f6', // blue-500
-                cool: '#60a5fa', // blue-400
-                mild: '#22c55e', // green-500
-                warm: '#16a34a', // green-600
-                hot: '#f97316',  // orange-500
-                extreme: '#ef4444', // red-500
-                unknown: '#9ca3af' // gray-400
+                cold: '#3b82f6',
+                cool: '#60a5fa',
+                mild: '#22c55e',
+                warm: '#16a34a',
+                hot: '#f97316',
+                extreme: '#ef4444',
+                unknown: '#9ca3af'
             };
             const bgColor = comfortColors[comfort.level] || comfortColors.unknown;
 
@@ -310,14 +457,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     useEffect(() => {
         updateComfortOverlay();
     }, [updateComfortOverlay]);
-
-    // Toggle standard markers visibility based on comfort mode
-    useEffect(() => {
-        markers.current.forEach(({ marker }) => {
-            const el = marker.getElement();
-            el.style.display = comfortMode ? 'none' : 'block';
-        });
-    }, [comfortMode]);
 
     const fmtHour = (h) => {
         if (h === 0 || h === 24) return '12am';
@@ -557,7 +696,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                             {!mapLoaded && (isTokenMissing || mapError) && (
                                 <div className="absolute top-6 right-6 z-20">
                                     <button
-                                        onClick={() => setMapError(false)} // Toggle to show instructions if user wants
+                                        onClick={() => setMapError(false)}
                                         className="bg-amber-400/20 hover:bg-amber-400/40 text-amber-200 text-[10px] font-bold px-3 py-1.5 rounded-full backdrop-blur-sm border border-amber-400/20 transition-all"
                                     >
                                         Map Setup Info

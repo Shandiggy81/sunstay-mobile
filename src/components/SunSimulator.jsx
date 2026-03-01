@@ -117,19 +117,29 @@ const SunSimulator = ({ venue, photoUrl }) => {
                     className="absolute inset-0 bg-indigo-950/40 pointer-events-none"
                 />
 
-                {/* Interactive Shadow Overlay - High Fidelity Azimuth Logic */}
+                {/* Interactive Shadow Overlay - Soft Azimuth Shadow */}
                 <div
                     className="absolute inset-0 pointer-events-none transition-all duration-700 ease-out"
                     style={{
                         background: sunData.isDaylight
-                            ? `rgba(0, 0, 0, ${Math.max(0.1, 0.5 - (sunData.altitude / 90) * 0.4)})`
-                            : 'rgba(15, 23, 42, 0.4)',
+                            ? `rgba(0, 0, 0, ${Math.max(0.05, Math.min(0.2, 0.3 - (sunData.altitude / 90) * 0.25))})`
+                            : 'rgba(15, 23, 42, 0.25)',
                         clipPath: sunData.isDaylight
-                            ? `polygon(0% 100%, 100% 100%, 
-                               ${50 + Math.sin((sunData.azimuth * Math.PI) / 180) * 50}% ${50 + Math.cos((sunData.azimuth * Math.PI) / 180) * (90 - sunData.altitude)}%,
-                               ${50 - Math.sin((sunData.azimuth * Math.PI) / 180) * 50}% ${50 - Math.cos((sunData.azimuth * Math.PI) / 180) * (90 - sunData.altitude)}% )`
+                            ? (() => {
+                                // Clamp shadow spread to prevent extreme polygons
+                                const spread = Math.min(40, Math.max(5, (90 - sunData.altitude) * 0.4));
+                                const sinA = Math.sin((sunData.azimuth * Math.PI) / 180);
+                                const cosA = Math.cos((sunData.azimuth * Math.PI) / 180);
+                                // Keep all polygon points within 0-100% bounds
+                                const clamp = (v) => Math.max(0, Math.min(100, v));
+                                const x1 = clamp(50 + sinA * spread);
+                                const y1 = clamp(50 + cosA * spread);
+                                const x2 = clamp(50 - sinA * spread);
+                                const y2 = clamp(50 - cosA * spread);
+                                return `polygon(0% 100%, 100% 100%, ${x1}% ${y1}%, ${x2}% ${y2}%)`;
+                            })()
                             : 'none',
-                        filter: `blur(${Math.max(4, (90 - sunData.altitude) / 5)}px)`,
+                        filter: `blur(${Math.max(8, (90 - sunData.altitude) / 4)}px)`,
                         mixBlendMode: 'multiply'
                     }}
                 />

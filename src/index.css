@@ -3144,11 +3144,11 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(135, 206, 235, 0.35);
-  border: 2.5px solid #87CEEB;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.20), 0 1px 4px rgba(135, 206, 235, 0.30);
+  border: 2px solid #87CEEB;
   background: white;
   transition: all 0.25s ease;
 }
@@ -3167,12 +3167,12 @@ body,
 }
 
 .ss-map-marker:hover .ss-marker-pill {
-  transform: scale(1.2);
+  transform: scale(1.25);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .ss-marker-emoji {
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1;
 }
 
@@ -3648,7 +3648,8 @@ body,
   .ss-main {
     flex-direction: column;
     gap: 0;
-    padding: 0 8px 0;
+    padding: 0;
+    height: 100%;
   }
 
   /* Hide desktop sidebar */
@@ -3656,15 +3657,29 @@ body,
     display: none;
   }
 
-  /* Map takes controlled height */
+  /* Map fills viewport below header */
   .ss-map-area {
-    height: 30vh;
+    height: calc(100vh - 140px);
     flex: none;
+    position: relative;
     transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .ss-map-area--expanded {
-    height: 70vh;
+    position: fixed;
+    inset: 0;
+    height: 100vh;
+    z-index: 200;
+    background: white;
+  }
+
+  .ss-map-area--expanded .ss-map-container {
+    border-radius: 0;
+    border: none;
+  }
+
+  .ss-map-container {
+    border-radius: 12px 12px 0 0;
   }
 
   .ss-map-pills {
@@ -3694,10 +3709,27 @@ body,
 
   .ss-mobile-chips {
     display: block;
+    position: fixed;
+    bottom: 52px;
+    left: 0;
+    right: 0;
+    z-index: 90;
+    padding: 0 8px 6px;
   }
 
   .ss-mobile-sheet-handle {
     display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 101;
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    padding: 10px 16px;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   }
 
   /* Venue detail full-width on mobile */
@@ -3716,16 +3748,21 @@ body,
 
   /* Map legend compact */
   .ss-map-legend {
-    bottom: 8px;
+    bottom: 60px;
     left: 8px;
     padding: 4px 8px;
   }
 
   .ss-recenter-btn {
-    bottom: 48px;
+    bottom: 100px;
     right: 8px;
     width: 36px;
     height: 36px;
+  }
+
+  .ss-map-expand-btn {
+    bottom: 100px;
+    right: 52px;
   }
 }
 
@@ -5150,10 +5187,10 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  padding: 4px;
   border-radius: 12px;
   background: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.13);
   border: 2px solid white;
   transition: inherit;
 }
