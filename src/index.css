@@ -3629,6 +3629,9 @@ body,
 
   .ss-map-expand-btn {
     display: flex;
+    z-index: 50;
+    bottom: 12px;
+    right: 12px;
   }
 
   .ss-mobile-chips {
@@ -3658,6 +3661,7 @@ body,
     bottom: 8px;
     left: 8px;
     padding: 4px 8px;
+    z-index: 5;
   }
 
   .ss-recenter-btn {
@@ -3665,6 +3669,17 @@ body,
     right: 8px;
     width: 36px;
     height: 36px;
+    z-index: 5;
+  }
+
+  /* Comfort/UV/Radar controls — constrain on tablet */
+  .ss-custom-map-controls {
+    max-width: 180px;
+  }
+
+  .comfort-toggle-btn {
+    font-size: 11px;
+    padding: 5px 10px;
   }
 }
 
@@ -3692,6 +3707,125 @@ body,
 
   .ss-mobile-sheet {
     display: none;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   Responsive: Small Phones (< 640px)
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+
+  /* Pills: horizontal scroll, no wrap */
+  .ss-map-pills {
+    overflow-x: auto;
+    white-space: nowrap;
+    max-width: 100%;
+    z-index: 10;
+    padding-bottom: 8px;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    gap: 4px;
+  }
+
+  .ss-map-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ss-map-pill {
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  /* Expand Map button: above EVERYTHING on mobile */
+  .ss-map-expand-btn {
+    z-index: 50 !important;
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    border: 1.5px solid rgba(0, 0, 0, 0.1);
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 800;
+    border-radius: 24px;
+    pointer-events: auto;
+  }
+
+  /* Recenter: move above expand button area */
+  .ss-recenter-btn {
+    bottom: 54px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    z-index: 5;
+  }
+
+  /* Weather legend: hide on small screens to reduce clutter */
+  .ss-map-legend {
+    display: none;
+  }
+
+  /* Map search bar: compact */
+  .ss-map-search-float {
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  /* Comfort/UV/Radar controls: scale down + constrain */
+  .ss-custom-map-controls {
+    max-width: 150px;
+    transform: scale(0.9);
+    transform-origin: top left;
+  }
+
+  .comfort-toggle-btn {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    gap: 4px;
+  }
+
+  .comfort-time-slider {
+    min-width: 160px;
+    padding: 8px 10px;
+  }
+
+  /* Chips strip: compact */
+  .ss-mobile-chips {
+    padding: 0 8px 4px;
+  }
+
+  /* Sheet handle: ensure above map elements */
+  .ss-mobile-sheet-handle {
+    z-index: 55;
+  }
+
+  /* Map area expanded: more height on phones */
+  .ss-map-area--expanded {
+    height: 80vh;
+  }
+
+  /* Header: compact */
+  .ss-header {
+    padding-top: 4px;
+  }
+
+  .ss-header-inner {
+    padding: 4px 12px;
+  }
+
+  .ss-header-filters {
+    padding: 0 8px 4px;
   }
 }
 

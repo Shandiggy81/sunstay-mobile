@@ -375,6 +375,16 @@ const AppContent = () => {
         }
     }, [selectedVenue]);
 
+    // Resize map when mobile expand/collapse toggles
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (mapRef.current && mapRef.current.resize) {
+                mapRef.current.resize();
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [mobileMapExpanded]);
+
     return (
         <div className="ss-app-root">
             {/* Weather background */}
@@ -493,19 +503,21 @@ const AppContent = () => {
                         />
                     </div>
 
-                    {/* Quick-filter pills */}
-                    <div className="ss-map-pills">
-                        {MAP_FILTERS.map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => setMapQuickFilter(prev => prev === f.id ? null : f.id)}
-                                className={`ss-map-pill ${mapQuickFilter === f.id ? 'ss-map-pill--active' : ''}`}
-                            >
-                                <span>{f.icon}</span>
-                                <span>{f.label}</span>
-                            </button>
-                        ))}
-                    </div>
+                    {/* Quick-filter pills — hidden when map is expanded on mobile */}
+                    {!mobileMapExpanded && (
+                        <div className="ss-map-pills">
+                            {MAP_FILTERS.map(f => (
+                                <button
+                                    key={f.id}
+                                    onClick={() => setMapQuickFilter(prev => prev === f.id ? null : f.id)}
+                                    className={`ss-map-pill ${mapQuickFilter === f.id ? 'ss-map-pill--active' : ''}`}
+                                >
+                                    <span>{f.icon}</span>
+                                    <span>{f.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Map container */}
                     <div className="ss-map-container">
@@ -528,12 +540,14 @@ const AppContent = () => {
                         <Locate size={18} />
                     </motion.button>
 
-                    {/* Weather legend */}
-                    <div className="ss-map-legend">
-                        <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-sunny" />Sunny</div>
-                        <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-cloudy" />Cloudy</div>
-                        <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-windy" />Windy</div>
-                    </div>
+                    {/* Weather legend — hidden when map is expanded on mobile */}
+                    {!mobileMapExpanded && (
+                        <div className="ss-map-legend">
+                            <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-sunny" />Sunny</div>
+                            <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-cloudy" />Cloudy</div>
+                            <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-windy" />Windy</div>
+                        </div>
+                    )}
 
                     {/* Mobile: expand/collapse map */}
                     <button
