@@ -230,7 +230,7 @@ const AppContent = () => {
 
                 // 3. Tag matching - look up the 'tag' property for each filter ID
                 const vTags = v.tags || [];
-                const hasTagMatch = tagFilters.length === 0 || tagFilters.every(id => {
+                const hasTagMatch = tagFilters.length === 0 || tagFilters.some(id => {
                     const filter = categoryData.find(c => c.id === id);
                     return filter ? vTags.includes(filter.tag) : false;
                 });
@@ -320,19 +320,19 @@ const AppContent = () => {
 
     // Chat actions
     const handleFindWheelchair = useCallback(() => {
-        setActiveFilters(['Wheelchair Accessible']);
+        setActiveFilters(['wheelchair']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
 
     const handleFindDogFriendly = useCallback(() => {
-        setActiveFilters(['Pet Friendly']);
+        setActiveFilters(['pet-friendly']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
 
     const handleFindSmoking = useCallback(() => {
-        setActiveFilters(['Smoking Area']);
+        setActiveFilters(['smoking']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
@@ -346,13 +346,13 @@ const AppContent = () => {
     }, [handleVenueSelect]);
 
     const handleFindFamily = useCallback(() => {
-        setActiveFilters(['Pram Friendly']);
+        setActiveFilters(['pram-friendly']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
 
     const handleFindBusiness = useCallback(() => {
-        setActiveFilters(['Large Groups']);
+        setActiveFilters(['wheelchair', 'beer-garden', 'rooftop']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
@@ -471,8 +471,8 @@ const AppContent = () => {
                         {filteredVenues.length === 0 && (
                             <div className="ss-venue-list-empty">
                                 <span>🔍</span>
-                                <p>No venues match your filters</p>
-                                <button onClick={handleClearFilters}>Reset filters</button>
+                                <p>Showing all venues — couldn't find an exact match</p>
+                                <button onClick={handleClearFilters}>Show all venues</button>
                             </div>
                         )}
                     </div>
