@@ -430,34 +430,32 @@ const AppContent = () => {
                         </div>
                     </div>
 
-                            {/* Weather indicator + Notifications + CTA */}
-                            <div className="ss-header-right">
-                                <WeatherIndicator />
-                                <div className="h-8 w-[1px] bg-gray-200 mx-1 hidden sm:block" />
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={() => window.open('https://sunstay.netlify.app/onboard', '_blank')}
-                                    className="ss-cta-btn hidden md:flex"
-                                >
-                                    <span>✨</span>
-                                    <span>List Your Venue</span>
-                                </motion.button>
-                                <NotificationCenter onVenueSelect={handleVenueSelect} />
-                            </div>
-                        </div>
+                    {/* Weather indicator + Notifications + CTA */}
+                    <div className="ss-header-right">
+                        <WeatherIndicator />
+                        <div className="h-8 w-[1px] bg-gray-200 mx-1 hidden sm:block" />
+                        <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => window.open('https://sunstay.netlify.app/onboard', '_blank')}
+                            className="ss-cta-btn hidden md:flex"
+                        >
+                            <span>✨</span>
+                            <span>List Your Venue</span>
+                        </motion.button>
+                        <NotificationCenter onVenueSelect={handleVenueSelect} />
+                    </div>
+                </div>
 
-                        {/* Filter bar - Hidden on very small mobile if desired, or kept compact */}
-                        <div className="ss-header-filters transition-all">
-                            <FilterBar
-                                activeFilters={activeFilters}
-                                onFilterToggle={handleFilterToggle}
-                                onClearFilters={handleClearFilters}
-                            />
-                        </div>
-                    </motion.header>
-                )}
-            </AnimatePresence>
+                {/* Filter bar */}
+                <div className="ss-header-filters transition-all">
+                    <FilterBar
+                        activeFilters={activeFilters}
+                        onFilterToggle={handleFilterToggle}
+                        onClearFilters={handleClearFilters}
+                    />
+                </div>
+            </motion.header>
 
             {/* ═══ MAIN SPLIT LAYOUT ═══ */}
             <main className="ss-main">
