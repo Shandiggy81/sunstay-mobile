@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import { fetchWeatherWithCache } from '../hooks/useWeather';
+import { storage } from '../utils/platform';
 
 const WeatherContext = createContext(null);
 
@@ -32,6 +32,8 @@ export const WeatherProvider = ({ children }) => {
 
     const WEATHER_API_KEY = '8448b7dad269322556c216d02ca97647';
     const MELBOURNE_COORDS = { lat: -37.8136, lon: 144.9631 };
+    const CACHE_KEY = `sunstay_weather_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
+    const CACHE_EXPIRY = 900000; // 15 minutes
 
     const OVERRIDES = {
         perfect: {
@@ -66,18 +68,69 @@ export const WeatherProvider = ({ children }) => {
             return;
         }
 
+        // Check cache first (cross-platform via PlatformStorage)
         try {
-            const weatherData = await fetchWeatherWithCache(
-                MELBOURNE_COORDS.lat,
-                MELBOURNE_COORDS.lon,
-                WEATHER_API_KEY
+            const cachedString = await storage.getItem(CACHE_KEY);
+            if (cachedString) {
+                const { data, timestamp } = JSON.parse(cachedString);
+                if (Date.now() - timestamp < CACHE_EXPIRY) {
+                    console.log('[WeatherContext] Cache HIT');
+                    setWeather(data);
+                    const condition = data.weather[0].main.toLowerCase();
+                    setTheme(getThemeFromCondition(condition));
+                    setLoading(false);
+                    return;
+                }
+            }
+        } catch (cacheErr) {
+            console.warn('[WeatherContext] Cache read failed:', cacheErr);
+        }
+
+        // Skip API call if no valid key is set
+        if (!WEATHER_API_KEY) {
+            console.log('Weather API key not configured, using demo weather data');
+            setWeather(DEMO_WEATHER);
+            setTheme('sunny');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const response = await axios.get(
+                `https://api.openweathermap.org/data/2.5/weather?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}&units=metric`
             );
+            const weatherData = response.data;
+
+            // Try UV
+            try {
+                const uvResponse = await axios.get(
+                    `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
+                );
+                weatherData.uvi = uvResponse.data.value;
+            } catch {
+                weatherData.uvi = weatherData.weather[0].main === 'Clear' ? 8 : 2;
+            }
+
+            // Cache the result
+            try {
+                await storage.setItem(CACHE_KEY, JSON.stringify({
+                    data: weatherData,
+                    timestamp: Date.now()
+                }));
+                console.log('[WeatherContext] Cache WRITE');
+            } catch (cacheErr) {
+                console.warn('[WeatherContext] Cache write failed:', cacheErr);
+            }
 
             setWeather(weatherData);
-            setTheme('sunny'); // Maintain brand aesthetic
+            const condition = weatherData.weather[0].main.toLowerCase();
+            const newTheme = getThemeFromCondition(condition);
+            setTheme(newTheme);
             setLoading(false);
         } catch (error) {
-            setWeather(OVERRIDES.perfect);
+            console.error('Error fetching weather:', error);
+            console.log('Using demo weather data as fallback');
+            setWeather(DEMO_WEATHER);
             setTheme('sunny');
             setLoading(false);
         }

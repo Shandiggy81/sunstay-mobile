@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MessageCircle } from 'lucide-react';
-import sunnyMascotImg from '../assets/sunny-mascot.jpg';
 
 const ChatWidget = ({
     isOpen,
@@ -98,7 +97,7 @@ const ChatWidget = ({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 20, scale: 0.9 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="fixed bottom-28 right-6 z-[999999] w-[320px] max-w-[calc(100vw-3rem)]"
+                    className="fixed bottom-24 right-6 z-[999999] w-[350px] max-w-[calc(100vw-3rem)]"
                 >
                     {/* Chat window */}
                     <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
@@ -107,7 +106,7 @@ const ChatWidget = ({
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/50 shadow-md">
                                     <img
-                                        src={sunnyMascotImg}
+                                        src={`${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
                                         alt="Sunny"
                                         className="w-full h-full object-cover"
                                     />

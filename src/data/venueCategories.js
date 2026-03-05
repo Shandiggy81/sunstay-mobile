@@ -138,7 +138,7 @@ const CATEGORY_CONFIG = {
     },
 
     real_estate: {
-        buttonText: "Show this property's natural light",
+        buttonText: "How's the vibe?",
         buttonSubtext: '🏠 Weather-Tagged',
         buttonIcon: '🏠',
 

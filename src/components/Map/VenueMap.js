@@ -22,7 +22,6 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
-import { PlatformMaps } from '../../utils/platform';
 
 // ── Constants ───────────────────────────────────────────────────────
 
@@ -193,6 +192,9 @@ const VenueMap = forwardRef(({
                 map.current.addSource(VENUE_SOURCE_ID, {
                     type: 'geojson',
                     data: venueGeoJSON,
+                    cluster: true,
+                    clusterMaxZoom: 14,
+                    clusterRadius: 50,
                 });
 
                 map.current.addLayer({

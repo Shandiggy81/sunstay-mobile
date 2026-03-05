@@ -49,11 +49,16 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const showOverlay = !mapLoaded || mapError;
     const showControls = mapLoaded && !mapError && !comfortMode;
 
-    // Expose flyTo method to parent via ref
+    // Expose flyTo and resize methods to parent via ref
     useImperativeHandle(mapRef, () => ({
         flyTo: (options) => {
             if (map.current) {
                 map.current.flyTo(options);
+            }
+        },
+        resize: () => {
+            if (map.current) {
+                map.current.resize();
             }
         }
     }));
@@ -115,9 +120,18 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             setMapError(true);
         }
 
+        // ResizeObserver — automatically resize Mapbox canvas when container dimensions change
+        const containerEl = mapContainer.current;
+        const ro = new ResizeObserver(() => {
+            if (map.current) map.current.resize();
+        });
+        if (containerEl) ro.observe(containerEl);
+
         return () => {
             clearTimeout(loadTimeout);
+            ro.disconnect();
             unclusteredMarkers.current.forEach(m => m.marker.remove());
+            markers.current.forEach(m => m.marker.remove());
             if (map.current) {
                 map.current.remove();
                 map.current = null;

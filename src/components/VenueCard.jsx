@@ -627,6 +627,35 @@ const VenueCard = ({ venue, onClose, ownerMode = false }) => {
                                     </div>
                                 )}
 
+                                {/* ===== WIND & COMFORT INTELLIGENCE ===== */}
+                                <div className="mb-4">
+                                    <WindComfortPanel venue={venue} />
+                                </div>
+
+                                {/* Sunstay Score */}
+                                <div className="mb-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <img src={`${import.meta.env.BASE_URL}assets/sun-badge.jpg`} alt="Score" className="w-5 h-5 rounded-full" />
+                                            Sunstay Score
+                                            {weather && (
+                                                <span className="text-xs text-gray-400 font-normal">(Live)</span>
+                                            )}
+                                        </span>
+                                        <span className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+                                            {sunstayScore}
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${sunstayScore}%` }}
+                                            transition={{ duration: 1, ease: 'easeOut' }}
+                                            className={`h-full bg-gradient-to-r ${getScoreColor(sunstayScore)} rounded-full`}
+                                        />
+                                    </div>
+                                </div>
+
                                 {/* Tags */}
                                 <div className="flex flex-wrap gap-1.5 mb-6 justify-center">
                                     {venue.tags.map((tag, index) => (

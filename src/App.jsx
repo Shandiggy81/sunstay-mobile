@@ -10,7 +10,7 @@ import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
-    Wind, Sun, Cloud, X, Locate
+    Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
@@ -377,7 +377,7 @@ const AppContent = () => {
     }, []);
 
     const handleFindBusiness = useCallback(() => {
-        setActiveFilters(['large-groups']);
+        setActiveFilters(['Large Groups']);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
@@ -400,36 +400,35 @@ const AppContent = () => {
         }
     }, [selectedVenue]);
 
+
+
     return (
-        <div className="ss-app-root">
+        <div className={`ss-app-root ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
             {/* Weather background */}
             <WeatherBackground />
 
             {/* ═══ HEADER ═══ */}
-            <AnimatePresence>
-                {!mobileMapExpanded && (
-                    <motion.header
-                        initial={{ y: -100, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -100, opacity: 0 }}
-                        transition={{ duration: 0.4 }}
-                        className="ss-header"
-                    >
-                        <div className="ss-header-inner">
-                            {/* Logo */}
-                            <div className="ss-header-logo">
-                                <motion.img
-                                    src={sunBadgeImg}
-                                    alt="Sunstay"
-                                    className="ss-header-logo-img"
-                                    animate={{ rotate: [0, 5, -5, 0] }}
-                                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                                />
-                                <div>
-                                    <h1 className="ss-header-title">Sunstay</h1>
-                                    <p className="ss-header-tagline hidden sm:block">Find Your Perfect Spot</p>
-                                </div>
-                            </div>
+            <motion.header
+                initial={{ y: -100, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="ss-header"
+            >
+                <div className="ss-header-inner">
+                    {/* Logo */}
+                    <div className="ss-header-logo">
+                        <motion.img
+                            src="/assets/sun-badge.jpg"
+                            alt="Sunstay"
+                            className="ss-header-logo-img"
+                            animate={{ rotate: [0, 5, -5, 0] }}
+                            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                        <div>
+                            <h1 className="ss-header-title">Sunstay</h1>
+                            <p className="ss-header-tagline">Find Your Perfect Spot</p>
+                        </div>
+                    </div>
 
                             {/* Weather indicator + Notifications + CTA */}
                             <div className="ss-header-right">
@@ -515,8 +514,8 @@ const AppContent = () => {
                         {filteredVenues.length === 0 && (
                             <div className="ss-venue-list-empty">
                                 <span>🔍</span>
-                                <p>No venues match your filters</p>
-                                <button onClick={handleClearFilters}>Reset filters</button>
+                                <p>Showing all venues — couldn't find an exact match</p>
+                                <button onClick={handleClearFilters}>Show all venues</button>
                             </div>
                         )}
                     </div>
@@ -549,13 +548,6 @@ const AppContent = () => {
                                 <span>{f.label}</span>
                             </button>
                         ))}
-                        <button
-                            onClick={() => setCozyMode(!cozyMode)}
-                            className={`ss-map-pill ${cozyMode ? 'bg-orange-500 text-white border-orange-600 shadow-[0_0_10px_rgba(255,100,0,0.5)]' : ''}`}
-                        >
-                            <span>🔥</span>
-                            <span>Cozy Mode</span>
-                        </button>
                     </div>
 
                     {/* Map container */}
@@ -590,13 +582,10 @@ const AppContent = () => {
                     {/* Mobile: expand/collapse map */}
                     <button
                         className="ss-map-expand-btn"
-                        onClick={() => {
-                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
-                            setMobileMapExpanded(prev => !prev);
-                        }}
+                        onClick={() => setMobileMapExpanded(prev => !prev)}
                     >
-                        {mobileMapExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                        <span>{mobileMapExpanded ? 'Exit Full Map' : 'Expand Map'}</span>
+                        {mobileMapExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                        <span>{mobileMapExpanded ? 'Collapse Map' : 'Expand Map'}</span>
                     </button>
                 </section>
             </main>
@@ -728,7 +717,7 @@ const AppContent = () => {
                 transition={{ duration: 0.6, delay: 0.6 }}
                 className="ss-footer-badge"
             >
-                <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
+                <img src="/assets/fire-icon.jpg" alt="" className="ss-footer-badge-icon" />
                 Sales Demo · {demoVenues.length} Partner Venues
             </motion.div>
         </div>
