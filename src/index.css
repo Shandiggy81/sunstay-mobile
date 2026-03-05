@@ -3734,15 +3734,15 @@ body,
 
   /* Mobile map bottom controls wrapper */
   .ss-mobile-map-controls {
-    position: fixed;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
+    position: absolute;
+    bottom: 80px;
+    left: 0;
+    width: 100%;
     z-index: 150 !important;
     display: flex;
-    gap: 8px;
+    gap: 12px;
+    justify-content: center;
     pointer-events: none;
-    /* Let clicks pass through empty space */
   }
 
   /* Expand Map and Filter buttons */
@@ -3754,12 +3754,28 @@ body,
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     border: 1.5px solid rgba(0, 0, 0, 0.1);
-    padding: 8px 16px;
-    font-size: 12px;
+    padding: 10px 18px;
+    font-size: 13px;
     font-weight: 800;
     border-radius: 24px;
     pointer-events: auto;
     color: #1f2937;
+    cursor: pointer;
+  }
+
+  /* Hide header when map is expanded */
+  .ss-app-root--map-expanded .ss-header {
+    display: none !important;
+  }
+
+  /* Hide mobile chips when map is expanded */
+  .ss-app-root--map-expanded .ss-mobile-chips {
+    display: none !important;
+  }
+
+  /* Hide mobile sheet handle when map is expanded */
+  .ss-app-root--map-expanded .ss-mobile-sheet-handle {
+    display: none !important;
   }
 
   /* Recenter: move above expand button area */
@@ -3823,6 +3839,11 @@ body,
     top: 0;
     left: 0;
     z-index: 100;
+  }
+
+  .ss-map-area--expanded .ss-map-container {
+    height: 100%;
+    border-radius: 0;
   }
 
   /* Header: compact */

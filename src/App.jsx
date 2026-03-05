@@ -375,18 +375,10 @@ const AppContent = () => {
         }
     }, [selectedVenue]);
 
-    // Resize map when mobile expand/collapse toggles
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (mapRef.current && mapRef.current.resize) {
-                mapRef.current.resize();
-            }
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [mobileMapExpanded]);
+
 
     return (
-        <div className="ss-app-root">
+        <div className={`ss-app-root ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
             {/* Weather background */}
             <WeatherBackground />
 
