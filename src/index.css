@@ -3159,9 +3159,19 @@ body,
 
 .ss-map-marker {
   cursor: pointer;
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: opacity, transform;
-  transform-origin: center;
+  pointer-events: auto;
+  transform: translateZ(0);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 2;
+}
+
+.ss-map-marker:hover {
+  transform: scale(1.06) !important;
+  z-index: 20 !important;
+}
+
+.ss-map-marker:active {
+  transform: scale(0.98) !important;
 }
 
 .ss-updating-spinner {
@@ -5465,8 +5475,8 @@ body,
 }
 
 .ss-map-marker:hover .ss-marker-pill::after {
-  opacity: 0.2;
-  inset: -10px;
+  opacity: 0.15;
+  inset: -6px;
 }
 
 /* ── Guest Counter ───────────────────────────── */
@@ -5912,6 +5922,12 @@ body,
   .ss-filters-fab:active {
     transform: scale(0.95);
   }
+}
+
+/* Prevent FAB from immediately re-opening sheet on close tap */
+.ss-filters-fab:disabled {
+  pointer-events: none;
+  opacity: 0;
 }
 
 .ss-filters-fab-badge {

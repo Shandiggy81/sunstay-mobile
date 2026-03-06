@@ -218,14 +218,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             });
         });
 
-        // Pointer cursor on clusters
-        map.current.on('mouseenter', 'clusters', () => {
-            map.current.getCanvas().style.cursor = 'pointer';
-        });
-        map.current.on('mouseleave', 'clusters', () => {
-            map.current.getCanvas().style.cursor = '';
-        });
-
         // ── Render venue markers directly from data ──────────────────
         // Instead of relying on querySourceFeatures (which is unreliable),
         // create DOM markers for all venues and show/hide based on zoom
@@ -250,6 +242,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
                 const el = document.createElement('div');
                 el.className = 'ss-map-marker';
+                el.style.pointerEvents = 'auto';
+                el.style.touchAction = 'manipulation';
                 el.style.opacity = isVisible ? '1' : '0.15';
                 el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
                 el.innerHTML = `

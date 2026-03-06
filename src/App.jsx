@@ -186,6 +186,20 @@ const AppContent = () => {
     const [mobileSheetState, setMobileSheetState] = useState('peek'); // 'peek', 'expanded', 'closed'
     const [mapQuickFilter, setMapQuickFilter] = useState(null);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+
+    const openMobileFilters = useCallback((e) => {
+        if (e) e.stopPropagation();
+        setMobileFilterOpen(true);
+    }, []);
+
+    const closeMobileFilters = useCallback((e) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        setMobileFilterOpen(false);
+    }, []);
+
     const [cozyMode, setCozyMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const mapRef = useRef(null);
@@ -532,7 +546,9 @@ const AppContent = () => {
                     {/* Filters FAB (mobile only) */}
                     <button
                         className="ss-filters-fab"
-                        onClick={() => setMobileFilterOpen(true)}
+                        onClick={openMobileFilters}
+                        disabled={mobileFilterOpen}
+                        aria-expanded={mobileFilterOpen}
                     >
                         <ListFilter size={18} />
                         <span>Filters</span>
@@ -587,7 +603,7 @@ const AppContent = () => {
                         <>
                             <motion.div
                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                onClick={() => setMobileFilterOpen(false)}
+                                onClick={closeMobileFilters}
                                 className="ss-filter-sheet-backdrop"
                             />
                             <motion.div
@@ -600,7 +616,7 @@ const AppContent = () => {
                                     {activeFilters.length > 0 && (
                                         <button onClick={handleClearFilters} className="ss-filter-sheet-clear">Clear all</button>
                                     )}
-                                    <button onClick={() => setMobileFilterOpen(false)} className="ss-filter-sheet-close">
+                                    <button onClick={closeMobileFilters} className="ss-filter-sheet-close">
                                         <X size={18} />
                                     </button>
                                 </div>
@@ -618,7 +634,8 @@ const AppContent = () => {
                                 </div>
                                 <button
                                     className="ss-filter-sheet-apply"
-                                    onClick={() => setMobileFilterOpen(false)}
+                                    onClick={closeMobileFilters}
+                                    type="button"
                                 >
                                     Show {filteredVenues.length} venue{filteredVenues.length !== 1 ? 's' : ''}
                                 </button>
