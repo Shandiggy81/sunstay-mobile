@@ -171,13 +171,7 @@ const VenueChip = ({ venue, isSelected, onClick, weather }) => {
 };
 
 
-// ── Quick-filter pills above map ─────────────────────────────────
-const MAP_FILTERS = [
-    { id: 'sunny', label: 'Sunny Now', icon: '☀️' },
-    { id: 'calm', label: 'Calm Wind', icon: '🍃' },
-    { id: 'outdoor', label: 'Outdoor', icon: '🌿' },
-    { id: 'rooftop', label: 'Rooftop', icon: '🏙️' },
-];
+
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -191,6 +185,7 @@ const AppContent = () => {
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState] = useState('peek'); // 'peek', 'expanded', 'closed'
     const [mapQuickFilter, setMapQuickFilter] = useState(null);
+    const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [cozyMode, setCozyMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const mapRef = useRef(null);
@@ -534,19 +529,17 @@ const AppContent = () => {
                         />
                     </div>
 
-                    {/* Quick-filter pills */}
-                    <div className="ss-map-pills">
-                        {MAP_FILTERS.map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => setMapQuickFilter(prev => prev === f.id ? null : f.id)}
-                                className={`ss-map-pill ${mapQuickFilter === f.id ? 'ss-map-pill--active' : ''}`}
-                            >
-                                <span>{f.icon}</span>
-                                <span>{f.label}</span>
-                            </button>
-                        ))}
-                    </div>
+                    {/* Filters FAB (mobile only) */}
+                    <button
+                        className="ss-filters-fab"
+                        onClick={() => setMobileFilterOpen(true)}
+                    >
+                        <ListFilter size={18} />
+                        <span>Filters</span>
+                        {activeFilters.length > 0 && (
+                            <span className="ss-filters-fab-badge">{activeFilters.length}</span>
+                        )}
+                    </button>
 
                     {/* Map container */}
                     <div className="ss-map-container">
@@ -587,6 +580,52 @@ const AppContent = () => {
                         <span>{mobileMapExpanded ? 'Collapse Map' : 'Expand Map'}</span>
                     </button>
                 </section>
+
+                {/* ═══ Mobile Filter Bottom Sheet ═══ */}
+                <AnimatePresence>
+                    {mobileFilterOpen && (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                onClick={() => setMobileFilterOpen(false)}
+                                className="ss-filter-sheet-backdrop"
+                            />
+                            <motion.div
+                                initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                className="ss-filter-sheet"
+                            >
+                                <div className="ss-filter-sheet-head">
+                                    <h3>Filters</h3>
+                                    {activeFilters.length > 0 && (
+                                        <button onClick={handleClearFilters} className="ss-filter-sheet-clear">Clear all</button>
+                                    )}
+                                    <button onClick={() => setMobileFilterOpen(false)} className="ss-filter-sheet-close">
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                                <div className="ss-filter-chip-grid">
+                                    {FILTER_CATEGORIES.map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            onClick={() => handleFilterToggle(filter.id)}
+                                            className={`ss-filter-chip ${activeFilters.includes(filter.id) ? 'ss-filter-chip--active' : ''}`}
+                                        >
+                                            <span>{filter.icon}</span>
+                                            <span>{filter.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <button
+                                    className="ss-filter-sheet-apply"
+                                    onClick={() => setMobileFilterOpen(false)}
+                                >
+                                    Show {filteredVenues.length} venue{filteredVenues.length !== 1 ? 's' : ''}
+                                </button>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
             </main>
 
             {/* ═══ MOBILE: Horizontal venue chip strip ═══ */}
@@ -674,25 +713,14 @@ const AppContent = () => {
                 )}
             </AnimatePresence>
 
-            {/* ═══ Venue detail card (slides in from right) ═══ */}
-            <AnimatePresence>
-                {selectedVenue && (
-                    <motion.div
-                        key={selectedVenue?.id || 'venue-detail'}
-                        initial={{ x: '100%', opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        exit={{ x: '100%', opacity: 0 }}
-                        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-                        className="ss-venue-detail"
-                    >
-                        <VenueCard
-                            key={selectedVenue?.id}
-                            venue={selectedVenue}
-                            onClose={handleCloseCard}
-                        />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* ═══ Venue detail card ═══ */}
+            {selectedVenue && (
+                <VenueCard
+                    key={selectedVenue?.id}
+                    venue={selectedVenue}
+                    onClose={handleCloseCard}
+                />
+            )}
 
             {/* Chat */}
             <ChatWidget
