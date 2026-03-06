@@ -6,22 +6,12 @@ import { demoVenues } from '../data/demoVenues';
 import { motion } from 'framer-motion';
 import { useWeather } from '../context/WeatherContext';
 
-const fmtHour = (h) => {
-    if (h === 0 || h === 24) return '12am';
-    if (h === 12) return '12pm';
-    return h > 12 ? `${h - 12}pm` : `${h}am`;
-};
-
-const HOUR_LABELS = [6, 9, 12, 15, 18, 21];
-
 const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyMode }, ref) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const markers = useRef([]);
     const [mapLoaded, setMapLoaded] = useState(false);
     const [mapError, setMapError] = useState(false);
-    const [scrubHour, setScrubHour] = useState(new Date().getHours());
-    const [scrubbing, setScrubbing] = useState(false);
     const { weather } = useWeather();
 
     const isTokenMissing = !MAPBOX_TOKEN || !MAPBOX_TOKEN.startsWith('pk.');
@@ -225,11 +215,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         }
     }, [selectedVenue]);
 
-    const isDaytime = scrubHour >= 6 && scrubHour <= 20;
-    const isGoldenHour = (scrubHour >= 6 && scrubHour <= 8) || (scrubHour >= 17 && scrubHour <= 20);
-
     return (
-        <div className="fixed inset-0 w-full h-full">
+        <div className="absolute inset-0 w-full h-full">
             <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
 
             {/* Fallback canvas when map token unavailable */}
@@ -271,62 +258,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 </div>
             )}
 
-            {/* Sun-Scrubber */}
-            <motion.div
-                initial={{ y: 80, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.9, type: 'spring', damping: 22, stiffness: 180 }}
-                className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-[min(500px,88vw)]"
-                style={{ bottom: '4.5rem' }}
-            >
-                <div className="glass-ui rounded-2xl px-5 pt-4 pb-5 border border-white/12 shadow-2xl">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <motion.span animate={{ scale: scrubbing ? 1.25 : 1 }} transition={{ type: 'spring', stiffness: 400 }} className="text-lg leading-none">
-                                {isGoldenHour ? '🌅' : isDaytime ? '☀️' : '🌙'}
-                            </motion.span>
-                            <span className="text-white font-bold text-sm">Sun Scrubber</span>
-                        </div>
-                        <motion.div key={scrubHour} initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-1.5">
-                            <span className={`text-sm font-black ${isGoldenHour ? 'text-amber-400' : isDaytime ? 'text-yellow-300' : 'text-blue-300'}`}>
-                                {fmtHour(scrubHour)}
-                            </span>
-                            <span className="text-[10px] text-white/35 font-medium hidden sm:block">
-                                {isGoldenHour ? 'Golden Hour' : isDaytime ? (scrubHour < 12 ? 'Morning' : scrubHour < 17 ? 'Afternoon' : 'Evening') : 'Night'}
-                            </span>
-                        </motion.div>
-                    </div>
-
-                    <div className="relative h-5">
-                        <div className="absolute inset-y-0 left-0 right-0 flex items-center">
-                            <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                                <div
-                                    className={`h-full rounded-full transition-all duration-100 ${isGoldenHour ? 'bg-gradient-to-r from-orange-500 to-amber-400' : isDaytime ? 'bg-gradient-to-r from-amber-500 to-yellow-300' : 'bg-gradient-to-r from-blue-800 to-blue-600'}`}
-                                    style={{ width: `${Math.max(0, Math.min(100, (scrubHour / 23) * 100))}%` }}
-                                />
-                            </div>
-                        </div>
-                        <input
-                            type="range" min={0} max={23} value={scrubHour}
-                            onChange={e => setScrubHour(parseInt(e.target.value))}
-                            onMouseDown={() => setScrubbing(true)}
-                            onMouseUp={() => setScrubbing(false)}
-                            onTouchStart={() => setScrubbing(true)}
-                            onTouchEnd={() => setScrubbing(false)}
-                            className="sun-scrubber-input"
-                        />
-                    </div>
-
-                    <div className="flex justify-between mt-2.5 px-0.5">
-                        {HOUR_LABELS.map(h => (
-                            <button key={h} onClick={() => setScrubHour(h)}
-                                className={`text-[10px] font-bold transition-colors ${scrubHour === h ? 'text-amber-400' : 'text-white/25 hover:text-white/55'}`}>
-                                {fmtHour(h)}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </motion.div>
         </div>
     );
 });

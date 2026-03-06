@@ -55,7 +55,7 @@ const VenueCard = ({ venue, onClose }) => {
         } catch { return null; }
     }, [venue, weather]);
 
-    const windSpeed = weather?.wind?.speed;
+    const windSpeed = weather?.wind?.speed != null ? Math.round(weather.wind.speed * 3.6) : null;
     const uvIndex = weather?.uvi;
     const typeLabel = venue.typeCategory === 'Hotel' || venue.typeCategory === 'ShortStay'
         ? venue.typeLabel
@@ -68,22 +68,13 @@ const VenueCard = ({ venue, onClose }) => {
     return (
         <AnimatePresence>
             {venue && (
-                <>
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="fixed inset-0 z-[9998]"
-                    />
-
-                    <motion.div
-                        initial={{ y: '100%', opacity: 0, scale: 0.96 }}
-                        animate={{ y: 0, opacity: 1, scale: 1 }}
-                        exit={{ y: '100%', opacity: 0, scale: 0.96 }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.7 }}
-                        className="fixed bottom-0 left-0 right-0 z-[9999] md:bottom-auto md:top-1/2 md:left-auto md:right-6 md:-translate-y-1/2 md:w-[380px]"
-                    >
+                <motion.div
+                    initial={{ y: '100%', opacity: 0, scale: 0.96 }}
+                    animate={{ y: 0, opacity: 1, scale: 1 }}
+                    exit={{ y: '100%', opacity: 0, scale: 0.96 }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 280, mass: 0.7 }}
+                    className="fixed bottom-0 left-0 right-0 z-[9999] md:bottom-auto md:top-1/2 md:left-auto md:right-6 md:-translate-y-1/2 md:w-[380px]"
+                >
                         <div className="glass-card rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl border border-white/20">
                             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-t-3xl md:rounded-3xl">
                                 <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-amber-400/10 blur-3xl" />
@@ -135,7 +126,9 @@ const VenueCard = ({ venue, onClose }) => {
                                     {[
                                         { icon: <Thermometer size={13} />, value: temperature != null ? `${temperature}°` : '--', label: 'Temp' },
                                         { icon: <span className="text-xs">{sunLeft?.icon ?? '☀️'}</span>, value: sunLeft?.text ?? '--', label: 'Sun Left' },
-                                        { icon: <Flame size={13} />, value: heatingStatus?.text ?? 'N/A', label: heatingStatus?.label ?? 'Heating', highlight: heatingStatus?.active },
+                                        heatingStatus
+                                            ? { icon: <Flame size={13} />, value: heatingStatus.text, label: heatingStatus.label, highlight: heatingStatus.active }
+                                            : { icon: <Wind size={13} />, value: windSpeed != null ? `${windSpeed}` : '--', label: 'Wind km/h' },
                                     ].map((stat, i) => (
                                         <motion.div
                                             key={i}
@@ -278,7 +271,6 @@ const VenueCard = ({ venue, onClose }) => {
                             </div>
                         </div>
                     </motion.div>
-                </>
             )}
         </AnimatePresence>
     );

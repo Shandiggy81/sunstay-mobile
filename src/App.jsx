@@ -6,9 +6,9 @@ import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
 import FilterBar from './components/FilterBar';
 import NotificationCenter from './components/NotificationCenter';
-import { DesktopVenuePanel, MobileVenueSheet } from './components/VenueListPanel';
+import { VenueListPanel } from './components/VenueListPanel';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Locate, Map, List } from 'lucide-react';
+import { Search, X, Locate } from 'lucide-react';
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
 import { getWindWarning } from './data/windIntelligence';
 
@@ -37,42 +37,18 @@ const WeatherPill = () => {
     );
 };
 
-const MapListToggle = ({ view, onChange }) => (
-    <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5, type: 'spring', damping: 22, stiffness: 200 }}
-        className="flex items-center gap-0.5 glass-ui rounded-2xl p-1 border border-white/12 shadow-xl"
-    >
-        {[
-            { id: 'map', icon: <Map size={13} />, label: 'Map' },
-            { id: 'list', icon: <List size={13} />, label: 'List' },
-        ].map(({ id, icon, label }) => (
-            <motion.button
-                key={id}
-                whileTap={{ scale: 0.92 }}
-                onClick={() => onChange(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${view === id ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30' : 'text-white/50 hover:text-white/80'}`}
-            >
-                {icon}
-                <span>{label}</span>
-            </motion.button>
-        ))}
-    </motion.div>
-);
-
 const AppContent = () => {
     const [selectedVenue, setSelectedVenue] = useState(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
-    const [desktopPanelOpen, setDesktopPanelOpen] = useState(true);
     const [mobileView, setMobileView] = useState('map');
     const mapRef = useRef(null);
     const { weather } = useWeather();
 
     const filteredVenueIds = useMemo(() => {
         const filters = activeFilters || [];
+        if (filters.length === 0) return null;
         const typeFilters = filters.filter(f => f.startsWith('all-'));
         const intentFilters = filters.filter(f => f.startsWith('sun-'));
         const tagFilters = filters.filter(f => !f.startsWith('all-') && !f.startsWith('sun-'));
@@ -107,7 +83,7 @@ const AppContent = () => {
     }, [activeFilters]);
 
     const filteredVenues = useMemo(() => {
-        let vList = demoVenues.filter(v => filteredVenueIds.includes(v.id));
+        let vList = filteredVenueIds === null ? demoVenues : demoVenues.filter(v => filteredVenueIds.includes(v.id));
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
             vList = vList.filter(v =>
@@ -152,181 +128,198 @@ const AppContent = () => {
     }, [handleVenueSelect]);
 
     return (
-        <div className="fixed inset-0 overflow-hidden bg-[#0a0a1e]">
-            {/* ── Full-screen Map ─────────────────────────────── */}
-            <MapView
-                onVenueSelect={handleVenueSelect}
-                selectedVenue={selectedVenue}
-                filteredVenueIds={filteredVenueIds}
-                mapRef={mapRef}
-                weatherColorFn={getMarkerWeatherColor}
-                cozyMode={activeFilters.includes('cozy')}
-                isExpanded={true}
-            />
-
-            {/* ── Vignette / Edge Gradient overlay ───────────── */}
-            <div className="map-vignette pointer-events-none" />
-
-            {/* ── Desktop side panel (visible by default) ────── */}
-            <AnimatePresence>
-                {desktopPanelOpen && (
-                    <div className="hidden md:block">
-                        <DesktopVenuePanel
-                            venues={filteredVenues}
-                            selectedVenue={selectedVenue}
-                            onVenueSelect={handleVenueSelect}
-                            onClose={() => setDesktopPanelOpen(false)}
-                            weather={weather}
-                            activeFilters={activeFilters}
-                            onClearFilters={handleClearFilters}
-                            searchQuery={searchQuery}
-                            onSearch={setSearchQuery}
-                        />
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* ── Top bar ─────────────────────────────────────── */}
-            <motion.div
-                initial={{ y: -80, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3, type: 'spring', damping: 22, stiffness: 200 }}
-                className="absolute top-4 z-30 flex items-center gap-2.5"
-                style={{ left: desktopPanelOpen ? 'calc(288px + 1rem)' : '1rem', right: '1rem', transition: 'left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-            >
-                {/* Logo — on desktop shows panel toggle when panel closed */}
-                <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex-shrink-0 flex items-center gap-2 glass-ui px-3 py-2 rounded-2xl border border-white/12 cursor-pointer shadow-lg"
-                    onClick={() => setDesktopPanelOpen(v => !v)}
-                >
-                    <motion.img
+        <div className="fixed inset-0 overflow-hidden bg-[#0a0a1e] flex">
+            {/* ── Desktop: Left venue panel (always visible, solid) ── */}
+            <div className="hidden md:flex flex-col w-72 flex-shrink-0 border-r border-white/8 bg-[#080816]">
+                <div className="flex items-center gap-2.5 px-4 py-4 border-b border-white/8 flex-shrink-0">
+                    <img
                         src="/assets/sun-badge.jpg"
                         alt="Sunstay"
-                        className="w-6 h-6 rounded-full object-cover"
-                        animate={{ rotate: [0, 8, -8, 0] }}
-                        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+                        className="w-7 h-7 rounded-full object-cover flex-shrink-0"
                         onError={e => { e.target.style.display = 'none'; }}
                     />
-                    <span className="text-white font-black text-sm tracking-tight hidden sm:block">Sunstay</span>
+                    <span className="text-white font-black text-sm tracking-tight">Sunstay</span>
+                    <span className="ml-auto text-white/30 text-xs">{filteredVenues.length}</span>
+                </div>
+
+                <div className="px-3 py-2.5 flex-shrink-0">
+                    <div className="flex items-center gap-2 bg-white/5 border border-white/8 rounded-xl px-3 py-2">
+                        <Search size={12} className="text-white/25 flex-shrink-0" />
+                        <input
+                            type="text"
+                            placeholder="Search venues…"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="flex-1 bg-transparent text-white placeholder-white/20 text-xs outline-none"
+                        />
+                        {searchQuery && (
+                            <button onClick={() => setSearchQuery('')} className="text-white/25 hover:text-white/50">
+                                <X size={11} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="px-3 pb-2 flex-shrink-0">
+                    <FilterBar
+                        activeFilters={activeFilters}
+                        onFilterToggle={handleFilterToggle}
+                        onClearFilters={handleClearFilters}
+                        compact
+                    />
+                </div>
+
+                <div className="flex-1 overflow-y-auto scrollbar-hide px-2 pb-4 space-y-0.5">
+                    {filteredVenues.map(venue => (
+                        <VenueListPanel
+                            key={venue.id}
+                            venue={venue}
+                            isSelected={selectedVenue?.id === venue.id}
+                            onClick={() => handleVenueSelect(venue)}
+                            weather={weather}
+                        />
+                    ))}
+                    {filteredVenues.length === 0 && (
+                        <div className="text-center py-10">
+                            <p className="text-white/20 text-sm">No matches</p>
+                            <button onClick={handleClearFilters} className="text-amber-400 text-xs mt-2 hover:text-amber-300">Clear filters</button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Right: Map fills remaining space ─────────────── */}
+            <div className="relative flex-1 min-w-0">
+                <MapView
+                    onVenueSelect={handleVenueSelect}
+                    selectedVenue={selectedVenue}
+                    filteredVenueIds={filteredVenueIds}
+                    mapRef={mapRef}
+                    weatherColorFn={getMarkerWeatherColor}
+                    cozyMode={activeFilters.includes('cozy')}
+                />
+
+                <div className="map-vignette pointer-events-none" />
+
+                {/* ── Mobile top bar ─────────────────────────────── */}
+                <motion.div
+                    initial={{ y: -60, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3, type: 'spring', damping: 22, stiffness: 200 }}
+                    className="absolute top-4 left-4 right-4 z-30 flex items-center gap-2 md:hidden"
+                >
+                    <div className="flex-1 flex items-center gap-2 glass-ui px-3.5 py-2 rounded-2xl border border-white/12 shadow-lg min-w-0">
+                        <Search size={14} className="text-white/35 flex-shrink-0" />
+                        <input
+                            type="text"
+                            placeholder="Search venues…"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="flex-1 bg-transparent text-white placeholder-white/25 text-sm outline-none min-w-0"
+                        />
+                        {searchQuery && (
+                            <button onClick={() => setSearchQuery('')} className="text-white/30 hover:text-white/60">
+                                <X size={13} />
+                            </button>
+                        )}
+                    </div>
+                    <WeatherPill />
+                    <NotificationCenter onVenueSelect={handleVenueSelect} />
                 </motion.div>
 
-                {/* Search */}
-                <div className="flex-1 flex items-center gap-2 glass-ui px-3.5 py-2 rounded-2xl border border-white/12 shadow-lg min-w-0">
-                    <Search size={14} className="text-white/35 flex-shrink-0" />
-                    <input
-                        type="text"
-                        placeholder="Search venues, suburbs…"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="flex-1 bg-transparent text-white placeholder-white/25 text-sm outline-none min-w-0"
+                {/* ── Desktop top bar (weather + notifications) ──── */}
+                <motion.div
+                    initial={{ y: -60, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3, type: 'spring', damping: 22, stiffness: 200 }}
+                    className="absolute top-4 right-4 z-30 hidden md:flex items-center gap-2"
+                >
+                    <WeatherPill />
+                    <NotificationCenter onVenueSelect={handleVenueSelect} />
+                </motion.div>
+
+                {/* ── Mobile filter bar ──────────────────────────── */}
+                <motion.div
+                    initial={{ y: -40, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.45, type: 'spring', damping: 22, stiffness: 200 }}
+                    className="absolute top-[4.5rem] left-4 right-4 z-30 md:hidden"
+                >
+                    <FilterBar
+                        activeFilters={activeFilters}
+                        onFilterToggle={handleFilterToggle}
+                        onClearFilters={handleClearFilters}
                     />
-                    <AnimatePresence>
-                        {searchQuery && (
-                            <motion.button
-                                initial={{ scale: 0, opacity: 0 }}
-                                animate={{ scale: 1, opacity: 1 }}
-                                exit={{ scale: 0, opacity: 0 }}
-                                whileTap={{ scale: 0.8 }}
-                                onClick={() => setSearchQuery('')}
-                                className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0"
+                </motion.div>
+
+                {/* ── Recenter button ────────────────────────────── */}
+                <motion.button
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.7, type: 'spring', stiffness: 300 }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="absolute right-4 bottom-24 z-30 w-10 h-10 glass-ui rounded-xl border border-white/12 flex items-center justify-center text-white/60 shadow-xl"
+                    onClick={handleRecenter}
+                >
+                    <Locate size={17} />
+                </motion.button>
+
+                {/* ── Mobile Map/List toggle ─────────────────────── */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 md:hidden">
+                    <div className="flex items-center gap-0.5 glass-ui rounded-2xl p-1 border border-white/12 shadow-xl">
+                        {[
+                            { id: 'map', label: 'Map' },
+                            { id: 'list', label: 'List' },
+                        ].map(({ id, label }) => (
+                            <button
+                                key={id}
+                                onClick={() => {
+                                    setMobileView(id);
+                                    if (id === 'map') setSelectedVenue(null);
+                                }}
+                                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${mobileView === id ? 'bg-amber-500 text-white shadow-md' : 'text-white/50'}`}
                             >
-                                <X size={13} />
-                            </motion.button>
-                        )}
-                    </AnimatePresence>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
-                <WeatherPill />
-                <NotificationCenter onVenueSelect={handleVenueSelect} />
-            </motion.div>
+                {/* ── Mobile bottom sheet ────────────────────────── */}
+                {mobileView === 'list' && (
+                    <div className="absolute bottom-0 left-0 right-0 z-40 md:hidden bg-[#0a0a1e]/97 border-t border-white/10 rounded-t-3xl max-h-[75vh] flex flex-col">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 flex-shrink-0">
+                            <span className="text-white font-bold text-sm">Venues <span className="text-white/30 font-normal text-xs ml-1">{filteredVenues.length}</span></span>
+                            {activeFilters.length > 0 && (
+                                <button onClick={handleClearFilters} className="text-amber-400 text-xs font-semibold">Clear filters</button>
+                            )}
+                        </div>
+                        <div className="flex-1 overflow-y-auto scrollbar-hide px-2 pb-6 space-y-0.5 pt-1">
+                            {filteredVenues.map(venue => (
+                                <VenueListPanel
+                                    key={venue.id}
+                                    venue={venue}
+                                    isSelected={selectedVenue?.id === venue.id}
+                                    onClick={() => handleVenueSelect(venue)}
+                                    weather={weather}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
 
-            {/* ── Filter bar ──────────────────────────────────── */}
-            <motion.div
-                initial={{ y: -50, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.45, type: 'spring', damping: 22, stiffness: 200 }}
-                className="absolute top-[4.5rem] z-30"
-                style={{ left: desktopPanelOpen ? 'calc(288px + 1rem)' : '1rem', right: '1rem', transition: 'left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-            >
-                <FilterBar
-                    activeFilters={activeFilters}
-                    onFilterToggle={handleFilterToggle}
-                    onClearFilters={handleClearFilters}
-                />
-            </motion.div>
-
-            {/* ── Recenter button ─────────────────────────────── */}
-            <motion.button
-                initial={{ opacity: 0, scale: 0 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.7, type: 'spring', stiffness: 300 }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9, rotate: -20 }}
-                className="absolute right-4 bottom-[8.5rem] z-30 w-10 h-10 glass-ui rounded-xl border border-white/12 flex items-center justify-center text-white/60 shadow-xl"
-                onClick={handleRecenter}
-            >
-                <Locate size={17} />
-            </motion.button>
-
-            {/* ── Bottom center: Map/List toggle + Sun-Scrubber hint ── */}
-            <div className="absolute bottom-0 left-0 right-0 z-30 flex flex-col items-center gap-2 pb-6 pointer-events-none">
-                {/* Toggle — mobile only, desktop uses side panel */}
-                <div className="pointer-events-auto md:hidden">
-                    <MapListToggle
-                        view={mobileView}
-                        onChange={(v) => {
-                            setMobileView(v);
-                            if (v === 'map') setSelectedVenue(null);
-                        }}
-                    />
-                </div>
-                {/* Desktop: show panel toggle when panel is closed */}
+                {/* ── Venue detail card ──────────────────────────── */}
                 <AnimatePresence>
-                    {!desktopPanelOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                            className="pointer-events-auto hidden md:block"
-                        >
-                            <MapListToggle
-                                view="map"
-                                onChange={() => setDesktopPanelOpen(true)}
-                            />
-                        </motion.div>
+                    {selectedVenue && (
+                        <VenueCard
+                            key={selectedVenue.id}
+                            venue={selectedVenue}
+                            onClose={handleCloseCard}
+                        />
                     )}
                 </AnimatePresence>
             </div>
-
-            {/* ── Mobile venue bottom sheet ───────────────────── */}
-            <AnimatePresence>
-                {mobileView === 'list' && (
-                    <div className="md:hidden">
-                        <MobileVenueSheet
-                            venues={filteredVenues}
-                            selectedVenue={selectedVenue}
-                            onVenueSelect={handleVenueSelect}
-                            onClose={() => setMobileView('map')}
-                            weather={weather}
-                            activeFilters={activeFilters}
-                            onClearFilters={handleClearFilters}
-                        />
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* ── Venue detail card ───────────────────────────── */}
-            <AnimatePresence>
-                {selectedVenue && (
-                    <VenueCard
-                        key={selectedVenue.id}
-                        venue={selectedVenue}
-                        onClose={handleCloseCard}
-                    />
-                )}
-            </AnimatePresence>
 
             <ChatWidget
                 isOpen={isChatOpen}
@@ -355,11 +348,7 @@ class ErrorBoundary extends Component {
         if (this.state.hasError) {
             return (
                 <div className="fixed inset-0 bg-[#0a0a1e] flex items-center justify-center p-6">
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="text-center max-w-sm glass-card rounded-3xl p-8 border border-white/10"
-                    >
+                    <div className="text-center max-w-sm glass-card rounded-3xl p-8 border border-white/10">
                         <div className="text-5xl mb-4">🌥️</div>
                         <h2 className="text-xl font-black text-white mb-2">Something went wrong</h2>
                         <p className="text-white/40 text-sm mb-6">{this.state.error?.message || 'An unexpected error occurred.'}</p>
@@ -367,7 +356,7 @@ class ErrorBoundary extends Component {
                             className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl">
                             Reload App
                         </button>
-                    </motion.div>
+                    </div>
                 </div>
             );
         }
