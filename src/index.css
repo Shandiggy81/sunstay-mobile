@@ -27,30 +27,95 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/* Top-bar elements: opaque enough to read */
+.glass-ui {
+  background: rgba(8, 8, 22, 0.80);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+/* Legacy alias */
 .glass-dark {
-  background: rgba(8, 8, 24, 0.65);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 8, 22, 0.80);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
+/* Venue cards — maximum opacity, fully legible, strong shadow to block map pins */
 .glass-card {
-  background: rgba(12, 12, 28, 0.82);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  backdrop-filter: blur(32px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.glass-sidebar {
-  background: rgba(8, 8, 20, 0.88);
+  background: rgba(10, 10, 24, 0.95);
   -webkit-backdrop-filter: blur(40px) saturate(200%);
   backdrop-filter: blur(40px) saturate(200%);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.75),
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Side panel */
+.glass-sidebar {
+  background: rgba(8, 8, 20, 0.95);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  backdrop-filter: blur(40px) saturate(200%);
+  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.65);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .glass-stat {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Venue Panel & Bottom Sheet ────────────────────────────── */
+.venue-panel-desktop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 288px;
+  z-index: 40;
+  background: rgba(8, 8, 22, 0.95);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  backdrop-filter: blur(40px) saturate(200%);
+  box-shadow: 4px 0 48px rgba(0, 0, 0, 0.65);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+}
+
+.venue-sheet-mobile {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: rgba(10, 10, 24, 0.97);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  backdrop-filter: blur(40px) saturate(200%);
+  box-shadow:
+    0 -12px 48px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px 24px 0 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 72px;
+  max-height: 82vh;
+}
+
+/* ─── Map Vignette ──────────────────────────────────────────── */
+.map-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background:
+    radial-gradient(ellipse 100% 40% at top, rgba(0,0,6,0.5) 0%, transparent 100%),
+    radial-gradient(ellipse 100% 45% at bottom, rgba(0,0,6,0.55) 0%, transparent 100%),
+    radial-gradient(ellipse 30% 100% at left, rgba(0,0,6,0.35) 0%, transparent 100%),
+    radial-gradient(ellipse 30% 100% at right, rgba(0,0,6,0.25) 0%, transparent 100%);
+  pointer-events: none;
 }
 
 /* Custom venue marker styles */
