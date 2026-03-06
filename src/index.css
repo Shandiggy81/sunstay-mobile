@@ -2,42 +2,55 @@
 
 @import "tailwindcss";
 
-/* Base styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ─── Base ─────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: #0a0a1e;
 }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f9fafb;
-  color: #111827;
+  color: #ffffff;
 }
 
-html,
-body,
-#root {
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-
-/* Glassmorphism utility */
+/* ─── Glassmorphism Design System ──────────────────────────── */
 .glass {
-  background: rgba(255, 255, 255, 0.9);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .glass-dark {
-  background: rgba(0, 0, 0, 0.4);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 8, 24, 0.65);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(12, 12, 28, 0.82);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glass-sidebar {
+  background: rgba(8, 8, 20, 0.88);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  backdrop-filter: blur(40px) saturate(200%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-stat {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Custom venue marker styles */
@@ -119,19 +132,30 @@ body,
 
 /* Mapbox overrides for custom styling */
 .mapboxgl-ctrl-group {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border-radius: 14px;
   overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  background: rgba(8, 8, 24, 0.75) !important;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
 }
 
 .mapboxgl-ctrl-group button {
-  background: rgba(255, 255, 255, 0.9);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  background: transparent !important;
+  color: rgba(255,255,255,0.7) !important;
 }
 
 .mapboxgl-ctrl-group button:hover {
-  background: white;
+  background: rgba(255,255,255,0.08) !important;
+}
+
+.mapboxgl-ctrl-group button + button {
+  border-top: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+.mapboxgl-ctrl-icon {
+  filter: invert(1) brightness(0.7);
 }
 
 /* Remove Mapbox logo (optional - check Mapbox terms) */
@@ -3231,13 +3255,13 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.20), 0 1px 4px rgba(135, 206, 235, 0.30);
-  border: 2px solid #87CEEB;
-  background: white;
-  transition: all 0.25s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.25);
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Mapbox popup styling */
@@ -6423,3 +6447,72 @@ body,
   border-color: #d1d5db;
   color: #374151;
 }
+
+/* ─── Sun-Scrubber Range Input ─────────────────────────────── */
+.sun-scrubber-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  margin: 0;
+}
+
+.sun-scrubber-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  border: 2px solid rgba(255,255,255,0.8);
+  box-shadow: 0 0 0 4px rgba(251,191,36,0.2), 0 4px 12px rgba(0,0,0,0.4);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.sun-scrubber-input::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 6px rgba(251,191,36,0.3), 0 6px 20px rgba(0,0,0,0.5);
+}
+
+.sun-scrubber-input::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #fbbf24, #f97316);
+  border: 2px solid rgba(255,255,255,0.8);
+  box-shadow: 0 0 0 4px rgba(251,191,36,0.2), 0 4px 12px rgba(0,0,0,0.4);
+  cursor: pointer;
+}
+
+.sun-scrubber-input::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 6px;
+}
+
+.sun-scrubber-input::-moz-range-track {
+  background: transparent;
+  height: 6px;
+}
+
+/* ─── Scrollbar hide ────────────────────────────────────────── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* ─── Mapbox attribution dark ───────────────────────────────── */
+.mapboxgl-ctrl-attrib {
+  background: rgba(8, 8, 24, 0.7) !important;
+  color: rgba(255,255,255,0.3) !important;
+  border-radius: 8px !important;
+}
+.mapboxgl-ctrl-attrib a { color: rgba(255,255,255,0.4) !important; }
+.mapboxgl-ctrl-logo { opacity: 0.25; filter: brightness(2); }
