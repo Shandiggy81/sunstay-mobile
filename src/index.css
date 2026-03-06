@@ -2850,7 +2850,7 @@ body,
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   padding-right: 4px;
 }
 
@@ -2905,8 +2905,9 @@ body,
 .ss-venue-list-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 14px 16px;
+  min-height: 52px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.8);
   -webkit-backdrop-filter: blur(8px);
@@ -2940,7 +2941,7 @@ body,
 }
 
 .ss-vlc-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   color: #1f2937;
   white-space: nowrap;
@@ -5826,4 +5827,49 @@ body,
 .sun-score-limited {
   background: #808080 !important;
   color: #fff !important;
+}
+
+/* ═══ Fix 3: Mobile Map-Expanded + Filter Pills ═══════════════════ */
+@media (max-width: 1023px) {
+
+  .ss-app-root--map-expanded .ss-header,
+  .ss-app-root--map-expanded .ss-header-filters,
+  .ss-app-root--map-expanded .ss-mobile-chips,
+  .ss-app-root--map-expanded .ss-mobile-sheet-handle,
+  .ss-app-root--map-expanded .ss-mobile-sheet,
+  .ss-app-root--map-expanded .ss-mobile-sheet-backdrop {
+    display: none !important;
+  }
+
+  .ss-map-area--expanded {
+    position: fixed;
+    inset: 0;
+    height: 100dvh;
+    z-index: 300;
+    background: #fff;
+  }
+
+  .ss-map-area--expanded .ss-map-container,
+  .ss-map-area--expanded .ss-mapview-root,
+  .ss-map-area--expanded .ss-mapview-canvas {
+    height: 100%;
+    min-height: 100%;
+  }
+
+  .ss-map-search-float {
+    z-index: 310;
+  }
+
+  .ss-map-pills {
+    display: flex !important;
+    position: absolute;
+    top: 56px;
+    left: 8px;
+    right: 8px;
+    z-index: 320;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0;
+    padding: 0 4px;
+  }
 }

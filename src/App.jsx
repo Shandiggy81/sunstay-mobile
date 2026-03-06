@@ -557,6 +557,7 @@ const AppContent = () => {
                             mapRef={mapRef}
                             weatherColorFn={getMarkerWeatherColor}
                             cozyMode={cozyMode}
+                            isExpanded={mobileMapExpanded}
                         />
                     </div>
 

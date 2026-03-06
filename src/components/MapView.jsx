@@ -28,7 +28,7 @@ function buildGeoJSON(venues) {
     };
 }
 
-const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyMode }, ref) => {
+const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyMode, isExpanded }, ref) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const unclusteredMarkers = useRef([]);
@@ -106,9 +106,16 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             });
 
             map.current.on('error', (e) => {
-                console.error('Mapbox error:', e.error);
-                clearTimeout(loadTimeout);
-                setMapError(true);
+                const status = e?.error?.status;
+                const msg = String(e?.error?.message || '');
+                const fatal = status === 401 || status === 403 || /access token|unauthorized|style.*not found/i.test(msg);
+                if (fatal) {
+                    console.error('Fatal Mapbox error:', e.error);
+                    clearTimeout(loadTimeout);
+                    setMapError(true);
+                } else {
+                    console.warn('Non-fatal Mapbox error:', e.error);
+                }
             });
 
             if (!isFallbackMode) {
@@ -131,7 +138,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             clearTimeout(loadTimeout);
             ro.disconnect();
             unclusteredMarkers.current.forEach(m => m.marker.remove());
-            markers.current.forEach(m => m.marker.remove());
             if (map.current) {
                 map.current.remove();
                 map.current = null;
@@ -150,8 +156,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             type: 'geojson',
             data: geojson,
             cluster: true,
-            clusterRadius: 50,
-            clusterMaxZoom: 14,
+            clusterRadius: 42,
+            clusterMaxZoom: 13,
         });
 
         // ── Cluster circles ─────────────────────────────────────
@@ -220,34 +226,17 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             map.current.getCanvas().style.cursor = '';
         });
 
-        // ── Render unclustered points as custom DOM markers ──────
-        // We listen for map movements and render/remove markers for visible unclustered points
-        const renderUnclusteredMarkers = () => {
+        // ── Render venue markers directly from data ──────────────────
+        // Instead of relying on querySourceFeatures (which is unreliable),
+        // create DOM markers for all venues and show/hide based on zoom
+        const createAllMarkers = () => {
             // Remove existing markers
             unclusteredMarkers.current.forEach(m => m.marker.remove());
             unclusteredMarkers.current = [];
 
-            if (!map.current || !map.current.isStyleLoaded()) return;
-
-            const features = map.current.queryRenderedFeatures({ layers: ['clusters'] });
-            // We need unclustered features — query the source layer for non-cluster points
-            const unclusteredFeatures = map.current.querySourceFeatures('venues', {
-                sourceLayer: '',
-                filter: ['!', ['has', 'point_count']]
-            });
-
-            // Deduplicate by venue ID (querySourceFeatures can return dupes)
-            const seen = new Set();
-            unclusteredFeatures.forEach(feature => {
-                const venueId = feature.properties.id;
-                if (seen.has(venueId)) return;
-                seen.add(venueId);
-
-                const venue = venueById[venueId];
-                if (!venue) return;
-
+            demoVenues.forEach(venue => {
                 // Check if filtered
-                const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venueId));
+                const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venue.id));
 
                 // Get weather color
                 const colorClass = weather && weatherColorFn
@@ -288,43 +277,58 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             });
         };
 
-        // Render markers on map events
-        map.current.on('moveend', renderUnclusteredMarkers);
-        map.current.on('zoomend', renderUnclusteredMarkers);
-        map.current.on('sourcedata', (e) => {
-            if (e.sourceId === 'venues' && e.isSourceLoaded) {
-                renderUnclusteredMarkers();
+        // Hide cluster layers since we're using DOM markers directly
+        // This avoids double-rendering (cluster circles + individual pins)
+        try {
+            if (map.current.getLayer('clusters')) {
+                map.current.setLayoutProperty('clusters', 'visibility', 'none');
             }
-        });
+            if (map.current.getLayer('cluster-count')) {
+                map.current.setLayoutProperty('cluster-count', 'visibility', 'none');
+            }
+        } catch (e) { /* layers might not be ready */ }
 
-        // Initial render
-        renderUnclusteredMarkers();
+        // Create markers immediately
+        createAllMarkers();
     }, []);
 
-    // ── Map Resize Handling ──────────────────────────────────────────
-    useEffect(() => {
+    // ── Safe Resize helper ──────────────────────────────────────────
+    const safeResize = useCallback(() => {
         if (!map.current || !mapContainer.current) return;
+        const { clientWidth, clientHeight } = mapContainer.current;
+        if (clientWidth === 0 || clientHeight === 0) return;
+        map.current.resize();
+    }, []);
 
-        let resizeTimer;
-        const debounceResize = () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                if (map.current) {
-                    map.current.resize();
-                }
-            }, 100);
+    // ── Map Resize Handling (ResizeObserver) ─────────────────────────
+    useEffect(() => {
+        if (!map.current || !mapLoaded || !mapContainer.current) return;
+        let t1, t2, t3;
+        let raf = 0;
+        const scheduleResize = () => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => {
+                safeResize();
+                t1 = setTimeout(safeResize, 120);
+                t2 = setTimeout(safeResize, 260);
+                t3 = setTimeout(safeResize, 420);
+            });
         };
-
-        const resizeObserver = new ResizeObserver(debounceResize);
-        resizeObserver.observe(mapContainer.current);
-        window.addEventListener('resize', debounceResize);
-
+        const ro = new ResizeObserver(scheduleResize);
+        ro.observe(mapContainer.current);
+        window.addEventListener('resize', scheduleResize, { passive: true });
+        window.addEventListener('orientationchange', scheduleResize);
+        mapContainer.current.addEventListener('transitionend', scheduleResize);
+        scheduleResize();
         return () => {
-            resizeObserver.disconnect();
-            window.removeEventListener('resize', debounceResize);
-            clearTimeout(resizeTimer);
+            ro.disconnect();
+            window.removeEventListener('resize', scheduleResize);
+            window.removeEventListener('orientationchange', scheduleResize);
+            mapContainer.current?.removeEventListener('transitionend', scheduleResize);
+            cancelAnimationFrame(raf);
+            clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
         };
-    }, [mapLoaded]);
+    }, [mapLoaded, isExpanded, safeResize]);
 
     // Fly to venue when selected
     useEffect(() => {
@@ -353,13 +357,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
         source.setData(buildGeoJSON(filtered));
 
-        // Also refresh unclustered markers after a tick
-        setTimeout(() => {
-            unclusteredMarkers.current.forEach(m => m.marker.remove());
-            unclusteredMarkers.current = [];
-            // Markers will be re-rendered on next moveend/sourcedata event
-            setIsUpdating(false);
-        }, 200);
+        // Update marker visibility based on new filters
+        unclusteredMarkers.current.forEach(({ marker, venueId }) => {
+            const el = marker.getElement();
+            const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venueId));
+            el.style.opacity = isVisible ? '1' : '0.15';
+            el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
+        });
+
+        setTimeout(() => setIsUpdating(false), 200);
     }, [filteredVenueIds, mapLoaded]);
 
     // ── Update marker weather colors when weather changes ─────────
@@ -395,22 +401,27 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         });
     }, [cozyMode]);
 
-    // ── Toggle markers visibility in comfort mode ─────────────────
+    // ── Sync cluster vs pin visibility based on zoom & comfortMode ──
     useEffect(() => {
-        unclusteredMarkers.current.forEach(({ marker }) => {
-            const el = marker.getElement();
-            el.style.display = comfortMode ? 'none' : 'block';
-        });
-
-        // Also hide/show cluster layers
-        if (map.current && mapLoaded) {
-            const visibility = comfortMode ? 'none' : 'visible';
-            try {
-                if (map.current.getLayer('clusters')) map.current.setLayoutProperty('clusters', 'visibility', visibility);
-                if (map.current.getLayer('cluster-count')) map.current.setLayoutProperty('cluster-count', 'visibility', visibility);
-            } catch (e) { /* layers might not be ready yet */ }
-        }
-    }, [comfortMode, mapLoaded]);
+        if (!map.current || !mapLoaded) return;
+        const syncClusterVsPins = () => {
+            const zoom = map.current.getZoom();
+            const showClusters = !comfortMode && zoom < 13;
+            ['clusters', 'cluster-count'].forEach((id) => {
+                if (map.current.getLayer(id)) {
+                    map.current.setLayoutProperty(id, 'visibility', showClusters ? 'visible' : 'none');
+                }
+            });
+            unclusteredMarkers.current.forEach(({ marker }) => {
+                marker.getElement().style.display = (comfortMode || showClusters) ? 'none' : 'block';
+            });
+        };
+        syncClusterVsPins();
+        map.current.on('zoomend', syncClusterVsPins);
+        return () => {
+            map.current?.off('zoomend', syncClusterVsPins);
+        };
+    }, [mapLoaded, comfortMode]);
 
     // ── Comfort overlay markers ──────────────────────────────
     const updateComfortOverlay = useCallback(() => {
