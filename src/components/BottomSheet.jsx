@@ -21,10 +21,14 @@ const BottomSheet = ({
     filterCategories,
     weather,
     totalCount,
+    externalFiltersOpen,
+    onExternalFiltersClose,
 }) => {
     const dragY = useMotionValue(0);
     const startState = useRef(state);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const effectiveFiltersOpen = externalFiltersOpen || filtersOpen;
+    const closeFilters = () => { setFiltersOpen(false); onExternalFiltersClose?.(); };
 
     const handleDragEnd = useCallback((_, info) => {
         const velocity = info.velocity.y;
@@ -179,8 +183,8 @@ const BottomSheet = ({
             )}
 
             <FiltersPanel
-                isOpen={filtersOpen}
-                onClose={() => setFiltersOpen(false)}
+                isOpen={effectiveFiltersOpen}
+                onClose={closeFilters}
                 filterCategories={filterCategories}
                 activeFilters={activeFilters}
                 onFilterToggle={onFilterToggle}
