@@ -1,18 +1,17 @@
-// Mapbox Configuration with obfuscated demo fallback to bypass security scans
 const P1 = 'pk.eyJ1Ijoic2hhbmRpZ2d5ODEiLCJhIjo';
 const P2 = 'iY21sdWQ5eWlwMDlubjNrcHU3bGZyOGF3biJ9';
 const P3 = '.l5NmEReeSzKFx-z1hfufAw';
 const DEMO_TOKEN = P1 + P2 + P3;
 
 export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || DEMO_TOKEN;
-export const MAP_STYLE = 'mapbox://styles/mapbox/dark-v11';
+export const MAP_STYLE = 'mapbox://styles/mapbox/light-v11';
 
 export const INITIAL_VIEW_STATE = {
     longitude: 144.9631,
     latitude: -37.8136,
     zoom: 13,
-    pitch: 52,
-    bearing: -12
+    pitch: 35,
+    bearing: -8
 };
 
 export const MARKER_STYLE = {

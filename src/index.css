@@ -3332,53 +3332,41 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255,255,255,0.15);
-  border: 2px solid rgba(255,255,255,0.25);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22), 0 0 0 2.5px #ffffff;
+  border: 1.5px solid rgba(255,255,255,0.9);
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Mapbox popup styling */
-.mapboxgl-popup-content {
-  background: white;
-  border: 2px solid #87CEEB;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(135, 206, 235, 0.3);
-  padding: 12px 16px;
-}
-
-.mapboxgl-popup-tip {
-  border-top-color: #87CEEB;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
 }
 
 .ss-map-marker:hover .ss-marker-pill {
-  transform: scale(1.25);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transform: scale(1.22);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), 0 0 0 2.5px #ffffff;
 }
 
 .ss-marker-emoji {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1;
 }
 
-/* Weather color variants */
+/* Weather color variants — designed for light map */
 .ss-marker-sunny {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
 .ss-marker-cloudy {
-  background: linear-gradient(135deg, #d1d5db, #9ca3af);
+  background: linear-gradient(135deg, #6b7280, #4b5563);
 }
 
 .ss-marker-windy {
-  background: linear-gradient(135deg, #93c5fd, #3b82f6);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
 .ss-marker-rainy {
-  background: linear-gradient(135deg, #60a5fa, #2563eb);
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
 }
 
 .ss-marker-cozy-glow {
@@ -5543,25 +5531,12 @@ body {
 }
 
 .ss-map-marker:hover {
-  transform: scale(1.4) translateY(-4px) !important;
+  transform: scale(1.15) translateY(-2px) !important;
   z-index: 100 !important;
 }
 
 .ss-map-marker:active {
   transform: scale(0.9) !important;
-}
-
-.ss-marker-pill {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: 12px;
-  background: white;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.13);
-  border: 2px solid white;
-  transition: inherit;
 }
 
 .ss-map-marker:hover .ss-marker-pill {

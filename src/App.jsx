@@ -2,11 +2,9 @@ import React, { useState, Component, useRef, useCallback, useMemo } from 'react'
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import MapView from './components/MapView';
 import BottomSheet from './components/BottomSheet';
-import VenueDetail from './components/VenueDetail';
 import TopBar from './components/TopBar';
 import CategoryPills from './components/CategoryPills';
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
-import { getWindWarning } from './data/windIntelligence';
 import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
 
@@ -22,7 +20,7 @@ const getMarkerWeatherColor = (weather, venue) => {
 
 const AppContent = () => {
     const [selectedVenue, setSelectedVenue] = useState(null);
-    const [sheetState, setSheetState] = useState('peek');
+    const [sheetState, setSheetState] = useState('peek'); // peek | list | full
     const [activeCategory, setActiveCategory] = useState('all');
     const [activeFilters, setActiveFilters] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -124,7 +122,7 @@ const AppContent = () => {
             mapRef.current.flyTo({
                 center: [venue.lng, venue.lat],
                 zoom: 15.5,
-                pitch: 55,
+                pitch: 45,
                 duration: 1200,
             });
         }
@@ -132,7 +130,7 @@ const AppContent = () => {
 
     const handleCloseDetail = useCallback(() => {
         setSelectedVenue(null);
-        setSheetState('half');
+        setSheetState('list');
     }, []);
 
     const handleFilterToggle = useCallback((filterId) => {
@@ -184,7 +182,7 @@ const AppContent = () => {
                         onCategoryChange={(cat) => {
                             setActiveCategory(cat);
                             setSelectedVenue(null);
-                            if (sheetState === 'full') setSheetState('half');
+                            if (sheetState === 'full') setSheetState('list');
                         }}
                     />
                 </div>
