@@ -25,6 +25,7 @@ const AppContent = () => {
     const [activeFilters, setActiveFilters] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const [filtersOpenFromBanner, setFiltersOpenFromBanner] = useState(false);
     const mapRef = useRef(null);
     const { weather } = useWeather();
 
@@ -171,10 +172,11 @@ const AppContent = () => {
                 onSearchChange={setSearchQuery}
                 onRecenter={handleRecenter}
                 weather={weather}
+                onFiltersOpen={() => setFiltersOpenFromBanner(true)}
             />
 
             {/* ── Horizontal category pills ────────────────────── */}
-            <div className="absolute top-[3.4rem] left-0 right-0 z-20 pointer-events-none">
+            <div className="absolute top-[72px] left-0 right-0 z-20 pointer-events-none">
                 <div className="pointer-events-auto">
                     <CategoryPills
                         categories={CATEGORIES}
@@ -201,6 +203,8 @@ const AppContent = () => {
                 filterCategories={FILTER_CATEGORIES}
                 weather={weather}
                 totalCount={demoVenues.length}
+                externalFiltersOpen={filtersOpenFromBanner}
+                onExternalFiltersClose={() => setFiltersOpenFromBanner(false)}
             />
 
             {/* ── Sunny mascot + chat ──────────────────────────── */}
