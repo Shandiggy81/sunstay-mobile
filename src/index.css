@@ -19,6 +19,18 @@ body {
   color: #ffffff;
 }
 
+/* ─── Bottom Sheet ──────────────────────────────────────────── */
+.bottom-sheet {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.bottom-sheet-scroll {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ─── Glassmorphism Design System ──────────────────────────── */
 .glass {
   background: rgba(255, 255, 255, 0.08);
@@ -3363,6 +3375,10 @@ body {
 
 .ss-marker-windy {
   background: linear-gradient(135deg, #93c5fd, #3b82f6);
+}
+
+.ss-marker-rainy {
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
 }
 
 .ss-marker-cozy-glow {

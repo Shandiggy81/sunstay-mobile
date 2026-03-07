@@ -91,7 +91,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         if (!fn) return;
         markers.current.forEach(({ pill, venue }) => {
             const color = w ? fn(w, venue) : 'sunny';
-            pill.className = pill.className.replace(/ss-marker-(sunny|cloudy|windy)/g, '');
+            pill.className = pill.className.replace(/ss-marker-(sunny|cloudy|windy|rainy)/g, '');
             pill.classList.add(`ss-marker-${color}`);
         });
     }, []);
