@@ -152,7 +152,7 @@ const AppContent = () => {
     }, []);
 
     return (
-        <div className="fixed inset-0 bg-[#0a0a1e] overflow-hidden">
+        <div className="fixed inset-0 bg-[#f0ece4] overflow-hidden">
             {/* ── Full-screen map base layer ──────────────────── */}
             <div className="absolute inset-0">
                 <MapView
@@ -174,7 +174,7 @@ const AppContent = () => {
             />
 
             {/* ── Horizontal category pills ────────────────────── */}
-            <div className="absolute top-[4.25rem] left-0 right-0 z-20 pointer-events-none">
+            <div className="absolute top-[3.4rem] left-0 right-0 z-20 pointer-events-none">
                 <div className="pointer-events-auto">
                     <CategoryPills
                         categories={CATEGORIES}
