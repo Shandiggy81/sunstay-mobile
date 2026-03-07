@@ -4,39 +4,10 @@ import { useWeather } from '../../context/WeatherContext';
 import { demoVenues, FILTER_CATEGORIES } from '../../data/demoVenues';
 import MapView from '../MapView';
 import TopBar from '../TopBar';
-import CategoryPills from '../CategoryPills';
 import ExploreSheet from './ExploreSheet';
-import MapListToggle from './MapListToggle';
 import VenuePeekCard from './VenuePeekCard';
 import SunnyMascot from '../SunnyMascot';
 import ChatWidget from '../ChatWidget';
-
-const CATEGORIES = [
-    { id: 'all', label: 'All', icon: '🗺️' },
-    { id: 'cafe', label: 'Cafes', icon: '☕' },
-    { id: 'pub', label: 'Pubs', icon: '🍺' },
-    { id: 'bar', label: 'Bars', icon: '🍸' },
-    { id: 'restaurant', label: 'Restaurants', icon: '🍽️' },
-    { id: 'hotel', label: 'Hotels', icon: '🏨' },
-    { id: 'stay', label: 'Stays', icon: '🏡' },
-    { id: 'rooftop', label: 'Rooftops', icon: '🏙️' },
-    { id: 'garden', label: 'Gardens', icon: '🌿' },
-    { id: 'waterfront', label: 'Waterfront', icon: '🌊' },
-];
-
-const CAT_TYPE_MAP = {
-    cafe: ['Cafe', 'Cafe & Co-Work'],
-    pub: ['Pub', 'Classic Pub', 'Tavern', 'Pub Network'],
-    bar: ['Bar', 'Multi-Level Bar', 'Rooftop Bar', 'City Bar', 'Wine Bar', 'Rooftop Courtyard'],
-    restaurant: ['Restaurant', 'Fine Dining', 'Brasserie'],
-    hotel: ['Hotel', 'Luxury Hotels', 'Boutique Hotels', 'Apartment Hotel'],
-    stay: ['ShortStay', 'Short Stay'],
-};
-const CAT_TAG_MAP = {
-    rooftop: 'Rooftop',
-    garden: 'Beer Garden',
-    waterfront: 'Waterfront',
-};
 
 const MapScreen = () => {
     const { weather } = useWeather();
@@ -44,7 +15,6 @@ const MapScreen = () => {
     const [selectedVenue, setSelectedVenue] = useState(null);
     const [sheetMode, setSheetMode] = useState('collapsed');
     const [mapMode, setMapMode] = useState('map');
-    const [activeCategory, setActiveCategory] = useState('all');
     const [activeFilters, setActiveFilters] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filtersOpenFromBanner, setFiltersOpenFromBanner] = useState(false);
@@ -52,27 +22,9 @@ const MapScreen = () => {
 
     const mapRef = useRef(null);
 
-    const categoryVenueIds = useMemo(() => {
-        if (activeCategory === 'all') return null;
-        const vibeVals = CAT_TYPE_MAP[activeCategory];
-        if (!vibeVals) {
-            const tag = CAT_TAG_MAP[activeCategory];
-            if (!tag) return null;
-            return demoVenues.filter(v => (v.tags || []).includes(tag)).map(v => v.id);
-        }
-        return demoVenues.filter(v => {
-            const vibe = v.vibe || v.segment || '';
-            const typeCategory = v.typeCategory || '';
-            return vibeVals.some(val =>
-                vibe.toLowerCase().includes(val.toLowerCase()) ||
-                typeCategory.toLowerCase().includes(val.toLowerCase())
-            );
-        }).map(v => v.id);
-    }, [activeCategory]);
-
     const filteredVenueIds = useMemo(() => {
         const tagFilters = activeFilters.filter(f => !f.startsWith('sun-'));
-        let ids = categoryVenueIds ? new Set(categoryVenueIds) : null;
+        let ids = null;
 
         if (tagFilters.length > 0) {
             const matching = demoVenues.filter(v => {
@@ -88,7 +40,7 @@ const MapScreen = () => {
         }
 
         return ids === null ? null : [...ids];
-    }, [activeCategory, activeFilters, categoryVenueIds]);
+    }, [activeFilters]);
 
     const filteredVenues = useMemo(() => {
         let list = filteredVenueIds === null
@@ -105,15 +57,15 @@ const MapScreen = () => {
         return list;
     }, [filteredVenueIds, searchQuery]);
 
-    const handleVenueSelect = useCallback((venue) => {
+    const handleVenueSelect = useCallback((venue, openDetail = false) => {
         setSelectedVenue(venue);
-        setSheetMode('full');
+        setSheetMode(openDetail ? 'full' : 'peek');
         if (mapRef.current?.flyTo) {
             mapRef.current.flyTo({
                 center: [venue.lng, venue.lat],
                 zoom: 15.5,
                 pitch: 45,
-                duration: 1200,
+                duration: 900,
             });
         }
     }, []);
@@ -140,12 +92,6 @@ const MapScreen = () => {
             });
         }
     }, []);
-
-    const handleCategoryChange = useCallback((cat) => {
-        setActiveCategory(cat);
-        setSelectedVenue(null);
-        if (sheetMode === 'full') setSheetMode('list');
-    }, [sheetMode]);
 
     const getMarkerColor = useCallback((w, venue) => {
         if (!w) return 'sunny';
@@ -205,25 +151,11 @@ const MapScreen = () => {
                 onFiltersOpen={() => setFiltersOpenFromBanner(true)}
             />
 
-            <div className="absolute top-[72px] left-0 right-0 z-20 pointer-events-none">
-                <div className="pointer-events-auto">
-                    <CategoryPills
-                        categories={CATEGORIES}
-                        activeCategory={activeCategory}
-                        onCategoryChange={handleCategoryChange}
-                    />
-                </div>
-            </div>
-
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
-                <MapListToggle mode={mapMode} onChange={setMapMode} />
-            </div>
-
             {!isListMode && (
                 <>
                     <AnimatePresence>
-                        {selectedVenue && sheetMode !== 'full' && (
-                            <div className="absolute bottom-16 left-0 right-0 z-30 pointer-events-none">
+                        {selectedVenue && (sheetMode === 'collapsed' || sheetMode === 'peek') && (
+                            <div className="absolute bottom-[60px] left-0 right-0 z-30 pointer-events-none px-3">
                                 <div className="pointer-events-auto">
                                     <VenuePeekCard
                                         venue={selectedVenue}
@@ -239,10 +171,12 @@ const MapScreen = () => {
                     <ExploreSheet
                         mode={sheetMode}
                         onModeChange={setSheetMode}
+                        mapMode={mapMode}
+                        onMapModeChange={setMapMode}
                         venues={filteredVenues}
                         totalCount={demoVenues.length}
                         selectedVenue={selectedVenue}
-                        onVenueSelect={handleVenueSelect}
+                        onVenueSelect={(v) => handleVenueSelect(v, true)}
                         onCloseDetail={handleCloseDetail}
                         activeFilters={activeFilters}
                         onFilterToggle={handleFilterToggle}
@@ -258,10 +192,12 @@ const MapScreen = () => {
                 <ExploreSheet
                     mode="full"
                     onModeChange={(m) => { if (m === 'collapsed') setMapMode('map'); else setSheetMode(m); }}
+                    mapMode={mapMode}
+                    onMapModeChange={setMapMode}
                     venues={filteredVenues}
                     totalCount={demoVenues.length}
                     selectedVenue={selectedVenue}
-                    onVenueSelect={(v) => { setMapMode('map'); handleVenueSelect(v); }}
+                    onVenueSelect={(v) => { setMapMode('map'); handleVenueSelect(v, true); }}
                     onCloseDetail={() => { setSelectedVenue(null); setMapMode('map'); }}
                     activeFilters={activeFilters}
                     onFilterToggle={handleFilterToggle}

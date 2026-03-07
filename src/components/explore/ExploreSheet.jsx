@@ -1,8 +1,7 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
-import { X, ChevronUp, SlidersHorizontal } from 'lucide-react';
+import { X, ChevronUp, SlidersHorizontal, Map, List } from 'lucide-react';
 import VenueListCard from './VenueListCard';
-import VenuePeekCard from './VenuePeekCard';
 import VenueDetail from '../VenueDetail';
 import FiltersPanel from '../FiltersPanel';
 
@@ -21,6 +20,8 @@ const sheetHeightForMode = (mode) => {
 const ExploreSheet = ({
     mode,
     onModeChange,
+    mapMode,
+    onMapModeChange,
     venues,
     totalCount,
     selectedVenue,
@@ -74,7 +75,7 @@ const ExploreSheet = ({
         if (mode === 'collapsed') {
             return (
                 <button
-                    onClick={() => onModeChange('peek')}
+                    onClick={() => onModeChange('list')}
                     className="flex-1 flex items-center justify-center gap-2"
                 >
                     <ChevronUp size={14} className="text-gray-400" />
@@ -104,10 +105,7 @@ const ExploreSheet = ({
                             key={venue.id}
                             venue={venue}
                             isSelected={selectedVenue?.id === venue.id}
-                            onClick={() => {
-                                onVenueSelect(venue);
-                                onModeChange('full');
-                            }}
+                            onClick={() => onVenueSelect(venue)}
                             weather={weather}
                         />
                     ))
@@ -153,17 +151,40 @@ const ExploreSheet = ({
                         </div>
 
                         <div className="flex items-center gap-2">
+                            {!isDetail && onMapModeChange && (
+                                <div className="flex items-center bg-gray-100 rounded-full p-0.5">
+                                    <button
+                                        onClick={() => onMapModeChange('map')}
+                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                                            mapMode === 'map' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                                        }`}
+                                    >
+                                        <Map size={10} />
+                                        <span>Map</span>
+                                    </button>
+                                    <button
+                                        onClick={() => onMapModeChange('list')}
+                                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                                            mapMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                                        }`}
+                                    >
+                                        <List size={10} />
+                                        <span>List</span>
+                                    </button>
+                                </div>
+                            )}
+
                             {!isDetail && (
                                 <motion.button
                                     whileTap={{ scale: 0.92 }}
                                     onClick={() => setFiltersOpen(true)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${
                                         activeFilterCount > 0
                                             ? 'bg-amber-500 text-white border-amber-500'
                                             : 'bg-gray-50 text-gray-600 border-gray-200'
                                     }`}
                                 >
-                                    <SlidersHorizontal size={11} />
+                                    <SlidersHorizontal size={10} />
                                     <span>Filters</span>
                                     {activeFilterCount > 0 && (
                                         <span className="font-bold ml-0.5">{activeFilterCount}</span>
