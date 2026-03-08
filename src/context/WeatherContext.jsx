@@ -24,13 +24,31 @@ export const useWeather = () => {
     return context;
 };
 
+// Demo weather data fallback
+const DEMO_WEATHER = {
+    main: { temp: 22, feels_like: 21, humidity: 55 },
+    weather: [{ main: 'Partly Cloudy', description: 'partly cloudy', icon: '02d' }],
+    wind: { speed: 5 },
+    uvi: 6,
+    name: 'Melbourne (Demo)',
+    sys: { sunset: Date.now() / 1000 + 14400 }
+};
+
+// Helper function to determine theme from weather condition
+const getThemeFromCondition = (condition) => {
+    if (condition.includes('rain') || condition.includes('drizzle')) return 'rainy';
+    if (condition.includes('clear') || condition.includes('sunny')) return 'sunny';
+    if (condition.includes('cloud')) return 'cloudy';
+    return 'sunny';
+};
+
 export const WeatherProvider = ({ children }) => {
     const [weather, setWeather] = useState(null);
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState('sunny');
     const [overrideType, setOverrideType] = useState(null); // 'perfect', 'windy', 'rainy'
 
-    const WEATHER_API_KEY = '8448b7dad269322556c216d02ca97647';
+    const WEATHER_API_KEY = import.meta.env.VITE_OPENWEATHER_KEY || '8448b7dad269322556c216d02ca97647';
     const MELBOURNE_COORDS = { lat: -37.8136, lon: 144.9631 };
     const CACHE_KEY = `sunstay_weather_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
     const CACHE_EXPIRY = 900000; // 15 minutes

@@ -10,7 +10,7 @@ export const MAP_STYLE = 'mapbox://styles/mapbox/streets-v12';
 export const INITIAL_VIEW_STATE = {
     longitude: 144.9631,
     latitude: -37.8136,
-    zoom: 11,
+    zoom: 13,
     pitch: 0,
     bearing: 0
 };
