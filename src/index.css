@@ -2625,8 +2625,9 @@ body,
   }
 
   .ss-header-logo-img {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
   }
 
   .ss-header-title {
@@ -2671,10 +2672,11 @@ body,
 }
 
 .ss-header-logo-img {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  object-fit: contain;
 }
 
 .ss-header-title {

@@ -16,6 +16,7 @@ import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
+import mascotLogoImg from './assets/sunny-mascot.jpg';
 
 // Loading fallback component
 const LoadingScreen = () => (
@@ -427,9 +428,10 @@ const AppContent = () => {
                     {/* Logo */}
                     <div className="ss-header-logo">
                         <motion.img
-                            src="/assets/sun-badge.jpg"
-                            alt="Sunstay"
+                            src={mascotLogoImg}
+                            alt="SunStay mascot"
                             className="ss-header-logo-img"
+                            style={{ objectFit: 'contain' }}
                             animate={{ rotate: [0, 5, -5, 0] }}
                             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                         />
