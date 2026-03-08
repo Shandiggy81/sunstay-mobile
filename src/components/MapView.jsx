@@ -8,6 +8,7 @@ import { useWeather } from '../context/WeatherContext';
 import {
     generateHourlyForecast,
 } from '../data/windIntelligence';
+import { getSunPositionForMap, toMapboxSkyValues, getMapboxLightPreset } from '../util/sunPosition';
 
 // ── Build a venue lookup for click handlers ──────────────────────
 const venueById = Object.fromEntries(demoVenues.map(v => [v.id, v]));
@@ -103,6 +104,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 setMapLoaded(true);
                 setMapError(false);
                 setupClusterSource();
+                applySunSkyLayer();
             });
 
             map.current.on('error', (e) => {
@@ -141,6 +143,67 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             if (map.current) {
                 map.current.remove();
                 map.current = null;
+            }
+        };
+    }, []);
+
+    // ── Apply SunCalc-driven sky layer to the map ─────────────────
+    const applySunSkyLayer = useCallback(() => {
+        if (!map.current) return;
+
+        const updateSky = () => {
+            if (!map.current) return;
+            try {
+                const sunPos = getSunPositionForMap(
+                    INITIAL_VIEW_STATE.latitude,
+                    INITIAL_VIEW_STATE.longitude
+                );
+                const skyValues = toMapboxSkyValues(sunPos);
+                const lightPreset = getMapboxLightPreset(sunPos);
+
+                // Add or update sky layer
+                if (map.current.getLayer('sky-layer')) {
+                    map.current.setPaintProperty('sky-layer', 'sky-atmosphere-sun', skyValues.sunPosition);
+                    map.current.setPaintProperty('sky-layer', 'sky-atmosphere-sun-intensity', skyValues.sunIntensity);
+                } else {
+                    map.current.addLayer({
+                        id: 'sky-layer',
+                        type: 'sky',
+                        paint: {
+                            'sky-type': 'atmosphere',
+                            'sky-atmosphere-sun': skyValues.sunPosition,
+                            'sky-atmosphere-sun-intensity': skyValues.sunIntensity,
+                            'sky-atmosphere-color': skyValues.atmosphereColor,
+                        }
+                    });
+                }
+
+                // Apply directional light
+                map.current.setLight({
+                    anchor: lightPreset.anchor,
+                    color: lightPreset.color,
+                    intensity: lightPreset.intensity,
+                });
+            } catch (e) {
+                // Sky layer is cosmetic — don't break the map if it fails
+                console.warn('[MapView] Sky layer update failed (non-fatal):', e.message);
+            }
+        };
+
+        // Apply immediately on load
+        updateSky();
+
+        // Update every 60 seconds so sky shifts through the day
+        const skyInterval = setInterval(updateSky, 60000);
+        // Store interval ID for cleanup
+        map.current._sunSkyInterval = skyInterval;
+    }, []);
+
+    // Cleanup sky interval on unmount
+    useEffect(() => {
+        return () => {
+            if (map.current?._sunSkyInterval) {
+                clearInterval(map.current._sunSkyInterval);
             }
         };
     }, []);

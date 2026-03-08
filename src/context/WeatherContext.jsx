@@ -29,6 +29,7 @@ const DEMO_WEATHER = {
     main: { temp: 22, feels_like: 21, humidity: 55 },
     weather: [{ main: 'Partly Cloudy', description: 'partly cloudy', icon: '02d' }],
     wind: { speed: 5 },
+    clouds: { all: 20 },
     uvi: 6,
     name: 'Melbourne (Demo)',
     sys: { sunset: Date.now() / 1000 + 14400 }
@@ -58,6 +59,7 @@ export const WeatherProvider = ({ children }) => {
             main: { temp: 26, feels_like: 25, humidity: 40 },
             weather: [{ main: 'Clear', description: 'perfect sunny day', icon: '01d' }],
             wind: { speed: 2.5 },
+            clouds: { all: 5 },
             uvi: 4,
             theme: 'sunny'
         },
@@ -65,6 +67,7 @@ export const WeatherProvider = ({ children }) => {
             main: { temp: 19, feels_like: 15, humidity: 45 },
             weather: [{ main: 'Clouds', description: 'gusty winds', icon: '04d' }],
             wind: { speed: 18.5 },
+            clouds: { all: 65 },
             uvi: 2,
             theme: 'cloudy'
         },
@@ -72,6 +75,7 @@ export const WeatherProvider = ({ children }) => {
             main: { temp: 14, feels_like: 12, humidity: 85 },
             weather: [{ main: 'Rain', description: 'steady rainfall', icon: '10d' }],
             wind: { speed: 8 },
+            clouds: { all: 90 },
             uvi: 1,
             theme: 'rainy'
         }
@@ -187,6 +191,7 @@ export const WeatherProvider = ({ children }) => {
     const getFireplaceMode = () => theme === 'rainy' || overrideType === 'rainy';
     const getTemperature = () => weather ? Math.round(weather.main.temp) : null;
     const getUVIndex = () => weather?.uvi ?? 0;
+    const getCloudCover = () => (weather?.clouds?.all ?? 20) / 100; // 0–1 fraction
 
     const getWeatherDescription = (venue) => {
         if (overrideType === 'perfect') return "Optimal conditions. Ideal for outdoor seating and sun exposure.";
@@ -221,6 +226,7 @@ export const WeatherProvider = ({ children }) => {
         getCardBackground,
         getCardAccent,
         getUVIndex,
+        getCloudCover,
     };
 
     return (

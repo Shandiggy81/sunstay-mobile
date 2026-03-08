@@ -52,14 +52,17 @@ export function estimateSunProfile(orientation, obstructionLevel) {
  * Live prediction for today's sun hours.
  */
 export function calculateDynamicToday(lat, lng, orientation, cloudCover = 0, obstructionLevel = "Open") {
+    // Auto-detect Melbourne season: Southern Hemisphere
+    // Summer ≈ Nov–Mar, Winter ≈ May–Sep, transition months use interpolation
+    const month = new Date().getMonth(); // 0-indexed
+    const isSummer = month >= 10 || month <= 2; // Nov, Dec, Jan, Feb, Mar
+
     let sunTimes;
     try {
         sunTimes = SunCalc.getTimes(new Date(), lat, lng);
     } catch (e) {
         console.warn("SunCalc failed, using fallback times", e);
-        const isSummer = new Date().getMonth() > 8 || new Date().getMonth() < 3;
         const fb = isSummer ? FALLBACK_TIMES.summer : FALLBACK_TIMES.winter;
-        // Mocking SunCalc structure for fallback
         const today = new Date();
         const setTime = (timeStr) => {
             const [h, m] = timeStr.split(':');
@@ -74,9 +77,10 @@ export function calculateDynamicToday(lat, lng, orientation, cloudCover = 0, obs
     const obstructionMap = { Open: 1.0, Partial: 0.7, Heavy: 0.4 };
     const factor = obstructionMap[obstructionLevel] || 1.0;
 
-    // Window boundaries for today
-    const winStart = parseTimeString(window.summer[0]); // Using summer as base window
-    const winEnd = parseTimeString(window.summer[1]);
+    // Use season-appropriate orientation window
+    const seasonWindow = isSummer ? window.summer : window.winter;
+    const winStart = parseTimeString(seasonWindow[0]);
+    const winEnd = parseTimeString(seasonWindow[1]);
 
     const sunrise = sunTimes.sunrise.getHours() + sunTimes.sunrise.getMinutes() / 60;
     const sunset = sunTimes.sunset.getHours() + sunTimes.sunset.getMinutes() / 60;
@@ -87,8 +91,13 @@ export function calculateDynamicToday(lat, lng, orientation, cloudCover = 0, obs
 
     let predictedHours = Math.max(0, effectiveEnd - effectiveStart);
 
-    // Impact of cloud cover (simple reduction)
-    predictedHours = predictedHours * (1 - cloudCover * 0.8);
+    // Impact of cloud cover (non-linear reduction for more realistic output)
+    const cloudReduction = cloudCover < 0.3
+        ? cloudCover * 0.3
+        : cloudCover < 0.7
+            ? 0.09 + (cloudCover - 0.3) * 0.7
+            : 0.37 + (cloudCover - 0.7) * 1.3;
+    predictedHours = predictedHours * (1 - cloudReduction);
     predictedHours = predictedHours * factor;
 
     const fmt = (hrs) => {
@@ -102,6 +111,7 @@ export function calculateDynamicToday(lat, lng, orientation, cloudCover = 0, obs
     return {
         predictedHours: parseFloat(predictedHours.toFixed(1)),
         cloudCover,
+        season: isSummer ? 'summer' : 'winter',
         optimalWindow: `${fmt(effectiveStart)}–${fmt(effectiveEnd)}`
     };
 }
