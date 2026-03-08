@@ -195,10 +195,15 @@ const VenueCard = ({ venue, onClose }) => {
                                                 />
                                             </div>
 
-                                            {/* Address */}
-                                            <div className="ss-vc-address">
-                                                <MapPin size={13} />
-                                                <span>{venue.address || 'Address not confirmed'}</span>
+                                            {/* Address / Map Centering */}
+                                            <div className="ss-vc-address" title="Center map on this venue">
+                                                <button
+                                                    onClick={() => onCenter(venue)}
+                                                    className="ss-vc-address-btn"
+                                                >
+                                                    <MapPin size={13} />
+                                                    <span>{venue.address || 'Address not confirmed'}</span>
+                                                </button>
                                             </div>
 
                                             {/* Price (for ShortStay) */}

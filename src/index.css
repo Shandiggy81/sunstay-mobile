@@ -3161,7 +3161,13 @@ body,
 
 .ss-map-marker {
   cursor: pointer;
-  pointer-events: auto;
+  pointer-events: auto !important;
+  user-select: none;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transform: translateZ(0);
   transition: opacity 0.2s ease, transform 0.2s ease;
   z-index: 2;
@@ -5874,8 +5880,8 @@ body,
   }
 
   .ss-map-area--expanded .ss-map-container,
-  .ss-map-area--expanded .ss-mapview-root,
-  .ss-map-area--expanded .ss-mapview-canvas {
+  .ss-map-area--map-expanded .ss-mapview-root,
+  .ss-map-area--map-expanded .ss-mapview-canvas {
     height: 100%;
     min-height: 100%;
   }
@@ -5899,16 +5905,21 @@ body,
   display: none;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 767px) {
   .ss-filters-fab {
     display: flex;
     position: absolute;
-    bottom: 136px;
-    right: 16px;
+    bottom: 32px;
+    right: 50%;
+    transform: translateX(50%);
+    width: auto;
+    padding: 0 24px;
+    height: 48px;
+    margin-bottom: 2rem !important;
+    /* Extra clearance for map controls */
     z-index: 50;
     align-items: center;
     gap: 6px;
-    padding: 10px 18px;
     border-radius: 24px;
     background: #111827;
     color: #fff;
@@ -6359,12 +6370,31 @@ body,
 
 /* ── Address ────────────────────────────────────────── */
 .ss-vc-address {
+  margin-bottom: 12px;
+}
+
+.ss-vc-address-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #9ca3af;
-  margin-bottom: 12px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: fit-content;
+}
+
+.ss-vc-address-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.ss-vc-address-btn:active {
+  transform: scale(0.96);
 }
 
 /* ── Price ──────────────────────────────────────────── */

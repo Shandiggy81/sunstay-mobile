@@ -183,7 +183,8 @@ const AppContent = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     // Initial filters: empty to show all venues by default
     const [activeFilters, setActiveFilters] = useState([]);
-    const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
+    const isMobile = window.innerWidth < 768;
+    const [mobileMapExpanded, setMobileMapExpanded] = useState(isMobile);
     const [mobileSheetState, setMobileSheetState] = useState('peek'); // 'peek', 'expanded', 'closed'
     const [mapQuickFilter, setMapQuickFilter] = useState(null);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -532,18 +533,20 @@ const AppContent = () => {
 
                 {/* ── RIGHT: Map ────────────────────────────────── */}
                 <section className={`ss-map-area ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-                    {/* Floating search bar (mobile / map-overlay on desktop) */}
-                    <div className="ss-map-search-float">
-                        <Search size={14} />
-                        <input
-                            type="text"
-                            placeholder="Search venues…"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="ss-map-search-input"
-                            id="map-venue-search"
-                        />
-                    </div>
+                    {/* Floating search bar (Desktop Only) */}
+                    {!isMobile && (
+                        <div className="ss-map-search-float">
+                            <Search size={14} />
+                            <input
+                                type="text"
+                                placeholder="Search venues…"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="ss-map-search-input"
+                                id="map-venue-search"
+                            />
+                        </div>
+                    )}
 
                     {/* Filters FAB (mobile only) */}
                     <button
@@ -589,14 +592,16 @@ const AppContent = () => {
                         <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-windy" />Windy</div>
                     </div>
 
-                    {/* Mobile: expand/collapse map */}
-                    <button
-                        className="ss-map-expand-btn"
-                        onClick={() => setMobileMapExpanded(prev => !prev)}
-                    >
-                        {mobileMapExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                        <span>{mobileMapExpanded ? 'Collapse Map' : 'Expand Map'}</span>
-                    </button>
+                    {/* Expand/collapse map (Desktop Only) */}
+                    {!isMobile && (
+                        <button
+                            className="ss-map-expand-btn"
+                            onClick={() => setMobileMapExpanded(prev => !prev)}
+                        >
+                            {mobileMapExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                            <span>{mobileMapExpanded ? 'Collapse Map' : 'Expand Map'}</span>
+                        </button>
+                    )}
                 </section>
 
                 {/* ═══ Mobile Filter Bottom Sheet ═══ */}
@@ -647,29 +652,7 @@ const AppContent = () => {
                 </AnimatePresence>
             </main>
 
-            {/* ═══ MOBILE: Horizontal venue chip strip ═══ */}
-            <AnimatePresence>
-                {!mobileMapExpanded && filteredVenues.length > 0 && (
-                    <motion.div
-                        initial={{ y: 50, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: 50, opacity: 0 }}
-                        className="ss-mobile-chips"
-                    >
-                        <div className="ss-mobile-chips-inner">
-                            {filteredVenues.map(venue => (
-                                <VenueChip
-                                    key={venue.id}
-                                    venue={venue}
-                                    isSelected={selectedVenue?.id === venue.id}
-                                    onClick={() => handleVenueSelect(venue)}
-                                    weather={weather}
-                                />
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* MOBILE: Carousel removed from render path entirely */}
 
             {/* ═══ MOBILE: Bottom sheet venue list ═══ */}
             {!mobileMapExpanded && (
@@ -738,6 +721,7 @@ const AppContent = () => {
                     key={selectedVenue?.id}
                     venue={selectedVenue}
                     onClose={handleCloseCard}
+                    onCenter={handleVenueSelect}
                 />
             )}
 
