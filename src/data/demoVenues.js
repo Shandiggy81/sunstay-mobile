@@ -217,7 +217,7 @@ export const demoVenues = [
         lng: 144.99280,
         emoji: '🌿',
         vibe: 'Beer Garden',
-        tags: ['Sunny', 'Garden', 'Beer Garden', 'Pet Friendly', 'Pram Friendly', 'Shaded', 'Umbrellas', 'Afternoon Sun'],
+        tags: ['Sunny', 'Garden', 'Beer Garden', 'Pet Friendly', 'Pram Friendly', 'Shaded', 'Umbrellas', 'Afternoon Sun', 'Craft Beer', 'Gluten Free'],
         price: '$$',
         capacity: 450,
         notes: 'Real AVC venue — used as flagship demo pin.',
@@ -233,7 +233,7 @@ export const demoVenues = [
         lng: 144.99223,
         emoji: '🍸',
         vibe: 'Rooftop Club',
-        tags: ['Party', 'Views', 'Rooftop', 'Smoking Area', 'Shaded', 'Views'],
+        tags: ['Party', 'Views', 'Rooftop', 'Smoking Area', 'Shaded', 'Views', 'Live Music', 'Craft Beer'],
         price: '$$$',
         capacity: 300,
         notes: 'Real AVC venue — rooftop.',
@@ -249,7 +249,7 @@ export const demoVenues = [
         lng: 144.98040,
         emoji: '🍷',
         vibe: 'Outdoor Streetside',
-        tags: ['People Watching', 'Sunny', 'Pet Friendly', 'Smoking Area', 'Afternoon Sun'],
+        tags: ['People Watching', 'Sunny', 'Pet Friendly', 'Smoking Area', 'Afternoon Sun', 'Specialty Coffee', 'Vegan', 'Gluten Free'],
         price: '$$',
         capacity: 120,
         notes: 'Real Good Company venue.',
@@ -307,7 +307,7 @@ export const demoVenues = [
         lng: 144.99977,
         emoji: '🚚',
         vibe: 'Food Truck Park',
-        tags: ['Pram Friendly', 'Beer Garden', 'Pet Friendly', 'Wheelchair Accessible'],
+        tags: ['Pram Friendly', 'Beer Garden', 'Pet Friendly', 'Wheelchair Accessible', 'Craft Beer', 'Vegan', 'Live Music'],
         notes: 'Real Sand Hill Road venue.',
     },
     {
@@ -359,7 +359,7 @@ export const demoVenues = [
         lng: 144.97106,
         emoji: '🍹',
         vibe: 'Palm Springs Style',
-        tags: ['Cocktails', 'Sunny', 'Rooftop', 'Smoking Area'],
+        tags: ['Cocktails', 'Sunny', 'Rooftop', 'Smoking Area', 'Specialty Coffee', 'Live Music'],
         notes: 'Example Dixon Hospitality venue for outreach deck.',
     },
     {
@@ -1016,6 +1016,11 @@ export const FILTER_CATEGORIES = [
     { id: 'smoking', label: 'Smoking Area', icon: '🚬', tag: 'Smoking Area' },
     { id: 'large-groups', label: 'Large Groups', icon: '👥', tag: 'Large Groups' },
     { id: 'shade', label: 'Shade/Cover', icon: '⛱️', tag: 'Shaded' },
+    { id: 'gluten-free', label: 'Gluten Free', icon: '🌾', tag: 'Gluten Free' },
+    { id: 'vegan', label: 'Vegan', icon: '🌱', tag: 'Vegan' },
+    { id: 'craft-beer', label: 'Craft Beer', icon: '🍺', tag: 'Craft Beer' },
+    { id: 'specialty-coffee', label: 'Specialty Coffee', icon: '☕', tag: 'Specialty Coffee' },
+    { id: 'live-music', label: 'Live Music', icon: '🎵', tag: 'Live Music' },
 ];
 
 // Melbourne center coordinates for initial map view

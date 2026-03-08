@@ -17,7 +17,11 @@ const FILTER_GROUPS = [
     },
     {
         label: 'Venue features',
-        ids: ['pet-friendly', 'smoking', 'large-groups'],
+        ids: ['pet-friendly', 'smoking', 'large-groups', 'live-music'],
+    },
+    {
+        label: 'Food & drink',
+        ids: ['gluten-free', 'vegan', 'craft-beer', 'specialty-coffee'],
     },
 ];
 

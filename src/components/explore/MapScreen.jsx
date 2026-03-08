@@ -59,7 +59,7 @@ const MapScreen = () => {
 
     const handleVenueSelect = useCallback((venue, openDetail = false) => {
         setSelectedVenue(venue);
-        setSheetMode(openDetail ? 'full' : 'peek');
+        setSheetMode(openDetail ? 'full' : 'collapsed');
         if (mapRef.current?.flyTo) {
             mapRef.current.flyTo({
                 center: [venue.lng, venue.lat],
@@ -154,14 +154,15 @@ const MapScreen = () => {
             {!isListMode && (
                 <>
                     <AnimatePresence>
-                        {selectedVenue && (sheetMode === 'collapsed' || sheetMode === 'peek') && (
-                            <div className="absolute bottom-[60px] left-0 right-0 z-30 pointer-events-none px-3">
+                        {selectedVenue && sheetMode === 'collapsed' && (
+                            <div className="absolute left-0 right-0 z-50 pointer-events-none px-3"
+                                style={{ bottom: 60 }}>
                                 <div className="pointer-events-auto">
                                     <VenuePeekCard
                                         venue={selectedVenue}
                                         weather={weather}
                                         onExpand={() => setSheetMode('full')}
-                                        onClose={() => { setSelectedVenue(null); setSheetMode('collapsed'); }}
+                                        onClose={() => { setSelectedVenue(null); }}
                                     />
                                 </div>
                             </div>

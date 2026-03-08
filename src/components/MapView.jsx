@@ -42,6 +42,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             const el = document.createElement('div');
             el.className = 'ss-map-marker';
             el.setAttribute('data-venue-id', venue.id);
+            el.style.touchAction = 'none';
+            el.style.cursor = 'pointer';
 
             const pill = document.createElement('div');
             pill.className = 'ss-marker-pill ss-marker-sunny';
@@ -53,11 +55,14 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             pill.appendChild(emoji);
             el.appendChild(pill);
 
-            el.addEventListener('click', (e) => {
+            const handleSelect = (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 document.querySelectorAll('.mapboxgl-popup').forEach(p => p.remove());
                 onVenueSelectRef.current(venue);
-            });
+            };
+            el.addEventListener('click', handleSelect);
+            el.addEventListener('touchend', handleSelect, { passive: false });
 
             const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
                 .setLngLat([venue.lng, venue.lat])
