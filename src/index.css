@@ -3170,7 +3170,7 @@ body,
   justify-content: center;
   transform: translateZ(0);
   transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 2;
+  z-index: 10;
 }
 
 .ss-map-marker:hover {
@@ -5862,12 +5862,7 @@ body,
 /* ═══ Fix 3: Mobile Map-Expanded ═══════════════════════════════════ */
 @media (max-width: 1023px) {
 
-  .ss-app-root--map-expanded .ss-header,
-  .ss-app-root--map-expanded .ss-header-filters,
-  .ss-app-root--map-expanded .ss-mobile-chips,
-  .ss-app-root--map-expanded .ss-mobile-sheet-handle,
-  .ss-app-root--map-expanded .ss-mobile-sheet,
-  .ss-app-root--map-expanded .ss-mobile-sheet-backdrop {
+  .ss-app-root--map-expanded .ss-mobile-chips {
     display: none !important;
   }
 

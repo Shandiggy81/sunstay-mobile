@@ -184,7 +184,7 @@ const AppContent = () => {
     // Initial filters: empty to show all venues by default
     const [activeFilters, setActiveFilters] = useState([]);
     const isMobile = window.innerWidth < 768;
-    const [mobileMapExpanded, setMobileMapExpanded] = useState(isMobile);
+    const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState] = useState('peek'); // 'peek', 'expanded', 'closed'
     const [mapQuickFilter, setMapQuickFilter] = useState(null);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
