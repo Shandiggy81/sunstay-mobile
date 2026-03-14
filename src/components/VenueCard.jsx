@@ -1,251 +1,247 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-    X, Calendar, Thermometer, Wind, Flame, Sun, CloudRain,
-    MapPin, Share2, ChevronDown, ChevronUp, Droplets, Shield
-} from 'lucide-react';
-import { useWeather } from '../context/WeatherContext';
-import { getWindProfile, calculateApparentTemp, getComfortZone } from '../data/windIntelligence';
-import { calculateDynamicToday } from '../util/sunCalcLogic';
+import React from 'react';
 
-const VenueCard = ({ venue, onClose }) => {
-    const {
-        calculateSunstayScore, getTemperature, theme, weather
-    } = useWeather();
-
-    const [expanded, setExpanded] = useState(false);
-
-    if (!venue) return null;
-
-    const sunstayScore = calculateSunstayScore(venue);
-    const temperature = getTemperature();
-    const hasFireplace = venue.tags?.includes('Fireplace');
-    const hasHeaters = venue.tags?.includes('Heaters');
-
-    /* ── Sunshine hours remaining ─────────────────────── */
-    const sunLeft = useMemo(() => {
-        if (!weather?.sys?.sunset) return null;
-        const now = new Date();
-        const sunset = new Date(weather.sys.sunset * 1000);
-        const diff = sunset - now;
-        if (diff <= 0) return { text: 'Sun has set', icon: '🌙' };
-        const h = Math.floor(diff / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        return { text: h > 0 ? `${h}h ${m}m` : `${m}min`, icon: h > 1 ? '☀️' : '🌅' };
-    }, [weather]);
-
-    /* ── Fireplace / heater status ────────────────────── */
-    const heatingStatus = useMemo(() => {
-        if (!hasFireplace && !hasHeaters) return null;
-        const temp = temperature || 20;
-        const label = hasFireplace ? 'Fireplace' : 'Heaters';
-        if (temp < 15) return { text: 'ON Now', active: true, label };
-        if (temp < 20 && new Date().getHours() >= 17) return { text: 'ON from 5PM', active: true, label };
-        return { text: 'Evenings', active: false, label };
-    }, [temperature, hasFireplace, hasHeaters]);
-
-    /* ── Optimal sun window ────────────────────────────── */
-    const optimalWindow = useMemo(() => {
-        const room = (venue.roomTypes || []).find(r => r.hasBalcony || r.hasOutdoorArea);
-        if (!room) return null;
-        try {
-            const today = calculateDynamicToday(
-                venue.lat, venue.lng, room.orientation,
-                weather?.clouds?.all / 100 || 0,
-                room.obstructionLevel
-            );
-            return today?.optimalWindow || null;
-        } catch { return null; }
-    }, [venue, weather]);
-
-    /* ── Wind & UV helper ──────────────────────────────── */
-    const windSpeed = weather?.wind?.speed;
-    const uvIndex = weather?.uvi;
-    const isRaining = (weather?.weather?.[0]?.main || '').toLowerCase().includes('rain');
-
-    /* ── Type label ────────────────────────────────────── */
-    const typeLabel = venue.typeCategory === 'Hotel' || venue.typeCategory === 'ShortStay'
-        ? venue.typeLabel
-        : venue.vibe || 'Venue';
-
-    return (
-        <AnimatePresence>
-            {venue && (
-                <>
-                    {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[999999]"
-                    />
-
-                    {/* Card */}
-                    <motion.div
-                        initial={{ y: '100%', opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: '100%', opacity: 0 }}
-                        transition={{ type: 'spring', damping: 28, stiffness: 260, mass: 0.8 }}
-                        className="ss-vc-sheet"
-                    >
-                        <div className="ss-vc-inner">
-                            {/* ── Drag handle (mobile) ────────── */}
-                            <div className="ss-vc-drag" />
-
-                            {/* ── Header ──────────────────────── */}
-                            <div className="ss-vc-header">
-                                <div className="ss-vc-header-left">
-                                    <span className="ss-vc-emoji">{venue.emoji}</span>
-                                    <div>
-                                        <h3 className="ss-vc-name">{venue.venueName}</h3>
-                                        <p className="ss-vc-type">{typeLabel} · {venue.suburb}</p>
-                                    </div>
-                                </div>
-                                <button onClick={onClose} className="ss-vc-close" aria-label="Close">
-                                    <X size={18} />
-                                </button>
-                            </div>
-
-                            {/* ── Scrollable body ─────────────── */}
-                            <div className="ss-vc-body">
-
-                                {/* Core Stats Row */}
-                                <div className="ss-vc-stats">
-                                    <div className="ss-vc-stat">
-                                        <Thermometer size={16} className="ss-vc-stat-icon" />
-                                        <span className="ss-vc-stat-value">{temperature ?? '--'}°</span>
-                                        <span className="ss-vc-stat-label">Now</span>
-                                    </div>
-                                    <div className="ss-vc-stat">
-                                        <Sun size={16} className="ss-vc-stat-icon ss-vc-stat-icon--sun" />
-                                        <span className="ss-vc-stat-value">{sunLeft?.text ?? '--'}</span>
-                                        <span className="ss-vc-stat-label">Sun left</span>
-                                    </div>
-                                    <div className="ss-vc-stat">
-                                        <Flame size={16} className={`ss-vc-stat-icon ${heatingStatus?.active ? 'ss-vc-stat-icon--fire' : ''}`} />
-                                        <span className="ss-vc-stat-value">{heatingStatus?.text ?? 'N/A'}</span>
-                                        <span className="ss-vc-stat-label">{heatingStatus?.label ?? 'Heating'}</span>
-                                    </div>
-                                </div>
-
-                                {/* Optimal Window */}
-                                {optimalWindow && (
-                                    <div className="ss-vc-optimal">
-                                        ☀️ Best time: <strong>{optimalWindow}</strong>
-                                    </div>
-                                )}
-
-                                {/* Amenities */}
-                                {venue.tags && venue.tags.length > 0 && (
-                                    <div className="ss-vc-amenities">
-                                        {venue.tags.map((tag, i) => (
-                                            <span key={i} className="ss-vc-tag">{tag}</span>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Expand toggle */}
-                                <button
-                                    className="ss-vc-expand-btn"
-                                    onClick={() => setExpanded(e => !e)}
-                                >
-                                    <span>{expanded ? 'Show less' : 'More details'}</span>
-                                    {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                </button>
-
-                                {/* Expanded details */}
-                                <AnimatePresence>
-                                    {expanded && (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.25 }}
-                                            className="ss-vc-details"
-                                        >
-                                            {/* Weather details grid */}
-                                            <div className="ss-vc-detail-grid">
-                                                <div className="ss-vc-detail-cell">
-                                                    <Wind size={14} />
-                                                    <span className="ss-vc-detail-val">{windSpeed != null ? `${windSpeed} km/h` : '--'}</span>
-                                                    <span className="ss-vc-detail-lbl">Wind</span>
-                                                </div>
-                                                <div className="ss-vc-detail-cell">
-                                                    <Shield size={14} />
-                                                    <span className="ss-vc-detail-val">{uvIndex != null ? uvIndex : '--'}</span>
-                                                    <span className="ss-vc-detail-lbl">UV Index</span>
-                                                </div>
-                                                <div className="ss-vc-detail-cell">
-                                                    <Droplets size={14} />
-                                                    <span className="ss-vc-detail-val">{isRaining ? 'Yes' : 'No'}</span>
-                                                    <span className="ss-vc-detail-lbl">Rain</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Sunstay Score */}
-                                            <div className="ss-vc-score-row">
-                                                <span className="ss-vc-score-label">Sunstay Score</span>
-                                                <span className="ss-vc-score-value">{sunstayScore}</span>
-                                            </div>
-                                            <div className="ss-vc-score-bar">
-                                                <motion.div
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${sunstayScore}%` }}
-                                                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                                                    className="ss-vc-score-fill"
-                                                />
-                                            </div>
-
-                                            {/* Address / Map Centering */}
-                                            <div className="ss-vc-address" title="Center map on this venue">
-                                                <button
-                                                    onClick={() => onCenter(venue)}
-                                                    className="ss-vc-address-btn"
-                                                >
-                                                    <MapPin size={13} />
-                                                    <span>{venue.address || 'Address not confirmed'}</span>
-                                                </button>
-                                            </div>
-
-                                            {/* Price (for ShortStay) */}
-                                            {venue.typeCategory === 'ShortStay' && venue.nightlyPriceDemo && (
-                                                <div className="ss-vc-price">
-                                                    {venue.nightlyPriceDemo} · Max {venue.guests} guests
-                                                </div>
-                                            )}
-
-                                            {/* Action buttons */}
-                                            <div className="ss-vc-actions">
-                                                <button className="ss-vc-book-btn">
-                                                    <Calendar size={16} />
-                                                    <span>Book Now</span>
-                                                </button>
-                                                <button
-                                                    className="ss-vc-share-btn"
-                                                    onClick={() => {
-                                                        if (navigator.share) {
-                                                            navigator.share({
-                                                                title: `${venue.venueName} on Sunstay`,
-                                                                url: window.location.href,
-                                                            });
-                                                        } else {
-                                                            navigator.clipboard.writeText(window.location.href);
-                                                        }
-                                                    }}
-                                                    aria-label="Share"
-                                                >
-                                                    <Share2 size={16} />
-                                                </button>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        </div>
-                    </motion.div>
-                </>
-            )}
-        </AnimatePresence>
-    );
+const SUN_SCORE_CONFIG = {
+  90: { label: 'Blazing', emoji: '🔥', color: '#FF4500', bg: '#FFF0E8' },
+  70: { label: 'Sunny', emoji: '☀️', color: '#FFB300', bg: '#FFFDE7' },
+  50: { label: 'Partly Sunny', emoji: '⛅', color: '#FB8C00', bg: '#FFF3E0' },
+  30: { label: 'Cloudy', emoji: '🌤️', color: '#78909C', bg: '#ECEFF1' },
+   0: { label: 'Shaded', emoji: '☁️', color: '#607D8B', bg: '#ECEFF1' },
 };
 
-export default VenueCard;
+function getSunConfig(score) {
+  const thresholds = [90, 70, 50, 30, 0];
+  const key = thresholds.find(t => score >= t);
+  return SUN_SCORE_CONFIG[key] || SUN_SCORE_CONFIG[0];
+}
+
+function SunScoreBadge({ score }) {
+  const config = getSunConfig(score);
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '5px',
+      background: config.bg,
+      border: `1.5px solid ${config.color}`,
+      borderRadius: '20px',
+      padding: '4px 10px',
+      fontSize: '12px',
+      fontWeight: '700',
+      color: config.color,
+    }}>
+      <span>{config.emoji}</span>
+      <span>{score}/100</span>
+      <span style={{ fontWeight: 400 }}>{config.label}</span>
+    </div>
+  );
+}
+
+function SunTimingBadges({ sunrise, sunset }) {
+  const now = new Date();
+  const sunriseTime = new Date(sunrise);
+  const sunsetTime = new Date(sunset);
+  const minutesToSunset = (sunsetTime - now) / 60000;
+  const minutesSinceSunrise = (now - sunriseTime) / 60000;
+
+  const isMorning = minutesSinceSunrise < 180;       // within 3hrs of sunrise
+  const isGoldenHour = minutesToSunset < 90 && minutesToSunset > 0;
+
+  return (
+    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+      {isMorning && (
+        <span style={badgeStyle('#E3F2FD', '#1565C0')}>
+          🌅 Morning Sun
+        </span>
+      )}
+      {isGoldenHour && (
+        <span style={badgeStyle('#FFF8E1', '#F57F17')}>
+          🌇 Golden Hour Now
+        </span>
+      )}
+      {!isMorning && !isGoldenHour && (
+        <span style={badgeStyle('#F3E5F5', '#7B1FA2')}>
+          🕐 {new Date(sunset).toLocaleTimeString('en-AU', {
+            hour: '2-digit', minute: '2-digit'
+          })} Sunset
+        </span>
+      )}
+    </div>
+  );
+}
+
+const badgeStyle = (bg, color) => ({
+  background: bg,
+  color,
+  borderRadius: '12px',
+  padding: '3px 9px',
+  fontSize: '11px',
+  fontWeight: '600',
+});
+
+export default function VenueCard({ venue, weather, onClose, onCenter }) {
+  const {
+    venueName: name,
+    typeCategory: type,           // e.g. "Rooftop Bar"
+    suburb,
+    rating,
+    reviewCount,
+    tags = [],      // e.g. ["Pet Friendly", "Craft Beer"]
+    image,
+    distance,       // metres
+  } = venue;
+
+  // Map WeatherContext payload to Card props
+  const sunScore = weather?.sunScore;
+  const uvIndex = weather?.uvi;
+  const sunrise = weather?.sys?.sunrise ? weather.sys.sunrise * 1000 : null;
+  const sunset = weather?.sys?.sunset ? weather.sys.sunset * 1000 : null;
+  const temperature = weather?.main?.temp;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: '24px',
+      left: '16px',
+      right: '16px',
+      zIndex: 999999,
+      background: 'white',
+      borderRadius: '16px',
+      overflow: 'hidden',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+      fontFamily: 'system-ui, sans-serif',
+      maxHeight: 'calc(100vh - 100px)',
+      overflowY: 'auto',
+    }}>
+      {/* Venue Image */}
+      <div style={{ position: 'relative' }}>
+        <img
+          src={image || '/assets/sunny-mascot.jpg'}
+          alt={name}
+          style={{ width: '100%', height: '160px', objectFit: 'cover' }}
+        />
+        {/* Close Button injected for app functionality constraint */}
+        {onClose && (
+          <button 
+            onClick={onClose}
+            style={{
+              position: 'absolute', top: '10px', left: '10px',
+              background: 'rgba(0,0,0,0.6)', color: 'white',
+              border: 'none', borderRadius: '50%', width: '32px', height: '32px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              fontSize: '16px', fontWeight: 'bold'
+          }}>
+            ×
+          </button>
+        )}
+        {/* Distance pill */}
+        {distance && (
+          <span style={{
+            position: 'absolute', top: '10px', right: '10px',
+            background: 'rgba(0,0,0,0.6)', color: 'white',
+            borderRadius: '12px', padding: '4px 10px', fontSize: '11px'
+          }}>
+            📍 {distance < 1000
+              ? `${distance}m`
+              : `${(distance / 1000).toFixed(1)}km`}
+          </span>
+        )}
+        {/* Sun score overlay */}
+        {sunScore !== undefined && (
+          <div style={{
+            position: 'absolute', bottom: '10px', left: '10px'
+          }}>
+            <SunScoreBadge score={sunScore} />
+          </div>
+        )}
+      </div>
+
+      {/* Card Body */}
+      <div style={{ padding: '14px' }}>
+
+        {/* Name + Rating */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'flex-start', marginBottom: '4px'
+        }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700' }}>
+              {name}
+            </h3>
+            <p style={{
+              margin: '2px 0 0', fontSize: '13px',
+              color: '#666'
+            }}>
+              {type || venue.vibe || 'Venue'} · {suburb}
+            </p>
+          </div>
+          {(rating || venue.rating) && (
+            <div style={{
+              textAlign: 'center', background: '#FFEA00',
+              borderRadius: '10px', padding: '4px 8px', minWidth: '42px'
+            }}>
+              <div style={{ fontSize: '15px', fontWeight: '800' }}>
+                ⭐ {rating || venue.rating || '4.8'}
+              </div>
+              <div style={{ fontSize: '10px', color: '#555' }}>
+                {reviewCount || 120} reviews
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sun timing badges */}
+        {sunrise && sunset && (
+          <div style={{ margin: '10px 0 8px' }}>
+            <SunTimingBadges sunrise={sunrise} sunset={sunset} />
+          </div>
+        )}
+
+        {/* UV + Temp row */}
+        {uvIndex !== undefined && (
+          <div style={{
+            display: 'flex', gap: '8px',
+            margin: '8px 0', fontSize: '12px', color: '#555'
+          }}>
+            <span>🌡️ {temperature}°C</span>
+            <span>·</span>
+            <span style={{
+              color: uvIndex >= 8 ? '#E53935'
+                   : uvIndex >= 5 ? '#FB8C00' : '#43A047'
+            }}>
+              UV {uvIndex} {uvIndex >= 8 ? '— Wear SPF!' : uvIndex >= 5 ? '— Moderate' : '— Low'}
+            </span>
+          </div>
+        )}
+
+        {/* Feature tags */}
+        {tags.length > 0 && (
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px'
+          }}>
+            {tags.slice(0, 4).map(tag => (
+              <span key={tag} style={{
+                background: '#F5F5F5', borderRadius: '10px',
+                padding: '4px 10px', fontSize: '11px', color: '#444'
+              }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* CTA Button */}
+        <button 
+          onClick={() => onCenter && onCenter(venue)}
+          style={{
+          width: '100%', marginTop: '14px',
+          background: 'linear-gradient(135deg, #FFB300, #FF8F00)',
+          color: 'white', border: 'none', borderRadius: '12px',
+          padding: '12px', fontSize: '15px', fontWeight: '700',
+          cursor: 'pointer', letterSpacing: '0.3px'
+        }}>
+          View Venue ☀️
+        </button>
+      </div>
+    </div>
+  );
+}

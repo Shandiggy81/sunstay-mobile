@@ -1008,6 +1008,7 @@ export const FILTER_CATEGORIES = [
     { id: 'sun-shaded', label: 'Shaded retreat 🌿', icon: '🌿', intent: 'Shaded' },
     { id: 'sun-highfloor', label: 'High floor + open sky 🏙️', icon: '🏙️', intent: 'HighFloor' },
 
+    { id: 'full-sun', label: 'Full Sun', icon: '☀️', emoji: '☀️', tag: 'Sunny' },
     { id: 'rooftop', label: 'Rooftop', icon: '🏙️', tag: 'Rooftop' },
     { id: 'beer-garden', label: 'Beer Garden', icon: '🍺', tag: 'Beer Garden' },
     { id: 'pram-friendly', label: 'Pram Friendly', icon: '👶', tag: 'Pram Friendly' },

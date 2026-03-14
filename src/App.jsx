@@ -175,6 +175,30 @@ const VenueChip = ({ venue, isSelected, onClick, weather }) => {
 
 
 
+// ── Header Weather row ─────────────────────────────────────────────
+const HeaderWeather = () => {
+    const [weatherData, setWeatherData] = useState(null);
+
+    useEffect(() => {
+        // Dynamically import to avoid top level issues and get live data
+        import('./util/weatherService').then(({ getMelbourneWeather }) => {
+            getMelbourneWeather().then(weather => {
+                setWeatherData(weather);
+            });
+        });
+    }, []);
+
+    if (!weatherData) {
+        return <div className="weather-info weather-row opacity-50">☀️ Loading…</div>;
+    }
+
+    return (
+        <div className="weather-info weather-row">
+            ☀️ {weatherData.temperature}°C · UV {weatherData.uvIndex} · Sun Score: {weatherData.sunScore}/100
+        </div>
+    );
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // Main App Content
 // ═══════════════════════════════════════════════════════════════════
@@ -183,6 +207,20 @@ const AppContent = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     // Initial filters: empty to show all venues by default
     const [activeFilters, setActiveFilters] = useState([]);
+    
+    // Custom filters
+    const [customFilters, setCustomFilters] = useState(
+      JSON.parse(localStorage.getItem('sunstay-custom-filters') || '[]')
+    );
+    const [newFilter, setNewFilter] = useState('');
+
+    const addCustomFilter = () => {
+      if (!newFilter.trim()) return;
+      const updated = [...customFilters, newFilter.trim()];
+      setCustomFilters(updated);
+      localStorage.setItem('sunstay-custom-filters', JSON.stringify(updated));
+      setNewFilter('');
+    };
     const isMobile = window.innerWidth < 768;
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState] = useState('peek'); // 'peek', 'expanded', 'closed'
@@ -206,7 +244,15 @@ const AppContent = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const mapRef = useRef(null);
     const listRef = useRef(null);
-    const { weather } = useWeather();
+    const { weather: _weatherContext } = useWeather();
+    
+    // Fetch local weather specifically for VenueCards
+    const [localWeather, setLocalWeather] = useState(null);
+    useEffect(() => {
+        import('./util/weatherService').then(({ getMelbourneWeather }) => {
+            getMelbourneWeather().then(setLocalWeather);
+        });
+    }, []);
 
     // Calculate filtered venue IDs based on active filters (Types + Intents + Tags)
     const filteredVenueIds = useMemo(() => {
@@ -425,7 +471,7 @@ const AppContent = () => {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="ss-header"
             >
-                <div className="ss-header-inner">
+                <div className="header-banner">
                     {/* Logo */}
                     <div className="ss-header-logo">
                         <motion.img
@@ -437,8 +483,8 @@ const AppContent = () => {
                             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                         />
                         <div>
-                            <h1 className="ss-header-title">Sunstay</h1>
-                            <p className="ss-header-tagline">Find Your Perfect Spot</p>
+                            <h1 className="city-name">Sunstay</h1>
+                            <HeaderWeather />
                         </div>
                     </div>
 
@@ -639,6 +685,25 @@ const AppContent = () => {
                                         </button>
                                     ))}
                                 </div>
+                                <div className="custom-filter-section">
+                                  <p className="filter-section-label">YOUR FILTERS</p>
+                                  <div className="custom-filter-chips">
+                                    {customFilters.map(f => (
+                                      <span key={f} className="filter-chip custom">✏️ {f}</span>
+                                    ))}
+                                  </div>
+                                  <div className="add-filter-row">
+                                    <input
+                                      type="text"
+                                      placeholder="Add your own filter..."
+                                      value={newFilter}
+                                      onChange={e => setNewFilter(e.target.value)}
+                                      onKeyDown={e => e.key === 'Enter' && addCustomFilter()}
+                                      className="custom-filter-input"
+                                    />
+                                    <button onClick={addCustomFilter} className="add-filter-btn">+</button>
+                                  </div>
+                                </div>
                                 <button
                                     className="ss-filter-sheet-apply"
                                     onClick={closeMobileFilters}
@@ -720,6 +785,7 @@ const AppContent = () => {
                 <VenueCard
                     key={selectedVenue?.id}
                     venue={selectedVenue}
+                    weather={localWeather}
                     onClose={handleCloseCard}
                     onCenter={handleVenueSelect}
                 />

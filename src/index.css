@@ -2615,27 +2615,30 @@ body,
 
 @media (max-width: 767px) {
   .ss-header {
-    padding: 6px 8px;
+    padding: 10px 8px;
   }
 
-  .ss-header-inner {
-    padding: 6px 12px;
-    margin-bottom: 4px;
-    border-radius: 14px;
+  .header-banner {
+    min-height: 72px;
+    padding: 14px 16px;
+    margin-bottom: 6px;
+    border-radius: 18px;
   }
 
   .ss-header-logo-img {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
   }
 
-  .ss-header-title {
-    font-size: 16px;
+  .city-name {
+    font-size: 18px;
+    font-weight: 700;
   }
 
-  .ss-header-tagline {
-    font-size: 9px;
+  .weather-info {
+    font-size: 14px;
+    opacity: 0.9;
   }
 }
 
@@ -2645,18 +2648,33 @@ body,
   }
 }
 
-.ss-header-inner {
-  background: rgba(255, 255, 255, 0.88);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
-  border-radius: 18px;
-  padding: 10px 16px;
+.header-banner {
+  min-height: 72px;
+  padding: 14px 16px;
+  font-size: 16px;
+  background: #1a73e8; /* User's brand blue */
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  justify-content: space-between; /* Required for split layout */
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border-radius: 18px;
   margin-bottom: 8px;
+  color: white; /* Ensure readability against blue */
+}
+
+.header-banner .city-name {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: white;
+}
+
+.header-banner .weather-info {
+  font-size: 14px;
+  opacity: 0.9;
+  margin: 0;
+  color: white;
 }
 
 .ss-header-right {
@@ -3023,14 +3041,16 @@ body,
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
-  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.96);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  padding: 24px 20px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  gap: 8px;
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
   z-index: 101;
   cursor: pointer;
   transition: transform 0.3s ease;
@@ -3041,20 +3061,20 @@ body,
 }
 
 .ss-mobile-sheet-grab {
-  width: 40px;
-  height: 4px;
-  background: #e5e7eb;
-  border-radius: 2px;
+  width: 44px;
+  height: 5px;
+  background: #d1d5db;
+  border-radius: 3px;
   position: absolute;
-  top: 6px;
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .ss-mobile-sheet-handle span {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
-  color: #374151;
+  color: #1f2937;
 }
 
 @media (min-width: 768px) {
@@ -3637,30 +3657,7 @@ body,
 
 /* ── Mobile Bottom Sheet ───────────────────────────────── */
 
-.ss-mobile-sheet-handle {
-  display: none;
-  /* mobile only */
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.9);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
-  font-size: 12px;
-  font-weight: 700;
-  color: #6b7280;
-  cursor: pointer;
-  z-index: 30;
-}
-
-.ss-mobile-sheet-grab {
-  width: 32px;
-  height: 4px;
-  border-radius: 2px;
-  background: #d1d5db;
-}
+/* removed redundant ss-mobile-sheet-handle styles */
 
 .ss-mobile-sheet-backdrop {
   position: fixed;
@@ -3690,7 +3687,8 @@ body,
 }
 
 .ss-mobile-sheet-head {
-  padding: 12px 16px;
+  padding: 24px 16px 12px;
+  position: relative;
   text-align: center;
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   background: rgba(255, 255, 255, 0.5);
@@ -3834,12 +3832,12 @@ body,
     left: 0;
     right: 0;
     z-index: 101;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.96);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
-    padding: 10px 16px;
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    padding: 24px 20px calc(16px + env(safe-area-inset-bottom));
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
   }
 
   /* Venue detail full-width on mobile */
@@ -5972,7 +5970,7 @@ body,
   z-index: 9001;
   background: #fff;
   border-radius: 24px 24px 0 0;
-  padding: 20px 20px 28px;
+  padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 20px));
   max-height: 75vh;
   overflow-y: auto;
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
@@ -6449,4 +6447,99 @@ body,
 .ss-vc-share-btn:hover {
   border-color: #d1d5db;
   color: #374151;
+}
+
+/* ── Custom Filter Section ───────────────────────────── */
+.custom-filter-section {
+  margin-top: 24px;
+  margin-bottom: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+  width: 100%;
+}
+
+.filter-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+
+.custom-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-chip.custom {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.add-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-filter-input {
+  flex: 1;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #111827;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.custom-filter-input::placeholder {
+  color: #9ca3af;
+}
+
+.custom-filter-input:focus {
+  border-color: #facc15;
+  background: #fff;
+  box-shadow: 0 4px 12px -3px rgba(250, 204, 21, 0.15);
+}
+
+.add-filter-btn {
+  background: #111827;
+  color: #fff;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  font-size: 24px;
+  font-weight: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.add-filter-btn:hover {
+  background: #1f2937;
+  transform: translateY(-1px);
+}
+
+.add-filter-btn:active {
+  transform: scale(0.96);
+  background: #374151;
 }

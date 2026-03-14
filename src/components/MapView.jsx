@@ -9,6 +9,7 @@ import {
     generateHourlyForecast,
 } from '../data/windIntelligence';
 import { getSunPositionForMap, toMapboxSkyValues, getMapboxLightPreset } from '../util/sunPosition';
+import SunCalc from 'suncalc';
 
 // ── Build a venue lookup for click handlers ──────────────────────
 const venueById = Object.fromEntries(demoVenues.map(v => [v.id, v]));
@@ -97,14 +98,56 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 zoom: INITIAL_VIEW_STATE.zoom,
                 pitch: INITIAL_VIEW_STATE.pitch,
                 bearing: INITIAL_VIEW_STATE.bearing,
+                minZoom: 10,
+                maxZoom: 18
             });
 
             map.current.on('load', () => {
                 clearTimeout(loadTimeout);
                 setMapLoaded(true);
                 setMapError(false);
+                
+                // Add 3D buildings before clusters
+                if (!map.current.getLayer('3d-buildings')) {
+                  map.current.addLayer({
+                    id: '3d-buildings',
+                    source: 'composite',
+                    'source-layer': 'building',
+                    filter: ['==', 'extrude', 'true'],
+                    type: 'fill-extrusion',
+                    minzoom: 14,
+                    paint: {
+                      'fill-extrusion-color': '#e8ddd0',
+                      'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'],
+                        14, 0, 14.05, ['get', 'height']],
+                      'fill-extrusion-base': ['interpolate', ['linear'], ['zoom'],
+                        14, 0, 14.05, ['get', 'min_height']],
+                      'fill-extrusion-opacity': 0.85
+                    }
+                  });
+                }
+
                 setupClusterSource();
                 applySunSkyLayer();
+
+                // Real-time sun position via SunCalc
+                const updateSunLight = () => {
+                  if (!map.current) return;
+                  const now = new Date();
+                  const sun = SunCalc.getPosition(now, INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude);
+                  const azimuthDeg = (sun.azimuth * 180 / Math.PI) + 180;
+                  const altitudeDeg = Math.max(0, sun.altitude * 180 / Math.PI);
+
+                  map.current.setLight({
+                    anchor: 'map',
+                    color: altitudeDeg < 15 ? '#ffaa44' : '#fff8e7', // warm at golden hour
+                    intensity: Math.min(0.8, altitudeDeg / 60 + 0.2),
+                    position: [1.5, azimuthDeg, altitudeDeg]
+                  });
+                };
+
+                updateSunLight();
+                map.current._sunLightInterval = setInterval(updateSunLight, 60000); // update every minute
             });
 
             map.current.on('error', (e) => {
@@ -139,6 +182,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         return () => {
             clearTimeout(loadTimeout);
             ro.disconnect();
+            if (map.current?._sunLightInterval) {
+                clearInterval(map.current._sunLightInterval);
+            }
             unclusteredMarkers.current.forEach(m => m.marker.remove());
             if (map.current) {
                 map.current.remove();

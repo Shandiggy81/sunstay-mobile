@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { storage } from '../utils/platform';
+import { getMelbourneWeather } from '../util/weatherService';
 
 const WeatherContext = createContext(null);
 
@@ -108,30 +109,42 @@ export const WeatherProvider = ({ children }) => {
             console.warn('[WeatherContext] Cache read failed:', cacheErr);
         }
 
-        // Skip API call if no valid key is set
-        if (!WEATHER_API_KEY) {
-            console.log('Weather API key not configured, using demo weather data');
-            setWeather(DEMO_WEATHER);
-            setTheme('sunny');
-            setLoading(false);
-            return;
-        }
-
         try {
-            const response = await axios.get(
-                `https://api.openweathermap.org/data/2.5/weather?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}&units=metric`
-            );
-            const weatherData = response.data;
+            // Use decoupled service
+            const data = await getMelbourneWeather();
 
-            // Try UV
-            try {
-                const uvResponse = await axios.get(
-                    `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
-                );
-                weatherData.uvi = uvResponse.data.value;
-            } catch {
-                weatherData.uvi = weatherData.weather[0].main === 'Clear' ? 8 : 2;
-            }
+            // Map Open-Meteo WMO code to OpenWeatherMap style main condition
+            const wmo = data.weatherCode;
+            let mainCondition = 'Clear';
+            let description = 'clear sky';
+            let icon = '01d';
+            
+            if (wmo === 1 || wmo === 2) { mainCondition = 'Clouds'; description = 'partly cloudy'; icon = '02d'; }
+            else if (wmo === 3) { mainCondition = 'Clouds'; description = 'overcast'; icon = '04d'; }
+            else if (wmo >= 45 && wmo <= 48) { mainCondition = 'Fog'; description = 'fog'; icon = '50d'; }
+            else if (wmo >= 51 && wmo <= 67) { mainCondition = 'Rain'; description = 'rain'; icon = '10d'; }
+            else if (wmo >= 71 && wmo <= 77) { mainCondition = 'Snow'; description = 'snow'; icon = '13d'; }
+            else if (wmo >= 80 && wmo <= 82) { mainCondition = 'Rain'; description = 'showers'; icon = '09d'; }
+            else if (wmo >= 85 && wmo <= 86) { mainCondition = 'Snow'; description = 'snow showers'; icon = '13d'; }
+            else if (wmo >= 95) { mainCondition = 'Thunderstorm'; description = 'thunderstorm'; icon = '11d'; }
+
+            const weatherData = {
+                main: { 
+                    temp: data.temperature, 
+                    feels_like: data.temperature, 
+                    humidity: 50 // Default since not provided by service
+                },
+                weather: [{ main: mainCondition, description: description, icon: icon }],
+                wind: { speed: 5 }, // Default
+                clouds: { all: 20 }, // Default
+                uvi: data.uvIndex,
+                sunScore: data.sunScore, // Injecting newly tracked sunScore
+                name: 'Melbourne',
+                sys: { 
+                    sunrise: new Date(data.sunrise).getTime() / 1000,
+                    sunset: new Date(data.sunset).getTime() / 1000 
+                }
+            };
 
             // Cache the result
             try {
