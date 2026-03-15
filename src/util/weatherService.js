@@ -1,16 +1,82 @@
 // src/util/weatherService.js — MUST exist
+
+const CACHE_KEY = "sunstay_openmeteo_cache";
+const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
+
 export async function getMelbourneWeather() {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=-37.8136&longitude=144.9631&hourly=uv_index,direct_radiation,sunshine_duration,temperature_2m&daily=sunrise,sunset,uv_index_max&timezone=Australia%2FMelbourne&forecast_days=1`;
-  const res = await fetch(url);
-  const data = await res.json();
-  
-  const now = new Date();
-  const currentHour = now.getHours();
-  
-  return {
-    temperature: Math.round(data.hourly.temperature_2m[currentHour]),
-    uvIndex: data.hourly.uv_index[currentHour],
-    sunshineMinsThisHour: data.hourly.sunshine_duration[currentHour] / 60,
-    sunScore: Math.min(100, Math.round(data.hourly.direct_radiation[currentHour] / 8))
-  };
+  const lat = -37.8136;
+  const lng = 144.9631;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&hourly=temperature_2m,direct_normal_irradiance,sunshine_duration,cloud_cover_low,wind_speed_10m&daily=sunrise,sunset,uv_index_max&timezone=Australia%2FMelbourne&forecast_days=1`;
+
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Date.now() - parsed.timestamp < CACHE_DURATION_MS) {
+        return parsed.data;
+      }
+    }
+  } catch (e) {
+    console.warn("Cache read failed", e);
+  }
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Network response was not ok");
+    const data = await res.json();
+    
+    const now = new Date();
+    const currentHour = Math.min(23, now.getHours());
+    
+    const result = {
+      temperature: data.current_weather.temperature,
+      windSpeed: data.current_weather.windspeed,
+      weatherCode: data.current_weather.weathercode,
+      sunrise: data.daily.sunrise[0],
+      sunset: data.daily.sunset[0],
+      uvIndex: data.daily.uv_index_max[0],
+      sunScore: Math.min(100, Math.round(data.hourly.direct_normal_irradiance[currentHour] / 8)),
+      hourlyData: data.hourly
+    };
+
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        data: result
+      }));
+    } catch (e) {
+      console.warn("Cache write failed", e);
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Failed to fetch weather data", error);
+    // Graceful fallback
+    return {
+      temperature: 22, windSpeed: 10, weatherCode: 0,
+      sunrise: new Date().toISOString(), sunset: new Date().toISOString(),
+      uvIndex: 5, sunScore: 75,
+      hourlyData: {
+        time: Array(24).fill(new Date().toISOString()),
+        temperature_2m: Array(24).fill(22),
+        direct_normal_irradiance: Array(24).fill(0),
+        sunshine_duration: Array(24).fill(0),
+        cloud_cover_low: Array(24).fill(0),
+        wind_speed_10m: Array(24).fill(10),
+      },
+      loadingMessage: "Loading sun data..."
+    };
+  }
+}
+
+export function mapWeatherCode(wmoCode) {
+    if (wmoCode === 0) return { label: 'Clear', icon: '☀️' };
+    if (wmoCode === 1 || wmoCode === 2) return { label: 'Partly Cloudy', icon: '⛅' };
+    if (wmoCode === 3) return { label: 'Overcast', icon: '☁️' };
+    if (wmoCode >= 45 && wmoCode <= 48) return { label: 'Fog', icon: '🌫️' };
+    if (wmoCode >= 51 && wmoCode <= 67) return { label: 'Rain', icon: '🌧️' };
+    if (wmoCode >= 71 && wmoCode <= 77) return { label: 'Snow', icon: '❄️' };
+    if (wmoCode >= 80 && wmoCode <= 82) return { label: 'Showers', icon: '🌦️' };
+    if (wmoCode >= 95) return { label: 'Thunderstorm', icon: '⛈️' };
+    return { label: 'Unknown', icon: '🌤️' };
 }

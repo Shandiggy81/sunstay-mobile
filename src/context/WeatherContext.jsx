@@ -135,7 +135,7 @@ export const WeatherProvider = ({ children }) => {
                     humidity: 50 // Default since not provided by service
                 },
                 weather: [{ main: mainCondition, description: description, icon: icon }],
-                wind: { speed: 5 }, // Default
+                wind: { speed: data.windSpeed || 5 }, // Default to fetched windSpeed
                 clouds: { all: 20 }, // Default
                 uvi: data.uvIndex,
                 sunScore: data.sunScore, // Injecting newly tracked sunScore
@@ -143,7 +143,9 @@ export const WeatherProvider = ({ children }) => {
                 sys: { 
                     sunrise: new Date(data.sunrise).getTime() / 1000,
                     sunset: new Date(data.sunset).getTime() / 1000 
-                }
+                },
+                hourlyData: data.hourlyData,
+                rawWeather: data
             };
 
             // Cache the result

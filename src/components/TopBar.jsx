@@ -54,16 +54,24 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                         <MapPin size={11} className="text-white/70 flex-shrink-0" />
                         <span className="text-white font-bold text-[13px] tracking-wide truncate">Melbourne</span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
                         {weather ? (
                             <>
                                 <WeatherIcon condition={condition} windSpeed={windSpeed} />
-                                <span className="text-white/90 text-[11px] font-medium truncate">{descFormatted}</span>
+                                <span className="text-white/90 text-[11px] font-medium truncate hidden sm:inline">{descFormatted}</span>
                                 {temp !== null && (
                                     <span className="text-white font-bold text-[12px] flex-shrink-0">{temp}°C</span>
                                 )}
                                 {windDisplay && (
-                                    <span className="text-white/70 text-[10px] flex-shrink-0">· {windDisplay}</span>
+                                    <span className="text-white/70 text-[10px] flex-shrink-0 hidden sm:inline">· {windDisplay}</span>
+                                )}
+                                
+                                {/* New Global Badges for Demo */}
+                                {windSpeed < 15 && !condition.includes('rain') && (
+                                    <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider hidden xs:inline-block ml-1">Event-Ready ☀️</span>
+                                )}
+                                {(new Date().getHours() >= 16 && new Date().getHours() <= 19) && !condition.includes('rain') && (
+                                    <span className="bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider hidden xs:inline-block ml-1">Photo Prime ⛅</span>
                                 )}
                             </>
                         ) : (
