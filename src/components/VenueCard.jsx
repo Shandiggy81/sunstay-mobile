@@ -91,7 +91,7 @@ const HourlyTimeline = ({ hourlyData }) => {
             <span className="text-[9px] text-white/50 mb-1 font-bold">{time.getHours()}:00</span>
             <motion.div 
               whileHover={{ rotate: [0, -10, 10, 0], scale: 1.2 }}
-              className="text-lg my-0.5 filter drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] cursor-[help]"
+              className={`text-lg my-0.5 filter cursor-[help] ${isSun ? 'drop-shadow-[0_0_12px_rgba(245,158,11,1)] text-[#F59E0B]' : 'drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]'}`}
               style={{ transformStyle: 'preserve-3d' }}
             >
               {icon}
@@ -106,6 +106,7 @@ const HourlyTimeline = ({ hourlyData }) => {
 
 export default function VenueCard({ venue, weather, onClose, onCenter }) {
   const [panelExpanded, setPanelExpanded] = useState(false);
+  const [demoModalOpen, setDemoModalOpen] = useState(false);
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -193,6 +194,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter }) {
                   <div className="text-white/50 text-[11px] font-semibold mt-1 uppercase tracking-widest truncate">
                     {type || venue.vibe} &middot; {suburb}
                   </div>
+                  <div className="text-amber-400 text-[11px] font-bold mt-1 tracking-wide">
+                    Wind {Math.round(wind)}kmh &nbsp;|&nbsp; {isRain ? '80%' : '20%'} rain &nbsp;|&nbsp; Sunny til 6pm
+                  </div>
                 </div>
               </div>
               <button 
@@ -269,10 +273,18 @@ export default function VenueCard({ venue, weather, onClose, onCenter }) {
               >
                 Book with Sun
               </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.2)' }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setDemoModalOpen(true)}
+                className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl bg-white/10 text-white font-bold text-[12px] border border-white/20 transition-all"
+              >
+                <span>📸</span> Demo Photo
+              </motion.button>
               <motion.button 
                 whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.15)' }} 
                 whileTap={{ scale: 0.9 }}
-                className="flex-[1] flex items-center justify-center rounded-xl bg-white/5 text-white/80 transition-all border border-white/10"
+                className="w-[46px] flex items-center justify-center rounded-xl bg-white/5 text-white/80 transition-all border border-white/10 flex-shrink-0"
               >
                 <Share2 size={16} />
               </motion.button>
@@ -280,6 +292,47 @@ export default function VenueCard({ venue, weather, onClose, onCenter }) {
 
           </div>
         </div>
+
+        {/* Demo Photo Modal */}
+        <AnimatePresence>
+          {demoModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 pointer-events-auto"
+              onClick={() => setDemoModalOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="bg-[#1a1b26] border border-white/20 rounded-3xl overflow-hidden shadow-2xl max-w-sm w-full relative"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="absolute top-3 right-3 z-10">
+                  <button onClick={() => setDemoModalOpen(false)} className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="relative aspect-[4/5] w-full bg-gray-900">
+                  <img 
+                    src="https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&q=80&w=800" 
+                    alt="Demo venue view" 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
+                    <div className="inline-flex gap-2 items-center bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-3 py-1 mb-2">
+                      <span className="text-[11px] font-bold text-white">📸 Verified Sunny at 3pm</span>
+                    </div>
+                    <h3 className="text-white font-extrabold text-xl">{name}</h3>
+                    <p className="text-white/80 text-sm mt-1">Perfect lighting verified by the Sunstay community.</p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </AnimatePresence>
   );

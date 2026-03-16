@@ -37,10 +37,12 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const comfortEls = useRef([]);
     const [mapLoaded, setMapLoaded] = useState(false);
     const [mapError, setMapError] = useState(false);
-    const [comfortMode, setComfortMode] = useState(false);
+    const [activeLayer, setActiveLayer] = useState(null);
     const [comfortHour, setComfortHour] = useState(new Date().getHours());
-    const [uvMode, setUvMode] = useState(false);
-    const [radarMode, setRadarMode] = useState(false);
+    const comfortMode = activeLayer === 'comfort';
+    const uvMode = activeLayer === 'uv';
+    const radarMode = activeLayer === 'radar';
+    const toggleLayer = (layer) => setActiveLayer(prev => prev === layer ? null : layer);
     const [isUpdating, setIsUpdating] = useState(false);
     const { weather, getUVIndex } = useWeather();
     const uvIndex = getUVIndex();
@@ -504,19 +506,19 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         });
     }, [cozyMode]);
 
-    // ── Sync cluster vs pin visibility based on zoom & comfortMode ──
+    // ── Sync cluster vs pin visibility based on zoom & activeLayer ──
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         const syncClusterVsPins = () => {
             const zoom = map.current.getZoom();
-            const showClusters = !comfortMode && zoom < 13;
+            const showClusters = !activeLayer && zoom < 13;
             ['clusters', 'cluster-count'].forEach((id) => {
                 if (map.current.getLayer(id)) {
                     map.current.setLayoutProperty(id, 'visibility', showClusters ? 'visible' : 'none');
                 }
             });
             unclusteredMarkers.current.forEach(({ marker }) => {
-                marker.getElement().style.display = (comfortMode || showClusters) ? 'none' : 'block';
+                marker.getElement().style.display = (activeLayer || showClusters) ? 'none' : 'block';
             });
         };
         syncClusterVsPins();
@@ -524,48 +526,56 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         return () => {
             map.current?.off('zoomend', syncClusterVsPins);
         };
-    }, [mapLoaded, comfortMode]);
+    }, [mapLoaded, activeLayer]);
 
-    // ── Comfort overlay markers ──────────────────────────────
-    const updateComfortOverlay = useCallback(() => {
+    // ── Custom Layer Markers ─────────────────────────────────
+    const updateLayerMarkers = useCallback(() => {
         comfortEls.current.forEach(m => m.remove());
         comfortEls.current = [];
 
-        if (!comfortMode || !weather || !map.current) return;
+        if (!activeLayer || !weather || !map.current) return;
 
-        const temp = weather.main?.temp;
-        const windSpeed = weather.wind?.speed;
-        const humidity = weather.main?.humidity;
+        const temp = weather.main?.temp || 0;
+        const windSpeed = weather.wind?.speed || 0;
+        const humidity = weather.main?.humidity || 50;
 
         demoVenues.forEach((venue) => {
-            const forecast = generateHourlyForecast(temp, windSpeed, humidity, venue);
-            const currentH = new Date().getHours();
-            const offset = (comfortHour - currentH + 24) % 24;
-            const hourData = forecast[offset] || forecast[0];
-
-            const feelsLike = hourData.feelsLike;
-            const comfort = hourData.comfort;
-
-            const comfortColors = {
-                cold: '#3b82f6',
-                cool: '#60a5fa',
-                mild: '#22c55e',
-                warm: '#16a34a',
-                hot: '#f97316',
-                extreme: '#ef4444',
-                unknown: '#9ca3af'
-            };
-            const bgColor = comfortColors[comfort.level] || comfortColors.unknown;
-
             const el = document.createElement('div');
-            el.className = 'comfort-map-marker';
-            el.innerHTML = `
-                <div class="comfort-map-pill" style="background:${bgColor};">
-                    <span class="comfort-map-temp">${feelsLike}°</span>
-                    <span class="comfort-map-icon">${comfort.icon}</span>
-                </div>
-                <div class="comfort-map-label">${venue.venueName.length > 14 ? venue.venueName.slice(0, 13) + '…' : venue.venueName}</div>
-            `;
+            el.className = 'layer-map-marker';
+            
+            if (activeLayer === 'comfort') {
+                const forecast = generateHourlyForecast(temp, windSpeed, humidity, venue);
+                const currentH = new Date().getHours();
+                const offset = (comfortHour - currentH + 24) % 24;
+                const hourData = forecast[offset] || forecast[0];
+                const comfortColors = { cold: '#3b82f6', cool: '#60a5fa', mild: '#22c55e', warm: '#16a34a', hot: '#f97316', extreme: '#ef4444', unknown: '#9ca3af' };
+                const bgColor = comfortColors[hourData.comfort.level] || comfortColors.unknown;
+
+                el.innerHTML = `
+                    <div class="comfort-map-pill" style="background:${bgColor};">
+                        <span class="comfort-map-temp">${hourData.feelsLike}°</span>
+                        <span class="comfort-map-icon">${hourData.comfort.icon}</span>
+                    </div>
+                `;
+            } else if (activeLayer === 'uv') {
+                const uvColor = uvIndex <= 2 ? '#a78bfa' : uvIndex <= 5 ? '#8b5cf6' : uvIndex <= 7 ? '#7c3aed' : uvIndex <= 10 ? '#6d28d9' : '#4c1d95';
+                const modifiedUv = Math.max(0, uvIndex + (venue.tags?.includes('Rooftop') ? 1 : 0) - (venue.tags?.includes('Indoor Warmth') ? 5 : 0));
+                
+                el.innerHTML = `
+                    <div class="uv-map-pill" style="background:${uvColor};">
+                        <span class="uv-map-num">UV ${modifiedUv.toFixed(1)}</span>
+                    </div>
+                `;
+            } else if (activeLayer === 'radar') {
+                const isRain = weather?.weather?.[0]?.main?.toLowerCase().includes('rain') || false;
+                const chance = Math.min(100, Math.round(Math.random() * 40 + (isRain ? 50 : 0)));
+                el.innerHTML = `
+                    <div class="radar-map-pill">
+                        <span class="radar-map-icon">💧</span>
+                        <span class="radar-map-pct">${chance}%</span>
+                    </div>
+                `;
+            }
 
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -580,11 +590,11 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             comfortEls.current.push(marker);
         });
-    }, [comfortMode, comfortHour, weather, onVenueSelect]);
+    }, [activeLayer, comfortHour, weather, uvIndex, onVenueSelect]);
 
     useEffect(() => {
-        updateComfortOverlay();
-    }, [updateComfortOverlay]);
+        updateLayerMarkers();
+    }, [updateLayerMarkers]);
 
     const fmtHour = (h) => {
         if (h === 0 || h === 24) return '12am';
@@ -595,6 +605,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     return (
         <div className={`ss-mapview-root ${(isTokenMissing || mapError) ? 'ssr-map-fallback-active' : ''}`}>
             <div ref={mapContainer} className="ss-mapview-canvas bg-slate-100" />
+
+            {/* Comfort Green Tint */}
+            {comfortMode && <div className="comfort-map-overlay" />}
 
             {/* UV Index Layer */}
             {uvMode && (
@@ -617,7 +630,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             {mapLoaded && !mapError && (
                 <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
                     <button
-                        onClick={() => setComfortMode(!comfortMode)}
+                        onClick={() => toggleLayer('comfort')}
                         className={`comfort-toggle-btn ${comfortMode ? 'comfort-toggle-active' : ''}`}
                         id="comfort-map-toggle"
                     >
@@ -626,7 +639,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                     </button>
 
                     <button
-                        onClick={() => setUvMode(!uvMode)}
+                        onClick={() => toggleLayer('uv')}
                         className={`comfort-toggle-btn ${uvMode ? 'comfort-toggle-active' : ''}`}
                         id="uv-map-toggle"
                     >
@@ -635,7 +648,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                     </button>
 
                     <button
-                        onClick={() => setRadarMode(!radarMode)}
+                        onClick={() => toggleLayer('radar')}
                         className={`comfort-toggle-btn ${radarMode ? 'comfort-toggle-active' : ''}`}
                         id="radar-map-toggle"
                     >

@@ -5,7 +5,8 @@ import MapView from './components/MapView';
 import VenueCard from './components/VenueCard';
 import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
-import FilterBar from './components/FilterBar';
+import TopBar from './components/TopBar';
+import FilterSheet from './components/FilterSheet';
 import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -244,7 +245,7 @@ const AppContent = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const mapRef = useRef(null);
     const listRef = useRef(null);
-    const { weather: _weatherContext } = useWeather();
+    const { weather } = useWeather();
     
     // Fetch local weather specifically for VenueCards
     const [localWeather, setLocalWeather] = useState(null);
@@ -465,55 +466,13 @@ const AppContent = () => {
             <WeatherBackground />
 
             {/* ═══ HEADER ═══ */}
-            <motion.header
-                initial={{ y: -100, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="ss-header"
-            >
-                <div className="header-banner">
-                    {/* Logo */}
-                    <div className="ss-header-logo">
-                        <motion.img
-                            src={mascotLogoImg}
-                            alt="SunStay mascot"
-                            className="ss-header-logo-img"
-                            style={{ objectFit: 'contain' }}
-                            animate={{ rotate: [0, 5, -5, 0] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                        />
-                        <div>
-                            <h1 className="city-name">Sunstay</h1>
-                            <HeaderWeather />
-                        </div>
-                    </div>
-
-                    {/* Weather indicator + Notifications + CTA */}
-                    <div className="ss-header-right">
-                        <WeatherIndicator />
-                        <div className="h-8 w-[1px] bg-gray-200 mx-1 hidden sm:block" />
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => window.open('https://sunstay.netlify.app/onboard', '_blank')}
-                            className="ss-cta-btn hidden md:flex"
-                        >
-                            <span>✨</span>
-                            <span>List Your Venue</span>
-                        </motion.button>
-                        <NotificationCenter onVenueSelect={handleVenueSelect} />
-                    </div>
-                </div>
-
-                {/* Filter bar */}
-                <div className="ss-header-filters transition-all">
-                    <FilterBar
-                        activeFilters={activeFilters}
-                        onFilterToggle={handleFilterToggle}
-                        onClearFilters={handleClearFilters}
-                    />
-                </div>
-            </motion.header>
+            <TopBar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onRecenter={handleRecenter}
+                weather={weather}
+                onFiltersOpen={openMobileFilters}
+            />
 
             {/* ═══ MAIN SPLIT LAYOUT ═══ */}
             <main className="ss-main">
@@ -651,70 +610,18 @@ const AppContent = () => {
                 </section>
 
                 {/* ═══ Mobile Filter Bottom Sheet ═══ */}
-                <AnimatePresence>
-                    {mobileFilterOpen && (
-                        <>
-                            <motion.div
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                onClick={closeMobileFilters}
-                                className="ss-filter-sheet-backdrop"
-                            />
-                            <motion.div
-                                initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                className="ss-filter-sheet"
-                            >
-                                <div className="ss-filter-sheet-head">
-                                    <h3>Filters</h3>
-                                    {activeFilters.length > 0 && (
-                                        <button onClick={handleClearFilters} className="ss-filter-sheet-clear">Clear all</button>
-                                    )}
-                                    <button onClick={closeMobileFilters} className="ss-filter-sheet-close">
-                                        <X size={18} />
-                                    </button>
-                                </div>
-                                <div className="ss-filter-chip-grid">
-                                    {FILTER_CATEGORIES.map(filter => (
-                                        <button
-                                            key={filter.id}
-                                            onClick={() => handleFilterToggle(filter.id)}
-                                            className={`ss-filter-chip ${activeFilters.includes(filter.id) ? 'ss-filter-chip--active' : ''}`}
-                                        >
-                                            <span>{filter.icon}</span>
-                                            <span>{filter.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="custom-filter-section">
-                                  <p className="filter-section-label">YOUR FILTERS</p>
-                                  <div className="custom-filter-chips">
-                                    {customFilters.map(f => (
-                                      <span key={f} className="filter-chip custom">✏️ {f}</span>
-                                    ))}
-                                  </div>
-                                  <div className="add-filter-row">
-                                    <input
-                                      type="text"
-                                      placeholder="Add your own filter..."
-                                      value={newFilter}
-                                      onChange={e => setNewFilter(e.target.value)}
-                                      onKeyDown={e => e.key === 'Enter' && addCustomFilter()}
-                                      className="custom-filter-input"
-                                    />
-                                    <button onClick={addCustomFilter} className="add-filter-btn">+</button>
-                                  </div>
-                                </div>
-                                <button
-                                    className="ss-filter-sheet-apply"
-                                    onClick={closeMobileFilters}
-                                    type="button"
-                                >
-                                    Show {filteredVenues.length} venue{filteredVenues.length !== 1 ? 's' : ''}
-                                </button>
-                            </motion.div>
-                        </>
-                    )}
-                </AnimatePresence>
+                <FilterSheet
+                    isOpen={mobileFilterOpen}
+                    onClose={closeMobileFilters}
+                    activeFilters={activeFilters}
+                    onToggleFilter={handleFilterToggle}
+                    onClearAll={handleClearFilters}
+                    customFilters={customFilters}
+                    newCustomFilter={newFilter}
+                    setNewCustomFilter={setNewFilter}
+                    onAddCustomFilter={addCustomFilter}
+                    resultCount={filteredVenues.length}
+                />
             </main>
 
             {/* MOBILE: Carousel removed from render path entirely */}

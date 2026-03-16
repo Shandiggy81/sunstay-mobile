@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, MapPin, Sun, Cloud, CloudRain, Wind, SlidersHorizontal } from 'lucide-react';
 
-const BANNER_BLUE = '#1A6FAF';
+const BANNER_GRADIENT = 'linear-gradient(to right, #1E3A8A, #3B82F6)';
 
 const WeatherIcon = ({ condition, windSpeed }) => {
     if (condition.includes('rain') || condition.includes('drizzle')) return <CloudRain size={16} className="text-white/90" />;
@@ -29,12 +29,12 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             initial={{ y: -60, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.15, type: 'spring', damping: 24, stiffness: 240 }}
-            className="absolute top-0 left-0 right-0 z-40"
+            className="flex-shrink-0 z-40"
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div
                 className="flex items-center gap-3 px-3 py-2.5"
-                style={{ backgroundColor: BANNER_BLUE }}
+                style={{ background: BANNER_GRADIENT }}
             >
                 {/* Logo */}
                 <div className="flex-shrink-0">
@@ -84,10 +84,10 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={onFiltersOpen}
-                    className="flex items-center gap-1.5 bg-white/20 border border-white/30 rounded-lg px-2.5 py-1.5 flex-shrink-0"
+                    className="flex items-center gap-1.5 bg-white rounded-lg px-2.5 py-1.5 flex-shrink-0 shadow-sm"
                 >
-                    <SlidersHorizontal size={13} className="text-white" />
-                    <span className="text-white text-[12px] font-semibold">Filters</span>
+                    <SlidersHorizontal size={13} className="text-[#1E40AF]" />
+                    <span className="text-[#1E40AF] text-[12px] font-semibold">Filters</span>
                 </motion.button>
 
                 {/* Search icon */}
@@ -108,7 +108,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        style={{ backgroundColor: BANNER_BLUE, overflow: 'hidden' }}
+                        style={{ background: BANNER_GRADIENT, overflow: 'hidden' }}
                         className="px-3 pb-2.5"
                     >
                         <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2">
