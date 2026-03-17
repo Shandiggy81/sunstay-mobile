@@ -269,6 +269,7 @@ export const demoVenues = [
         emoji: '🍻',
         vibe: 'Brewery & Beer Garden',
         tags: ['Pet Friendly', 'Large Groups', 'Beer Garden', 'Pram Friendly', 'Wheelchair Accessible'],
+        hasCozy: true,
         notes: 'Real Good Company venue (brewery).',
     },
     {
@@ -282,6 +283,7 @@ export const demoVenues = [
         emoji: '🎱',
         vibe: 'Tavern',
         tags: ['Fireplace', 'Pub Grub', 'Pet Friendly', 'Smoking Area'],
+        hasCozy: true,
         notes: 'Real Good Company venue.',
     },
     {
@@ -297,6 +299,7 @@ export const demoVenues = [
         tags: ['Rooftop', 'Beer Garden', 'Large Groups', 'Wheelchair Accessible', 'Shaded'],
         price: '$$',
         capacity: 800,
+        hasCozy: true,
         notes: 'Real Sand Hill Road venue.',
         proTip: 'The internal garden courtyard is perfectly shielded from Melbourne\'s south-westerly winds. 🌳',
     },
@@ -1025,6 +1028,10 @@ export const FILTER_CATEGORIES = [
     { id: 'craft-beer', label: 'Craft Beer', icon: '🍺', tag: 'Craft Beer' },
     { id: 'specialty-coffee', label: 'Specialty Coffee', icon: '☕', tag: 'Specialty Coffee' },
     { id: 'live-music', label: 'Live Music', icon: '🎵', tag: 'Live Music' },
+    { id: 'sun-balcony', label: 'Balcony sun ☀️', icon: '☀️', intent: 'BalconySun' },
+    { id: 'sun-drinks', label: 'Sunny drinks 🍹', icon: '🍹', intent: 'SunnyDrinks' },
+    { id: 'fireplaces', label: 'Fireplaces/Heaters 🔥', icon: '🔥', tag: 'Fireplace' },
+    { id: 'cozy-mode', label: 'Cozy Mode ☕🔥', icon: '☕', tag: 'CozyMode' },
 ];
 
 // Melbourne center coordinates for initial map view
