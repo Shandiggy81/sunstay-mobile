@@ -204,6 +204,7 @@ const HeaderWeather = () => {
 // Main App Content
 // ═══════════════════════════════════════════════════════════════════
 const AppContent = () => {
+    const { weather } = useWeather();
     const [selectedVenue, setSelectedVenue] = useState(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     // Initial filters: empty to show all venues by default
@@ -691,7 +692,7 @@ const AppContent = () => {
                 <VenueCard
                     key={selectedVenue?.id}
                     venue={selectedVenue}
-                    weather={localWeather}
+                    weather={weather}
                     onClose={handleCloseCard}
                     onCenter={handleVenueSelect}
                     cozyWeatherActive={cozyWeatherActive}
