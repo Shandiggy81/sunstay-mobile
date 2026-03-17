@@ -347,7 +347,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                     : 'ss-marker-sunny';
 
                 // Check cozy
-                const isCozy = cozyMode && (venue.tags || []).some(t =>
+                const isCozy = cozyFilterActive && (venue.tags || []).some(t =>
                     ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t)
                 );
 
