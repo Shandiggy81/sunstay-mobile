@@ -221,7 +221,7 @@ export const demoVenues = [
         price: '$$',
         capacity: 450,
         notes: 'Real AVC venue — used as flagship demo pin.',
-        hasFireplace: true,
+        hasBalcony: true,
         proTip: 'The north-east corner gets the best winter sun until 2pm! ☀️',
     },
     {
@@ -255,7 +255,7 @@ export const demoVenues = [
         price: '$$',
         capacity: 120,
         notes: 'Real Good Company venue.',
-        hasFireplace: true,
+        hasCozy: true,
         proTip: 'The streetside tables are a people-watching goldmine in the afternoon sun! 🍷',
     },
     {
