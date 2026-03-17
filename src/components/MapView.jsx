@@ -363,6 +363,11 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                     </div>
                 `;
 
+                if (venue.hasFireplace) {
+                    el.style.color = '#FF4500';
+                    el.style.filter = 'drop-shadow(0 0 8px #FF4500)';
+                }
+
                 if (comfortMode) {
                     el.style.display = 'none';
                 }
@@ -377,6 +382,11 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 const marker = new mapboxgl.Marker(el)
                     .setLngLat([venue.lng, venue.lat])
                     .addTo(map.current);
+
+                if (venue.hasFireplace) {
+                    marker.setColor('#FF4500');
+                    marker.getElement().style.filter = 'drop-shadow(0 0 8px #FF4500)';
+                }
 
                 unclusteredMarkers.current.push({ marker, venueId: venue.id, venue });
             });
