@@ -826,8 +826,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                                                 onVenueSelect(venue);
                                             }}
                                         >
-                                            <div className={`ss-marker-pill ss-marker-${weather && weatherColorFn ? weatherColorFn(weather, venue) : 'sunny'} shadow-xl border-2 border-white/30 ${(cozyMode && (venue.tags || []).some(t => ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t))) ? 'ss-marker-cozy-glow' : ''}`}>
-                                                <span className="ss-marker-emoji">{venue.emoji}</span>
+                                            <div className={`ss-marker-pill ss-marker-${weather && weatherColorFn ? weatherColorFn(weather, venue) : 'sunny'} shadow-xl border-2 border-white/30 ${(venue.hasCozy && cozyWeatherActive && cozyFilterActive) ? 'ss-marker-cozy-glow' : ''}`}>
+                                                <span className="ss-marker-emoji">${venue.emoji}</span>
                                             </div>
                                             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/80 text-white text-[10px] px-2 py-1 rounded-full pointer-events-none">
                                                 {venue.venueName}
@@ -868,6 +868,21 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                         </div>
                     )}
                 </div>
+            )}
+            {/* Cozy Mode warm tint overlay */}
+            {cozyFilterActive && (
+                <div 
+                    className="ss-cozy-overlay" 
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        backgroundColor: 'rgba(255, 140, 0, 0.08)',
+                        pointerEvents: 'none',
+                        zIndex: 10,
+                        mixBlendMode: 'overlay',
+                        borderRadius: '24px'
+                    }} 
+                />
             )}
         </div>
     );

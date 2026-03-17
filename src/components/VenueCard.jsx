@@ -104,7 +104,7 @@ const HourlyTimeline = ({ hourlyData }) => {
   );
 };
 
-export default function VenueCard({ venue, weather, onClose, onCenter }) {
+export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive }) {
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [demoModalOpen, setDemoModalOpen] = useState(false);
   const panelRef = useRef(null);
@@ -228,10 +228,23 @@ export default function VenueCard({ venue, weather, onClose, onCenter }) {
                         {outdoorSun.balcony > 0 && <span className="bg-amber-500/10 text-amber-300 px-2 py-0.5 rounded-md border border-amber-500/20">Balcony: {outdoorSun.balcony}h</span>}
                         {outdoorSun.pool > 0 && <span className="bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded-md border border-cyan-500/20">Pool: {outdoorSun.pool}h</span>}
                       </div>
+
+                      {cozyWeatherActive && (
+                        <div className="bg-orange-500/10 text-orange-300 px-3 py-1 rounded-lg border border-orange-500/20 text-[10px] font-bold mt-2 flex items-center gap-2">
+                           ☕ Cozy Indoor | Heaters lit | Rain shelter | Cozy Score 92/100
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="text-[11px] text-white/60 font-medium leading-relaxed mt-1">
-                      {isRain ? "Limited sun today. Great for indoor activities." : "Excellent conditions for outdoor seating and drinks."}
+                    <div className="flex flex-col gap-1 mt-2">
+                      <div className="text-[11px] text-white/60 font-medium leading-relaxed">
+                        {isRain ? "Limited sun today. Great for indoor activities." : "Excellent conditions for outdoor seating and drinks."}
+                      </div>
+                      {cozyWeatherActive && (
+                        <div className="bg-orange-500/10 text-orange-300 px-3 py-1 rounded-lg border border-orange-500/20 text-[10px] font-bold mt-1 flex items-center gap-2 w-fit">
+                           ☕ Cozy Indoor | Heaters lit | Rain shelter | Cozy Score 92/100
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

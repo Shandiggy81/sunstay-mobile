@@ -314,6 +314,7 @@ export const demoVenues = [
         emoji: '🚚',
         vibe: 'Food Truck Park',
         tags: ['Pram Friendly', 'Beer Garden', 'Pet Friendly', 'Wheelchair Accessible', 'Craft Beer', 'Vegan', 'Live Music'],
+        hasCozy: true,
         notes: 'Real Sand Hill Road venue.',
     },
     {
@@ -327,6 +328,7 @@ export const demoVenues = [
         emoji: '🍺',
         vibe: 'Classic Pub',
         tags: ['Beer Garden', 'Smoking Area', 'Wheelchair Accessible'],
+        hasCozy: true,
         notes: 'Example ALH Group venue for outreach deck.',
     },
     {
@@ -353,6 +355,7 @@ export const demoVenues = [
         emoji: '🎸',
         vibe: 'Warehouse & Garden',
         tags: ['Garden', 'Arts', 'Beer Garden', 'Pet Friendly', 'Pram Friendly'],
+        hasCozy: true,
         notes: 'Real Commune Group venue.',
     },
     {
@@ -366,6 +369,7 @@ export const demoVenues = [
         emoji: '🍹',
         vibe: 'Palm Springs Style',
         tags: ['Cocktails', 'Sunny', 'Rooftop', 'Smoking Area', 'Specialty Coffee', 'Live Music'],
+        hasCozy: true,
         notes: 'Example Dixon Hospitality venue for outreach deck.',
     },
     {
@@ -379,6 +383,7 @@ export const demoVenues = [
         emoji: '🍺',
         vibe: 'Pub · Restaurant',
         tags: ['24h License', 'Deck', 'Beer Garden', 'Smoking Area', 'Wheelchair Accessible'],
+        hasCozy: true,
         notes: 'Example Melbourne Pub Group venue for outreach deck.',
     },
     {

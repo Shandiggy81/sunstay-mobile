@@ -694,6 +694,7 @@ const AppContent = () => {
                     weather={localWeather}
                     onClose={handleCloseCard}
                     onCenter={handleVenueSelect}
+                    cozyWeatherActive={cozyWeatherActive}
                 />
             )}
 
