@@ -30,7 +30,7 @@ function buildGeoJSON(venues) {
     };
 }
 
-const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyMode, isExpanded }, ref) => {
+const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyWeatherActive, cozyFilterActive, isExpanded }, ref) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const unclusteredMarkers = useRef([]);
@@ -386,6 +386,12 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 if (venue.hasFireplace) {
                     marker.setColor('#FF4500');
                     marker.getElement().style.filter = 'drop-shadow(0 0 8px #FF4500)';
+                }
+
+                if (venue.hasCozy && cozyWeatherActive && cozyFilterActive) {
+                    marker.setColor('#FF8C00');
+                    el.style.transform = 'scale(1.3)';
+                    el.style.filter = 'drop-shadow(0 0 12px #FF4500)';
                 }
 
                 unclusteredMarkers.current.push({ marker, venueId: venue.id, venue });
