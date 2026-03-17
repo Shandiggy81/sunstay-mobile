@@ -510,17 +510,21 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             const pill = el.querySelector('.ss-marker-pill');
             if (!pill) return;
 
-            const isCozy = (venue.tags || []).some(tag =>
+            const isCozy = venue.hasCozy || (venue.tags || []).some(tag =>
                 ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(tag)
             );
 
-            if (cozyMode && isCozy) {
+            if (cozyFilterActive && cozyWeatherActive && isCozy) {
                 pill.classList.add('ss-marker-cozy-glow');
+                el.style.transform = 'scale(1.3)';
+                el.style.filter = 'drop-shadow(0 0 12px #FF4500)';
             } else {
                 pill.classList.remove('ss-marker-cozy-glow');
+                el.style.transform = 'scale(1)';
+                el.style.filter = 'none';
             }
         });
-    }, [cozyMode]);
+    }, [cozyFilterActive, cozyWeatherActive]);
 
     // ── Sync cluster vs pin visibility based on zoom & activeLayer ──
     useEffect(() => {
