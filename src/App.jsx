@@ -245,15 +245,14 @@ const AppContent = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const mapRef = useRef(null);
     const listRef = useRef(null);
-    const { weather } = useWeather();
-    
-    // Fetch local weather specifically for VenueCards
-    const [localWeather, setLocalWeather] = useState(null);
-    useEffect(() => {
-        import('./util/weatherService').then(({ getMelbourneWeather }) => {
-            getMelbourneWeather().then(setLocalWeather);
-        });
-    }, []);
+    // Calculate cozy weather conditions
+    const cozyWeatherActive = useMemo(() => {
+        if (!weather) return false;
+        const minTemp = weather.minTemp || 20;
+        const precip = weather.precipitation || 0;
+        const wind = weather.windSpeed || 0;
+        return minTemp < 8 || (precip > 0.5 || wind > 15);
+    }, [weather]);
 
     // Calculate filtered venue IDs based on active filters (Types + Intents + Tags)
     const filteredVenueIds = useMemo(() => {
@@ -316,12 +315,11 @@ const AppContent = () => {
                 return hasTagMatch;
             })
             .filter(v => {
-                if (!cozyMode) return true;
-                const cozyTags = ['Fireplace', 'Heaters', 'Indoor Warmth'];
-                return (v.tags || []).some(tag => cozyTags.includes(tag));
+                if (!activeFilters.includes('cozy-mode')) return true;
+                return v.hasCozy;
             })
             .map(v => v.id);
-    }, [activeFilters, cozyMode]);
+    }, [activeFilters]);
 
     // Get filtered + searched venues for list
     const filteredVenues = useMemo(() => {
@@ -575,7 +573,8 @@ const AppContent = () => {
                             filteredVenueIds={filteredVenueIds}
                             mapRef={mapRef}
                             weatherColorFn={getMarkerWeatherColor}
-                            cozyMode={cozyMode}
+                            cozyWeatherActive={cozyWeatherActive}
+                            cozyFilterActive={activeFilters.includes('cozy-mode')}
                             isExpanded={mobileMapExpanded}
                         />
                     </div>
