@@ -14,8 +14,16 @@ import SunCalc from 'suncalc';
 // ── Build a venue lookup for click handlers ──────────────────────
 const venueById = Object.fromEntries(demoVenues.map(v => [v.id, v]));
 
+// ── Dynamic venue emoji logic ────────────────────────────────────
+const getVenueEmoji = (venue, weather) => {
+    if ((venue.hasFireplace || venue.hasCozy) && weather?.min_temp < 8) return '🔥';
+    if (weather?.weatherCode >= 61) return '🌧️';
+    if (weather?.cloud_cover > 60) return '⛅';
+    return '☀️';
+};
+
 // ── Convert venues to GeoJSON FeatureCollection ──────────────────
-function buildGeoJSON(venues) {
+function buildGeoJSON(venues, weatherData) {
     return {
         type: 'FeatureCollection',
         features: venues.map(v => ({
@@ -23,7 +31,7 @@ function buildGeoJSON(venues) {
             geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
             properties: {
                 id: v.id,
-                emoji: v.emoji,
+                emoji: getVenueEmoji(v, weatherData),
                 name: v.venueName,
                 venueName: v.venueName,
             }
@@ -91,7 +99,13 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const setupClusterSource = useCallback(() => {
         if (!map.current) return;
 
-        const geojson = buildGeoJSON(demoVenues);
+        const weatherData = {
+            min_temp: weather?.rawWeather?.minTemp,
+            weatherCode: weather?.rawWeather?.weatherCode,
+            cloud_cover: weather?.clouds?.all
+        };
+
+        const geojson = buildGeoJSON(demoVenues, weatherData);
 
         // Add GeoJSON source with clustering
         map.current.addSource('venues', {
@@ -520,12 +534,18 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
         setIsUpdating(true);
 
+        const weatherData = {
+            min_temp: weather?.rawWeather?.minTemp,
+            weatherCode: weather?.rawWeather?.weatherCode,
+            cloud_cover: weather?.clouds?.all
+        };
+
         // Rebuild GeoJSON with only filtered venues for clustering
         const filtered = filteredVenueIds === null
             ? demoVenues
             : demoVenues.filter(v => filteredVenueIds.includes(v.id));
 
-        source.setData(buildGeoJSON(filtered));
+        source.setData(buildGeoJSON(filtered, weatherData));
 
         // Update marker visibility based on new filters
         unclusteredMarkers.current.forEach(({ marker, venueId }) => {
@@ -536,7 +556,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         });
 
         setTimeout(() => setIsUpdating(false), 200);
-    }, [filteredVenueIds, mapLoaded]);
+    }, [filteredVenueIds, mapLoaded, weather]);
 
     // ── Update marker weather colors when weather changes ─────────
     useEffect(() => {
@@ -811,7 +831,11 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                                             }}
                                         >
                                             <div className={`ss-marker-pill ss-marker-${weather && weatherColorFn ? weatherColorFn(weather, venue) : 'sunny'} shadow-xl border-2 border-white/30 ${(venue.hasCozy && cozyWeatherActive && cozyFilterActive) ? 'ss-marker-cozy-glow' : ''}`}>
-                                                <span className="ss-marker-emoji">${venue.emoji}</span>
+                                                <span className="ss-marker-emoji">{getVenueEmoji(venue, {
+                                                    min_temp: weather?.rawWeather?.minTemp,
+                                                    weatherCode: weather?.rawWeather?.weatherCode,
+                                                    cloud_cover: weather?.clouds?.all
+                                                })}</span>
                                             </div>
                                             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/80 text-white text-[10px] px-2 py-1 rounded-full pointer-events-none">
                                                 {venue.venueName}
