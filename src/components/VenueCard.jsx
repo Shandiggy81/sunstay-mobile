@@ -199,13 +199,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={onClose} 
-                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/50 hover:bg-white/20 hover:text-white transition-all border border-white/5"
-              >
-                <X size={15} strokeWidth={2.5} />
-              </button>
             </div>
+            <button onClick={onClose} className="absolute top-3 right-3 z-50 bg-white/20 hover:bg-white/40 rounded-full p-1.5 text-white" aria-label="Close">
+              <X size={18} />
+            </button>
 
             <motion.div 
               ref={panelRef}

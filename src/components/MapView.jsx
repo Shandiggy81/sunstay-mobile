@@ -144,18 +144,21 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             paint: { 'text-color': '#ffffff' }
         });
 
-        // ── Unclustered points (restored visibility & interactivity) ────
+        // ── Unclustered points (Emoji Pins) ────────────────────────────────
         map.current.addLayer({
             id: 'unclustered-point',
-            type: 'circle',
+            type: 'symbol',
             source: 'venues',
             filter: ['!', ['has', 'point_count']],
-            minzoom: 0,
+            layout: {
+                'text-field': ['get', 'emoji'],
+                'text-size': 28,
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+            },
             paint: {
-                'circle-radius': 14,
-                'circle-color': '#F59E0B',
-                'circle-stroke-width': 2,
-                'circle-stroke-color': '#fff'
+                'text-halo-color': '#ffffff',
+                'text-halo-width': 2,
             }
         });
 
