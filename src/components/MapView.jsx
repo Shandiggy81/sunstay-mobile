@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
+import FiltersSheet from './FiltersSheet';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../config/mapConfig';
@@ -45,6 +46,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const unclusteredMarkers = useRef([]);
     const comfortEls = useRef([]);
     const [mapLoaded, setMapLoaded] = useState(false);
+    const [isFiltersOpen, setIsFiltersOpen] = useState(false);
     const [mapError, setMapError] = useState(false);
     const [activeLayer, setActiveLayer] = useState(null);
     const [comfortHour, setComfortHour] = useState(new Date().getHours());
@@ -667,6 +669,14 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             {mapLoaded && !mapError && (
                 <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
                     <button
+                        onClick={() => setIsFiltersOpen(true)}
+                        className="comfort-toggle-btn"
+                        style={{ background: '#FFFDF5', border: '1px solid #F59E0B' }}
+                    >
+                        <span className="text-amber-500">🔍</span>
+                        <span className="font-bold text-[#1A1A1A]">Filters</span>
+                    </button>
+                    <button
                         onClick={() => toggleLayer('comfort')}
                         className={`comfort-toggle-btn ${comfortMode ? 'comfort-toggle-active' : ''}`}
                         id="comfort-map-toggle"
@@ -909,6 +919,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                     }} 
                 />
             )}
+            {isFiltersOpen && <FiltersSheet onClose={() => setIsFiltersOpen(false)} venueCount={demoVenues.filter(v => filteredVenueIds === null || filteredVenueIds.includes(v.id)).length} />}
         </div>
     );
 });
