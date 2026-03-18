@@ -157,9 +157,15 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
         className="fixed bottom-0 left-0 right-0 z-[99999] md:bottom-auto md:top-1/2 md:left-auto md:right-4 md:-translate-y-1/2 md:w-[380px] pointer-events-none"
       >
-        <div className="pointer-events-auto relative bg-[#FCFBF7] rounded-t-[32px] md:rounded-3xl overflow-hidden shadow-[0_-12px_40px_rgba(0,0,0,0.12)] md:shadow-2xl border border-black/5 select-none m-2 md:m-0">
+        <div 
+          style={{ 
+            backgroundColor: '#FFFDF5',
+            boxShadow: '0 -4px 20px rgba(59, 130, 246, 0.08)'
+          }}
+          className="pointer-events-auto relative rounded-t-[32px] md:rounded-3xl overflow-hidden md:shadow-2xl border border-black/5 select-none m-2 md:m-0"
+        >
           
-          <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 bg-[#FCFBF7]">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10" style={{ backgroundColor: '#FFFDF5' }}>
             {isRain ? (
               <motion.div 
                  animate={{ scale: [1, 1.05, 1], opacity: [0.1, 0.2, 0.1] }} 
@@ -178,9 +184,29 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
           <div className="relative z-10 p-5 pt-7 pb-6">
             {/* Premium Mobile Pull Handle */}
-            <div className="w-12 h-1.5 rounded-full bg-black/[0.18] absolute top-3 left-1/2 -translate-x-1/2 md:hidden" />
+            <div 
+              style={{
+                width: '48px',
+                height: '6px',
+                borderRadius: '999px',
+                backgroundColor: '#F59E0B',
+                margin: '12px auto 8px',
+                display: 'block',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                opacity: 1,
+                flexShrink: 0
+              }}
+              className="md:hidden" 
+            />
 
-            <div className="flex justify-between items-start mb-5">
+            <div 
+              style={{
+                background: '#EFF6FF',
+                borderLeft: '4px solid #3B82F6',
+                padding: '12px 16px'
+              }}
+              className="flex justify-between items-start mb-5"
+            >
               <div className="flex items-center gap-3.5 flex-1 pr-2">
                 <motion.div 
                    whileHover={{ rotateY: 180, scale: 1.1 }} 
@@ -191,7 +217,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   <div style={{ transform: 'translateZ(10px)' }}>{venue.emoji}</div>
                 </motion.div>
                 <div className="min-w-0">
-                  <h3 className="font-extrabold text-[#1A1A1A] text-[18px] leading-tight truncate">{name}</h3>
+                  <h3 className="text-[#1A1A1A] text-[18px] leading-tight truncate" style={{ fontWeight: 800 }}>{name}</h3>
                   <div className="text-[#4A4A4A] text-[12px] font-semibold mt-1 uppercase tracking-widest truncate">
                     {type || venue.vibe} &middot; {suburb}
                   </div>
