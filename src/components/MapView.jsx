@@ -167,15 +167,36 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 if (seen.has(id)) return;
                 seen.add(id);
 
-                const el = document.createElement('div');
-                el.textContent = feature.properties.emoji || '☀️';
-                el.style.cssText = 'font-size:26px;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25));user-select:none;line-height:1;margin-top:-13px;'; // margin-top to center
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    onVenueSelectRef.current?.(venueById[id], isMobileViewport());
-                });
+                // Create a 44x44px hit area wrapper for better mobile reliability
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = `
+                    width: 44px;
+                    height: 44px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    user-select: none;
+                    z-index: 10;
+                    pointer-events: auto;
+                `;
 
-                const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                const emoji = document.createElement('div');
+                emoji.textContent = feature.properties.emoji || '☀️';
+                emoji.style.cssText = 'font-size:26px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25)); line-height:1;';
+
+                wrapper.appendChild(emoji);
+
+                const handleSelect = (e) => {
+                    e.stopPropagation();
+                    if (e.type === 'touchstart') e.preventDefault();
+                    onVenueSelectRef.current?.(venueById[id], isMobileViewport());
+                };
+
+                wrapper.addEventListener('click', handleSelect);
+                wrapper.addEventListener('touchstart', handleSelect, { passive: false });
+
+                const marker = new mapboxgl.Marker({ element: wrapper, anchor: 'center' })
                     .setLngLat(feature.geometry.coordinates)
                     .addTo(map.current);
 
