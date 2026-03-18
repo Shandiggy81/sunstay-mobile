@@ -24,6 +24,7 @@ function buildGeoJSON(venues) {
             properties: {
                 id: v.id,
                 emoji: v.emoji,
+                name: v.venueName,
                 venueName: v.venueName,
             }
         }))
@@ -101,17 +102,65 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             clusterMaxZoom: 16,
         });
 
+        // ── Clusters circle layer ──────────────────────────────
+        map.current.addLayer({
+            id: 'clusters',
+            type: 'circle',
+            source: 'venues',
+            filter: ['has', 'point_count'],
+            paint: {
+                'circle-color': '#F59E0B',
+                'circle-radius': 20,
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#fff'
+            }
+        });
+
+        // ── CLUSTER NUMBERS fix ────────────────────────────────
+        map.current.addLayer({
+            id: 'cluster-count',
+            type: 'symbol',
+            source: 'venues',
+            filter: ['has', 'point_count'],
+            layout: {
+                'text-field': '{point_count_abbreviated}',
+                'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+                'text-size': 14,
+            },
+            paint: { 'text-color': '#ffffff' }
+        });
+
         // ── Unclustered points (restored visibility & interactivity) ────
         map.current.addLayer({
             id: 'unclustered-point',
             type: 'circle',
             source: 'venues',
             filter: ['!', ['has', 'point_count']],
+            minzoom: 0,
             paint: {
                 'circle-radius': 14,
                 'circle-color': '#F59E0B',
                 'circle-stroke-width': 2,
                 'circle-stroke-color': '#fff'
+            }
+        });
+
+        // ── Venue NAME labels ──────────────────────────────────
+        map.current.addLayer({
+            id: 'venue-labels',
+            type: 'symbol',
+            source: 'venues',
+            filter: ['!', ['has', 'point_count']],
+            layout: {
+                'text-field': ['get', 'name'],
+                'text-size': 11,
+                'text-offset': [0, 1.5],
+                'text-anchor': 'top',
+            },
+            paint: {
+                'text-color': '#1e3a8a',
+                'text-halo-color': '#fff',
+                'text-halo-width': 1.5
             }
         });
 
