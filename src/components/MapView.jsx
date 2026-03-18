@@ -100,8 +100,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 zoom: INITIAL_VIEW_STATE.zoom,
                 pitch: INITIAL_VIEW_STATE.pitch,
                 bearing: INITIAL_VIEW_STATE.bearing,
-                minZoom: 10,
-                maxZoom: 18
+                minZoom: 0,
+                maxZoom: 22
             });
 
             map.current.on('load', () => {
@@ -150,6 +150,16 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
                 updateSunLight();
                 map.current._sunLightInterval = setInterval(updateSunLight, 60000); // update every minute
+
+                // Fix: Pins vanish on zoom
+                map.current.on('zoomend', () => {
+                    if (map.current) map.current.resize();
+                });
+                map.current.on('moveend', () => {
+                    if (typeof createAllMarkers === 'function') {
+                        createAllMarkers();
+                    }
+                });
             });
 
             map.current.on('error', (e) => {
@@ -267,8 +277,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             type: 'geojson',
             data: geojson,
             cluster: true,
-            clusterRadius: 42,
-            clusterMaxZoom: 13,
+            clusterRadius: 50,
+            clusterMaxZoom: 16,
         });
 
         // ── Cluster circles ─────────────────────────────────────
@@ -329,89 +339,77 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             });
         });
 
-        // ── Render venue markers directly from data ──────────────────
-        // Instead of relying on querySourceFeatures (which is unreliable),
-        // create DOM markers for all venues and show/hide based on zoom
-        const createAllMarkers = () => {
-            // Remove existing markers
-            unclusteredMarkers.current.forEach(m => m.marker.remove());
-            unclusteredMarkers.current = [];
-
-            demoVenues.forEach(venue => {
-                // Check if filtered
-                const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venue.id));
-
-                // Get weather color
-                const colorClass = weather && weatherColorFn
-                    ? `ss-marker-${weatherColorFn(weather, venue)}`
-                    : 'ss-marker-sunny';
-
-                // Check cozy
-                const isCozy = cozyFilterActive && (venue.tags || []).some(t =>
-                    ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t)
-                );
-
-                const el = document.createElement('div');
-                el.className = 'ss-map-marker';
-                el.style.pointerEvents = 'auto';
-                el.style.touchAction = 'manipulation';
-                el.style.opacity = isVisible ? '1' : '0.15';
-                el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
-                el.innerHTML = `
-                    <div class="ss-marker-pill ${colorClass} ${isCozy ? 'ss-marker-cozy-glow' : ''}">
-                        <span class="ss-marker-emoji">${venue.emoji}</span>
-                    </div>
-                `;
-
-                if (venue.hasFireplace) {
-                    el.style.color = '#FF4500';
-                    el.style.filter = 'drop-shadow(0 0 8px #FF4500)';
-                }
-
-                if (comfortMode) {
-                    el.style.display = 'none';
-                }
-
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const popups = document.getElementsByClassName('mapboxgl-popup');
-                    for (let p of popups) p.remove();
-                    onVenueSelect(venue);
-                });
-
-                const marker = new mapboxgl.Marker(el)
-                    .setLngLat([venue.lng, venue.lat])
-                    .addTo(map.current);
-
-                if (venue.hasFireplace) {
-                    marker.setColor('#FF4500');
-                    marker.getElement().style.filter = 'drop-shadow(0 0 8px #FF4500)';
-                }
-
-                if (venue.hasCozy && cozyWeatherActive && cozyFilterActive) {
-                    marker.setColor('#FF8C00');
-                    el.style.transform = 'scale(1.3)';
-                    el.style.filter = 'drop-shadow(0 0 12px #FF4500)';
-                }
-
-                unclusteredMarkers.current.push({ marker, venueId: venue.id, venue });
-            });
-        };
-
-        // Hide cluster layers since we're using DOM markers directly
-        // This avoids double-rendering (cluster circles + individual pins)
-        try {
-            if (map.current.getLayer('clusters')) {
-                map.current.setLayoutProperty('clusters', 'visibility', 'none');
-            }
-            if (map.current.getLayer('cluster-count')) {
-                map.current.setLayoutProperty('cluster-count', 'visibility', 'none');
-            }
-        } catch (e) { /* layers might not be ready */ }
-
         // Create markers immediately
         createAllMarkers();
-    }, []);
+    }, [createAllMarkers]);
+
+    const createAllMarkers = useCallback(() => {
+        if (!map.current) return;
+
+        // Remove existing markers
+        unclusteredMarkers.current.forEach(m => m.marker.remove());
+        unclusteredMarkers.current = [];
+
+        demoVenues.forEach(venue => {
+            // Check if filtered
+            const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venue.id));
+
+            // Get weather color
+            const colorClass = weather && weatherColorFn
+                ? `ss-marker-${weatherColorFn(weather, venue)}`
+                : 'ss-marker-sunny';
+
+            // Check cozy
+            const isCozy = cozyFilterActive && (venue.tags || []).some(t =>
+                ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t)
+            );
+
+            const el = document.createElement('div');
+            el.className = 'ss-map-marker';
+            el.style.pointerEvents = 'auto';
+            el.style.touchAction = 'manipulation';
+            el.style.opacity = isVisible ? '1' : '0.15';
+            el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
+            el.innerHTML = `
+                <div class="ss-marker-pill ${colorClass} ${isCozy ? 'ss-marker-cozy-glow' : ''}">
+                    <span class="ss-marker-emoji">${venue.emoji}</span>
+                </div>
+            `;
+
+            if (venue.hasFireplace) {
+                el.style.color = '#FF4500';
+                el.style.filter = 'drop-shadow(0 0 8px #FF4500)';
+            }
+
+            if (comfortMode) {
+                el.style.display = 'none';
+            }
+
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const popups = document.getElementsByClassName('mapboxgl-popup');
+                for (let p of popups) p.remove();
+                onVenueSelect(venue);
+            });
+
+            const marker = new mapboxgl.Marker(el)
+                .setLngLat([venue.lng, venue.lat])
+                .addTo(map.current);
+
+            if (venue.hasFireplace) {
+                marker.setColor('#FF4500');
+                marker.getElement().style.filter = 'drop-shadow(0 0 8px #FF4500)';
+            }
+
+            if (venue.hasCozy && cozyWeatherActive && cozyFilterActive) {
+                marker.setColor('#FF8C00');
+                el.style.transform = 'scale(1.3)';
+                el.style.filter = 'drop-shadow(0 0 12px #FF4500)';
+            }
+
+            unclusteredMarkers.current.push({ marker, venueId: venue.id, venue });
+        });
+    }, [filteredVenueIds, weather, weatherColorFn, cozyFilterActive, cozyWeatherActive, comfortMode, onVenueSelect]);
 
     // ── Safe Resize helper ──────────────────────────────────────────
     const safeResize = useCallback(() => {
