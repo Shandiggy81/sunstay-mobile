@@ -1,101 +1,120 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { useState } from 'react';
 
-const FiltersSheet = ({ onClose, venueCount }) => {
-  const [selectedFilters, setSelectedFilters] = useState(['Bar', '☀️ Sunny Now', 'Outdoor Seating']);
+const defaultPill = {
+  background: '#FFFFFF',
+  border: '1px solid #D1D5DB',
+  color: '#4A4A4A',
+  borderRadius: '999px',
+  padding: '6px 14px',
+  fontSize: '13px',
+  fontWeight: '600',
+  cursor: 'pointer',
+  margin: '4px',
+};
 
-  const sections = [
-    {
-      label: 'Vibe',
-      pills: ['Bar', 'Cafe', 'Beer Garden', 'Rooftop', 'Park']
-    },
-    {
-      label: 'Sun Timing',
-      pills: ['☀️ Sunny Now', '🌅 Golden Hour', '🌤 Sunny This Arvo', '🌧 Rain OK']
-    },
-    {
-      label: 'Features',
-      pills: ['Outdoor Seating', 'Dog Friendly', 'Live Music', 'Food Available']
-    }
-  ];
+const selectedPill = {
+  ...defaultPill,
+  background: '#FFF7ED',
+  border: '2px solid #F59E0B',
+  color: '#92400E',
+};
 
-  const toggleFilter = (pill) => {
-    setSelectedFilters(prev => 
-      prev.includes(pill) ? prev.filter(f => f !== pill) : [...prev, pill]
-    );
-  };
+const FILTERS = {
+  vibe: ['Bar', 'Cafe', 'Beer Garden', 'Rooftop', 'Park'],
+  sun: ['☀️ Sunny Now', '🌅 Golden Hour', '🌤 Sunny This Arvo', '🌧 Rain OK'],
+  features: ['Outdoor Seating', 'Dog Friendly', 'Live Music', 'Food Available'],
+};
 
+const SECTION_LABELS = {
+  vibe: 'Vibe',
+  sun: 'Sun Timing',
+  features: 'Features',
+};
+
+export default function FiltersSheet({ onClose, venueCount, activeFilters, onToggleFilter, onClearAll }) {
   return (
-    <>
-      {/* Overlay */}
-      <div 
-        onClick={onClose}
-        className="fixed inset-0 z-[1000] bg-black/50 backdrop-blur-[4px]"
-      />
-      
-      {/* Sheet Container */}
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 1000,
+      }}
+    >
+      <div
         onClick={(e) => e.stopPropagation()}
-        className="fixed bottom-0 left-0 right-0 z-[1001] bg-[#FFFDF5] rounded-t-[24px] p-6 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] flex flex-col pointer-events-auto"
+        style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          zIndex: 1001,
+          borderRadius: '24px 24px 0 0',
+          background: '#FFFDF5',
+          padding: '24px',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+        }}
       >
-        {/* Drag Handle */}
-        <div className="w-12 h-1.5 rounded-full bg-[#F59E0B] mx-auto mb-4" />
+        {/* Drag handle */}
+        <div style={{
+          width: '48px', height: '6px', borderRadius: '999px',
+          background: '#F59E0B', margin: '0 auto 16px',
+          display: 'block', flexShrink: 0, opacity: 1,
+        }} />
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-[20px] font-[800] text-[#1A1A1A]">Filters</h2>
-          <button 
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 text-[#1A1A1A] hover:bg-black/10 transition-colors"
-          >
-            <X size={18} strokeWidth={2.5} />
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <span style={{ fontSize: '20px', fontWeight: '800', color: '#1A1A1A' }}>Filters</span>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button type="button" onClick={onClearAll}
+              style={{ background: 'transparent', border: 'none', color: '#3B82F6', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+              Clear all
+            </button>
+            <button type="button" onClick={onClose}
+              style={{ background: 'transparent', border: 'none', fontSize: '20px', color: '#1A1A1A', cursor: 'pointer', lineHeight: 1 }}>
+              ×
+            </button>
+          </div>
         </div>
 
-        {/* Sections */}
-        <div className="flex flex-col gap-6 overflow-y-auto max-h-[60vh] pb-4">
-          {sections.map(section => (
-            <div key={section.label}>
-              <h3 className="text-[12px] font-bold text-[#4A4A4A]/60 uppercase tracking-widest mb-3">{section.label}</h3>
-              <div className="flex flex-wrap gap-2">
-                {section.pills.map(pill => {
-                  const isSelected = selectedFilters.includes(pill);
-                  return (
-                    <button
-                      key={pill}
-                      onClick={() => toggleFilter(pill)}
-                      className={`
-                        px-4 py-2 rounded-full text-[13px] font-semibold transition-all duration-200
-                        ${isSelected 
-                          ? 'bg-[#FFF7ED] border-2 border-[#F59E0B] text-[#92400E]' 
-                          : 'bg-white border border-[#D1D5DB] text-[#4A4A4A] hover:border-[#F59E0B]/50'
-                        }
-                      `}
-                    >
-                      {pill}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* Filter sections */}
+        {Object.entries(FILTERS).map(([section, values]) => (
+          <div key={section} style={{ marginBottom: '20px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+              {SECTION_LABELS[section]}
             </div>
-          ))}
-        </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {values.map((value) => {
+                const isSelected = activeFilters[section]?.includes(value);
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => onToggleFilter(section, value)}
+                    style={isSelected ? selectedPill : defaultPill}
+                  >
+                    {value}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
 
-        {/* Action Button */}
+        {/* Action button */}
         <button
+          type="button"
           onClick={onClose}
-          className="mt-6 w-full bg-[#F59E0B] text-white text-[16px] font-[800] py-4 rounded-xl shadow-[0_8px_20px_rgba(245,158,11,0.3)] hover:brightness-105 transition-all active:scale-[0.98]"
+          style={{
+            width: '100%', marginTop: '24px',
+            background: '#F59E0B', color: '#FFFFFF',
+            fontWeight: '800', fontSize: '16px',
+            borderRadius: '12px', padding: '14px',
+            border: 'none', cursor: 'pointer',
+          }}
         >
           Show {venueCount ?? 0} Sunny Spots
         </button>
-      </motion.div>
-    </>
+      </div>
+    </div>
   );
-};
-
-export default FiltersSheet;
+}

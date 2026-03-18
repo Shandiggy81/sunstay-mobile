@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
 import FiltersSheet from './FiltersSheet';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -44,9 +44,41 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const mapContainer = useRef(null);
     const map = useRef(null);
     const unclusteredMarkers = useRef([]);
+    const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+    const [activeFilters, setActiveFilters] = useState({ vibe: [], sun: [], features: [] });
+    
+    const venues = demoVenues;
+
+    const toggleFilter = (section, value) => {
+      setActiveFilters(prev => {
+        const current = prev[section] || [];
+        const exists = current.includes(value);
+        const next = exists ? current.filter(v => v !== value) : [...current, value];
+        return { ...prev, [section]: next };
+      });
+    };
+
+    const clearAllFilters = () => {
+      setActiveFilters({ vibe: [], sun: [], features: [] });
+    };
+
+    const filteredVenues = useMemo(() => {
+      if (!venues) return [];
+      return venues.filter((venue) => {
+        const tags = venue.tags || venue.vibes || venue.features || [];
+        const { vibe, sun, features } = activeFilters;
+        const noFilters = !vibe.length && !sun.length && !features.length;
+        if (noFilters) return true;
+        return (
+          (!vibe.length || vibe.some(v => tags.includes(v))) &&
+          (!sun.length || sun.some(v => tags.includes(v))) &&
+          (!features.length || features.some(v => tags.includes(v)))
+        );
+      });
+    }, [venues, activeFilters]);
+
     const comfortEls = useRef([]);
     const [mapLoaded, setMapLoaded] = useState(false);
-    const [isFiltersOpen, setIsFiltersOpen] = useState(false);
     const [mapError, setMapError] = useState(false);
     const [activeLayer, setActiveLayer] = useState(null);
     const [comfortHour, setComfortHour] = useState(new Date().getHours());
@@ -110,7 +142,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             cloud_cover: weather?.clouds?.all
         };
 
-        const geojson = buildGeoJSON(demoVenues, weatherData);
+        const geojson = buildGeoJSON(filteredVenues, weatherData);
 
         // Add GeoJSON source with clustering
         map.current.addSource('venues', {
@@ -326,7 +358,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         const windSpeed = weather.wind?.speed || 0;
         const humidity = weather.main?.humidity || 50;
 
-        demoVenues.forEach((venue) => {
+        filteredVenues.forEach((venue) => {
             const el = document.createElement('div');
             el.className = 'layer-map-marker';
             
@@ -596,14 +628,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             cloud_cover: weather?.clouds?.all
         };
 
-        // Rebuild GeoJSON with only filtered venues for clustering
-        const filtered = filteredVenueIds === null
-            ? demoVenues
-            : demoVenues.filter(v => filteredVenueIds.includes(v.id));
-
-        source.setData(buildGeoJSON(filtered, weatherData));
-
-        source.setData(buildGeoJSON(filtered, weatherData));
+        source.setData(buildGeoJSON(filteredVenues, weatherData));
 
         setTimeout(() => setIsUpdating(false), 200);
     }, [filteredVenueIds, mapLoaded, weather]);
@@ -837,9 +862,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
                             {/* Fallback Search/Marker Layer (Interactive) */}
                             <div className="relative z-10 w-full h-full">
-                                {demoVenues.map((venue) => {
-                                    const isFiltered = filteredVenueIds === null || filteredVenueIds.includes(venue.id);
-                                    if (!isFiltered) return null;
+                                {filteredVenues.map((venue) => {
+
 
                                     {/* Manual projection for Melbourne CBD focused heatmap */ }
                                     const left = ((venue.lng - INITIAL_VIEW_STATE.longitude + 0.1) / 0.2) * 100;
@@ -919,7 +943,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                     }} 
                 />
             )}
-            {isFiltersOpen && <FiltersSheet onClose={() => setIsFiltersOpen(false)} venueCount={demoVenues.filter(v => filteredVenueIds === null || filteredVenueIds.includes(v.id)).length} />}
+            {isFiltersOpen && (
+              <FiltersSheet
+                onClose={() => setIsFiltersOpen(false)}
+                venueCount={filteredVenues.length}
+                activeFilters={activeFilters}
+                onToggleFilter={toggleFilter}
+                onClearAll={clearAllFilters}
+              />
+            )}
         </div>
     );
 });
