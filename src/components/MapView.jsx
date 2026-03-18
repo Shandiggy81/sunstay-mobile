@@ -77,74 +77,14 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         map.current.resize();
     }, []);
 
-    // ── Render venue markers directly from data ──────────────────
+    // ── Render venue markers directly from data (DEPRECATED for individual pins, kept for legacy if needed) ──
     const createAllMarkers = useCallback(() => {
+        // Individual markers are now handled by Mapbox 'unclustered-point' layer for better performance and zoom stability.
+        // This function can be kept empty or removed if no other logic depends on it.
         if (!map.current) return;
-
-        // Remove existing markers
         unclusteredMarkers.current.forEach(m => m.marker.remove());
         unclusteredMarkers.current = [];
-
-        demoVenues.forEach(venue => {
-            // Check if filtered
-            const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venue.id));
-
-            // Get weather color
-            const colorClass = weather && weatherColorFn
-                ? `ss-marker-${weatherColorFn(weather, venue)}`
-                : 'ss-marker-sunny';
-
-            // Check cozy
-            const isCozy = cozyFilterActive && (venue.tags || []).some(t =>
-                ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t)
-            );
-
-            const el = document.createElement('div');
-            el.className = 'ss-map-marker';
-            el.style.pointerEvents = 'auto';
-            el.style.touchAction = 'manipulation';
-            el.style.opacity = isVisible ? '1' : '0.15';
-            el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
-            el.innerHTML = `
-                <div class="ss-marker-pill ${colorClass} ${isCozy ? 'ss-marker-cozy-glow' : ''}">
-                    <span class="ss-marker-emoji">${venue.emoji}</span>
-                </div>
-            `;
-
-            if (venue.hasFireplace) {
-                el.style.color = '#FF4500';
-                el.style.filter = 'drop-shadow(0 0 8px #FF4500)';
-            }
-
-            if (comfortMode) {
-                el.style.display = 'none';
-            }
-
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const popups = document.getElementsByClassName('mapboxgl-popup');
-                for (let p of popups) p.remove();
-                onVenueSelect(venue);
-            });
-
-            const marker = new mapboxgl.Marker(el)
-                .setLngLat([venue.lng, venue.lat])
-                .addTo(map.current);
-
-            if (venue.hasFireplace) {
-                marker.setColor('#FF4500');
-                marker.getElement().style.filter = 'drop-shadow(0 0 8px #FF4500)';
-            }
-
-            if (venue.hasCozy && cozyWeatherActive && cozyFilterActive) {
-                marker.setColor('#FF8C00');
-                el.style.transform = 'scale(1.3)';
-                el.style.filter = 'drop-shadow(0 0 12px #FF4500)';
-            }
-
-            unclusteredMarkers.current.push({ marker, venueId: venue.id, venue });
-        });
-    }, [filteredVenueIds, weather, weatherColorFn, cozyFilterActive, cozyWeatherActive, comfortMode, onVenueSelect]);
+    }, []);
 
     // ── Setup GeoJSON cluster source + layers ──────────────────────
     const setupClusterSource = useCallback(() => {
@@ -161,47 +101,17 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             clusterMaxZoom: 16,
         });
 
-        // ── Cluster circles ─────────────────────────────────────
+        // ── Unclustered points (restored visibility & interactivity) ────
         map.current.addLayer({
-            id: 'clusters',
+            id: 'unclustered-point',
             type: 'circle',
             source: 'venues',
-            filter: ['has', 'point_count'],
+            filter: ['!', ['has', 'point_count']],
             paint: {
-                'circle-color': [
-                    'step', ['get', 'point_count'],
-                    '#fbbf24',   // amber-400 for small clusters
-                    5, '#f59e0b', // amber-500 for medium
-                    10, '#d97706', // amber-600 for large
-                    20, '#b45309'  // amber-700 for very large
-                ],
-                'circle-radius': [
-                    'step', ['get', 'point_count'],
-                    18,    // small
-                    5, 22,  // medium
-                    10, 28, // large
-                    20, 34  // very large
-                ],
-                'circle-stroke-width': 3,
-                'circle-stroke-color': 'rgba(255,255,255,0.7)',
-                'circle-opacity': 0.9,
-            }
-        });
-
-        // ── Cluster count labels ─────────────────────────────────
-        map.current.addLayer({
-            id: 'cluster-count',
-            type: 'symbol',
-            source: 'venues',
-            filter: ['has', 'point_count'],
-            layout: {
-                'text-field': '{point_count_abbreviated}',
-                'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
-                'text-size': 13,
-                'text-allow-overlap': true,
-            },
-            paint: {
-                'text-color': '#ffffff',
+                'circle-radius': 14,
+                'circle-color': '#F59E0B',
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#fff'
             }
         });
 
@@ -219,9 +129,23 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             });
         });
 
-        // Create markers immediately
-        createAllMarkers();
-    }, [createAllMarkers]);
+        // ── Click on individual pin → open card ────────────────────
+        map.current.on('click', 'unclustered-point', (e) => {
+            const venueId = e.features[0].properties.id;
+            const fullVenue = demoVenues.find(v => v.id === venueId);
+            if (fullVenue) onVenueSelect(fullVenue);
+        });
+
+        // ── Hover effects ──────────────────────────────────────────
+        map.current.on('mouseenter', 'unclustered-point', () => {
+            map.current.getCanvas().style.cursor = 'pointer';
+        });
+        map.current.on('mouseleave', 'unclustered-point', () => {
+            map.current.getCanvas().style.cursor = '';
+        });
+
+        // Remove setup of DOM markers manually as layer handles it now
+    }, [onVenueSelect]);
 
     // ── Apply SunCalc-driven sky layer to the map ─────────────────
     const applySunSkyLayer = useCallback(() => {
@@ -423,14 +347,16 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 updateSunLight();
                 map.current._sunLightInterval = setInterval(updateSunLight, 60000); // update every minute
 
+                // Ensure map.resize() on load
+                map.current.resize();
+
                 // Fix: Pins vanish on zoom
                 map.current.on('zoomend', () => {
                     if (map.current) map.current.resize();
                 });
                 map.current.on('moveend', () => {
-                    if (typeof createAllMarkers === 'function') {
-                        createAllMarkers();
-                    }
+                    // Marker resize if needed, though layer handles most visibility
+                    if (map.current) map.current.resize();
                 });
             });
 
@@ -600,27 +526,19 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         });
     }, [cozyFilterActive, cozyWeatherActive]);
 
-    // ── Sync cluster vs pin visibility based on zoom & activeLayer ──
+    // ── Interaction sync (simplified) ──────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-        const syncClusterVsPins = () => {
-            const zoom = map.current.getZoom();
-            const showClusters = !activeLayer && zoom < 13;
-            ['clusters', 'cluster-count'].forEach((id) => {
-                if (map.current.getLayer(id)) {
-                    map.current.setLayoutProperty(id, 'visibility', showClusters ? 'visible' : 'none');
-                }
-            });
-            unclusteredMarkers.current.forEach(({ marker }) => {
-                marker.getElement().style.display = (activeLayer || showClusters) ? 'none' : 'block';
-            });
+        const syncMap = () => {
+            if (map.current) map.current.resize();
         };
-        syncClusterVsPins();
-        map.current.on('zoomend', syncClusterVsPins);
+        map.current.on('zoomend', syncMap);
+        map.current.on('moveend', syncMap);
         return () => {
-            map.current?.off('zoomend', syncClusterVsPins);
+            map.current?.off('zoomend', syncMap);
+            map.current?.off('moveend', syncMap);
         };
-    }, [mapLoaded, activeLayer]);
+    }, [mapLoaded]);
 
     // ── Custom Layer Markers ─────────────────────────────────
 

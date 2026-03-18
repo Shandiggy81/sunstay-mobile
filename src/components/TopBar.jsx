@@ -68,14 +68,14 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                     </div>
                 </div>
 
-                {/* List Button (was Filters) */}
+                {/* Filters Button (restored) */}
                 <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={onFiltersOpen}
                     className="flex items-center gap-1.5 bg-white rounded-xl px-3.5 py-2 flex-shrink-0 shadow-sm"
                 >
                     <SlidersHorizontal size={14} className="text-[#1E40AF]" />
-                    <span className="text-[#1E40AF] text-[14px] font-bold">List</span>
+                    <span className="text-[#1E40AF] text-[14px] font-bold">Filters</span>
                 </motion.button>
 
                 {/* Bell Icon (was Search) */}
