@@ -53,6 +53,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const radarMode = activeLayer === 'radar';
     const toggleLayer = (layer) => setActiveLayer(prev => prev === layer ? null : layer);
     const [isUpdating, setIsUpdating] = useState(false);
+    const onVenueSelectRef = useRef(onVenueSelect);
+    useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
+    const isMobileViewport = () => window.innerWidth < 768;
     const { weather, getUVIndex } = useWeather();
     const uvIndex = getUVIndex();
 
@@ -144,23 +147,44 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             paint: { 'text-color': '#ffffff' }
         });
 
-        // ── Unclustered points (Emoji Pins) ────────────────────────────────
-        map.current.addLayer({
-            id: 'unclustered-point',
-            type: 'symbol',
-            source: 'venues',
-            filter: ['!', ['has', 'point_count']],
-            layout: {
-                'text-field': ['get', 'emoji'],
-                'text-size': 28,
-                'text-allow-overlap': true,
-                'text-ignore-placement': true,
-            },
-            paint: {
-                'text-halo-color': '#ffffff',
-                'text-halo-width': 2,
-            }
-        });
+        // ── Unclustered points (Emoji Pins) ──
+        // Using DOM markers for colour emojis (symbol layers SDF strip colour)
+        const updateDOMMarkers = () => {
+            if (!map.current) return;
+            unclusteredMarkers.current.forEach(m => m.remove());
+            unclusteredMarkers.current = [];
+            
+            // Query source instead of layer for unclustered features
+            // This ensures markers stay synced with clusters
+            const features = map.current.querySourceFeatures('venues', { 
+                filter: ['!', ['has', 'point_count']] 
+            });
+
+            // querySourceFeatures can return duplicates for features in multiple tiles
+            const seen = new Set();
+            features.forEach((feature) => {
+                const id = feature.properties.id;
+                if (seen.has(id)) return;
+                seen.add(id);
+
+                const el = document.createElement('div');
+                el.textContent = feature.properties.emoji || '☀️';
+                el.style.cssText = 'font-size:26px;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25));user-select:none;line-height:1;margin-top:-13px;'; // margin-top to center
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    onVenueSelectRef.current?.(venueById[id], isMobileViewport());
+                });
+
+                const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                    .setLngLat(feature.geometry.coordinates)
+                    .addTo(map.current);
+
+                unclusteredMarkers.current.push(marker);
+            });
+        };
+
+        map.current.on('render', updateDOMMarkers);
+        map.current._updateDOMMarkers = updateDOMMarkers; // Store for manual calls
 
         // ── Venue NAME labels ──────────────────────────────────
         map.current.addLayer({
@@ -209,6 +233,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         map.current.on('mouseleave', 'unclustered-point', () => {
             map.current.getCanvas().style.cursor = '';
         });
+        
+        // Initial marker draw
+        setTimeout(map.current._updateDOMMarkers, 100);
 
         // Remove setup of DOM markers manually as layer handles it now
     }, [onVenueSelect]);
@@ -461,7 +488,10 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             if (map.current?._sunLightInterval) {
                 clearInterval(map.current._sunLightInterval);
             }
-            unclusteredMarkers.current.forEach(m => m.marker.remove());
+            if (map.current?._updateDOMMarkers) {
+                map.current.off('render', map.current._updateDOMMarkers);
+            }
+            unclusteredMarkers.current.forEach(m => m.remove());
             if (map.current) {
                 map.current.remove();
                 map.current = null;
@@ -550,52 +580,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
         source.setData(buildGeoJSON(filtered, weatherData));
 
-        // Update marker visibility based on new filters
-        unclusteredMarkers.current.forEach(({ marker, venueId }) => {
-            const el = marker.getElement();
-            const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venueId));
-            el.style.opacity = isVisible ? '1' : '0.15';
-            el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
-        });
+        source.setData(buildGeoJSON(filtered, weatherData));
 
         setTimeout(() => setIsUpdating(false), 200);
     }, [filteredVenueIds, mapLoaded, weather]);
 
-    // ── Update marker weather colors when weather changes ─────────
+    // DOM markers are updated via Mapbox 'render' event tied to the 'venues' source data.
+    // Cozy Mode and other effects can trigger a re-render if needed.
     useEffect(() => {
-        if (!weather || !weatherColorFn) return;
-        unclusteredMarkers.current.forEach(({ marker, venue }) => {
-            const el = marker.getElement();
-            const pill = el.querySelector('.ss-marker-pill');
-            if (!pill) return;
-            const color = weatherColorFn(weather, venue);
-            // Remove old color classes and add new one
-            pill.className = pill.className.replace(/ss-marker-(sunny|cloudy|windy)/g, '');
-            pill.classList.add(`ss-marker-${color}`);
-        });
-    }, [weather, weatherColorFn]);
-
-    // ── Handle Cozy Mode Glow ─────────────────────────────────────
-    useEffect(() => {
-        unclusteredMarkers.current.forEach(({ marker, venue }) => {
-            const el = marker.getElement();
-            const pill = el.querySelector('.ss-marker-pill');
-            if (!pill) return;
-
-            const isCozy = venue.hasCozy || (venue.tags || []).some(tag =>
-                ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(tag)
-            );
-
-            if (cozyFilterActive && cozyWeatherActive && isCozy) {
-                pill.classList.add('ss-marker-cozy-glow');
-                el.style.transform = 'scale(1.3)';
-                el.style.filter = 'drop-shadow(0 0 12px #FF4500)';
-            } else {
-                pill.classList.remove('ss-marker-cozy-glow');
-                el.style.transform = 'scale(1)';
-                el.style.filter = 'none';
-            }
-        });
+        if (map.current?._updateDOMMarkers) map.current._updateDOMMarkers();
     }, [cozyFilterActive, cozyWeatherActive]);
 
     // ── Interaction sync (simplified) ──────────────────────────
