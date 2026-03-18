@@ -67,7 +67,279 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         }
     }));
 
-    // ── Initialize Map ──────────────────────────────────────────────
+    // ── Callbacks and Memoized Functions (Must be defined before use in effects) ────
+
+    // ── Safe Resize helper ──────────────────────────────────────────
+    const safeResize = useCallback(() => {
+        if (!map.current || !mapContainer.current) return;
+        const { clientWidth, clientHeight } = mapContainer.current;
+        if (clientWidth === 0 || clientHeight === 0) return;
+        map.current.resize();
+    }, []);
+
+    // ── Render venue markers directly from data ──────────────────
+    const createAllMarkers = useCallback(() => {
+        if (!map.current) return;
+
+        // Remove existing markers
+        unclusteredMarkers.current.forEach(m => m.marker.remove());
+        unclusteredMarkers.current = [];
+
+        demoVenues.forEach(venue => {
+            // Check if filtered
+            const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venue.id));
+
+            // Get weather color
+            const colorClass = weather && weatherColorFn
+                ? `ss-marker-${weatherColorFn(weather, venue)}`
+                : 'ss-marker-sunny';
+
+            // Check cozy
+            const isCozy = cozyFilterActive && (venue.tags || []).some(t =>
+                ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t)
+            );
+
+            const el = document.createElement('div');
+            el.className = 'ss-map-marker';
+            el.style.pointerEvents = 'auto';
+            el.style.touchAction = 'manipulation';
+            el.style.opacity = isVisible ? '1' : '0.15';
+            el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
+            el.innerHTML = `
+                <div class="ss-marker-pill ${colorClass} ${isCozy ? 'ss-marker-cozy-glow' : ''}">
+                    <span class="ss-marker-emoji">${venue.emoji}</span>
+                </div>
+            `;
+
+            if (venue.hasFireplace) {
+                el.style.color = '#FF4500';
+                el.style.filter = 'drop-shadow(0 0 8px #FF4500)';
+            }
+
+            if (comfortMode) {
+                el.style.display = 'none';
+            }
+
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const popups = document.getElementsByClassName('mapboxgl-popup');
+                for (let p of popups) p.remove();
+                onVenueSelect(venue);
+            });
+
+            const marker = new mapboxgl.Marker(el)
+                .setLngLat([venue.lng, venue.lat])
+                .addTo(map.current);
+
+            if (venue.hasFireplace) {
+                marker.setColor('#FF4500');
+                marker.getElement().style.filter = 'drop-shadow(0 0 8px #FF4500)';
+            }
+
+            if (venue.hasCozy && cozyWeatherActive && cozyFilterActive) {
+                marker.setColor('#FF8C00');
+                el.style.transform = 'scale(1.3)';
+                el.style.filter = 'drop-shadow(0 0 12px #FF4500)';
+            }
+
+            unclusteredMarkers.current.push({ marker, venueId: venue.id, venue });
+        });
+    }, [filteredVenueIds, weather, weatherColorFn, cozyFilterActive, cozyWeatherActive, comfortMode, onVenueSelect]);
+
+    // ── Setup GeoJSON cluster source + layers ──────────────────────
+    const setupClusterSource = useCallback(() => {
+        if (!map.current) return;
+
+        const geojson = buildGeoJSON(demoVenues);
+
+        // Add GeoJSON source with clustering
+        map.current.addSource('venues', {
+            type: 'geojson',
+            data: geojson,
+            cluster: true,
+            clusterRadius: 50,
+            clusterMaxZoom: 16,
+        });
+
+        // ── Cluster circles ─────────────────────────────────────
+        map.current.addLayer({
+            id: 'clusters',
+            type: 'circle',
+            source: 'venues',
+            filter: ['has', 'point_count'],
+            paint: {
+                'circle-color': [
+                    'step', ['get', 'point_count'],
+                    '#fbbf24',   // amber-400 for small clusters
+                    5, '#f59e0b', // amber-500 for medium
+                    10, '#d97706', // amber-600 for large
+                    20, '#b45309'  // amber-700 for very large
+                ],
+                'circle-radius': [
+                    'step', ['get', 'point_count'],
+                    18,    // small
+                    5, 22,  // medium
+                    10, 28, // large
+                    20, 34  // very large
+                ],
+                'circle-stroke-width': 3,
+                'circle-stroke-color': 'rgba(255,255,255,0.7)',
+                'circle-opacity': 0.9,
+            }
+        });
+
+        // ── Cluster count labels ─────────────────────────────────
+        map.current.addLayer({
+            id: 'cluster-count',
+            type: 'symbol',
+            source: 'venues',
+            filter: ['has', 'point_count'],
+            layout: {
+                'text-field': '{point_count_abbreviated}',
+                'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+                'text-size': 13,
+                'text-allow-overlap': true,
+            },
+            paint: {
+                'text-color': '#ffffff',
+            }
+        });
+
+        // ── Click on cluster → zoom in ───────────────────────────
+        map.current.on('click', 'clusters', (e) => {
+            const features = map.current.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+            const clusterId = features[0].properties.cluster_id;
+            map.current.getSource('venues').getClusterExpansionZoom(clusterId, (err, zoom) => {
+                if (err) return;
+                map.current.easeTo({
+                    center: features[0].geometry.coordinates,
+                    zoom: zoom,
+                    duration: 500,
+                });
+            });
+        });
+
+        // Create markers immediately
+        createAllMarkers();
+    }, [createAllMarkers]);
+
+    // ── Apply SunCalc-driven sky layer to the map ─────────────────
+    const applySunSkyLayer = useCallback(() => {
+        if (!map.current) return;
+
+        const updateSky = () => {
+            if (!map.current) return;
+            try {
+                const sunPos = getSunPositionForMap(
+                    INITIAL_VIEW_STATE.latitude,
+                    INITIAL_VIEW_STATE.longitude
+                );
+                const skyValues = toMapboxSkyValues(sunPos);
+                const lightPreset = getMapboxLightPreset(sunPos);
+
+                // Add or update sky layer
+                if (map.current.getLayer('sky-layer')) {
+                    map.current.setPaintProperty('sky-layer', 'sky-atmosphere-sun', skyValues.sunPosition);
+                    map.current.setPaintProperty('sky-layer', 'sky-atmosphere-sun-intensity', skyValues.sunIntensity);
+                } else {
+                    map.current.addLayer({
+                        id: 'sky-layer',
+                        type: 'sky',
+                        paint: {
+                            'sky-type': 'atmosphere',
+                            'sky-atmosphere-sun': skyValues.sunPosition,
+                            'sky-atmosphere-sun-intensity': skyValues.sunIntensity,
+                            'sky-atmosphere-color': skyValues.atmosphereColor,
+                        }
+                    });
+                }
+
+                // Apply directional light
+                map.current.setLight({
+                    anchor: lightPreset.anchor,
+                    color: lightPreset.color,
+                    intensity: lightPreset.intensity,
+                });
+            } catch (e) {
+                // Sky layer is cosmetic — don't break the map if it fails
+                console.warn('[MapView] Sky layer update failed (non-fatal):', e.message);
+            }
+        };
+
+        // Apply immediately on load
+        updateSky();
+
+        // Update every 60 seconds so sky shifts through the day
+        const skyInterval = setInterval(updateSky, 60000);
+        // Store interval ID for cleanup
+        map.current._sunSkyInterval = skyInterval;
+    }, []);
+
+    // ── Custom Layer Markers ─────────────────────────────────
+    const updateLayerMarkers = useCallback(() => {
+        comfortEls.current.forEach(m => m.remove());
+        comfortEls.current = [];
+
+        if (!activeLayer || !weather || !map.current) return;
+
+        const temp = weather.main?.temp || 0;
+        const windSpeed = weather.wind?.speed || 0;
+        const humidity = weather.main?.humidity || 50;
+
+        demoVenues.forEach((venue) => {
+            const el = document.createElement('div');
+            el.className = 'layer-map-marker';
+            
+            if (activeLayer === 'comfort') {
+                const forecast = generateHourlyForecast(temp, windSpeed, humidity, venue);
+                const currentH = new Date().getHours();
+                const offset = (comfortHour - currentH + 24) % 24;
+                const hourData = forecast[offset] || forecast[0];
+                const comfortColors = { cold: '#3b82f6', cool: '#60a5fa', mild: '#22c55e', warm: '#16a34a', hot: '#f97316', extreme: '#ef4444', unknown: '#9ca3af' };
+                const bgColor = comfortColors[hourData.comfort.level] || comfortColors.unknown;
+
+                el.innerHTML = `
+                    <div class="comfort-map-pill" style="background:${bgColor};">
+                        <span class="comfort-map-temp">${hourData.feelsLike}°</span>
+                        <span class="comfort-map-icon">${hourData.comfort.icon}</span>
+                    </div>
+                `;
+            } else if (activeLayer === 'uv') {
+                const uvColor = uvIndex <= 2 ? '#a78bfa' : uvIndex <= 5 ? '#8b5cf6' : uvIndex <= 7 ? '#7c3aed' : uvIndex <= 10 ? '#6d28d9' : '#4c1d95';
+                const modifiedUv = Math.max(0, uvIndex + (venue.tags?.includes('Rooftop') ? 1 : 0) - (venue.tags?.includes('Indoor Warmth') ? 5 : 0));
+                
+                el.innerHTML = `
+                    <div class="uv-map-pill" style="background:${uvColor};">
+                        <span class="uv-map-num">UV ${modifiedUv.toFixed(1)}</span>
+                    </div>
+                `;
+            } else if (activeLayer === 'radar') {
+                const isRain = weather?.weather?.[0]?.main?.toLowerCase().includes('rain') || false;
+                const chance = Math.min(100, Math.round(Math.random() * 40 + (isRain ? 50 : 0)));
+                el.innerHTML = `
+                    <div class="radar-map-pill">
+                        <span class="radar-map-icon">💧</span>
+                        <span class="radar-map-pct">${chance}%</span>
+                    </div>
+                `;
+            }
+
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const popups = document.getElementsByClassName('mapboxgl-popup');
+                for (let p of popups) p.remove();
+                onVenueSelect(venue);
+            });
+
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+                .setLngLat([venue.lng, venue.lat])
+                .addTo(map.current);
+
+            comfortEls.current.push(marker);
+        });
+    }, [activeLayer, comfortHour, weather, uvIndex, onVenueSelect]);
+
+    // ── Effects ─────────────────────────────────────────────────────────
     useEffect(() => {
         if (map.current) return;
 
@@ -205,57 +477,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         };
     }, []);
 
-    // ── Apply SunCalc-driven sky layer to the map ─────────────────
-    const applySunSkyLayer = useCallback(() => {
-        if (!map.current) return;
 
-        const updateSky = () => {
-            if (!map.current) return;
-            try {
-                const sunPos = getSunPositionForMap(
-                    INITIAL_VIEW_STATE.latitude,
-                    INITIAL_VIEW_STATE.longitude
-                );
-                const skyValues = toMapboxSkyValues(sunPos);
-                const lightPreset = getMapboxLightPreset(sunPos);
-
-                // Add or update sky layer
-                if (map.current.getLayer('sky-layer')) {
-                    map.current.setPaintProperty('sky-layer', 'sky-atmosphere-sun', skyValues.sunPosition);
-                    map.current.setPaintProperty('sky-layer', 'sky-atmosphere-sun-intensity', skyValues.sunIntensity);
-                } else {
-                    map.current.addLayer({
-                        id: 'sky-layer',
-                        type: 'sky',
-                        paint: {
-                            'sky-type': 'atmosphere',
-                            'sky-atmosphere-sun': skyValues.sunPosition,
-                            'sky-atmosphere-sun-intensity': skyValues.sunIntensity,
-                            'sky-atmosphere-color': skyValues.atmosphereColor,
-                        }
-                    });
-                }
-
-                // Apply directional light
-                map.current.setLight({
-                    anchor: lightPreset.anchor,
-                    color: lightPreset.color,
-                    intensity: lightPreset.intensity,
-                });
-            } catch (e) {
-                // Sky layer is cosmetic — don't break the map if it fails
-                console.warn('[MapView] Sky layer update failed (non-fatal):', e.message);
-            }
-        };
-
-        // Apply immediately on load
-        updateSky();
-
-        // Update every 60 seconds so sky shifts through the day
-        const skyInterval = setInterval(updateSky, 60000);
-        // Store interval ID for cleanup
-        map.current._sunSkyInterval = skyInterval;
-    }, []);
 
     // Cleanup sky interval on unmount
     useEffect(() => {
@@ -266,158 +488,12 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         };
     }, []);
 
-    // ── Setup GeoJSON cluster source + layers ──────────────────────
-    const setupClusterSource = useCallback(() => {
-        if (!map.current) return;
 
-        const geojson = buildGeoJSON(demoVenues);
 
-        // Add GeoJSON source with clustering
-        map.current.addSource('venues', {
-            type: 'geojson',
-            data: geojson,
-            cluster: true,
-            clusterRadius: 50,
-            clusterMaxZoom: 16,
-        });
 
-        // ── Cluster circles ─────────────────────────────────────
-        map.current.addLayer({
-            id: 'clusters',
-            type: 'circle',
-            source: 'venues',
-            filter: ['has', 'point_count'],
-            paint: {
-                'circle-color': [
-                    'step', ['get', 'point_count'],
-                    '#fbbf24',   // amber-400 for small clusters
-                    5, '#f59e0b', // amber-500 for medium
-                    10, '#d97706', // amber-600 for large
-                    20, '#b45309'  // amber-700 for very large
-                ],
-                'circle-radius': [
-                    'step', ['get', 'point_count'],
-                    18,    // small
-                    5, 22,  // medium
-                    10, 28, // large
-                    20, 34  // very large
-                ],
-                'circle-stroke-width': 3,
-                'circle-stroke-color': 'rgba(255,255,255,0.7)',
-                'circle-opacity': 0.9,
-            }
-        });
-
-        // ── Cluster count labels ─────────────────────────────────
-        map.current.addLayer({
-            id: 'cluster-count',
-            type: 'symbol',
-            source: 'venues',
-            filter: ['has', 'point_count'],
-            layout: {
-                'text-field': '{point_count_abbreviated}',
-                'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
-                'text-size': 13,
-                'text-allow-overlap': true,
-            },
-            paint: {
-                'text-color': '#ffffff',
-            }
-        });
-
-        // ── Click on cluster → zoom in ───────────────────────────
-        map.current.on('click', 'clusters', (e) => {
-            const features = map.current.queryRenderedFeatures(e.point, { layers: ['clusters'] });
-            const clusterId = features[0].properties.cluster_id;
-            map.current.getSource('venues').getClusterExpansionZoom(clusterId, (err, zoom) => {
-                if (err) return;
-                map.current.easeTo({
-                    center: features[0].geometry.coordinates,
-                    zoom: zoom,
-                    duration: 500,
-                });
-            });
-        });
-
-        // Create markers immediately
-        createAllMarkers();
-    }, [createAllMarkers]);
-
-    const createAllMarkers = useCallback(() => {
-        if (!map.current) return;
-
-        // Remove existing markers
-        unclusteredMarkers.current.forEach(m => m.marker.remove());
-        unclusteredMarkers.current = [];
-
-        demoVenues.forEach(venue => {
-            // Check if filtered
-            const isVisible = filteredVenueIds === null || (Array.isArray(filteredVenueIds) && filteredVenueIds.includes(venue.id));
-
-            // Get weather color
-            const colorClass = weather && weatherColorFn
-                ? `ss-marker-${weatherColorFn(weather, venue)}`
-                : 'ss-marker-sunny';
-
-            // Check cozy
-            const isCozy = cozyFilterActive && (venue.tags || []).some(t =>
-                ['Fireplace', 'Heaters', 'Indoor Warmth'].includes(t)
-            );
-
-            const el = document.createElement('div');
-            el.className = 'ss-map-marker';
-            el.style.pointerEvents = 'auto';
-            el.style.touchAction = 'manipulation';
-            el.style.opacity = isVisible ? '1' : '0.15';
-            el.style.transform = isVisible ? 'scale(1)' : 'scale(0.85)';
-            el.innerHTML = `
-                <div class="ss-marker-pill ${colorClass} ${isCozy ? 'ss-marker-cozy-glow' : ''}">
-                    <span class="ss-marker-emoji">${venue.emoji}</span>
-                </div>
-            `;
-
-            if (venue.hasFireplace) {
-                el.style.color = '#FF4500';
-                el.style.filter = 'drop-shadow(0 0 8px #FF4500)';
-            }
-
-            if (comfortMode) {
-                el.style.display = 'none';
-            }
-
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const popups = document.getElementsByClassName('mapboxgl-popup');
-                for (let p of popups) p.remove();
-                onVenueSelect(venue);
-            });
-
-            const marker = new mapboxgl.Marker(el)
-                .setLngLat([venue.lng, venue.lat])
-                .addTo(map.current);
-
-            if (venue.hasFireplace) {
-                marker.setColor('#FF4500');
-                marker.getElement().style.filter = 'drop-shadow(0 0 8px #FF4500)';
-            }
-
-            if (venue.hasCozy && cozyWeatherActive && cozyFilterActive) {
-                marker.setColor('#FF8C00');
-                el.style.transform = 'scale(1.3)';
-                el.style.filter = 'drop-shadow(0 0 12px #FF4500)';
-            }
-
-            unclusteredMarkers.current.push({ marker, venueId: venue.id, venue });
-        });
-    }, [filteredVenueIds, weather, weatherColorFn, cozyFilterActive, cozyWeatherActive, comfortMode, onVenueSelect]);
 
     // ── Safe Resize helper ──────────────────────────────────────────
-    const safeResize = useCallback(() => {
-        if (!map.current || !mapContainer.current) return;
-        const { clientWidth, clientHeight } = mapContainer.current;
-        if (clientWidth === 0 || clientHeight === 0) return;
-        map.current.resize();
-    }, []);
+
 
     // ── Map Resize Handling (ResizeObserver) ─────────────────────────
     useEffect(() => {
@@ -547,68 +623,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     }, [mapLoaded, activeLayer]);
 
     // ── Custom Layer Markers ─────────────────────────────────
-    const updateLayerMarkers = useCallback(() => {
-        comfortEls.current.forEach(m => m.remove());
-        comfortEls.current = [];
 
-        if (!activeLayer || !weather || !map.current) return;
-
-        const temp = weather.main?.temp || 0;
-        const windSpeed = weather.wind?.speed || 0;
-        const humidity = weather.main?.humidity || 50;
-
-        demoVenues.forEach((venue) => {
-            const el = document.createElement('div');
-            el.className = 'layer-map-marker';
-            
-            if (activeLayer === 'comfort') {
-                const forecast = generateHourlyForecast(temp, windSpeed, humidity, venue);
-                const currentH = new Date().getHours();
-                const offset = (comfortHour - currentH + 24) % 24;
-                const hourData = forecast[offset] || forecast[0];
-                const comfortColors = { cold: '#3b82f6', cool: '#60a5fa', mild: '#22c55e', warm: '#16a34a', hot: '#f97316', extreme: '#ef4444', unknown: '#9ca3af' };
-                const bgColor = comfortColors[hourData.comfort.level] || comfortColors.unknown;
-
-                el.innerHTML = `
-                    <div class="comfort-map-pill" style="background:${bgColor};">
-                        <span class="comfort-map-temp">${hourData.feelsLike}°</span>
-                        <span class="comfort-map-icon">${hourData.comfort.icon}</span>
-                    </div>
-                `;
-            } else if (activeLayer === 'uv') {
-                const uvColor = uvIndex <= 2 ? '#a78bfa' : uvIndex <= 5 ? '#8b5cf6' : uvIndex <= 7 ? '#7c3aed' : uvIndex <= 10 ? '#6d28d9' : '#4c1d95';
-                const modifiedUv = Math.max(0, uvIndex + (venue.tags?.includes('Rooftop') ? 1 : 0) - (venue.tags?.includes('Indoor Warmth') ? 5 : 0));
-                
-                el.innerHTML = `
-                    <div class="uv-map-pill" style="background:${uvColor};">
-                        <span class="uv-map-num">UV ${modifiedUv.toFixed(1)}</span>
-                    </div>
-                `;
-            } else if (activeLayer === 'radar') {
-                const isRain = weather?.weather?.[0]?.main?.toLowerCase().includes('rain') || false;
-                const chance = Math.min(100, Math.round(Math.random() * 40 + (isRain ? 50 : 0)));
-                el.innerHTML = `
-                    <div class="radar-map-pill">
-                        <span class="radar-map-icon">💧</span>
-                        <span class="radar-map-pct">${chance}%</span>
-                    </div>
-                `;
-            }
-
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const popups = document.getElementsByClassName('mapboxgl-popup');
-                for (let p of popups) p.remove();
-                onVenueSelect(venue);
-            });
-
-            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-                .setLngLat([venue.lng, venue.lat])
-                .addTo(map.current);
-
-            comfortEls.current.push(marker);
-        });
-    }, [activeLayer, comfortHour, weather, uvIndex, onVenueSelect]);
 
     useEffect(() => {
         updateLayerMarkers();
