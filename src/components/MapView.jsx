@@ -43,7 +43,7 @@ function buildGeoJSON(venues, weatherData) {
 const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyWeatherActive, cozyFilterActive, isExpanded }, ref) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
-    const unclusteredMarkers = useRef([]);
+    const markersRef = useRef([]);
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState({ vibe: [], sun: [], features: [] });
     
@@ -234,7 +234,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                     .setLngLat(feature.geometry.coordinates)
                     .addTo(map.current);
 
-                unclusteredMarkers.current.push(marker);
+                markersRef.current.push(marker);
             });
         };
 
@@ -355,6 +355,10 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         if (!activeLayer || !weather || !map.current) return;
 
         const temp = weather.main?.temp || 0;
+        // Clear stale markers before each render cycle
+        markersRef.current.forEach(marker => marker.remove());
+        markersRef.current = [];
+
         const windSpeed = weather.wind?.speed || 0;
         const humidity = weather.main?.humidity || 50;
 

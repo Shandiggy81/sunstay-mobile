@@ -262,8 +262,29 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1 mt-2">
-                      <div className="text-[12px] text-[#4A4A4A] font-medium leading-relaxed">
-                        {isRain ? "Limited sun today. Great for indoor activities." : "Excellent conditions for outdoor seating and drinks."}
+                      <div style={{
+                        background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                        border: '1px solid #FDE68A',
+                        borderRadius: '12px',
+                        padding: '12px 14px',
+                        margin: '10px 0',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '16px' }}>⚡</span>
+                          <span style={{ fontWeight: '800', fontSize: '14px', color: '#92400E' }}>Sun Intelligence</span>
+                          <span style={{
+                            marginLeft: 'auto',
+                            background: '#F59E0B',
+                            color: '#FFFFFF',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                          }}>LIVE</span>
+                        </div>
+                        <p style={{ fontSize: '13px', color: '#78350F', margin: 0, lineHeight: '1.4' }}>
+                          {venue.sunIntelligence || 'Excellent conditions for outdoor seating and drinks.'}
+                        </p>
                       </div>
                       {cozyWeatherActive && (
                         <div className="bg-orange-500/5 text-orange-800 px-3 py-1 rounded-lg border border-orange-500/10 text-[10px] font-bold mt-1 flex items-center gap-2 w-fit">
@@ -273,6 +294,19 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     </div>
                   )}
                 </div>
+
+                {venue.heating && venue.heating !== 'no heating' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '8px 0' }}>
+                    <span style={{ fontSize: '15px' }}>
+                      {venue.heating === 'fireplace' ? '🔥' : '♨️'}
+                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A1A' }}>
+                      {venue.heating === 'fireplace' ? 'Fireplace inside' :
+                       venue.heating === 'heated outdoor' ? 'Heated outdoor area' :
+                       'Fully indoor'}
+                    </span>
+                  </div>
+                )}
                 
                 {/* Gauge update for Light Mode */}
                 <div className="flex-shrink-0 bg-white rounded-2xl p-1 shadow-sm border border-black/5">
