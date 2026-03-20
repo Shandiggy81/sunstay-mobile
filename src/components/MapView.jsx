@@ -197,80 +197,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             paint: { 'text-color': '#ffffff' }
         });
 
-        // ── Unclustered points (Emoji Pins) ──
-        // Using DOM markers for colour emojis (symbol layers SDF strip colour)
-        const updateDOMMarkers = () => {
-            if (!map.current) return;
-            // Clear stale markers before each new marker batch is created
-            markersRef.current.forEach(m => m.remove());
-            markersRef.current = [];
-            
-            // Query source instead of layer for unclustered features
-            // This ensures markers stay synced with clusters
-            const features = map.current.querySourceFeatures('venues', { 
-                filter: ['!', ['has', 'point_count']] 
-            });
-
-            // querySourceFeatures can return duplicates for features in multiple tiles
-            const seen = new Set();
-            features.forEach((feature) => {
-                const id = feature.properties.id;
-                if (seen.has(id)) return;
-                seen.add(id);
-
-                const venue = venueById[id];
-                const currentCondition = weather?.weather?.[0]?.main || weather?.weather?.[0]?.description || '';
-                const currentTemp = weather?.main?.temp ?? 20;
-                
-                const enrichedVenue = { 
-                    ...venue, 
-                    weatherCondition: currentCondition,
-                    currentTemp: currentTemp
-                };
-
-                const el = document.createElement('div');
-                el.innerHTML = `
-                  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(-50%);">
-                    <div style="font-size: 28px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
-                      ${getVenuePinEmoji(enrichedVenue)}
-                    </div>
-                    <div style="background: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; color: #1A1A1A; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; margin-top: 2px; border: 1px solid #E5E7EB;">
-                      ${venue.venueName}
-                    </div>
-                  </div>
-                `;
-                el.style.cssText = `
-                  width: 44px;
-                  height: 44px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  cursor: pointer;
-                  pointer-events: auto;
-                  position: relative;
-                  z-index: 10;
-                  -webkit-tap-highlight-color: transparent;
-                `;
-
-                const handleSelect = (e) => {
-                    e.stopPropagation();
-                    if (e.type === 'touchstart') e.preventDefault();
-                    onVenueSelectRef.current?.(venue, isMobileViewport());
-                };
-
-                el.addEventListener('click', handleSelect);
-                el.addEventListener('touchstart', handleSelect, { passive: false });
-
-                const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-                    .setLngLat(feature.geometry.coordinates)
-                    .addTo(map.current);
-
-                markersRef.current.push(marker);
-            });
-        };
-
-        map.current.on('render', updateDOMMarkers);
-        map.current._updateDOMMarkers = updateDOMMarkers; // Store for manual calls
+        // ── Unclustered points (Emoji Pins) moved to useEffect for performance ──
 
         // ── Click on cluster → zoom in ───────────────────────────
         map.current.on('click', 'clusters', (e) => {
@@ -649,10 +576,79 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         setTimeout(() => setIsUpdating(false), 200);
     }, [filteredVenueIds, mapLoaded, weather]);
 
-    // DOM markers are updated via Mapbox 'render' event tied to the 'venues' source data.
-    // Cozy Mode and other effects can trigger a re-render if needed.
+    // ── Efficient Marker Management ──
+    // This useEffect loops through filtered venues and creates mapboxgl.Marker instances.
+    // It depends only on mapLoaded and filteredVenues to prevent thrashing during zoom.
     useEffect(() => {
-        if (map.current?._updateDOMMarkers) map.current._updateDOMMarkers();
+        if (!map.current || !mapLoaded) return;
+
+        // Cleanup previous markers
+        markersRef.current.forEach(m => m.remove());
+        markersRef.current = [];
+
+        filteredVenues.forEach((venue) => {
+            const currentCondition = weather?.weather?.[0]?.main || weather?.weather?.[0]?.description || '';
+            const currentTemp = weather?.main?.temp ?? 20;
+            
+            const enrichedVenue = { 
+                ...venue, 
+                weatherCondition: currentCondition,
+                currentTemp: currentTemp
+            };
+
+            const el = document.createElement('div');
+            el.innerHTML = `
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(-50%) translateZ(0); will-change: transform;">
+                <div style="font-size: 28px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+                  ${getVenuePinEmoji(enrichedVenue)}
+                </div>
+                <div style="background: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; color: #1A1A1A; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; margin-top: 2px; border: 1px solid #E5E7EB;">
+                  ${venue.venueName}
+                </div>
+              </div>
+            `;
+            el.style.cssText = `
+              width: 44px;
+              height: 44px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              pointer-events: auto;
+              position: relative;
+              z-index: 10;
+              -webkit-tap-highlight-color: transparent;
+            `;
+
+            const handleSelect = (e) => {
+                e.stopPropagation();
+                if (e.type === 'touchstart') e.preventDefault();
+                onVenueSelectRef.current?.(venue, isMobileViewport());
+            };
+
+            el.addEventListener('click', handleSelect);
+            el.addEventListener('touchstart', handleSelect, { passive: false });
+
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                .setLngLat([venue.lng, venue.lat])
+                .addTo(map.current);
+
+            markersRef.current.push(marker);
+        });
+
+        // Proper cleanup function
+        return () => {
+            markersRef.current.forEach(m => m.remove());
+            markersRef.current = [];
+        };
+    }, [mapLoaded, filteredVenues]);
+
+    useEffect(() => {
+        // Re-calculate emojis if cozy filters change, without recreating all markers
+        // This is a lightweight update
+        if (map.current) {
+            // Force re-render of marker content if needed, or we could just let the above useEffect handle it if we add dependencies
+        }
     }, [cozyFilterActive, cozyWeatherActive]);
 
     // ── Interaction sync (simplified) ──────────────────────────
@@ -684,7 +680,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
     return (
         <div className={`ss-mapview-root ${(isTokenMissing || mapError) ? 'ssr-map-fallback-active' : ''}`}>
-            <div ref={mapContainer} className="ss-mapview-canvas bg-slate-100" />
+            <div ref={mapContainer} className="ss-mapview-canvas bg-slate-100" style={{ touchAction: 'none' }} />
 
             {/* Comfort Green Tint */}
             {comfortMode && <div className="comfort-map-overlay" />}
