@@ -595,11 +595,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             const el = document.createElement('div');
             el.innerHTML = `
-              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(-50%);">
-                <div style="font-size: 28px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
-                  ${getVenuePinEmoji(enrichedVenue)}
-                </div>
-                <div style="background: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; color: #1A1A1A; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; margin-top: 2px; border: 1px solid #E5E7EB;">
+              <div style="text-align: center; pointer-events: none;">
+                <div style="font-size: 28px; line-height: 1;">☀️</div>
+                <div style="background: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 800; color: #1A1A1A; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; border: 1px solid #E5E7EB;">
                   ${venue.venueName}
                 </div>
               </div>
@@ -626,7 +624,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             el.addEventListener('click', handleSelect);
             el.addEventListener('touchstart', handleSelect, { passive: false });
 
-            const marker = new mapboxgl.Marker(el)
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
                 .setLngLat([venue.lng, venue.lat])
                 .addTo(map.current);
 
