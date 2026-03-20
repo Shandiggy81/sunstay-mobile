@@ -294,9 +294,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         if (!activeLayer || !weather || !map.current) return;
 
         const temp = weather.main?.temp || 0;
-        // Clear stale markers before each render cycle
-        markersRef.current.forEach(marker => marker.remove());
-        markersRef.current = [];
 
         const windSpeed = weather.wind?.speed || 0;
         const humidity = weather.main?.humidity || 50;
@@ -629,7 +626,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             el.addEventListener('click', handleSelect);
             el.addEventListener('touchstart', handleSelect, { passive: false });
 
-            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+            const marker = new mapboxgl.Marker(el)
                 .setLngLat([venue.lng, venue.lat])
                 .addTo(map.current);
 
