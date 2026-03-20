@@ -300,12 +300,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
 
-            <div className="flex flex-wrap gap-2 mt-4">
-              {wind < 15 && !isRain && <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-700 border border-emerald-500/10 rounded-lg flex items-center gap-1.5"><Shield size={10} /> Event-Ready ☀️</span>}
-              {(new Date().getHours() >= 16 && new Date().getHours() <= 19) && !isRain && <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest bg-fuchsia-500/10 text-fuchsia-800 border border-fuchsia-500/10 rounded-lg flex items-center gap-1.5"><span className="text-[10px]">⛅</span> Photo Prime</span>}
-              {outdoorSun && outdoorSun.balcony > 4 && <span className="px-2.5 py-1 text-[9px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-700 border border-amber-500/10 rounded-lg">High Sun Score</span>}
-            </div>
-
             <div className="flex gap-2.5 mt-5">
               <motion.button 
                 whileHover={{ scale: 1.02, filter: 'brightness(1.05)' }} whileTap={{ scale: 0.96 }}

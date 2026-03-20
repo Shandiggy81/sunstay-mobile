@@ -693,14 +693,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             {/* Comfort Map Toggle & Time Slider */}
             {mapLoaded && !mapError && (
                 <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
-                    <button
-                        onClick={() => setIsFiltersOpen(true)}
-                        className="comfort-toggle-btn"
-                        style={{ background: '#FFFDF5', border: '1px solid #F59E0B' }}
-                    >
-                        <span className="text-amber-500">🔍</span>
-                        <span className="font-bold text-[#1A1A1A]">Filters</span>
-                    </button>
+
                     <button
                         onClick={() => toggleLayer('comfort')}
                         className={`comfort-toggle-btn ${comfortMode ? 'comfort-toggle-active' : ''}`}

@@ -78,13 +78,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                     <span className="text-[#1E40AF] text-[14px] font-bold">Filters</span>
                 </motion.button>
 
-                {/* Bell Icon (was Search) */}
-                <motion.button
-                    whileTap={{ scale: 0.92 }}
-                    className="w-10 h-10 bg-white/20 border border-white/30 rounded-xl flex items-center justify-center flex-shrink-0"
-                >
-                    <Bell size={18} className="text-white" />
-                </motion.button>
+
             </div>
 
             {/* Expandable search bar */}
