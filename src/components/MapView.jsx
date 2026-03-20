@@ -229,20 +229,27 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 };
 
                 const el = document.createElement('div');
-                el.innerHTML = getVenuePinEmoji(enrichedVenue);
+                el.innerHTML = `
+                  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(-50%);">
+                    <div style="font-size: 28px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+                      ${getVenuePinEmoji(enrichedVenue)}
+                    </div>
+                    <div style="background: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; color: #1A1A1A; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; margin-top: 2px; border: 1px solid #E5E7EB;">
+                      ${venue.venueName}
+                    </div>
+                  </div>
+                `;
                 el.style.cssText = `
                   width: 44px;
                   height: 44px;
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  font-size: 28px;
                   cursor: pointer;
                   pointer-events: auto;
                   position: relative;
                   z-index: 10;
                   -webkit-tap-highlight-color: transparent;
-                  line-height: 1;
                 `;
 
                 const handleSelect = (e) => {
@@ -264,25 +271,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
         map.current.on('render', updateDOMMarkers);
         map.current._updateDOMMarkers = updateDOMMarkers; // Store for manual calls
-
-        // ── Venue NAME labels ──────────────────────────────────
-        map.current.addLayer({
-            id: 'venue-labels',
-            type: 'symbol',
-            source: 'venues',
-            filter: ['!', ['has', 'point_count']],
-            layout: {
-                'text-field': ['get', 'name'],
-                'text-size': 11,
-                'text-offset': [0, 1.5],
-                'text-anchor': 'top',
-            },
-            paint: {
-                'text-color': '#1e3a8a',
-                'text-halo-color': '#fff',
-                'text-halo-width': 1.5
-            }
-        });
 
         // ── Click on cluster → zoom in ───────────────────────────
         map.current.on('click', 'clusters', (e) => {
