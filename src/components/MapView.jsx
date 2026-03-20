@@ -15,11 +15,27 @@ import SunCalc from 'suncalc';
 // ── Build a venue lookup for click handlers ──────────────────────
 const venueById = Object.fromEntries(demoVenues.map(v => [v.id, v]));
 
-// ── Dynamic venue emoji logic ────────────────────────────────────
-const getVenueEmoji = (venue, weather) => {
-    if ((venue.hasFireplace || venue.hasCozy) && weather?.min_temp < 8) return '🔥';
-    if (weather?.weatherCode >= 61) return '🌧️';
-    if (weather?.cloud_cover > 60) return '⛅';
+// ── Dynamic venue emoji logic: Weather-driven rule only ─────────
+const getVenuePinEmoji = (venue) => {
+    // Current temperature fallback if not provided
+    const currentTemp = venue.currentTemp ?? 20;
+
+    // Fire pin: venue has fireplace or heated outdoor AND current temp is under 18°C
+    if ((venue.heating === 'fireplace' || venue.heating === 'heated outdoor') && currentTemp < 18) {
+        return '🔥';
+    }
+
+    // Weather-driven: use current weather condition for the venue
+    const condition = (venue.weatherCondition || venue.condition || '').toLowerCase();
+    
+    if (condition.includes('cloud') || condition.includes('overcast')) {
+        return '⛅';
+    }
+    if (condition.includes('rain')) {
+        return '🌧️';
+    }
+    
+    // Default: sunny
     return '☀️';
 };
 
@@ -32,7 +48,7 @@ function buildGeoJSON(venues, weatherData) {
             geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
             properties: {
                 id: v.id,
-                emoji: getVenueEmoji(v, weatherData),
+                // Emoji is derived dynamically at render time in updateDOMMarkers
                 name: v.venueName,
                 venueName: v.venueName,
             }
@@ -203,8 +219,17 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 seen.add(id);
 
                 const venue = venueById[id];
+                const currentCondition = weather?.weather?.[0]?.main || weather?.weather?.[0]?.description || '';
+                const currentTemp = weather?.main?.temp ?? 20;
+                
+                const enrichedVenue = { 
+                    ...venue, 
+                    weatherCondition: currentCondition,
+                    currentTemp: currentTemp
+                };
+
                 const el = document.createElement('div');
-                el.innerHTML = (venue && venue.emoji) || '☀️'; // use the venue's own emoji field, fallback to ☀️
+                el.innerHTML = getVenuePinEmoji(enrichedVenue);
                 el.style.cssText = `
                   width: 44px;
                   height: 44px;
@@ -878,10 +903,10 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                                             }}
                                         >
                                             <div className={`ss-marker-pill ss-marker-${weather && weatherColorFn ? weatherColorFn(weather, venue) : 'sunny'} shadow-xl border-2 border-white/30 ${(venue.hasCozy && cozyWeatherActive && cozyFilterActive) ? 'ss-marker-cozy-glow' : ''}`}>
-                                                <span className="ss-marker-emoji">{getVenueEmoji(venue, {
-                                                    min_temp: weather?.rawWeather?.minTemp,
-                                                    weatherCode: weather?.rawWeather?.weatherCode,
-                                                    cloud_cover: weather?.clouds?.all
+                                                <span className="ss-marker-emoji">{getVenuePinEmoji({
+                                                    ...venue,
+                                                    weatherCondition: weather?.weather?.[0]?.main || '',
+                                                    currentTemp: weather?.main?.temp ?? 20
                                                 })}</span>
                                             </div>
                                             <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/80 text-white text-[10px] px-2 py-1 rounded-full pointer-events-none">
