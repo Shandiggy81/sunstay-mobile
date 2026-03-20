@@ -128,8 +128,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         // Individual markers are now handled by Mapbox 'unclustered-point' layer for better performance and zoom stability.
         // This function can be kept empty or removed if no other logic depends on it.
         if (!map.current) return;
-        unclusteredMarkers.current.forEach(m => m.marker.remove());
-        unclusteredMarkers.current = [];
+        markersRef.current.forEach(m => m.remove());
+        markersRef.current = [];
     }, []);
 
     // ── Setup GeoJSON cluster source + layers ──────────────────────
@@ -185,8 +185,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         // Using DOM markers for colour emojis (symbol layers SDF strip colour)
         const updateDOMMarkers = () => {
             if (!map.current) return;
-            unclusteredMarkers.current.forEach(m => m.remove());
-            unclusteredMarkers.current = [];
+            // Clear stale markers before each new marker batch is created
+            markersRef.current.forEach(m => m.remove());
+            markersRef.current = [];
             
             // Query source instead of layer for unclustered features
             // This ensures markers stay synced with clusters
@@ -201,36 +202,34 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 if (seen.has(id)) return;
                 seen.add(id);
 
-                // Create a 44x44px hit area wrapper for better mobile reliability
-                const wrapper = document.createElement('div');
-                wrapper.style.cssText = `
-                    width: 44px;
-                    height: 44px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    user-select: none;
-                    z-index: 10;
-                    pointer-events: auto;
+                const venue = venueById[id];
+                const el = document.createElement('div');
+                el.innerHTML = (venue && venue.emoji) || '☀️'; // use the venue's own emoji field, fallback to ☀️
+                el.style.cssText = `
+                  width: 44px;
+                  height: 44px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 28px;
+                  cursor: pointer;
+                  pointer-events: auto;
+                  position: relative;
+                  z-index: 10;
+                  -webkit-tap-highlight-color: transparent;
+                  line-height: 1;
                 `;
-
-                const emoji = document.createElement('div');
-                emoji.textContent = feature.properties.emoji || '☀️';
-                emoji.style.cssText = 'font-size:26px; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25)); line-height:1;';
-
-                wrapper.appendChild(emoji);
 
                 const handleSelect = (e) => {
                     e.stopPropagation();
                     if (e.type === 'touchstart') e.preventDefault();
-                    onVenueSelectRef.current?.(venueById[id], isMobileViewport());
+                    onVenueSelectRef.current?.(venue, isMobileViewport());
                 };
 
-                wrapper.addEventListener('click', handleSelect);
-                wrapper.addEventListener('touchstart', handleSelect, { passive: false });
+                el.addEventListener('click', handleSelect);
+                el.addEventListener('touchstart', handleSelect, { passive: false });
 
-                const marker = new mapboxgl.Marker({ element: wrapper, anchor: 'center' })
+                const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
                     .setLngLat(feature.geometry.coordinates)
                     .addTo(map.current);
 
@@ -550,7 +549,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             if (map.current?._updateDOMMarkers) {
                 map.current.off('render', map.current._updateDOMMarkers);
             }
-            unclusteredMarkers.current.forEach(m => m.remove());
+            markersRef.current.forEach(m => m.remove());
             if (map.current) {
                 map.current.remove();
                 map.current = null;
