@@ -598,7 +598,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             const el = document.createElement('div');
             el.innerHTML = `
-              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(-50%) translateZ(0); will-change: transform;">
+              <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(-50%);">
                 <div style="font-size: 28px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
                   ${getVenuePinEmoji(enrichedVenue)}
                 </div>
@@ -680,7 +680,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
     return (
         <div className={`ss-mapview-root ${(isTokenMissing || mapError) ? 'ssr-map-fallback-active' : ''}`}>
-            <div ref={mapContainer} className="ss-mapview-canvas bg-slate-100" style={{ touchAction: 'none' }} />
+            <div ref={mapContainer} className="ss-mapview-canvas bg-slate-100" />
 
             {/* Comfort Green Tint */}
             {comfortMode && <div className="comfort-map-overlay" />}
