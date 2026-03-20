@@ -246,12 +246,22 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                       <span className="text-amber-500">⚡</span> Sun Intelligence
                     </h4>
                   </div>
-                  {isHotelOrStay && outdoorSun && (outdoorSun.balcony > 0 || outdoorSun.pool > 0) ? (
+                   {(venue.balconyData || (isHotelOrStay && outdoorSun && (outdoorSun.balcony > 0 || outdoorSun.pool > 0))) ? (
                     <div className="flex flex-col gap-1 mt-2">
                       <div className="text-[10px] text-[#4A4A4A]/60 font-bold uppercase tracking-wider">Outdoor Sun Exposure</div>
-                      <div className="flex gap-2 text-[11px] font-bold">
-                        {outdoorSun.balcony > 0 && <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">Balcony: {outdoorSun.balcony}h</span>}
-                        {outdoorSun.pool > 0 && <span className="bg-cyan-500/5 text-cyan-700 px-2 py-0.5 rounded-md border border-cyan-500/10">Pool: {outdoorSun.pool}h</span>}
+                      <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                        {venue.balconyData ? (
+                          <>
+                            <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">Balcony: {venue.balconyData.hours}h</span>
+                            <span className="bg-orange-500/5 text-orange-700 px-2 py-0.5 rounded-md border border-orange-500/10">{venue.balconyData.direction}</span>
+                            <span className="bg-blue-500/5 text-blue-700 px-2 py-0.5 rounded-md border border-blue-500/10">{venue.balconyData.views} Views</span>
+                          </>
+                        ) : (
+                          <>
+                            {outdoorSun.balcony > 0 && <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">Balcony: {outdoorSun.balcony}h</span>}
+                            {outdoorSun.pool > 0 && <span className="bg-cyan-500/5 text-cyan-700 px-2 py-0.5 rounded-md border border-cyan-500/10">Pool: {outdoorSun.pool}h</span>}
+                          </>
+                        )}
                       </div>
 
                       {cozyWeatherActive && (
@@ -296,12 +306,20 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 </div>
 
                 {venue.heating && venue.heating !== 'no heating' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '8px 0' }}>
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '6px', 
+                      margin: '8px 0',
+                      color: (venue.heating === 'electric-fireplace' || venue.heating === 'traditional-fireplace') ? '#EF4444' : '#1A1A1A'
+                    }}
+                  >
                     <span style={{ fontSize: '15px' }}>
-                      {venue.heating === 'fireplace' ? '🔥' : '♨️'}
+                      {(venue.heating === 'electric-fireplace' || venue.heating === 'traditional-fireplace' || venue.heating === 'fireplace') ? '🔥' : '♨️'}
                     </span>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A1A' }}>
-                      {venue.heating === 'fireplace' ? 'Fireplace inside' :
+                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
+                      {(venue.heating === 'electric-fireplace' || venue.heating === 'traditional-fireplace' || venue.heating === 'fireplace') ? 'Fireplace Active' :
                        venue.heating === 'heated outdoor' ? 'Heated outdoor area' :
                        'Fully indoor'}
                     </span>

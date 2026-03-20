@@ -218,7 +218,7 @@ export const demoVenues = [
         emoji: '🌿',
         vibe: 'Beer Garden',
         tags: ['Sunny', 'Garden', 'Beer Garden', 'Pet Friendly', 'Pram Friendly', 'Shaded', 'Umbrellas', 'Afternoon Sun', 'Craft Beer', 'Gluten Free'],
-        heating: 'heated outdoor',
+        heating: 'electric-fireplace',
         price: '$$',
         capacity: 450,
         notes: 'Real AVC venue — used as flagship demo pin.',
@@ -580,7 +580,7 @@ export const demoVenues = [
         emoji: '🍸',
         vibe: 'Bar & Restaurant',
         tags: ['Morning Sun', 'Midday Sun', 'Covered', 'Shaded', 'Cocktails', 'Bar', '☀️ Sunny Now'],
-        heating: 'indoor only',
+        heating: 'electric-fireplace',
         price: '$$',
         capacity: 120,
         notes: 'Good Company venue with protected morning sun.',
@@ -632,6 +632,34 @@ export const demoVenues = [
         price: '$$',
         capacity: 600,
         notes: 'Large scale outdoor venue at Fed Square.',
+    },
+    {
+        id: 'holy-grail',
+        companyName: 'Australian Venue Co',
+        venueName: 'Holy Grail',
+        address: 'Chapel Street, Windsor VIC 3181',
+        suburb: 'Windsor',
+        lat: -37.8515,
+        lng: 144.9935,
+        emoji: '🍷',
+        vibe: 'Bar & Restaurant',
+        sunIntelligence: 'Cozy indoor atmosphere with premium electric fireplace heating.',
+        tags: ['dog-friendly', 'indoor-only'],
+        heating: 'electric-fireplace'
+    },
+    {
+        id: 'union-hotel',
+        companyName: 'Australian Venue Co',
+        venueName: 'Union Hotel',
+        address: 'Chapel Street, Windsor VIC 3181',
+        suburb: 'Windsor',
+        lat: -37.8550,
+        lng: 144.9920,
+        emoji: '🍺',
+        vibe: 'Pub & Restaurant',
+        sunIntelligence: 'Classic pub warmth with a traditional gas fireplace in the dining room.',
+        tags: ['live-music', 'food-available'],
+        heating: 'traditional-fireplace'
     },
 
     // ─── NEW Demo Hotels ───
@@ -782,6 +810,7 @@ export const demoVenues = [
         heating: 'indoor only',
         price: '$$$',
         notes: 'Demo hotel for Accor Apartments.',
+        balconyData: { hours: 8, factor: 85, direction: 'North-East', views: 'Sunrise' }
     },
 
     // ─── NEW Demo Short Stays ───
