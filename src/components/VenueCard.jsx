@@ -224,6 +224,29 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   <div className="text-amber-600 text-[11px] font-bold mt-1 tracking-wide">
                     Wind {Math.round(wind)}kmh &nbsp;|&nbsp; {isRain ? '80%' : '20%'} rain &nbsp;|&nbsp; Sunny til 6pm
                   </div>
+
+                  {/* --- FIREPLACE INTELLIGENCE UI --- */}
+                  {venue.heating && venue.heating !== 'no heating' && venue.heating !== 'indoor only' && venue.heating !== 'heated outdoor' && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', background: 'linear-gradient(135deg, #FFF0E6 0%, #FFDAB9 100%)', color: '#D2691E', padding: '6px 12px', borderRadius: '16px', fontSize: '13px', fontWeight: '800', marginTop: '10px', border: '1px solid #FFCBA4', boxShadow: '0 2px 8px rgba(255, 140, 0, 0.25)' }}>
+                      <span style={{ marginRight: '6px', fontSize: '16px', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>🔥</span>
+                      {venue.heating === 'electric-fireplace' ? 'Premium Electric Fireplace' : venue.heating === 'traditional-fireplace' ? 'Traditional Gas Fireplace' : 'Fireplace Active'}
+                    </div>
+                  )}
+
+                  {/* --- BALCONY SUN INTELLIGENCE UI --- */}
+                  {venue.balconyData && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', background: 'linear-gradient(to right, #F0F8FF, #E6F2FF)', padding: '16px', borderRadius: '16px', marginTop: '16px', border: '1px solid #B0E0E6', boxShadow: '0 4px 12px rgba(70, 130, 180, 0.1)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '11px', color: '#4682B4', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Balcony Sun</span>
+                        <span style={{ fontSize: '18px', color: '#1A1A1A', fontWeight: '900', marginTop: '2px' }}>{venue.balconyData.hours} Hours</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                        <span style={{ fontSize: '11px', color: '#4682B4', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Optimal Views</span>
+                        <span style={{ fontSize: '16px', color: '#1A1A1A', fontWeight: '800', marginTop: '2px' }}>{venue.balconyData.views}</span>
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
             </div>
