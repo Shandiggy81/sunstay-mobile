@@ -574,8 +574,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     }, [filteredVenueIds, mapLoaded, weather]);
 
     // ── Efficient Marker Management ──
-    // This useEffect loops through filtered venues and creates mapboxgl.Marker instances.
-    // It depends only on mapLoaded and filteredVenues to prevent thrashing during zoom.
+    // Nuclear reset: using DEFAULT Mapbox markers (blue pins) to debug projection offset.
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
@@ -584,49 +583,27 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         markersRef.current = [];
 
         filteredVenues.forEach((venue) => {
-            const currentCondition = weather?.weather?.[0]?.main || weather?.weather?.[0]?.description || '';
-            const currentTemp = weather?.main?.temp ?? 20;
-            
-            const enrichedVenue = { 
-                ...venue, 
-                weatherCondition: currentCondition,
-                currentTemp: currentTemp
-            };
+            // Ensure strict number casting to prevent string offset errors
+            const lng = Number(venue.lng);
+            const lat = Number(venue.lat);
 
-            const el = document.createElement('div');
-            el.innerHTML = `
-              <div style="text-align: center; pointer-events: none;">
-                <div style="font-size: 28px; line-height: 1;">☀️</div>
-                <div style="background: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 800; color: #1A1A1A; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; border: 1px solid #E5E7EB;">
-                  ${venue.venueName}
-                </div>
-              </div>
-            `;
-            el.style.cssText = `
-              width: 44px;
-              height: 44px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              cursor: pointer;
-              pointer-events: auto;
-              position: relative;
-              z-index: 10;
-              -webkit-tap-highlight-color: transparent;
-            `;
+            if (isNaN(lng) || isNaN(lat) || lng === 0 || lat === 0) return;
 
-            const handleSelect = (e) => {
-                e.stopPropagation();
-                if (e.type === 'touchstart') e.preventDefault();
-                onVenueSelectRef.current?.(venue, isMobileViewport());
-            };
-
-            el.addEventListener('click', handleSelect);
-            el.addEventListener('touchstart', handleSelect, { passive: false });
-
-            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-                .setLngLat([venue.lng, venue.lat])
+            // Use native default marker (do not pass a custom 'element')
+            const marker = new mapboxgl.Marker()
+                .setLngLat([lng, lat])
                 .addTo(map.current);
+
+            // Bind click events directly to the default marker element
+            marker.getElement().addEventListener('click', (e) => {
+                e.stopPropagation();
+                onVenueSelectRef.current?.(venue, isMobileViewport());
+            });
+
+            marker.getElement().addEventListener('touchend', (e) => {
+                e.stopPropagation();
+                onVenueSelectRef.current?.(venue, isMobileViewport());
+            }, { passive: false });
 
             markersRef.current.push(marker);
         });
