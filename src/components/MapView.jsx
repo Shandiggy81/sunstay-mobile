@@ -574,7 +574,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     }, [filteredVenueIds, mapLoaded, weather]);
 
     // ── Efficient Marker Management ──
-    // Nuclear reset: using DEFAULT Mapbox markers (blue pins) to debug projection offset.
+    // Restored custom sun markers with Mapbox-safe DOM structure.
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
@@ -589,18 +589,29 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
             if (isNaN(lng) || isNaN(lat) || lng === 0 || lat === 0) return;
 
-            // Use native default marker (do not pass a custom 'element')
-            const marker = new mapboxgl.Marker()
+            const el = document.createElement('div');
+            el.className = 'custom-sun-pin';
+            el.style.cursor = 'pointer';
+            el.innerHTML = `
+              <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none;">
+                <div style="font-size: 28px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">☀️</div>
+                <div style="background: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; color: #1A1A1A; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; margin-top: 2px; border: 1px solid #E5E7EB;">
+                  ${venue.venueName}
+                </div>
+              </div>
+            `;
+
+            // Crucial: anchor to 'bottom' so the point of the sun touches the exact coordinate
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                 .setLngLat([lng, lat])
                 .addTo(map.current);
 
-            // Bind click events directly to the default marker element
-            marker.getElement().addEventListener('click', (e) => {
+            el.addEventListener('click', (e) => {
                 e.stopPropagation();
                 onVenueSelectRef.current?.(venue, isMobileViewport());
             });
 
-            marker.getElement().addEventListener('touchend', (e) => {
+            el.addEventListener('touchend', (e) => {
                 e.stopPropagation();
                 onVenueSelectRef.current?.(venue, isMobileViewport());
             }, { passive: false });
