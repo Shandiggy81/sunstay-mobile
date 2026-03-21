@@ -1737,7 +1737,7 @@ body,
 }
 
 .comfort-map-marker:hover {
-  transform: translateY(-4px) scale(1.05);
+  transform: scale(1.05);
 }
 
 .comfort-map-pill {
@@ -3188,8 +3188,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: translateZ(0);
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s ease;
   z-index: 10;
 }
 
@@ -5444,7 +5443,7 @@ body,
 }
 
 .ss-map-marker:hover {
-  transform: scale(1.4) translateY(-4px) !important;
+  transform: scale(1.4) !important;
   z-index: 100 !important;
 }
 
