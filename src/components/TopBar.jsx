@@ -21,7 +21,7 @@ const WeatherIcon = ({ condition, windSpeed }) => {
 
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen }) => {
     const [searchOpen, setSearchOpen] = useState(false);
-    const [logoFailed, setLogoFailed] = useState(true);
+    const [logoFailed, setLogoFailed] = useState(false);
 
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
@@ -61,7 +61,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 <div className="flex flex-col items-center gap-1 flex-shrink-0 relative z-10">
                     {logoFailed ? <SunLogo /> : (
                         <img
-                            src="/image_62656767-cc47-4f90-896d-ae35b19f3961.png"
+                            src="/sunstay-logo.png"
                             alt="Sunstay Logo"
                             className="h-[56px] w-auto object-contain"
                             style={{filter:'drop-shadow(0 2px 8px rgba(0,0,0,0.3))'}}
