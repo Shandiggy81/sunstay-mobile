@@ -135,6 +135,25 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const hasBalconyMatch = name.toLowerCase().includes('balcony') || tags.some(t => t.toLowerCase() === 'balcony') || true;
 
   const outdoorSun = isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : null;
+
+  // Generate sun hours for ALL venue types
+  const getSunHoursForVenue = () => {
+    if (isHotelOrStay && outdoorSun && (outdoorSun.balcony > 0 || outdoorSun.pool > 0)) {
+      return { outdoor: `${outdoorSun.balcony}h`, covered: `${outdoorSun.pool}h`, labels: { outdoor: 'Balcony', covered: 'Pool' } };
+    }
+
+    // Generate sensible demo values for other venue types
+    const baseOutdoor = Math.floor(6 + Math.random() * 4); // 6-10h
+    const baseCovered = Math.floor(4 + Math.random() * 4); // 4-8h
+
+    return {
+      outdoor: `${baseOutdoor}h`,
+      covered: `${baseCovered}h`,
+      labels: { outdoor: 'Outdoor', covered: 'Covered' }
+    };
+  };
+
+  const sunHours = getSunHoursForVenue();
   
   // Try to define weather conditions properly
   let weatherCondition = 'clear';
@@ -147,6 +166,39 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
      else if (code >= 1 && code <= 3) weatherCondition = 'cloudy';
   }
   const isRain = weatherCondition.includes('rain') || weatherCondition.includes('shower');
+
+  // Determine border accent color
+  const getBorderAccent = () => {
+    if (score > 75) return '#F97316'; // orange for sunny
+    if (wind > 20) return '#14B8A6'; // teal for windy
+    return '#64748B'; // blue-grey for cloudy
+  };
+
+  const borderAccent = getBorderAccent();
+
+  // Calculate Sun Score badge
+  const getSunScoreBadge = () => {
+    if (score > 75) return { emoji: '☀️', color: '#10B981', label: 'Sun Score' };
+    if (score >= 50) return { emoji: '🌤', color: '#F59E0B', label: 'Sun Score' };
+    return { emoji: '☁️', color: '#9CA3AF', label: 'Sun Score' };
+  };
+
+  const sunScoreBadge = getSunScoreBadge();
+
+  // Get category emoji
+  const getCategoryEmoji = () => {
+    const suburbLower = suburb.toLowerCase();
+    const nameLower = name.toLowerCase();
+    const typeLower = type.toLowerCase();
+
+    if (suburbLower.includes('cbd')) return '🏙️';
+    if (suburbLower.includes('st kilda') || suburbLower.includes('beach')) return '🏖️';
+    if (nameLower.includes('garden') || nameLower.includes('park') || typeLower.includes('garden')) return '🌿';
+    if (typeLower.includes('pub') || typeLower.includes('bar')) return '🍺';
+    return '';
+  };
+
+  const categoryEmoji = getCategoryEmoji();
 
   return (
     <AnimatePresence>
@@ -199,50 +251,66 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               className="md:hidden" 
             />
 
-            <div 
+            <div
               style={{
                 background: '#EFF6FF',
-                borderLeft: '4px solid #3B82F6',
+                borderLeft: `4px solid ${borderAccent}`,
                 padding: '12px 16px'
               }}
-              className="flex justify-between items-start mb-5"
+              className="flex justify-between items-start mb-5 relative"
             >
               <div className="flex items-center gap-3.5 flex-1 pr-2">
-                <motion.div 
-                   whileHover={{ rotateY: 180, scale: 1.1 }} 
+                <motion.div
+                   whileHover={{ rotateY: 180, scale: 1.1 }}
                    transition={{ duration: 0.6 }}
-                   className="w-[52px] h-[52px] flex-shrink-0 flex items-center justify-center text-[28px] bg-[#FFFFFF] rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] border border-black/5" 
+                   className="w-[52px] h-[52px] flex-shrink-0 flex items-center justify-center text-[28px] bg-[#FFFFFF] rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] border border-black/5"
                    style={{ transformStyle: 'preserve-3d', perspective: '1000px' }}
                 >
                   <div style={{ transform: 'translateZ(10px)' }}>{venue.emoji}</div>
                 </motion.div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h3 className="text-[#1A1A1A] text-[18px] leading-tight truncate" style={{ fontWeight: 800 }}>{name}</h3>
                   <div className="text-[#4A4A4A] text-[12px] font-semibold mt-1 uppercase tracking-widest truncate">
+                    {categoryEmoji && <span className="mr-1">{categoryEmoji}</span>}
                     {type || venue.vibe} &middot; {suburb}
                   </div>
                 </div>
               </div>
+
+              {/* Sun Score Badge */}
+              <div
+                className="flex flex-col items-center justify-center rounded-full flex-shrink-0"
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  backgroundColor: sunScoreBadge.color,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                }}
+              >
+                <div className="text-[18px] leading-none mb-0.5">{sunScoreBadge.emoji}</div>
+                <div className="text-white font-black text-[15px] leading-none">{Math.round(score)}</div>
+                <div className="text-white/90 text-[7px] font-bold uppercase tracking-wider mt-0.5">Sun Score</div>
+              </div>
             </div>
 
             {/* Live Sunshine Check Panel */}
-            <div className="mb-4 rounded-2xl border border-amber-200/60 overflow-hidden" style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF9EC 100%)' }}>
-              <div className="flex items-center gap-1.5 px-4 pt-3 pb-1.5">
+            <div className="mb-4 rounded-2xl overflow-hidden" style={{ background: '#f8f5f0', padding: '16px' }}>
+              <div className="flex items-center gap-1.5 mb-3">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 <span className="text-[11px] font-extrabold text-amber-800 uppercase tracking-widest">Live Sunshine Check</span>
               </div>
-              <div className="grid grid-cols-3 gap-0 divide-x divide-amber-200/50 px-2 pb-3">
-                <div className="flex flex-col items-center py-2 px-1">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
                   <Wind size={16} className="text-sky-500 mb-1" />
                   <span className="text-[15px] font-black text-gray-900 leading-none">{Math.round(wind)}km/h</span>
                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Wind</span>
                 </div>
-                <div className="flex flex-col items-center py-2 px-1">
+                <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
                   <Droplets size={16} className="text-blue-500 mb-1" />
                   <span className="text-[15px] font-black text-gray-900 leading-none">{isRain ? '80%' : '20%'}</span>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">{isRain ? 'Rain (High)' : 'Rain (Low)'}</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Rain</span>
                 </div>
-                <div className="flex flex-col items-center py-2 px-1">
+                <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
                   <span className="text-base leading-none mb-1">☀️</span>
                   <span className="text-[15px] font-black text-gray-900 leading-none">6pm</span>
                   <span className="text-[9px] font-bold text-green-600 uppercase tracking-wider mt-1">Optimal</span>
@@ -291,31 +359,30 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                       <span className="text-amber-500">⚡</span> Sun Intelligence
                     </h4>
                   </div>
-                   {(venue.balconyData || (isHotelOrStay && outdoorSun && (outdoorSun.balcony > 0 || outdoorSun.pool > 0))) ? (
-                    <div className="flex flex-col gap-1 mt-2">
-                      <div className="text-[10px] text-[#4A4A4A]/60 font-bold uppercase tracking-wider">Outdoor Sun Exposure</div>
-                      <div className="flex flex-wrap gap-2 text-[11px] font-bold">
-                        {venue.balconyData ? (
-                          <>
-                            <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">Balcony: {venue.balconyData.hours}h</span>
-                            <span className="bg-orange-500/5 text-orange-700 px-2 py-0.5 rounded-md border border-orange-500/10">{venue.balconyData.direction}</span>
-                            <span className="bg-blue-500/5 text-blue-700 px-2 py-0.5 rounded-md border border-blue-500/10">{venue.balconyData.views} Views</span>
-                          </>
-                        ) : (
-                          <>
-                            {outdoorSun.balcony > 0 && <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">Balcony: {outdoorSun.balcony}h</span>}
-                            {outdoorSun.pool > 0 && <span className="bg-cyan-500/5 text-cyan-700 px-2 py-0.5 rounded-md border border-cyan-500/10">Pool: {outdoorSun.pool}h</span>}
-                          </>
-                        )}
-                      </div>
-
-                      {cozyWeatherActive && (
-                        <div className="bg-orange-500/5 text-orange-800 px-3 py-1 rounded-lg border border-orange-500/10 text-[10px] font-bold mt-2 flex items-center gap-2">
-                           ☕ Cozy Indoor | Heaters lit | Rain shelter | Cozy Score 92/100
-                        </div>
+                  <div className="flex flex-col gap-1 mt-2">
+                    <div className="text-[10px] text-[#4A4A4A]/60 font-bold uppercase tracking-wider">Outdoor Sun Exposure</div>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                      {venue.balconyData ? (
+                        <>
+                          <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">Balcony: {venue.balconyData.hours}h</span>
+                          <span className="bg-orange-500/5 text-orange-700 px-2 py-0.5 rounded-md border border-orange-500/10">{venue.balconyData.direction}</span>
+                          <span className="bg-blue-500/5 text-blue-700 px-2 py-0.5 rounded-md border border-blue-500/10">{venue.balconyData.views} Views</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">{sunHours.labels.outdoor}: {sunHours.outdoor}</span>
+                          <span className="bg-cyan-500/5 text-cyan-700 px-2 py-0.5 rounded-md border border-cyan-500/10">{sunHours.labels.covered}: {sunHours.covered}</span>
+                        </>
                       )}
                     </div>
-                  ) : (
+
+                    {cozyWeatherActive && (
+                      <div className="bg-orange-500/5 text-orange-800 px-3 py-1 rounded-lg border border-orange-500/10 text-[10px] font-bold mt-2 flex items-center gap-2">
+                         ☕ Cozy Indoor | Heaters lit | Rain shelter | Cozy Score 92/100
+                      </div>
+                    )}
+                  </div>
+                  {false && (
                     <div className="flex flex-col gap-1 mt-2">
                       <div style={{
                         background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
@@ -397,28 +464,38 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
 
-            <div className="flex gap-2.5 mt-5">
-              <motion.button 
-                whileHover={{ scale: 1.02, filter: 'brightness(1.05)' }} whileTap={{ scale: 0.96 }}
+            <div className="flex flex-col gap-2.5 mt-5">
+              {/* Top row: Demo Photo and Share */}
+              <div className="flex gap-2.5">
+                <motion.button
+                  whileHover={{ scale: 1.02, backgroundColor: 'rgba(0,0,0,0.05)' }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setDemoModalOpen(true)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-black/[0.03] text-[#1A1A1A] font-bold text-[12px] border border-black/5 transition-all"
+                >
+                  <span>📸</span> Demo Photo
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05, backgroundColor: 'rgba(0,0,0,0.08)' }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-[48px] flex items-center justify-center py-2.5 rounded-xl bg-black/[0.03] text-[#1A1A1A]/70 transition-all border border-black/5 flex-shrink-0"
+                >
+                  <Share2 size={18} />
+                </motion.button>
+              </div>
+
+              {/* Bottom row: Full-width Book button */}
+              <motion.button
+                whileHover={{ scale: 1.01, filter: 'brightness(1.08)' }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => onCenter && onCenter(venue)}
-                className="flex-[3] flex items-center justify-center py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black text-[14px] uppercase tracking-wide shadow-[0_8px_24px_rgba(245,158,11,0.3)]"
+                className="w-full flex items-center justify-center py-4 rounded-xl text-white font-black text-[14px] uppercase tracking-wide"
+                style={{
+                  background: 'linear-gradient(135deg, #F97316 0%, #FB923C 50%, #FBBF24 100%)',
+                  boxShadow: '0 8px 24px rgba(249, 115, 22, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)'
+                }}
               >
                 ☀️ BOOK FOR SUNSHINE
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05, backgroundColor: 'rgba(0,0,0,0.05)' }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setDemoModalOpen(true)}
-                className="flex-[2] flex items-center justify-center gap-1.5 rounded-xl bg-black/[0.03] text-[#1A1A1A] font-bold text-[12px] border border-black/5 transition-all"
-              >
-                <span>📸</span> Demo Photo
-              </motion.button>
-              <motion.button 
-                whileHover={{ scale: 1.05, backgroundColor: 'rgba(0,0,0,0.08)' }} 
-                whileTap={{ scale: 0.9 }}
-                className="w-[48px] flex items-center justify-center rounded-xl bg-black/[0.03] text-[#1A1A1A]/70 transition-all border border-black/5 flex-shrink-0"
-              >
-                <Share2 size={18} />
               </motion.button>
             </div>
 
