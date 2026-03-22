@@ -4,6 +4,14 @@ import { Search, X, MapPin, Sun, Cloud, CloudRain, Wind, SlidersHorizontal, Bell
 
 const BANNER_GRADIENT = 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)';
 
+const SunLogo = () => (
+    <div style={{width:56,height:56,borderRadius:'50%',
+    background:'linear-gradient(135deg,#F59E0B,#F97316)',
+    boxShadow:'0 2px 12px rgba(245,166,35,0.5)',
+    display:'flex',alignItems:'center',
+    justifyContent:'center',fontSize:30}}>😎</div>
+);
+
 const WeatherIcon = ({ condition, windSpeed }) => {
     if (condition.includes('rain') || condition.includes('drizzle')) return <CloudRain size={16} className="text-white/90" />;
     if (windSpeed > 40) return <Wind size={16} className="text-white/90" />;
@@ -13,6 +21,7 @@ const WeatherIcon = ({ condition, windSpeed }) => {
 
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen }) => {
     const [searchOpen, setSearchOpen] = useState(false);
+    const [logoFailed, setLogoFailed] = useState(false);
 
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
@@ -37,16 +46,19 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 style={{ background: BANNER_GRADIENT }}
             >
                 {/* Logo */}
-                <div className="flex-shrink-0 flex items-center gap-2">
-                    <img
-                        src="/Gemini_Generated_Image_jpt43mjpt43mjpt4.png"
-                        alt="SunStay"
-                        className="h-10 w-10 rounded-lg object-cover"
-                        onError={e => {
-                            e.target.src = '/Gemini_Generated_Image_1925ti1925ti1925.png';
-                        }}
-                    />
-                    <span className="text-white font-bold text-[20px] tracking-tight hidden xs:block">SunStay</span>
+                <div className="flex flex-col items-center gap-1 flex-shrink-0 relative z-10">
+                    {logoFailed ? <SunLogo /> : (
+                        <img
+                            src="/image_62656767-cc47-4f90-896d-ae35b19f3961.png"
+                            alt="Sunstay Logo"
+                            className="h-[56px] w-auto object-contain"
+                            style={{filter:'drop-shadow(0 2px 8px rgba(0,0,0,0.3))'}}
+                            onError={() => setLogoFailed(true)}
+                        />
+                    )}
+                    <span style={{color:'#fff',fontWeight:900,fontSize:10,
+                    letterSpacing:'2px',textTransform:'uppercase',
+                    textShadow:'0 1px 3px rgba(0,0,0,0.4)'}}>SUNSTAY</span>
                 </div>
 
                 {/* Location + Weather Block */}
