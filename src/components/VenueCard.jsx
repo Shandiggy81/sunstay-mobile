@@ -525,9 +525,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   </button>
                 </div>
                 <div className="relative aspect-[4/5] w-full bg-gray-900">
-                  <img 
-                    src="https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&q=80&w=800" 
-                    alt="Demo venue view" 
+                  <img
+                    src="/Gemini_Generated_Image_1925ti1925ti1925.png"
+                    alt="Demo venue view"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">

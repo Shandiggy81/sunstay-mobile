@@ -50,19 +50,13 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 />
 
                 {/* Logo section */}
-                <div className="flex flex-col items-center gap-0.5 flex-shrink-0 relative z-10">
+                <div className="flex flex-col items-center gap-1 flex-shrink-0 relative z-10">
                     <img
-                        src="/assets/sunny-mascot.jpg"
+                        src="/image_62656767-cc47-4f90-896d-ae35b19f3961.png"
                         alt="Sunstay Logo"
-                        className="w-[48px] h-[48px] rounded-full object-cover"
-                        style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}
+                        className="h-[56px] w-auto object-contain"
+                        style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}
                     />
-                    <span
-                        className="text-white font-bold text-[11px] tracking-[2px] uppercase"
-                        style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
-                    >
-                        SunStay
-                    </span>
                 </div>
 
                 {/* Centre weather display */}
