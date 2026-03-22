@@ -1,5 +1,4 @@
-import React, { useCallback, useState } from 'react';
-import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { X, ChevronUp, SlidersHorizontal, Map, List } from 'lucide-react';
 import VenueListCard from './VenueListCard';
 import VenueDetail from '../VenueDetail';
@@ -16,16 +15,16 @@ const QUICK_FILTERS = [
     { id: 'pram-friendly', label: 'Pram Friendly', icon: '👶' },
 ];
 
-const COLLAPSED_H = 52;
-const PEEK_H = '28vh';
-const LIST_H = '52vh';
-const FULL_H = '88vh';
+const SNAP_PEEK = 72;
 
-const sheetHeightForMode = (mode) => {
-    if (mode === 'collapsed') return COLLAPSED_H;
-    if (mode === 'peek') return PEEK_H;
-    if (mode === 'list') return LIST_H;
-    return FULL_H;
+const getSnapHalf = () => Math.round(window.innerHeight * 0.5);
+const getSnapFull = () => Math.round(window.innerHeight * 0.88);
+
+const heightForMode = (mode) => {
+    if (mode === 'collapsed') return SNAP_PEEK;
+    if (mode === 'peek') return SNAP_PEEK;
+    if (mode === 'list') return getSnapHalf();
+    return getSnapFull();
 };
 
 const ExploreSheet = ({
@@ -45,7 +44,6 @@ const ExploreSheet = ({
     externalFiltersOpen,
     onExternalFiltersClose,
 }) => {
-    const dragY = useMotionValue(0);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const effectiveFiltersOpen = externalFiltersOpen || filtersOpen;
     const closeFilters = () => { setFiltersOpen(false); onExternalFiltersClose?.(); };
@@ -53,43 +51,92 @@ const ExploreSheet = ({
     const activeFilterCount = activeFilters.length;
     const isDetail = mode === 'full' && !!selectedVenue;
 
-    const handleDragEnd = useCallback((_, info) => {
-        const vel = info.velocity.y;
-        const off = info.offset.y;
+    const sheetRef = useRef(null);
+    const dragStartY = useRef(null);
+    const dragCurrentY = useRef(0);
+    const [sheetHeight, setSheetHeight] = useState(() => heightForMode(mode));
+    const [dragging, setDragging] = useState(false);
 
-        if (mode === 'full') {
-            if (vel > 400 || off > 130) {
-                if (selectedVenue) onCloseDetail();
-                else onModeChange('list');
+    useEffect(() => {
+        setSheetHeight(heightForMode(mode));
+    }, [mode]);
+
+    const resolveSnap = useCallback((startMode, deltaY, velocityY) => {
+        if (startMode === 'full' || (startMode === 'list' && deltaY < -60)) {
+            if (deltaY > 120 || velocityY > 400) {
+                if (selectedVenue) { onCloseDetail(); return; }
+                return onModeChange('list');
             }
-        } else if (mode === 'list') {
-            if (vel > 350 || off > 100) onModeChange('peek');
-            else if (vel < -350 || off < -100) onModeChange('full');
-        } else if (mode === 'peek') {
-            if (vel > 300 || off > 80) onModeChange('collapsed');
-            else if (vel < -200 || off < -50) onModeChange('list');
-        } else if (mode === 'collapsed') {
-            if (vel < -150 || off < -30) onModeChange('peek');
+            if (deltaY > 50 || velocityY > 250) return onModeChange('list');
+            if (deltaY < -50 || velocityY < -250) return onModeChange('full');
         }
-        dragY.set(0);
+        if (startMode === 'list') {
+            if (deltaY > 100 || velocityY > 350) return onModeChange('peek');
+            if (deltaY < -80 || velocityY < -300) return onModeChange('full');
+        }
+        if (startMode === 'peek' || startMode === 'collapsed') {
+            if (deltaY > 60 || velocityY > 300) return onModeChange('peek');
+            if (deltaY < -40 || velocityY < -180) return onModeChange('list');
+        }
     }, [mode, selectedVenue, onModeChange, onCloseDetail]);
+
+    const onPointerDown = useCallback((e) => {
+        if (e.target.closest('.sheet-scroll-content')) return;
+        dragStartY.current = e.clientY || e.touches?.[0]?.clientY;
+        dragCurrentY.current = 0;
+        setDragging(true);
+    }, []);
+
+    const onPointerMove = useCallback((e) => {
+        if (dragStartY.current === null) return;
+        const clientY = e.clientY || e.touches?.[0]?.clientY;
+        const delta = dragStartY.current - clientY;
+        dragCurrentY.current = delta;
+        const base = heightForMode(mode);
+        const newH = Math.max(SNAP_PEEK, Math.min(getSnapFull(), base + delta));
+        setSheetHeight(newH);
+    }, [mode]);
+
+    const onPointerUp = useCallback((e) => {
+        if (dragStartY.current === null) return;
+        const delta = dragCurrentY.current;
+        const velocityEstimate = Math.abs(delta) * 3;
+        dragStartY.current = null;
+        setDragging(false);
+        resolveSnap(mode, -delta, delta < 0 ? velocityEstimate : -velocityEstimate);
+    }, [mode, resolveSnap]);
+
+    useEffect(() => {
+        if (!dragging) return;
+        const moveH = (e) => onPointerMove(e);
+        const upH = (e) => onPointerUp(e);
+        window.addEventListener('pointermove', moveH, { passive: true });
+        window.addEventListener('pointerup', upH);
+        window.addEventListener('pointercancel', upH);
+        return () => {
+            window.removeEventListener('pointermove', moveH);
+            window.removeEventListener('pointerup', upH);
+            window.removeEventListener('pointercancel', upH);
+        };
+    }, [dragging, onPointerMove, onPointerUp]);
+
+    const showHeader = mode !== 'collapsed' && mode !== 'peek';
 
     const sheetContent = () => {
         if (isDetail) {
             return (
-                <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="flex-1 overflow-y-auto overscroll-contain sheet-scroll-content" style={{ WebkitOverflowScrolling: 'touch' }}>
                     <VenueDetail venue={selectedVenue} onClose={onCloseDetail} weather={weather} />
                 </div>
             );
         }
 
-        if (mode === 'collapsed') {
+        if (mode === 'collapsed' || mode === 'peek') {
             return (
                 <button
                     onClick={() => onModeChange('list')}
-                    className="flex-1 flex flex-col items-center justify-center gap-1 pt-1"
+                    className="flex-1 flex flex-col items-center justify-center gap-0.5"
                 >
-                    <div className="w-10 h-[5px] rounded-full bg-gray-300/80 mb-1" />
                     <div className="flex items-center gap-2">
                         <ChevronUp size={14} className="text-gray-400" />
                         <span className="text-[13px] font-semibold text-gray-600">
@@ -123,7 +170,7 @@ const ExploreSheet = ({
                         })}
                     </div>
                 </div>
-                <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-gray-50" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-gray-50 sheet-scroll-content" style={{ WebkitOverflowScrolling: 'touch' }}>
                     {venues.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 px-6">
                             <span className="text-4xl mb-3">🔍</span>
@@ -153,30 +200,26 @@ const ExploreSheet = ({
 
     return (
         <>
-            <motion.div
+            <div
+                ref={sheetRef}
+                onPointerDown={onPointerDown}
                 className="absolute bottom-0 left-0 right-0 z-40 bg-white flex flex-col overflow-hidden"
                 style={{
-                    borderTopLeftRadius: mode === 'collapsed' ? 0 : '1.75rem',
-                    borderTopRightRadius: mode === 'collapsed' ? 0 : '1.75rem',
-                    boxShadow: mode === 'collapsed'
-                        ? 'none'
-                        : '0 -8px 40px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.07)',
-                    y: dragY,
+                    height: sheetHeight,
+                    borderTopLeftRadius: '1.5rem',
+                    borderTopRightRadius: '1.5rem',
+                    boxShadow: '0 -6px 32px rgba(0,0,0,0.12), 0 -2px 8px rgba(0,0,0,0.06)',
+                    transition: dragging ? 'none' : 'height 0.35s cubic-bezier(0.32, 0.72, 0, 1)',
+                    touchAction: 'none',
+                    willChange: 'height',
                 }}
-                animate={{ height: sheetHeightForMode(mode) }}
-                transition={{ type: 'spring', damping: 32, stiffness: 280, mass: 0.75 }}
-                drag="y"
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={0.08}
-                onDragEnd={handleDragEnd}
             >
-                {mode !== 'collapsed' && (
-                    <div className="flex-shrink-0 pt-3.5 pb-1 flex justify-center cursor-grab active:cursor-grabbing touch-none">
-                        <div className="w-10 h-[5px] rounded-full bg-gray-300/80" />
-                    </div>
-                )}
+                {/* Drag handle */}
+                <div className="flex-shrink-0 pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing">
+                    <div className="w-10 h-[5px] rounded-full bg-gray-300" />
+                </div>
 
-                {mode !== 'collapsed' && (
+                {showHeader && (
                     <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-gray-100">
                         <div className="flex items-center gap-2">
                             <span className="font-bold text-gray-900 text-[15px]">
@@ -214,8 +257,7 @@ const ExploreSheet = ({
                             )}
 
                             {!isDetail && (
-                                <motion.button
-                                    whileTap={{ scale: 0.92 }}
+                                <button
                                     onClick={() => setFiltersOpen(true)}
                                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${
                                         activeFilterCount > 0
@@ -228,7 +270,7 @@ const ExploreSheet = ({
                                     {activeFilterCount > 0 && (
                                         <span className="font-bold ml-0.5">{activeFilterCount}</span>
                                     )}
-                                </motion.button>
+                                </button>
                             )}
 
                             <button
@@ -245,7 +287,7 @@ const ExploreSheet = ({
                 )}
 
                 {sheetContent()}
-            </motion.div>
+            </div>
 
             <FiltersPanel
                 isOpen={effectiveFiltersOpen}
