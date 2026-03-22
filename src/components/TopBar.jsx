@@ -21,7 +21,7 @@ const WeatherIcon = ({ condition, windSpeed }) => {
 
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen }) => {
     const [searchOpen, setSearchOpen] = useState(false);
-    const [logoFailed, setLogoFailed] = useState(false);
+    const [logoFailed, setLogoFailed] = useState(true);
 
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
