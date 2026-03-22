@@ -131,8 +131,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const isHotelOrStay = type === 'Hotel' || type === 'ShortStay';
 
   // Calculate dynamic outdoor features based on demo venue types
-  const isPoolMatch = name.toLowerCase().includes('pool') || tags.some(t => t.toLowerCase() === 'pool');
-  const hasBalconyMatch = name.toLowerCase().includes('balcony') || tags.some(t => t.toLowerCase() === 'balcony') || true;
+  const isPoolMatch = (name || '').toLowerCase().includes('pool') || tags.some(t => (t || '').toLowerCase() === 'pool');
+  const hasBalconyMatch = (name || '').toLowerCase().includes('balcony') || tags.some(t => (t || '').toLowerCase() === 'balcony') || true;
 
   const outdoorSun = isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : null;
 
@@ -187,9 +187,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
   // Get category emoji
   const getCategoryEmoji = () => {
-    const suburbLower = suburb.toLowerCase();
-    const nameLower = name.toLowerCase();
-    const typeLower = type.toLowerCase();
+    const suburbLower = (suburb || '').toLowerCase();
+    const nameLower = (name || '').toLowerCase();
+    const typeLower = (type || '').toLowerCase();
 
     if (suburbLower.includes('cbd')) return '🏙️';
     if (suburbLower.includes('st kilda') || suburbLower.includes('beach')) return '🏖️';
