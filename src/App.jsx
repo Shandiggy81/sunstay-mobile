@@ -537,20 +537,6 @@ const AppContent = () => {
 
                 {/* ── RIGHT: Map ────────────────────────────────── */}
                 <section className={`ss-map-area ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-                    {/* Floating search bar (Desktop Only) */}
-                    {!isMobile && (
-                        <div className="ss-map-search-float">
-                            <Search size={14} />
-                            <input
-                                type="text"
-                                placeholder="Search venues…"
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className="ss-map-search-input"
-                                id="map-venue-search"
-                            />
-                        </div>
-                    )}
 
                     {/* Filters FAB (mobile only) */}
                     <button
@@ -596,17 +582,6 @@ const AppContent = () => {
                         <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-cloudy" />Cloudy</div>
                         <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-windy" />Windy</div>
                     </div>
-
-                    {/* Expand/collapse map (Desktop Only) */}
-                    {!isMobile && (
-                        <button
-                            className="ss-map-expand-btn"
-                            onClick={() => setMobileMapExpanded(prev => !prev)}
-                        >
-                            {mobileMapExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                            <span>{mobileMapExpanded ? 'Collapse Map' : 'Expand Map'}</span>
-                        </button>
-                    )}
                 </section>
 
                 {/* ═══ Mobile Filter Bottom Sheet ═══ */}

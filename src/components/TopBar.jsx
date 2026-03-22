@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, MapPin, Sun, Cloud, CloudRain, Wind, SlidersHorizontal, Bell } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 const BANNER_GRADIENT = 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)';
 
@@ -27,7 +27,15 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
     const description = weather?.weather?.[0]?.description || '';
     const windSpeed = Math.round((weather?.wind?.speed || 0) * 3.6);
-    const windDisplay = windSpeed > 0 ? `${windSpeed} km/h` : null;
+    const humidity = weather?.main?.humidity || 0;
+    const cloudiness = weather?.clouds?.all ?? null;
+
+    const cloudLabel = cloudiness === null ? null
+        : cloudiness < 25 ? 'Low'
+        : cloudiness < 60 ? 'Mid'
+        : 'High';
+
+    const rainChance = Math.min(100, Math.round(humidity * 0.3 + (condition.includes('rain') ? 40 : 0)));
 
     const descFormatted = description
         ? description.charAt(0).toUpperCase() + description.slice(1)
@@ -42,8 +50,12 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div
-                className="flex items-center gap-4 px-4 py-3 h-[72px]"
-                style={{ background: BANNER_GRADIENT }}
+                className="relative flex items-center gap-4 px-4 pr-[16px] py-3.5"
+                style={{
+                    background: BANNER_GRADIENT,
+                    minHeight: 72,
+                    borderBottom: '1px solid rgba(255,255,255,0.2)'
+                }}
             >
                 {/* Logo */}
                 <div className="flex flex-col items-center gap-1 flex-shrink-0 relative z-10">
@@ -61,39 +73,46 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                     textShadow:'0 1px 3px rgba(0,0,0,0.4)'}}>SUNSTAY</span>
                 </div>
 
-                {/* Location + Weather Block */}
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex items-center gap-1.5">
-                        <MapPin size={12} className="text-white/80 flex-shrink-0" />
-                        <span className="text-white font-bold text-[14px] tracking-wide truncate">Melbourne</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                        {weather ? (
-                            <>
-                                <WeatherIcon condition={condition} windSpeed={windSpeed} />
-                                <span className="text-white font-bold text-[20px] leading-none">{temp}°C</span>
-                                <span className="text-white/80 text-[14px] font-medium truncate hidden sm:inline">{descFormatted}</span>
-                            </>
-                        ) : (
-                            <span className="text-white/60 text-[12px]">Loading…</span>
-                        )}
-                    </div>
+                {/* Centre weather display */}
+                <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 relative z-10">
+                    <span className="text-white font-bold text-[13px] tracking-[1.5px] uppercase">Melbourne</span>
+                    {weather && (
+                        <span
+                            className="text-white font-black text-[32px] leading-none tracking-tight"
+                            style={{ textShadow: '0 2px 8px rgba(245,166,35,0.4)' }}
+                        >
+                            {temp}°C
+                        </span>
+                    )}
+                    <span className="text-white/70 text-[11px] font-medium italic">
+                        {weather ? descFormatted : 'Loading…'}
+                    </span>
                 </div>
 
-                {/* Filters Button (restored) */}
-                <motion.button
-                    whileTap={{ scale: 0.92 }}
-                    onClick={onFiltersOpen}
-                    className="flex items-center gap-1.5 bg-white rounded-xl px-3.5 py-2 flex-shrink-0 shadow-sm"
-                >
-                    <SlidersHorizontal size={14} className="text-[#1E40AF]" />
-                    <span className="text-[#1E40AF] text-[14px] font-bold">Filters</span>
-                </motion.button>
-
-
+                {/* Right side stats with divider */}
+                {weather && (
+                    <>
+                        <div
+                            className="h-[48px] w-[1px] bg-white/30 flex-shrink-0 relative z-10"
+                            style={{ alignSelf: 'center' }}
+                        />
+                        <div className="flex-shrink-0 flex flex-col gap-1.5 items-start pr-4 relative z-10">
+                            <span className="text-white text-[12px] leading-tight">
+                                💨 {windSpeed} km/h
+                            </span>
+                            <span className="text-white text-[12px] leading-tight">
+                                🌧 {rainChance}%
+                            </span>
+                            {cloudLabel && (
+                                <span className="text-white text-[12px] leading-tight">
+                                    ☁️ {cloudLabel}
+                                </span>
+                            )}
+                        </div>
+                    </>
+                )}
             </div>
 
-            {/* Expandable search bar */}
             <AnimatePresence>
                 {searchOpen && (
                     <motion.div

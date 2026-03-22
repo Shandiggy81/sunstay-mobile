@@ -1654,6 +1654,44 @@ body,
   box-shadow: 0 2px 12px rgba(59, 130, 246, 0.2);
 }
 
+/* ── Glassmorphism Map Floating Controls ───────────────── */
+.map-glass-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.14), 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.map-glass-btn:hover {
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.map-glass-btn:active {
+  transform: scale(0.97);
+}
+
+.map-glass-btn--active {
+  background: rgba(14, 165, 233, 0.18);
+  border-color: rgba(14, 165, 233, 0.5);
+  color: #0369a1;
+  box-shadow: 0 4px 18px rgba(14, 165, 233, 0.22), 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
 /* Time Slider */
 .comfort-time-slider {
   background: rgba(255, 255, 255, 0.92);

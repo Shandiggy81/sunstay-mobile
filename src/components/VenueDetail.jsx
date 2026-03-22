@@ -327,8 +327,7 @@ const VenueDetail = ({ venue, onClose, weather }) => {
                     whileTap={{ scale: 0.96 }}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-amber-500 text-white font-bold text-sm shadow-lg shadow-amber-200"
                 >
-                    <Calendar size={15} />
-                    <span>Book Now</span>
+                    <span>☀️ BOOK FOR SUNSHINE</span>
                 </motion.button>
                 <motion.button
                     whileTap={{ scale: 0.96 }}

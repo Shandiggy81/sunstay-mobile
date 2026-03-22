@@ -49,34 +49,29 @@ const ChatWidget = ({
 
     const quickReplies = [
         {
-            text: "Where is wheelchair accessible? ♿",
-            response: "Great question! Let me filter to wheelchair-friendly venues... 🦽",
-            action: onFindWheelchair
+            text: "☀️ Show me sunny spots",
+            response: "Perfect! Let me find the sunniest spots for you right now... ☀️",
+            action: onSurpriseMe
         },
         {
-            text: "Find me a dog-friendly spot 🐶",
-            response: "Woof! Filtering to pet-friendly venues now... 🐕",
-            action: onFindDogFriendly
-        },
-        {
-            text: "Pram & Family Friendly? 👶",
-            response: "Looking for family-friendly spots! Filtering now... 🍼",
+            text: "🌥️ Cloudy but cosy venues",
+            response: "Great choice! Finding cosy spots with overhead cover... 🌥️",
             action: onFindFamily
         },
         {
-            text: "Good for Business/Functions? 💼",
-            response: "Finding professional spots with space! Filtering... 👔",
+            text: "💨 Wind-protected outdoor areas",
+            response: "Smart thinking! Filtering to wind-sheltered outdoor spots... 💨",
             action: onFindBusiness
         },
         {
-            text: "Where can I smoke? 🚬",
-            response: "No worries! Showing venues with smoking areas... 🌿",
-            action: onFindSmoking
+            text: "🌧️ Rainy day indoor options",
+            response: "Stay dry! Showing you the best indoor venues... 🌧️",
+            action: onFindWheelchair
         },
         {
-            text: "Surprise me! 🎲",
-            response: "Love the adventure! Let me pick something special for you... ✨",
-            action: onSurpriseMe
+            text: "🔥 Rooftop bars right now",
+            response: "Rooftops it is! Finding the best elevated views... 🔥",
+            action: onFindDogFriendly
         }
     ];
 
@@ -151,7 +146,7 @@ const ChatWidget = ({
                         {/* Quick replies & Actions Area */}
                         <div className="p-5 bg-white border-t border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
                             {!hasActed ? (
-                                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x pt-1">
+                                <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide snap-x pt-1 -mx-1 px-1">
                                     {quickReplies.map((reply, index) => (
                                         <motion.button
                                             key={index}
@@ -164,9 +159,9 @@ const ChatWidget = ({
                                                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                                                 handleQuickReply(reply.action, reply.text, reply.response);
                                             }}
-                                            className="flex-shrink-0 snap-start h-[48px] px-6 bg-white border-2 border-gray-100 rounded-full text-[14px] font-black text-gray-700 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                                            className="flex-shrink-0 snap-start h-[42px] px-5 bg-white border border-gray-200 rounded-full text-[13px] font-semibold text-gray-800 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-all flex items-center justify-center whitespace-nowrap"
                                         >
-                                            <span>{reply.text}</span>
+                                            {reply.text}
                                         </motion.button>
                                     ))}
                                 </div>
