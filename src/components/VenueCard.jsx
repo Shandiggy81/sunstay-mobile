@@ -529,6 +529,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     src="/sunstay-mascot.png"
                     alt="Demo venue view"
                     className="w-full h-full object-cover"
+                    onError={(e) => { e.target.src='https://via.placeholder.com/400x500?text=SunStay+Demo'; }}
                   />
                   <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
                     <div className="inline-flex gap-2 items-center bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-3 py-1 mb-2">
