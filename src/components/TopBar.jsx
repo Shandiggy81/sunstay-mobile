@@ -27,6 +27,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
         : 'High';
 
     const rainChance = Math.min(100, Math.round(humidity * 0.3 + (condition.includes('rain') ? 40 : 0)));
+    const windDisplay = windSpeed > 0 ? `${windSpeed} km/h` : null;
 
     const descFormatted = description
         ? description.charAt(0).toUpperCase() + description.slice(1)
