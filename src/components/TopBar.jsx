@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 
-const BANNER_GRADIENT = 'linear-gradient(to right, #38BDF8 0%, #0284C7 50%, #0369A1 100%)';
+const BANNER_GRADIENT = 'linear-gradient(to right, #0a1628 0%, #1a8fe3 50%, #1a8fe3 85%, rgba(245,166,35,0.15) 100%)';
 
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen }) => {
     const [searchOpen, setSearchOpen] = useState(false);
@@ -34,50 +34,69 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div
-                className="flex items-center gap-3 px-4 pr-[16px] py-5"
-                style={{ background: BANNER_GRADIENT, minHeight: 88 }}
+                className="relative flex items-center gap-4 px-4 pr-[16px] py-3.5"
+                style={{
+                    background: BANNER_GRADIENT,
+                    minHeight: 72,
+                    borderBottom: '1px solid rgba(255,255,255,0.2)'
+                }}
             >
-                <img
-                    src="/Gemini_Generated_Image_jpt43mjpt43mjpt4.png"
-                    alt="SunStay"
-                    className="h-14 w-14 rounded-xl object-cover flex-shrink-0"
-                    style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}
-                    onError={e => {
-                        e.target.src = '/Gemini_Generated_Image_1925ti1925ti1925.png';
+                {/* Shimmer overlay */}
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 100%)'
                     }}
                 />
 
-                <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-white font-bold text-[13px] tracking-[0.12em] uppercase">Melbourne</span>
-                        {weather && (
-                            <span
-                                className="text-white font-black text-[26px] leading-none tracking-tight"
-                                style={{ textShadow: '0 1px 6px rgba(0,0,0,0.15)' }}
-                            >
-                                {temp}°C
-                            </span>
-                        )}
-                    </div>
-                    <span className="text-white/75 text-[13px] font-medium">
+                {/* Logo section */}
+                <div className="flex flex-col items-center gap-0.5 flex-shrink-0 relative z-10">
+                    <div className="text-[48px] leading-none">☀️</div>
+                    <span
+                        className="text-white font-bold text-[11px] tracking-[2px] uppercase"
+                        style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
+                    >
+                        SunStay
+                    </span>
+                </div>
+
+                {/* Centre weather display */}
+                <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 relative z-10">
+                    <span className="text-white font-bold text-[13px] tracking-[1.5px] uppercase">Melbourne</span>
+                    {weather && (
+                        <span
+                            className="text-white font-black text-[32px] leading-none tracking-tight"
+                            style={{ textShadow: '0 2px 8px rgba(245,166,35,0.4)' }}
+                        >
+                            {temp}°C
+                        </span>
+                    )}
+                    <span className="text-white/70 text-[11px] font-medium italic">
                         {weather ? descFormatted : 'Loading…'}
                     </span>
                 </div>
 
+                {/* Right side stats with divider */}
                 {weather && (
-                    <div className="flex-shrink-0 flex flex-col gap-1.5 items-end mr-1">
-                        <span className="text-white text-[12px] leading-tight">
-                            💨 {windSpeed} km/h
-                        </span>
-                        <span className="text-white text-[12px] leading-tight">
-                            🌧 {rainChance}%
-                        </span>
-                        {cloudLabel && (
+                    <>
+                        <div
+                            className="h-[48px] w-[1px] bg-white/30 flex-shrink-0 relative z-10"
+                            style={{ alignSelf: 'center' }}
+                        />
+                        <div className="flex-shrink-0 flex flex-col gap-1.5 items-start pr-4 relative z-10">
                             <span className="text-white text-[12px] leading-tight">
-                                ☁️ {cloudLabel}
+                                💨 {windSpeed} km/h
                             </span>
-                        )}
-                    </div>
+                            <span className="text-white text-[12px] leading-tight">
+                                🌧 {rainChance}%
+                            </span>
+                            {cloudLabel && (
+                                <span className="text-white text-[12px] leading-tight">
+                                    ☁️ {cloudLabel}
+                                </span>
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
 
