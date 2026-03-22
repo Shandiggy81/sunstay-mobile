@@ -526,7 +526,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 </div>
                 <div className="relative aspect-[4/5] w-full bg-gray-900">
                   <img
-                    src="/Gemini_Generated_Image_jpt43mjpt43mjpt4.png"
+                    src="/sunstay-mascot.png"
                     alt="Demo venue view"
                     className="w-full h-full object-cover"
                   />
