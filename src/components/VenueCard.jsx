@@ -381,7 +381,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 onClick={() => onCenter && onCenter(venue)}
                 className="flex-[3] flex items-center justify-center py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black text-[14px] uppercase tracking-wide shadow-[0_8px_24px_rgba(245,158,11,0.3)]"
               >
-                Book with Sun
+                ☀️ BOOK FOR SUNSHINE
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05, backgroundColor: 'rgba(0,0,0,0.05)' }}

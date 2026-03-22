@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, MapPin, Sun, Cloud, CloudRain, Wind, SlidersHorizontal, Bell } from 'lucide-react';
+import { Search, X, MapPin, Sun, Cloud, CloudRain, Wind, Droplets } from 'lucide-react';
 
 const BANNER_GRADIENT = 'linear-gradient(160deg, #0EA5E9 0%, #0284C7 45%, #0369A1 100%)';
 
@@ -18,7 +18,15 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
     const description = weather?.weather?.[0]?.description || '';
     const windSpeed = Math.round((weather?.wind?.speed || 0) * 3.6);
-    const windDisplay = windSpeed > 0 ? `${windSpeed} km/h` : null;
+    const humidity = weather?.main?.humidity || 0;
+    const cloudiness = weather?.clouds?.all ?? null;
+
+    const cloudLabel = cloudiness === null ? null
+        : cloudiness < 25 ? 'Low'
+        : cloudiness < 60 ? 'Mid'
+        : 'High';
+
+    const rainChance = Math.min(100, Math.round(humidity * 0.3 + (condition.includes('rain') ? 40 : 0)));
 
     const descFormatted = description
         ? description.charAt(0).toUpperCase() + description.slice(1)
@@ -69,15 +77,25 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                     </div>
                 </div>
 
-                {/* Filters Button (restored) */}
-                <motion.button
-                    whileTap={{ scale: 0.92 }}
-                    onClick={onFiltersOpen}
-                    className="flex items-center gap-1.5 bg-white rounded-xl px-3.5 py-2 flex-shrink-0 shadow-sm"
-                >
-                    <SlidersHorizontal size={14} className="text-[#1E40AF]" />
-                    <span className="text-[#1E40AF] text-[14px] font-bold">Filters</span>
-                </motion.button>
+                {/* Weather detail block */}
+                {weather && (
+                    <div className="flex-shrink-0 flex flex-col gap-1 items-end">
+                        <div className="flex items-center gap-1">
+                            <Wind size={10} className="text-sky-200" />
+                            <span className="text-white/90 text-[11px] font-semibold">{windSpeed} km/h</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Droplets size={10} className="text-sky-200" />
+                            <span className="text-white/90 text-[11px] font-semibold">{rainChance}%</span>
+                        </div>
+                        {cloudLabel && (
+                            <div className="flex items-center gap-1">
+                                <Cloud size={10} className="text-sky-200" />
+                                <span className="text-white/90 text-[11px] font-semibold">{cloudLabel}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
 
             </div>
