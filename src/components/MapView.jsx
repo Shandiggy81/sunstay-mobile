@@ -148,6 +148,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
         markersRef.current = [];
     }, []);
 
+    const [selectedMarkerId, setSelectedMarkerId] = useState(null);
+
     // ── Setup GeoJSON cluster source + layers ──────────────────────
     const setupClusterSource = useCallback(() => {
         if (!map.current) return;
@@ -574,57 +576,68 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     }, [filteredVenueIds, mapLoaded, weather]);
 
     // ── Efficient Marker Management ──
-    // Restored custom sun markers with Mapbox-safe DOM structure.
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
-        // Cleanup previous markers
         markersRef.current.forEach(m => m.remove());
         markersRef.current = [];
 
         filteredVenues.forEach((venue) => {
-            // Ensure strict number casting to prevent string offset errors
             const lng = Number(venue.lng);
             const lat = Number(venue.lat);
-
             if (isNaN(lng) || isNaN(lat) || lng === 0 || lat === 0) return;
+
+            const emoji = getVenuePinEmoji(venue);
+            const isSelected = selectedMarkerId === venue.id;
 
             const el = document.createElement('div');
             el.className = 'custom-sun-pin';
             el.style.cursor = 'pointer';
             el.innerHTML = `
-              <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none;">
-                <div style="font-size: 28px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">☀️</div>
-                <div style="background: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; color: #1A1A1A; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; margin-top: 2px; border: 1px solid #E5E7EB;">
-                  ${venue.venueName}
-                </div>
+              <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none; position: relative;">
+                <div style="font-size: ${isSelected ? '34px' : '28px'}; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: font-size 0.15s ease;">${emoji}</div>
+                <div class="venue-pin-label" style="
+                  background: rgba(255,255,255,0.92);
+                  backdrop-filter: blur(8px);
+                  -webkit-backdrop-filter: blur(8px);
+                  padding: 2px 8px;
+                  border-radius: 12px;
+                  font-size: 11px;
+                  font-weight: 700;
+                  color: #1A1A1A;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+                  white-space: nowrap;
+                  margin-top: 3px;
+                  border: 1px solid rgba(255,255,255,0.6);
+                  opacity: ${isSelected ? '1' : '0'};
+                  transform: translateY(${isSelected ? '0' : '-4px'});
+                  transition: opacity 0.2s ease, transform 0.2s ease;
+                  pointer-events: none;
+                ">${venue.venueName}</div>
               </div>
             `;
 
-            // Crucial: anchor to 'bottom' so the point of the sun touches the exact coordinate
             const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                 .setLngLat([lng, lat])
                 .addTo(map.current);
 
-            el.addEventListener('click', (e) => {
+            const handleSelect = (e) => {
                 e.stopPropagation();
+                setSelectedMarkerId(prev => prev === venue.id ? null : venue.id);
                 onVenueSelectRef.current?.(venue, isMobileViewport());
-            });
+            };
 
-            el.addEventListener('touchend', (e) => {
-                e.stopPropagation();
-                onVenueSelectRef.current?.(venue, isMobileViewport());
-            }, { passive: false });
+            el.addEventListener('click', handleSelect);
+            el.addEventListener('touchend', handleSelect, { passive: false });
 
             markersRef.current.push(marker);
         });
 
-        // Proper cleanup function
         return () => {
             markersRef.current.forEach(m => m.remove());
             markersRef.current = [];
         };
-    }, [mapLoaded, filteredVenues]);
+    }, [mapLoaded, filteredVenues, selectedMarkerId]);
 
     useEffect(() => {
         // Re-calculate emojis if cozy filters change, without recreating all markers
@@ -685,13 +698,13 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
                 </div>
             )}
 
-            {/* Comfort Map Toggle & Time Slider */}
+            {/* Floating Layer Controls */}
             {mapLoaded && !mapError && (
                 <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
 
                     <button
                         onClick={() => toggleLayer('comfort')}
-                        className={`comfort-toggle-btn ${comfortMode ? 'comfort-toggle-active' : ''}`}
+                        className={`map-glass-btn ${comfortMode ? 'map-glass-btn--active' : ''}`}
                         id="comfort-map-toggle"
                     >
                         <span>{comfortMode ? '🌡️' : '🗺️'}</span>
@@ -700,7 +713,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
                     <button
                         onClick={() => toggleLayer('uv')}
-                        className={`comfort-toggle-btn ${uvMode ? 'comfort-toggle-active' : ''}`}
+                        className={`map-glass-btn ${uvMode ? 'map-glass-btn--active' : ''}`}
                         id="uv-map-toggle"
                     >
                         <span>{uvMode ? '🧴' : '☀️'}</span>
@@ -709,7 +722,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
 
                     <button
                         onClick={() => toggleLayer('radar')}
-                        className={`comfort-toggle-btn ${radarMode ? 'comfort-toggle-active' : ''}`}
+                        className={`map-glass-btn ${radarMode ? 'map-glass-btn--active' : ''}`}
                         id="radar-map-toggle"
                     >
                         <span>{radarMode ? '🌧️' : '⛈️'}</span>

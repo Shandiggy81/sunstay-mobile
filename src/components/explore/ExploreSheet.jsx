@@ -5,6 +5,17 @@ import VenueListCard from './VenueListCard';
 import VenueDetail from '../VenueDetail';
 import FiltersPanel from '../FiltersPanel';
 
+const QUICK_FILTERS = [
+    { id: 'full-sun', label: 'Sunny', icon: '☀️' },
+    { id: 'rooftop', label: 'Rooftop', icon: '🏙️' },
+    { id: 'beer-garden', label: 'Beer Garden', icon: '🍺' },
+    { id: 'pet-friendly', label: 'Pet Friendly', icon: '🐕' },
+    { id: 'live-music', label: 'Live Music', icon: '🎵' },
+    { id: 'shade', label: 'Shaded', icon: '⛱️' },
+    { id: 'specialty-coffee', label: 'Coffee', icon: '☕' },
+    { id: 'pram-friendly', label: 'Pram Friendly', icon: '👶' },
+];
+
 const COLLAPSED_H = 52;
 const PEEK_H = '28vh';
 const LIST_H = '52vh';
@@ -76,40 +87,66 @@ const ExploreSheet = ({
             return (
                 <button
                     onClick={() => onModeChange('list')}
-                    className="flex-1 flex items-center justify-center gap-2"
+                    className="flex-1 flex flex-col items-center justify-center gap-1 pt-1"
                 >
-                    <ChevronUp size={14} className="text-gray-400" />
-                    <span className="text-[13px] font-semibold text-gray-500">
-                        Explore {totalCount} venues nearby
-                    </span>
+                    <div className="w-10 h-[5px] rounded-full bg-gray-300/80 mb-1" />
+                    <div className="flex items-center gap-2">
+                        <ChevronUp size={14} className="text-gray-400" />
+                        <span className="text-[13px] font-semibold text-gray-600">
+                            {totalCount} venues nearby
+                        </span>
+                    </div>
                 </button>
             );
         }
 
         return (
-            <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-gray-50" style={{ WebkitOverflowScrolling: 'touch' }}>
-                {venues.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 px-6">
-                        <span className="text-4xl mb-3">🔍</span>
-                        <p className="text-gray-500 text-sm font-medium text-center">No venues match your filters</p>
-                        <button
-                            onClick={() => activeFilters.forEach(f => onFilterToggle(f))}
-                            className="mt-3 text-amber-500 text-sm font-bold"
-                        >
-                            Clear all filters
-                        </button>
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100/80 overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-2 min-w-max">
+                        {QUICK_FILTERS.map(f => {
+                            const isActive = activeFilters.includes(f.id);
+                            return (
+                                <button
+                                    key={f.id}
+                                    onClick={() => onFilterToggle(f.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-all duration-200 ${
+                                        isActive
+                                            ? 'bg-amber-500 text-white shadow-[0_0_0_2px_rgba(245,158,11,0.4),0_2px_8px_rgba(245,158,11,0.3)]'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <span>{f.icon}</span>
+                                    <span>{f.label}</span>
+                                </button>
+                            );
+                        })}
                     </div>
-                ) : (
-                    venues.map(venue => (
-                        <VenueListCard
-                            key={venue.id}
-                            venue={venue}
-                            isSelected={selectedVenue?.id === venue.id}
-                            onClick={() => onVenueSelect(venue)}
-                            weather={weather}
-                        />
-                    ))
-                )}
+                </div>
+                <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-gray-50" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    {venues.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 px-6">
+                            <span className="text-4xl mb-3">🔍</span>
+                            <p className="text-gray-500 text-sm font-medium text-center">No venues match your filters</p>
+                            <button
+                                onClick={() => activeFilters.forEach(f => onFilterToggle(f))}
+                                className="mt-3 text-amber-500 text-sm font-bold"
+                            >
+                                Clear all filters
+                            </button>
+                        </div>
+                    ) : (
+                        venues.map(venue => (
+                            <VenueListCard
+                                key={venue.id}
+                                venue={venue}
+                                isSelected={selectedVenue?.id === venue.id}
+                                onClick={() => onVenueSelect(venue)}
+                                weather={weather}
+                            />
+                        ))
+                    )}
+                </div>
             </div>
         );
     };
@@ -119,21 +156,23 @@ const ExploreSheet = ({
             <motion.div
                 className="absolute bottom-0 left-0 right-0 z-40 bg-white flex flex-col overflow-hidden"
                 style={{
-                    borderTopLeftRadius: mode === 'collapsed' ? 0 : '1.5rem',
-                    borderTopRightRadius: mode === 'collapsed' ? 0 : '1.5rem',
-                    boxShadow: mode === 'collapsed' ? 'none' : '0 -4px 32px rgba(0,0,0,0.10)',
+                    borderTopLeftRadius: mode === 'collapsed' ? 0 : '1.75rem',
+                    borderTopRightRadius: mode === 'collapsed' ? 0 : '1.75rem',
+                    boxShadow: mode === 'collapsed'
+                        ? 'none'
+                        : '0 -8px 40px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.07)',
                     y: dragY,
                 }}
                 animate={{ height: sheetHeightForMode(mode) }}
-                transition={{ type: 'spring', damping: 34, stiffness: 300, mass: 0.7 }}
+                transition={{ type: 'spring', damping: 32, stiffness: 280, mass: 0.75 }}
                 drag="y"
                 dragConstraints={{ top: 0, bottom: 0 }}
                 dragElastic={0.08}
                 onDragEnd={handleDragEnd}
             >
                 {mode !== 'collapsed' && (
-                    <div className="flex-shrink-0 pt-3 pb-0 flex justify-center cursor-grab active:cursor-grabbing touch-none">
-                        <div className="w-9 h-1 rounded-full bg-gray-200" />
+                    <div className="flex-shrink-0 pt-3.5 pb-1 flex justify-center cursor-grab active:cursor-grabbing touch-none">
+                        <div className="w-10 h-[5px] rounded-full bg-gray-300/80" />
                     </div>
                 )}
 

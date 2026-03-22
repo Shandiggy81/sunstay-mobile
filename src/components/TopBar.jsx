@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, MapPin, Sun, Cloud, CloudRain, Wind, SlidersHorizontal, Bell } from 'lucide-react';
 
-const BANNER_GRADIENT = 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)';
+const BANNER_GRADIENT = 'linear-gradient(160deg, #0EA5E9 0%, #0284C7 45%, #0369A1 100%)';
 
 const WeatherIcon = ({ condition, windSpeed }) => {
     if (condition.includes('rain') || condition.includes('drizzle')) return <CloudRain size={16} className="text-white/90" />;
@@ -52,15 +52,16 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 {/* Location + Weather Block */}
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <div className="flex items-center gap-1.5">
-                        <MapPin size={12} className="text-white/80 flex-shrink-0" />
-                        <span className="text-white font-bold text-[14px] tracking-wide truncate">Melbourne</span>
+                        <MapPin size={11} className="text-sky-200 flex-shrink-0" />
+                        <span className="text-white/90 font-semibold text-[12px] tracking-widest uppercase truncate">Melbourne</span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                         {weather ? (
                             <>
                                 <WeatherIcon condition={condition} windSpeed={windSpeed} />
-                                <span className="text-white font-bold text-[20px] leading-none">{temp}°C</span>
-                                <span className="text-white/80 text-[14px] font-medium truncate hidden sm:inline">{descFormatted}</span>
+                                <span className="text-white font-black text-[22px] leading-none tracking-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.2)' }}>{temp}°C</span>
+                                <span className="text-white/85 text-[13px] font-medium truncate hidden sm:inline">{descFormatted}</span>
+                                {windDisplay && <span className="text-sky-200 text-[11px] font-semibold hidden md:inline">{windDisplay}</span>}
                             </>
                         ) : (
                             <span className="text-white/60 text-[12px]">Loading…</span>
