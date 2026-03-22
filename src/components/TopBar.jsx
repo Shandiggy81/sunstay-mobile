@@ -56,6 +56,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                         alt="Sunstay Logo"
                         className="h-[56px] w-auto object-contain"
                         style={{ filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.3))' }}
+                        onError={(e) => { e.target.style.display='none'; }}
                     />
                 </div>
 
