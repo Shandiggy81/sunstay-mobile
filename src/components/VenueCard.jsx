@@ -221,35 +221,57 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   <div className="text-[#4A4A4A] text-[12px] font-semibold mt-1 uppercase tracking-widest truncate">
                     {type || venue.vibe} &middot; {suburb}
                   </div>
-                  <div className="text-amber-600 text-[11px] font-bold mt-1 tracking-wide">
-                    Wind {Math.round(wind)}kmh &nbsp;|&nbsp; {isRain ? '80%' : '20%'} rain &nbsp;|&nbsp; Sunny til 6pm
-                  </div>
-
-                  {/* --- FIREPLACE INTELLIGENCE UI --- */}
-                  {venue.heating && venue.heating !== 'no heating' && venue.heating !== 'indoor only' && venue.heating !== 'heated outdoor' && (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', background: 'linear-gradient(135deg, #FFF0E6 0%, #FFDAB9 100%)', color: '#D2691E', padding: '6px 12px', borderRadius: '16px', fontSize: '13px', fontWeight: '800', marginTop: '10px', border: '1px solid #FFCBA4', boxShadow: '0 2px 8px rgba(255, 140, 0, 0.25)' }}>
-                      <span style={{ marginRight: '6px', fontSize: '16px', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>🔥</span>
-                      {venue.heating === 'electric-fireplace' ? 'Premium Electric Fireplace' : venue.heating === 'traditional-fireplace' ? 'Traditional Gas Fireplace' : 'Fireplace Active'}
-                    </div>
-                  )}
-
-                  {/* --- BALCONY SUN INTELLIGENCE UI --- */}
-                  {venue.balconyData && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', background: 'linear-gradient(to right, #F0F8FF, #E6F2FF)', padding: '16px', borderRadius: '16px', marginTop: '16px', border: '1px solid #B0E0E6', boxShadow: '0 4px 12px rgba(70, 130, 180, 0.1)' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '11px', color: '#4682B4', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Balcony Sun</span>
-                        <span style={{ fontSize: '18px', color: '#1A1A1A', fontWeight: '900', marginTop: '2px' }}>{venue.balconyData.hours} Hours</span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <span style={{ fontSize: '11px', color: '#4682B4', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Optimal Views</span>
-                        <span style={{ fontSize: '16px', color: '#1A1A1A', fontWeight: '800', marginTop: '2px' }}>{venue.balconyData.views}</span>
-                      </div>
-                    </div>
-                  )}
-
                 </div>
               </div>
             </div>
+
+            {/* Live Sunshine Check Panel */}
+            <div className="mb-4 rounded-2xl border border-amber-200/60 overflow-hidden" style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF9EC 100%)' }}>
+              <div className="flex items-center gap-1.5 px-4 pt-3 pb-1.5">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[11px] font-extrabold text-amber-800 uppercase tracking-widest">Live Sunshine Check</span>
+              </div>
+              <div className="grid grid-cols-3 gap-0 divide-x divide-amber-200/50 px-2 pb-3">
+                <div className="flex flex-col items-center py-2 px-1">
+                  <Wind size={16} className="text-sky-500 mb-1" />
+                  <span className="text-[15px] font-black text-gray-900 leading-none">{Math.round(wind)}km/h</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Wind</span>
+                </div>
+                <div className="flex flex-col items-center py-2 px-1">
+                  <Droplets size={16} className="text-blue-500 mb-1" />
+                  <span className="text-[15px] font-black text-gray-900 leading-none">{isRain ? '80%' : '20%'}</span>
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">{isRain ? 'Rain (High)' : 'Rain (Low)'}</span>
+                </div>
+                <div className="flex flex-col items-center py-2 px-1">
+                  <span className="text-base leading-none mb-1">☀️</span>
+                  <span className="text-[15px] font-black text-gray-900 leading-none">6pm</span>
+                  <span className="text-[9px] font-bold text-green-600 uppercase tracking-wider mt-1">Optimal</span>
+                </div>
+              </div>
+            </div>
+
+            {venue.heating && venue.heating !== 'no heating' && venue.heating !== 'indoor only' && venue.heating !== 'heated outdoor' && (
+              <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl" style={{ background: 'linear-gradient(135deg, #FFF0E6 0%, #FFDAB9 100%)', border: '1px solid #FFCBA4' }}>
+                <span className="text-base">🔥</span>
+                <span className="text-[12px] font-extrabold text-amber-800">
+                  {venue.heating === 'electric-fireplace' ? 'Premium Electric Fireplace' : venue.heating === 'traditional-fireplace' ? 'Traditional Gas Fireplace' : 'Fireplace Active'}
+                </span>
+              </div>
+            )}
+
+            {venue.balconyData && (
+              <div className="flex justify-between mb-4 px-4 py-3 rounded-xl" style={{ background: 'linear-gradient(to right, #F0F8FF, #E6F2FF)', border: '1px solid #B0E0E6' }}>
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-sky-600 font-extrabold uppercase tracking-wider">Balcony Sun</span>
+                  <span className="text-lg text-gray-900 font-black">{venue.balconyData.hours} Hours</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] text-sky-600 font-extrabold uppercase tracking-wider">Optimal Views</span>
+                  <span className="text-base text-gray-900 font-extrabold">{venue.balconyData.views}</span>
+                </div>
+              </div>
+            )}
+
             {/* High Contrast Close Button for Light Mode */}
             <button onClick={onClose} className="absolute top-3 right-3 z-50 bg-black/5 hover:bg-black/10 rounded-full p-2 text-[#1A1A1A] transition-colors" aria-label="Close">
               <X size={18} strokeWidth={2.5} />
@@ -315,8 +337,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                             borderRadius: '999px',
                           }}>LIVE</span>
                         </div>
-                        <p style={{ fontSize: '13px', color: '#78350F', margin: 0, lineHeight: '1.4' }}>
-                          {venue.sunIntelligence || 'Excellent conditions for outdoor seating and drinks.'}
+                        <p style={{ fontSize: '13px', color: '#78350F', margin: 0, lineHeight: '1.5' }}>
+                          {venue.sunIntelligence || 'Beautiful golden light right now — grab a seat outside and soak it in. Perfect for a long, lazy afternoon.'}
                         </p>
                       </div>
                       {cozyWeatherActive && (
@@ -427,7 +449,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 </div>
                 <div className="relative aspect-[4/5] w-full bg-gray-900">
                   <img 
-                    src="https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&q=80&w=800" 
+                    src="https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&q=80&w=800" 
                     alt="Demo venue view" 
                     className="w-full h-full object-cover"
                   />
