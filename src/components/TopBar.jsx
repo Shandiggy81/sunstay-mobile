@@ -1,15 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, MapPin, Sun, Cloud, CloudRain, Wind, Droplets } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
-const BANNER_GRADIENT = 'linear-gradient(160deg, #0EA5E9 0%, #0284C7 45%, #0369A1 100%)';
-
-const WeatherIcon = ({ condition, windSpeed }) => {
-    if (condition.includes('rain') || condition.includes('drizzle')) return <CloudRain size={16} className="text-white/90" />;
-    if (windSpeed > 40) return <Wind size={16} className="text-white/90" />;
-    if (condition.includes('cloud')) return <Cloud size={16} className="text-white/90" />;
-    return <Sun size={16} className="text-yellow-300" />;
-};
+const BANNER_GRADIENT = 'linear-gradient(to right, #38BDF8 0%, #0284C7 50%, #0369A1 100%)';
 
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen }) => {
     const [searchOpen, setSearchOpen] = useState(false);
@@ -27,7 +20,6 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
         : 'High';
 
     const rainChance = Math.min(100, Math.round(humidity * 0.3 + (condition.includes('rain') ? 40 : 0)));
-    const windDisplay = windSpeed > 0 ? `${windSpeed} km/h` : null;
 
     const descFormatted = description
         ? description.charAt(0).toUpperCase() + description.slice(1)
@@ -42,66 +34,53 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div
-                className="flex items-center gap-4 px-4 py-3 h-[72px]"
-                style={{ background: BANNER_GRADIENT }}
+                className="flex items-center gap-3 px-4 pr-[16px] py-5"
+                style={{ background: BANNER_GRADIENT, minHeight: 88 }}
             >
-                {/* Logo */}
-                <div className="flex-shrink-0 flex items-center gap-2">
-                    <img
-                        src="/Gemini_Generated_Image_jpt43mjpt43mjpt4.png"
-                        alt="SunStay"
-                        className="h-10 w-10 rounded-lg object-cover"
-                        onError={e => {
-                            e.target.src = '/Gemini_Generated_Image_1925ti1925ti1925.png';
-                        }}
-                    />
-                    <span className="text-white font-bold text-[20px] tracking-tight hidden xs:block">SunStay</span>
-                </div>
+                <img
+                    src="/Gemini_Generated_Image_jpt43mjpt43mjpt4.png"
+                    alt="SunStay"
+                    className="h-14 w-14 rounded-xl object-cover flex-shrink-0"
+                    style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.18)' }}
+                    onError={e => {
+                        e.target.src = '/Gemini_Generated_Image_1925ti1925ti1925.png';
+                    }}
+                />
 
-                {/* Location + Weather Block */}
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <div className="flex items-center gap-1.5">
-                        <MapPin size={11} className="text-sky-200 flex-shrink-0" />
-                        <span className="text-white/90 font-semibold text-[12px] tracking-widest uppercase truncate">Melbourne</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                        {weather ? (
-                            <>
-                                <WeatherIcon condition={condition} windSpeed={windSpeed} />
-                                <span className="text-white font-black text-[22px] leading-none tracking-tight" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.2)' }}>{temp}°C</span>
-                                <span className="text-white/85 text-[13px] font-medium truncate hidden sm:inline">{descFormatted}</span>
-                                {windDisplay && <span className="text-sky-200 text-[11px] font-semibold hidden md:inline">{windDisplay}</span>}
-                            </>
-                        ) : (
-                            <span className="text-white/60 text-[12px]">Loading…</span>
+                <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-white font-bold text-[13px] tracking-[0.12em] uppercase">Melbourne</span>
+                        {weather && (
+                            <span
+                                className="text-white font-black text-[26px] leading-none tracking-tight"
+                                style={{ textShadow: '0 1px 6px rgba(0,0,0,0.15)' }}
+                            >
+                                {temp}°C
+                            </span>
                         )}
                     </div>
+                    <span className="text-white/75 text-[13px] font-medium">
+                        {weather ? descFormatted : 'Loading…'}
+                    </span>
                 </div>
 
-                {/* Weather detail block */}
                 {weather && (
-                    <div className="flex-shrink-0 flex flex-col gap-1 items-end">
-                        <div className="flex items-center gap-1">
-                            <Wind size={10} className="text-sky-200" />
-                            <span className="text-white/90 text-[11px] font-semibold">{windSpeed} km/h</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <Droplets size={10} className="text-sky-200" />
-                            <span className="text-white/90 text-[11px] font-semibold">{rainChance}%</span>
-                        </div>
+                    <div className="flex-shrink-0 flex flex-col gap-1.5 items-end mr-1">
+                        <span className="text-white text-[12px] leading-tight">
+                            💨 {windSpeed} km/h
+                        </span>
+                        <span className="text-white text-[12px] leading-tight">
+                            🌧 {rainChance}%
+                        </span>
                         {cloudLabel && (
-                            <div className="flex items-center gap-1">
-                                <Cloud size={10} className="text-sky-200" />
-                                <span className="text-white/90 text-[11px] font-semibold">{cloudLabel}</span>
-                            </div>
+                            <span className="text-white text-[12px] leading-tight">
+                                ☁️ {cloudLabel}
+                            </span>
                         )}
                     </div>
                 )}
-
-
             </div>
 
-            {/* Expandable search bar */}
             <AnimatePresence>
                 {searchOpen && (
                     <motion.div
