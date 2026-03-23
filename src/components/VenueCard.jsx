@@ -358,22 +358,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </button>
 
             {venue.happyHour && (
-              <div className="bg-white border border-black/5 rounded-2xl p-4 relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] mb-4">
-                <div className="flex justify-between items-center relative z-10">
-                  <div className="flex-1 pr-2">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <h4 className="text-[#1A1A1A] font-extrabold text-[13px] tracking-wide flex items-center gap-1.5">
-                        <span className="text-amber-500">🍻</span> Happy Hour Specials
-                      </h4>
-                    </div>
-                    <div className="flex flex-col gap-1 mt-2">
-                       <div className="text-[10px] text-[#4A4A4A]/60 font-bold uppercase tracking-wider">{venue.happyHour.days.join(', ')} &middot; {venue.happyHour.start}–{venue.happyHour.end}</div>
-                       <div className="bg-amber-500/5 text-amber-800 px-3 py-2 rounded-lg border border-amber-500/10 text-[11px] font-bold mt-1 w-fit">
-                          {venue.happyHour.deal}
-                       </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 w-full flex flex-col justify-center">
+                <p className="text-amber-800 font-bold text-sm m-0">🍻 Happy Hour: {venue.happyHour.start} - {venue.happyHour.end}</p>
+                <p className="text-amber-900 text-xs mt-1 font-semibold m-0">{venue.happyHour.deal}</p>
               </div>
             )}
 

@@ -10,7 +10,7 @@ export const venues = [
         tags: ["Sunny", "Garden", "Beer Garden", "Pet Friendly", "Pram Friendly"],
         lat: -37.8556,
         lng: 144.9947,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"16:00","end":"20:00","deal":"$9 Pints, $7 Basics & $12 Cocktails"}
+        happyHour: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], start: '16:00', end: '20:00', deal: '$9 Pints, $7 Basics & $12 Cocktails' }
     },
     {
         id: 2,
