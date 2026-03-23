@@ -3,6 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Share2, Wind, Droplets, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import { getSunPositionForMap } from '../util/sunPosition';
 
+// Helper to check if happy hour is live
+function isHappyHourNow(happyHour) {
+  if (!happyHour) return false;
+  const now = new Date();
+  const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
+  if (!happyHour.days.includes(day)) return false;
+  const [sh, sm] = happyHour.start.split(':').map(Number);
+  const [eh, em] = happyHour.end.split(':').map(Number);
+  const mins = now.getHours() * 60 + now.getMinutes();
+  return mins >= sh * 60 + sm && mins < eh * 60 + em;
+}
+
 // Helper to calc outdoor sun hours for hotels/airbnbs
 function calcOutdoorSun(venue, hourlyData) {
   if (!hourlyData || !hourlyData.time) return { balcony: 0, pool: 0 };
@@ -270,6 +282,20 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 </motion.div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[#1A1A1A] text-[18px] leading-tight truncate" style={{ fontWeight: 800 }}>{name}</h3>
+                  {isHappyHourNow(venue.happyHour) && (
+                    <div style={{
+                      background:'#F59E0B',
+                      color:'#000',
+                      fontSize:10,
+                      fontWeight:800,
+                      padding:'2px 6px',
+                      borderRadius:6,
+                      display:'inline-block',
+                      marginTop:2
+                    }}>
+                      🍺 HAPPY HOUR · {venue.happyHour.deal}
+                    </div>
+                  )}
                   <div className="text-[#4A4A4A] text-[12px] font-semibold mt-1 uppercase tracking-widest truncate">
                     {categoryEmoji && <span className="mr-1">{categoryEmoji}</span>}
                     {type || venue.vibe} &middot; {suburb}
