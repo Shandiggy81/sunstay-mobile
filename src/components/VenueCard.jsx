@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Share2, Wind, Droplets, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import { getSunPositionForMap } from '../util/sunPosition';
+import { venues } from '../data/venues';
 
 // Helper to check if happy hour is live
 function isHappyHourNow(happyHour) {
@@ -212,6 +213,13 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
   const categoryEmoji = getCategoryEmoji();
 
+  // Bypass pipeline and grab raw happy hour data
+  const fullVenueData = venues.find(v => 
+    (name || '').toLowerCase().includes((v.name || '').toLowerCase()) ||
+    (v.name || '').toLowerCase().includes((name || '').toLowerCase())
+  );
+  const actualHappyHour = fullVenueData?.happyHour;
+
   return (
     <AnimatePresence>
       <motion.div
@@ -357,10 +365,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <X size={18} strokeWidth={2.5} />
             </button>
 
-            {venue.happyHour && (
+            {actualHappyHour && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 w-full flex flex-col justify-center">
-                <p className="text-amber-800 font-bold text-sm m-0">🍻 Happy Hour: {venue.happyHour.start} - {venue.happyHour.end}</p>
-                <p className="text-amber-900 text-xs mt-1 font-semibold m-0">{venue.happyHour.deal}</p>
+                <p className="text-amber-800 font-bold text-sm m-0">🍻 Happy Hour: {actualHappyHour.start} - {actualHappyHour.end}</p>
+                <p className="text-amber-900 text-xs mt-1 font-semibold m-0">{actualHappyHour.deal}</p>
               </div>
             )}
 
