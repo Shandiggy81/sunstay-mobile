@@ -10,7 +10,7 @@ export const venues = [
         tags: ["Sunny", "Garden", "Beer Garden", "Pet Friendly", "Pram Friendly"],
         lat: -37.8556,
         lng: 144.9947,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"16:00","end":"20:00","deal":"$9 pints, $7 basics, $8 wines"}
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"16:00","end":"20:00","deal":"$9 Pints, $7 Basics & $12 Cocktails"}
     },
     {
         id: 2,
@@ -21,7 +21,7 @@ export const venues = [
         tags: ["Cozy", "After Work", "Rooftop", "Wheelchair Accessible"],
         lat: -37.8136,
         lng: 144.9631,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"18:00","deal":"$8 wines, $9 pints, $15 cocktails"}
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"18:00","deal":"$8 Wines, $9 Pints & $15 Cocktails"}
     },
     {
         id: 3,
@@ -32,7 +32,7 @@ export const venues = [
         tags: ["People Watching", "Sunny", "Pet Friendly", "Smoking Area"],
         lat: -37.8679,
         lng: 144.9797,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"15:00","end":"17:00","deal":"Cocktails, wines, beers specials"}
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"15:00","end":"17:00","deal":"Daily Discounted Drinks"}
     },
     {
         id: 4,
@@ -43,7 +43,7 @@ export const venues = [
         tags: ["Party", "Views", "Rooftop", "Smoking Area"],
         lat: -37.8394,
         lng: 145.0008,
-        happyHour: {"days":["Fri"],"start":"17:00","end":"23:00","deal":"$5 tacos, cheap tap beers and house wines"}
+        happyHour: {"days":["Fri"],"start":"17:00","end":"20:00","deal":"$7 Tap Beers/Wines & $3.50 Oysters"}
     },
     {
         id: 5,
@@ -54,7 +54,7 @@ export const venues = [
         tags: ["Fireplace", "Cozy", "Wheelchair Accessible"],
         lat: -37.8563,
         lng: 144.9951,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"21:00","deal":"$6 wines, $8 basics, $12 pints"}
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"19:00","deal":"$6 Wines/Pots & $12 Pints"}
     },
     {
         id: 6,
@@ -65,7 +65,7 @@ export const venues = [
         tags: ["Hidden Gem", "Sunny", "Pet Friendly"],
         lat: -37.8686,
         lng: 145.0039,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"20:00","deal":"$9 wines/prosecco, $10.5 pints, 2-for-$24+ cocktails"}
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat"],"start":"16:00","end":"19:00","deal":"$10.50 Pints & 2-for-$26 Espresso Martinis"}
     },
     {
         id: 7,
@@ -76,7 +76,7 @@ export const venues = [
         tags: ["24h License", "Deck", "Beer Garden", "Smoking Area", "Wheelchair Accessible"],
         lat: -37.8553,
         lng: 144.9945,
-        happyHour: {"days":["Wed","Thu","Fri","Sat","Sun"],"start":"16:00","end":"19:00","deal":"$7 local pints, spirits & wines"}
+        happyHour: {"days":["Wed","Thu","Fri","Sat"],"start":"16:00","end":"19:00","deal":"$7 Spirits/Wines & $10 Pints"}
     },
     {
         id: 8,
@@ -87,7 +87,7 @@ export const venues = [
         tags: ["Sunset", "Sand", "Pet Friendly", "Pram Friendly", "Wheelchair Accessible"],
         lat: -37.8629,
         lng: 144.9736,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"$8.50 wines, $12 premium pints"}
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"Happy Hour by the Bay Drinks"}
     },
     {
         id: 9,
@@ -98,7 +98,7 @@ export const venues = [
         tags: ["Comfy", "Fireplace", "Wheelchair Accessible"],
         lat: -37.8575,
         lng: 144.9960,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"21:00","deal":"$5 drinks at 5pm, increases $1 each hour"}
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"21:00","deal":"Sliding Prices: $5 at 5pm, $6 at 6pm, $7 at 7pm"}
     },
     {
         id: 10,
@@ -128,7 +128,8 @@ export const venues = [
         emoji: "🍻",
         tags: ["Pet Friendly", "Large Groups", "Beer Garden", "Pram Friendly", "Wheelchair Accessible"],
         lat: -37.8363,
-        lng: 144.9353
+        lng: 144.9353,
+        happyHour: {"days":["Sat"],"start":"14:00","end":"17:00","deal":"$6 Schooners (Tappy Hour)"}
     },
     {
         id: 13,
@@ -149,7 +150,8 @@ export const venues = [
         emoji: "🍿",
         tags: ["Views", "Casual", "Rooftop", "Wheelchair Accessible"],
         lat: -37.8136,
-        lng: 144.9669
+        lng: 144.9669,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"Discounted House Drinks"}
     },
     {
         id: 15,
@@ -160,7 +162,7 @@ export const venues = [
         tags: ["Cocktails", "Sunny", "Rooftop", "Smoking Area"],
         lat: -37.8136,
         lng: 144.9685,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"18:00","deal":"$8 wines and $10 spirits"}
+        happyHour: {"days":["Tue","Wed","Thu","Fri"],"start":"15:00","end":"18:00","deal":"$8 Wines & $10 Spirits"}
     },
     {
         id: 16,
@@ -181,8 +183,7 @@ export const venues = [
         emoji: "🐾",
         tags: ["Dog Friendly", "Sport", "Pet Friendly", "Beer Garden"],
         lat: -37.7833,
-        lng: 144.9717,
-        happyHour: {"days":["Fri"],"start":"17:00","end":"00:00","deal":"$10 cocktails all night long"}
+        lng: 144.9717
     },
     {
         id: 18,
@@ -193,7 +194,7 @@ export const venues = [
         tags: ["Pram Friendly", "Beer Garden", "Pet Friendly", "Wheelchair Accessible"],
         lat: -37.7608,
         lng: 145.0125,
-        happyHour: {"days":["Fri"],"start":"16:00","end":"18:00","deal":"$20 Mr Burger and Chips"}
+        happyHour: {"days":["Wed","Thu","Fri"],"start":"17:00","end":"19:00","deal":"$9 Schooners, $8 Spirits, $7 Wines"}
     },
     {
         id: 19,
@@ -203,7 +204,8 @@ export const venues = [
         emoji: "🌿",
         tags: ["Hidden", "Vines", "Beer Garden", "Pet Friendly"],
         lat: -37.7997,
-        lng: 144.9789
+        lng: 144.9789,
+        happyHour: {"days":["Mon","Tue","Wed","Thu"],"start":"15:00","end":"18:00","deal":"$4 Pots & $8 Pints"}
     },
     {
         id: 20,
@@ -214,7 +216,7 @@ export const venues = [
         tags: ["Garden", "Arts", "Beer Garden", "Pet Friendly", "Pram Friendly"],
         lat: -37.7686,
         lng: 144.9597,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"19:00","deal":"$10 Coopers Draught and Pale Ale pints"}
+        happyHour: {"days":["Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"19:00","deal":"$10 Pints"}
     },
     {
         id: 21,
@@ -225,7 +227,7 @@ export const venues = [
         tags: ["Day/Night", "Sunny", "Pet Friendly", "Wheelchair Accessible"],
         lat: -37.7997,
         lng: 144.9944,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"15:00","end":"18:00","deal":"$10 house beers, wines, basic spirits, $15 espresso martinis"}
+        happyHour: {"days":["Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"$8 Pints & $12 Espresso Martinis"}
     },
     {
         id: 22,
@@ -236,7 +238,7 @@ export const venues = [
         tags: ["River", "Sunny", "Wheelchair Accessible", "Smoking Area"],
         lat: -37.8183,
         lng: 144.9625,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"19:00","deal":"$10 pints, wines, spirits, and spritzes"}
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"19:00","deal":"$10 Pints, Wines, Spirits & Spritz"}
     }
 ];
 
