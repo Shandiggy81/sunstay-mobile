@@ -4,6 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../config/mapConfig';
 import { demoVenues } from '../data/demoVenues';
+import { venues as realVenues } from '../data/venues';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWeather } from '../context/WeatherContext';
 import {
@@ -63,7 +64,14 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState({ vibe: [], sun: [], features: [] });
     
-    const venues = demoVenues;
+    const venues = useMemo(() => {
+        return demoVenues.map(dv => {
+            const match = realVenues.find(rv => 
+                (dv.venueName || '').toLowerCase().includes((rv.name || '').toLowerCase())
+            );
+            return match && match.happyHour ? { ...dv, happyHour: match.happyHour } : dv;
+        });
+    }, []);
 
     const toggleFilter = (section, value) => {
       setActiveFilters(prev => {

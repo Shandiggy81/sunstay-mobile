@@ -263,11 +263,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               className="md:hidden" 
             />
 
-            <div className="bg-red-100 border-2 border-red-500 p-2 mb-4 w-full z-50 overflow-auto text-[10px]">
-              <p className="font-bold text-red-700 m-0">DEBUG DATA:</p>
-              <pre className="m-0 mt-1">{JSON.stringify(venue, null, 2)}</pre>
-            </div>
-
             <div
               style={{
                 background: '#EFF6FF',
