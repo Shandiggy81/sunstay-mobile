@@ -282,21 +282,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 </motion.div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[#1A1A1A] text-[18px] leading-tight truncate" style={{ fontWeight: 800 }}>{name}</h3>
-                  {venue.happyHour && (
-                    <div style={{
-                      background: isHappyHourNow(venue.happyHour) ? '#F59E0B' : '#F3F4F6',
-                      color: isHappyHourNow(venue.happyHour) ? '#000' : '#6B7280',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: '3px 7px',
-                      borderRadius: 6,
-                      display: 'inline-block',
-                      marginTop: 3
-                    }}>
-                      🍺 {isHappyHourNow(venue.happyHour) ? 'HAPPY HOUR NOW · ' : ''}
-                      {venue.happyHour.days.join(', ')} {venue.happyHour.start}–{venue.happyHour.end} · {venue.happyHour.deal}
-                    </div>
-                  )}
                   <div className="text-[#4A4A4A] text-[12px] font-semibold mt-1 uppercase tracking-widest truncate">
                     {categoryEmoji && <span className="mr-1">{categoryEmoji}</span>}
                     {type || venue.vibe} &middot; {suburb}
@@ -371,6 +356,26 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             <button onClick={onClose} className="absolute top-3 right-3 z-50 bg-black/5 hover:bg-black/10 rounded-full p-2 text-[#1A1A1A] transition-colors" aria-label="Close">
               <X size={18} strokeWidth={2.5} />
             </button>
+
+            {venue.happyHour && (
+              <div className="bg-white border border-black/5 rounded-2xl p-4 relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] mb-4">
+                <div className="flex justify-between items-center relative z-10">
+                  <div className="flex-1 pr-2">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <h4 className="text-[#1A1A1A] font-extrabold text-[13px] tracking-wide flex items-center gap-1.5">
+                        <span className="text-amber-500">🍻</span> Happy Hour Specials
+                      </h4>
+                    </div>
+                    <div className="flex flex-col gap-1 mt-2">
+                       <div className="text-[10px] text-[#4A4A4A]/60 font-bold uppercase tracking-wider">{venue.happyHour.days.join(', ')} &middot; {venue.happyHour.start}–{venue.happyHour.end}</div>
+                       <div className="bg-amber-500/5 text-amber-800 px-3 py-2 rounded-lg border border-amber-500/10 text-[11px] font-bold mt-1 w-fit">
+                          {venue.happyHour.deal}
+                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <motion.div 
               ref={panelRef}
