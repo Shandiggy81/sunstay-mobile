@@ -282,18 +282,19 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 </motion.div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[#1A1A1A] text-[18px] leading-tight truncate" style={{ fontWeight: 800 }}>{name}</h3>
-                  {isHappyHourNow(venue.happyHour) && (
+                  {venue.happyHour && (
                     <div style={{
-                      background:'#F59E0B',
-                      color:'#000',
-                      fontSize:10,
-                      fontWeight:800,
-                      padding:'2px 6px',
-                      borderRadius:6,
-                      display:'inline-block',
-                      marginTop:2
+                      background: isHappyHourNow(venue.happyHour) ? '#F59E0B' : '#F3F4F6',
+                      color: isHappyHourNow(venue.happyHour) ? '#000' : '#6B7280',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: '3px 7px',
+                      borderRadius: 6,
+                      display: 'inline-block',
+                      marginTop: 3
                     }}>
-                      🍺 HAPPY HOUR · {venue.happyHour.deal}
+                      🍺 {isHappyHourNow(venue.happyHour) ? 'HAPPY HOUR NOW · ' : ''}
+                      {venue.happyHour.days.join(', ')} {venue.happyHour.start}–{venue.happyHour.end} · {venue.happyHour.deal}
                     </div>
                   )}
                   <div className="text-[#4A4A4A] text-[12px] font-semibold mt-1 uppercase tracking-widest truncate">
