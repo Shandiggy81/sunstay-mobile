@@ -23,9 +23,9 @@ export default function OwnerDashboard({ venue }) {
   const hero = getHeroStatus();
 
   const Toggle = ({ label, icon, value, onChange, recommended }) => (
-    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+    <div className={`flex items-center justify-between py-3 px-3 rounded-xl border-b border-gray-100 last:border-0 transition-colors duration-200 ${value ? 'bg-teal-50' : 'hover:bg-gray-50'}`}>
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <span className="text-lg flex-shrink-0">{icon}</span>
+        <span className="text-2xl flex-shrink-0">{icon}</span>
         <span className="text-sm font-semibold text-gray-700 truncate">{label}</span>
         {recommended && (
           <span className="flex-shrink-0 text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
@@ -44,22 +44,34 @@ export default function OwnerDashboard({ venue }) {
 
   return (
     <div className="p-5">
-      {/* Header */}
-      <div className="mb-5">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Partner Control Center</p>
-        <h2 className="text-2xl font-black text-gray-900">{venue?.name || 'Your Venue'}</h2>
-        <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
-          <span>🌡️ UV {w.uvIndex ?? '--'}</span>
-          <span>💨 Wind {w.windSpeed ?? '--'} km/h</span>
-          <span>🌧️ Rain {w.precipProb ?? '--'}%</span>
+      {/* Header Block — Dark Gradient Hero */}
+      <div className="bg-gradient-to-r from-gray-900 to-slate-800 rounded-t-3xl p-6 -mx-5 -mt-5 mb-5 shadow-inner">
+        <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-1">Partner Control Center</p>
+        <h2 className="text-2xl font-black text-white">{venue?.name || 'Your Venue'}</h2>
+        <div className="flex flex-wrap gap-4 mt-3">
+          <div className="bg-white/10 rounded-xl px-3 py-2 text-center min-w-[70px]">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide">UV Index</p>
+            <p className="text-lg font-black text-white">{w.uvIndex ?? '--'}</p>
+          </div>
+          <div className="bg-white/10 rounded-xl px-3 py-2 text-center min-w-[70px]">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide">Wind</p>
+            <p className="text-lg font-black text-white">{w.windSpeed ?? '--'}<span className="text-xs font-normal ml-0.5 text-gray-400">km/h</span></p>
+          </div>
+          <div className="bg-white/10 rounded-xl px-3 py-2 text-center min-w-[70px]">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide">Rain Prob.</p>
+            <p className="text-lg font-black text-white">{w.precipProb ?? '--'}<span className="text-xs font-normal ml-0.5 text-gray-400">%</span></p>
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Toggles */}
-        <div className="flex-1 flex flex-col gap-4">
-          <div className="bg-gray-50 rounded-2xl p-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Climate & Structural</p>
+        <div className="flex-1 flex flex-col gap-6">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-4 bg-teal-400 rounded-full"></div>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">Climate & Structural</p>
+            </div>
             <Toggle label="Ignite Main Fireplace"       icon="🔥" value={fireplaceOn}  onChange={setFireplaceOn} />
             <Toggle label="Outdoor Gas Heaters"         icon="🍄" value={heatersOn}    onChange={setHeatersOn} />
             <Toggle label="Cafe Blinds / PVC Down"      icon="⛺" value={blindsDown}   onChange={setBlindsDown}   recommended={w.windSpeed > 25} />
@@ -68,8 +80,11 @@ export default function OwnerDashboard({ venue }) {
             <Toggle label="Umbrellas Deployed"          icon="⛱️" value={umbrellasOut} onChange={setUmbrellasOut} recommended={w.uvIndex >= 6} />
           </div>
 
-          <div className="bg-gray-50 rounded-2xl p-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Vibe & Atmosphere</p>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-4 bg-teal-400 rounded-full"></div>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">Vibe & Atmosphere</p>
+            </div>
             <Toggle label="Dogs Allowed Indoors Today"  icon="🐶" value={dogsAllowed} onChange={setDogsAllowed} />
             <Toggle
               label="Flash Deal: $10 Mulled Wine"
@@ -86,20 +101,29 @@ export default function OwnerDashboard({ venue }) {
           </div>
         </div>
 
-        {/* Live Preview */}
-        <div className={`lg:w-60 bg-gradient-to-br ${hero.bg} rounded-2xl p-5 flex flex-col gap-3`}>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Live Customer View</p>
-          <div className="flex flex-col items-center justify-center py-6 gap-2">
-            <span className="text-6xl">{hero.icon}</span>
-            <p className="text-sm font-bold text-gray-800 text-center mt-2">{hero.label}</p>
+        {/* Live Customer View panel — rich design */}
+        <div className={`lg:w-64 bg-gradient-to-br ${hero.bg} rounded-3xl p-5 flex flex-col gap-4 border border-white/60 shadow-lg h-fit sticky top-0`}>
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Live Customer View</p>
+          
+          {/* Big hero status status card */}
+          <div className="bg-white/60 backdrop-blur-md rounded-2xl p-4 flex flex-col items-center gap-2 text-center shadow-sm border border-white">
+            <span className="text-5xl">{hero.icon}</span>
+            <p className="text-sm font-bold text-gray-800 leading-tight">{hero.label}</p>
+            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{venue?.name}</p>
           </div>
+
+          {/* Active badges */}
           <div className="flex flex-col gap-2">
-            {dogsAllowed   && <span className="bg-white/70 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">🐶 Dogs Welcome Today</span>}
-            {mulledWine    && <span className="bg-white/70 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">🍷 $10 Mulled Wine On Now</span>}
-            {frozenMargs   && <span className="bg-white/70 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">🧉 $12 Frozen Margs On Now</span>}
-            {blindsDown    && <span className="bg-white/70 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">⛺ Wind Protected</span>}
-            {heatersOn     && <span className="bg-white/70 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">🍄 Heaters Running</span>}
-            {umbrellasOut  && <span className="bg-white/70 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">⛱️ Umbrellas Out</span>}
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Active Now</p>
+            {!dogsAllowed && !mulledWine && !frozenMargs && !blindsDown && !heatersOn && !umbrellasOut && (
+              <p className="text-xs text-gray-400 italic px-1">No active specials</p>
+            )}
+            {dogsAllowed   && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🐶 Dogs Welcome Today</span>}
+            {mulledWine    && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🍷 $10 Mulled Wine On Now</span>}
+            {frozenMargs   && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🧉 $12 Frozen Margs On Now</span>}
+            {blindsDown    && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">⛺ Wind Protected</span>}
+            {heatersOn     && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🍄 Heaters Running</span>}
+            {umbrellasOut  && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">⛱️ Umbrellas Out</span>}
           </div>
         </div>
       </div>

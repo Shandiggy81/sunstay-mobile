@@ -718,14 +718,9 @@ const AppContent = () => {
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl min-h-[400px] overflow-hidden flex flex-col"
                         >
-                            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                                <h2 className="text-xl font-black text-gray-800">Venue Manager</h2>
-                                <button
-                                    onClick={() => setShowOwnerDashboard(false)}
-                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 font-bold"
-                                >
-                                    ✕
-                                </button>
+                            <div className="flex items-center justify-between px-6 pt-6 pb-0">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Venue Manager</h3>
+                                <button onClick={() => setShowOwnerDashboard(false)} className="text-gray-400 hover:text-gray-700 text-xl font-light">✕</button>
                             </div>
                             <div className="flex-1 overflow-y-auto">
                                 <OwnerDashboard venue={venues[0]} />
