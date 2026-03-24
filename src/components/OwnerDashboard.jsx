@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function OwnerDashboard({ venue }) {
   // Group 1: Climate & Structural
@@ -32,7 +32,72 @@ export default function OwnerDashboard({ venue }) {
   const [pushNotif, setPushNotif] = useState(false);
   const [featureList, setFeatureList] = useState(false);
 
+  // Camera states
+  const [cameraStream, setCameraStream] = useState(null);
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [showDemoNotice, setShowDemoNotice] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
   const w = venue?.weatherNow || {};
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' }, 
+        audio: false 
+      });
+      setCameraStream(stream);
+      setCameraActive(true);
+      setCapturedPhoto(null);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Camera error:', err);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      setCapturedPhoto(dataUrl);
+      setCameraActive(false);
+      stopCamera();
+      setShowDemoNotice(true);
+      setTimeout(() => setShowDemoNotice(false), 4000);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setCameraActive(false);
+  };
+
+  const retakePhoto = () => {
+    setCapturedPhoto(null);
+    startCamera();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cameraStream]);
 
   const getHeroStatus = () => {
     if (fireplaceOn)  return { icon: '🔥', label: 'Cozy & Warm – Fireplace Active', bg: 'from-orange-100 to-red-50' };
@@ -167,12 +232,112 @@ export default function OwnerDashboard({ venue }) {
         <div className={`lg:w-64 bg-gradient-to-br ${hero.bg} rounded-3xl p-5 flex flex-col gap-4 border border-white/60 shadow-lg h-fit sticky top-0`}>
           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Live Customer View</p>
           
-          {/* Big hero status status card */}
-          <div className="bg-white/60 backdrop-blur-md rounded-2xl p-4 flex flex-col items-center gap-2 text-center shadow-sm border border-white">
-            <span className="text-5xl">{hero.icon}</span>
-            <p className="text-sm font-bold text-gray-800 leading-tight">{hero.label}</p>
-            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{venue?.name}</p>
+          {/* === LIVE PHOTO SECTION === */}
+          <div className="relative bg-gray-900 rounded-2xl overflow-hidden" style={{ minHeight: '200px' }}>
+
+            {/* State 1: No photo, camera off — show prompt */}
+            {!cameraActive && !capturedPhoto && (
+              <div className="flex flex-col items-center justify-center h-full py-10 gap-3">
+                <span className="text-4xl">📷</span>
+                <p className="text-sm font-bold text-white text-center px-4">Show Punters Your Venue Live</p>
+                <p className="text-xs text-gray-400 text-center px-6">Capture your beer garden, rooftop or bar right now</p>
+                <button
+                  onClick={startCamera}
+                  className="mt-2 bg-teal-500 hover:bg-teal-400 text-white font-bold text-sm px-5 py-2.5 rounded-full transition-colors"
+                >
+                  📸 Open Camera
+                </button>
+              </div>
+            )}
+
+            {/* State 2: Camera live — show viewfinder */}
+            {cameraActive && (
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full rounded-2xl"
+                  style={{ maxHeight: '260px', objectFit: 'cover' }}
+                />
+                {/* Weather overlay on viewfinder */}
+                <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-2">
+                  <span className="text-white text-xs font-bold">☀️ {w.uvIndex ?? '--'} UV</span>
+                  <span className="text-white/60 text-xs">·</span>
+                  <span className="text-white text-xs font-bold">💨 {w.windSpeed ?? '--'}km/h</span>
+                </div>
+                {/* Venue name overlay */}
+                <div className="absolute bottom-14 left-3 right-3">
+                  <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2">
+                    <p className="text-white text-xs font-bold">{venue?.name}</p>
+                    <p className="text-gray-300 text-[10px]">Live from the venue · {new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                </div>
+                {/* Capture button */}
+                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-3">
+                  <button
+                    onClick={stopCamera}
+                    className="bg-white/20 text-white text-xs font-bold px-4 py-2 rounded-full backdrop-blur-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={capturePhoto}
+                    className="bg-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl border-4 border-gray-200 hover:scale-105 transition-transform"
+                  >
+                    📸
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* State 3: Photo captured — show preview with weather overlay */}
+            {capturedPhoto && !cameraActive && (
+              <div className="relative">
+                <img
+                  src={capturedPhoto}
+                  alt="Live venue"
+                  className="w-full rounded-2xl"
+                  style={{ maxHeight: '260px', objectFit: 'cover' }}
+                />
+                {/* Weather badge overlay */}
+                <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-2">
+                  <span className="text-white text-xs font-bold">{hero.icon} {hero.label}</span>
+                </div>
+                {/* Venue + time stamp */}
+                <div className="absolute bottom-12 left-3 right-3">
+                  <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2">
+                    <p className="text-white text-xs font-bold">{venue?.name} · Live Now</p>
+                    <p className="text-gray-300 text-[10px]">Updated {new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                </div>
+                {/* Retake button */}
+                <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                  <button
+                    onClick={retakePhoto}
+                    className="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full"
+                  >
+                    🔄 Retake
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Hidden canvas for capture */}
+          <canvas ref={canvasRef} className="hidden" />
+
+          {/* Demo notice toast */}
+          {showDemoNotice && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+              <span className="text-lg">🚧</span>
+              <div>
+                <p className="text-xs font-bold text-amber-800">Demo Mode – Photo Not Saved</p>
+                <p className="text-[10px] text-amber-600 mt-0.5">In production, this photo would update your live venue card visible to all nearby Sunstay users instantly.</p>
+              </div>
+            </div>
+          )}
 
           {/* Active badges */}
           <div className="flex flex-col gap-2">
