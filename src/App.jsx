@@ -474,11 +474,13 @@ const AppContent = () => {
             />
 
             {showOwnerDashboard ? (
-                <div className="flex-1 bg-gray-50 overflow-y-auto min-h-0">
+                <div className="min-h-screen">
                     <OwnerDashboard 
-                        venue={selectedVenue || venues[0]} 
-                        venues={venues} 
-                        onClose={() => setShowOwnerDashboard(false)} 
+                        venue={selectedVenue} 
+                        onClose={() => {
+                            setShowOwnerDashboard(false);
+                            setSelectedVenue(null);
+                        }} 
                     />
                 </div>
             ) : (
@@ -681,6 +683,8 @@ const AppContent = () => {
                             onClose={handleCloseCard}
                             onCenter={handleVenueSelect}
                             cozyWeatherActive={cozyWeatherActive}
+                            setShowOwnerDashboard={setShowOwnerDashboard}
+                            setSelectedVenue={setSelectedVenue}
                         />
                     )}
 
@@ -699,13 +703,7 @@ const AppContent = () => {
                     {/* Sunny mascot FAB */}
                     <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />
 
-                    {/* Partner Dashboard FAB */}
-                    <button
-                        onClick={() => setShowOwnerDashboard(true)}
-                        className="fixed bottom-6 left-6 z-40 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2"
-                    >
-                        🏢 Partner Dashboard
-                    </button>
+
 
                     {/* Footer badge */}
                     <motion.div

@@ -117,7 +117,7 @@ const HourlyTimeline = ({ hourlyData, dark }) => {
   );
 };
 
-export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive }) {
+export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue }) {
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [demoModalOpen, setDemoModalOpen] = useState(false);
   const panelRef = useRef(null);
@@ -390,6 +390,20 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             )}
 
             {getSmartBadge()}
+
+            {/* Manage Venue Button */}
+            <div className="mt-3 pt-3 border-t border-gray-100 mb-4">
+              <button
+                onClick={() => {
+                  setShowOwnerDashboard(true);
+                  setSelectedVenue(venue);
+                }}
+                className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-sm py-3 px-4 rounded-xl shadow-lg hover:from-teal-700 hover:to-emerald-700 transition-all duration-300 flex items-center justify-center gap-2"
+              >
+                🏢 Manage This Venue
+              </button>
+            </div>
+
             <motion.div 
               ref={panelRef}
               className="bg-white border border-black/5 rounded-2xl p-5 cursor-pointer relative overflow-hidden shadow-sm"

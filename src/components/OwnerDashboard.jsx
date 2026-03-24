@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
-export default function OwnerDashboard({ venue: initialVenue, venues = [], onClose }) {
-  const [selectedVenue, setSelectedVenue] = useState(initialVenue);
-
+export default function OwnerDashboard({ venue, onClose }) {
   // Group 1: Climate & Structural
   const [fireplaceOn, setFireplaceOn] = useState(false);
   const [heatersOn, setHeatersOn] = useState(false);
@@ -42,7 +40,7 @@ export default function OwnerDashboard({ venue: initialVenue, venues = [], onClo
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  const w = selectedVenue?.weatherNow || {};
+  const w = venue?.weatherNow || {};
 
   const startCamera = async () => {
     try {
@@ -101,35 +99,6 @@ export default function OwnerDashboard({ venue: initialVenue, venues = [], onClo
     };
   }, [cameraStream]);
 
-  // Reset toggles when venue changes
-  useEffect(() => {
-    setFireplaceOn(false);
-    setHeatersOn(false);
-    setBlindsDown(false);
-    setRoofClosed(false);
-    setMistersOn(false);
-    setUmbrellasOut(false);
-    setHeatedBlankets(false);
-    setAcMaxOn(false);
-    setSunscreenStation(false);
-    setDogsAllowed(false);
-    setMulledWine(false);
-    setFrozenMargs(false);
-    setLiveMusicOn(false);
-    setCandlesOn(false);
-    setLateNightFood(false);
-    setSocialMoment(false);
-    setWalkInsOn(false);
-    setReservationsOnly(false);
-    setPrivateEvent(false);
-    setLastRound(false);
-    setPinBoost(false);
-    setPushNotif(false);
-    setFeatureList(false);
-    setCapturedPhoto(null);
-    stopCamera();
-  }, [selectedVenue]);
-
   const getHeroStatus = () => {
     if (fireplaceOn)  return { icon: '🔥', label: 'Cozy & Warm – Fireplace Active', bg: 'from-orange-100 to-red-50' };
     if (mistersOn)    return { icon: '💨', label: 'Cool Breeze – Misters Running',  bg: 'from-sky-50 to-blue-50' };
@@ -182,7 +151,7 @@ export default function OwnerDashboard({ venue: initialVenue, venues = [], onClo
         {/* Header Block — Dark Gradient Hero */}
         <div className="bg-gradient-to-r from-gray-900 to-slate-800 rounded-2xl p-6 mb-5 shadow-inner">
           <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-1">Partner Control Center</p>
-          <h2 className="text-2xl font-black text-white">{selectedVenue?.name || 'Your Venue'}</h2>
+          <h2 className="text-2xl font-black text-white">{venue?.name || 'Your Venue'}</h2>
           
           <div className="flex flex-wrap gap-4 mt-3">
             <div className="bg-white/10 rounded-xl px-3 py-2 text-center min-w-[70px]">
@@ -197,26 +166,6 @@ export default function OwnerDashboard({ venue: initialVenue, venues = [], onClo
               <p className="text-[10px] text-gray-400 uppercase tracking-wide">Rain Prob.</p>
               <p className="text-lg font-black text-white">{w.precipProb ?? '--'}<span className="text-xs font-normal ml-0.5 text-gray-400">%</span></p>
             </div>
-          </div>
-
-          {/* Venue Switcher */}
-          <div className="mt-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Switch Venue</p>
-            <select
-              value={selectedVenue?.id || selectedVenue?.name}
-              onChange={(e) => {
-                const found = venues.find(v => (v.id || v.name) === e.target.value);
-                if (found) setSelectedVenue(found);
-              }}
-              className="w-full bg-white/10 text-white border border-white/20 rounded-xl px-3 py-2.5 text-sm font-semibold appearance-none cursor-pointer"
-              style={{ backgroundImage: 'none' }}
-            >
-              {venues.map(v => (
-                <option key={v.id || v.name} value={v.id || v.name} className="text-gray-900 bg-white">
-                  {v.name} — {v.suburb || v.address?.split(',')[1]?.trim() || ''}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -337,7 +286,7 @@ export default function OwnerDashboard({ venue: initialVenue, venues = [], onClo
                   {/* Venue name overlay */}
                   <div className="absolute bottom-14 left-3 right-3">
                     <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2">
-                      <p className="text-white text-xs font-bold">{selectedVenue?.name}</p>
+                      <p className="text-white text-xs font-bold">{venue?.name}</p>
                       <p className="text-gray-300 text-[10px]">Live from the venue · {new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
@@ -375,7 +324,7 @@ export default function OwnerDashboard({ venue: initialVenue, venues = [], onClo
                   {/* Venue + time stamp */}
                   <div className="absolute bottom-12 left-3 right-3">
                     <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2">
-                      <p className="text-white text-xs font-bold">{selectedVenue?.name} · Live Now</p>
+                      <p className="text-white text-xs font-bold">{venue?.name} · Live Now</p>
                       <p className="text-gray-300 text-[10px]">Updated {new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
