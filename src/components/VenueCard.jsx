@@ -366,46 +366,54 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </button>
 
             {actualHappyHour && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 w-full flex flex-col justify-center">
-                <p className="text-amber-800 font-bold text-sm m-0">🍻 Happy Hour: {actualHappyHour.start} - {actualHappyHour.end}</p>
-                <p className="text-amber-900 text-xs mt-1 font-semibold m-0">{actualHappyHour.deal}</p>
+              <div className="flex items-center justify-between bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-2xl p-3.5 mb-4 shadow-sm">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-bold tracking-wider text-amber-600 uppercase mb-0.5 m-0">
+                    Happy Hour • {actualHappyHour.start} - {actualHappyHour.end}
+                  </p>
+                  <p className="text-sm font-extrabold text-gray-900 m-0 tracking-tight">
+                    {actualHappyHour.deal}
+                  </p>
+                </div>
+                <div className="h-10 w-10 rounded-full bg-white/60 shadow-sm border border-amber-100 flex items-center justify-center text-xl">
+                  🍻
+                </div>
               </div>
             )}
 
             <motion.div 
               ref={panelRef}
-              className="bg-white border border-black/5 rounded-2xl p-4 cursor-pointer relative overflow-hidden group shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+              className="bg-white border border-black/5 rounded-2xl p-4 cursor-pointer relative overflow-hidden shadow-sm"
               onClick={() => setPanelExpanded(!panelExpanded)}
               whileHover={{ scale: 1.005 }}
               whileTap={{ scale: 0.995 }}
             >
-              <div className="flex justify-between items-center relative z-10">
-                <div className="flex-1 pr-2">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <h4 className="text-[#1A1A1A] font-extrabold text-[13px] tracking-wide flex items-center gap-1.5">
-                      <span className="text-amber-500">⚡</span> Sun Intelligence
-                    </h4>
+              <div className="flex justify-between items-center relative z-10 w-full">
+                <div className="flex-1 pr-3 flex flex-col justify-center">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-amber-500 text-sm leading-none m-0">⚡</span>
+                    <h4 className="text-gray-900 font-extrabold text-[13px] tracking-tight m-0 leading-none">Sun Intelligence</h4>
                   </div>
-                  <div className="flex flex-col gap-1 mt-2">
-                    <div className="text-[10px] text-[#4A4A4A]/60 font-bold uppercase tracking-wider">Outdoor Sun Exposure</div>
-                    <div className="flex flex-wrap gap-2 text-[11px] font-bold">
+                  <div className="flex flex-col mt-2.5">
+                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-[0.15em] mb-1.5 m-0 leading-none">Outdoor Sun Exposure</div>
+                    <div className="flex flex-wrap gap-1.5 text-[10px] font-bold">
                       {venue.balconyData ? (
                         <>
-                          <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">Balcony: {venue.balconyData.hours}h</span>
-                          <span className="bg-orange-500/5 text-orange-700 px-2 py-0.5 rounded-md border border-orange-500/10">{venue.balconyData.direction}</span>
-                          <span className="bg-blue-500/5 text-blue-700 px-2 py-0.5 rounded-md border border-blue-500/10">{venue.balconyData.views} Views</span>
+                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">Balcony: {venue.balconyData.hours}h</span>
+                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">{venue.balconyData.direction}</span>
+                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">{venue.balconyData.views}</span>
                         </>
                       ) : (
                         <>
-                          <span className="bg-amber-500/5 text-amber-700 px-2 py-0.5 rounded-md border border-amber-500/10">{sunHours.labels.outdoor}: {sunHours.outdoor}</span>
-                          <span className="bg-cyan-500/5 text-cyan-700 px-2 py-0.5 rounded-md border border-cyan-500/10">{sunHours.labels.covered}: {sunHours.covered}</span>
+                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">{sunHours.labels.outdoor}: {sunHours.outdoor}</span>
+                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">{sunHours.labels.covered}: {sunHours.covered}</span>
                         </>
                       )}
                     </div>
 
                     {cozyWeatherActive && (
-                      <div className="bg-orange-500/5 text-orange-800 px-3 py-1 rounded-lg border border-orange-500/10 text-[10px] font-bold mt-2 flex items-center gap-2">
-                         ☕ Cozy Indoor | Heaters lit | Rain shelter | Cozy Score 92/100
+                      <div className="bg-white border border-black/5 shadow-sm text-gray-800 px-2.5 py-1.5 rounded-lg text-[10px] font-bold mt-2.5 flex items-center gap-1.5 w-fit leading-none">
+                         <span className="m-0 leading-none">☕</span> Cozy Indoor | Heaters | Shelter
                       </div>
                     )}
                   </div>
