@@ -45,7 +45,7 @@ export default function OwnerDashboard({ venue, onClose }) {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' }, 
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, 
         audio: false 
       });
       setCameraStream(stream);
@@ -54,10 +54,12 @@ export default function OwnerDashboard({ venue, onClose }) {
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.play();
         }
-      }, 100);
+      }, 200);
     } catch (err) {
       console.error('Camera error:', err);
+      alert('Camera access denied. Enable camera permissions and try again.');
     }
   };
 
@@ -69,12 +71,12 @@ export default function OwnerDashboard({ venue, onClose }) {
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       setCapturedPhoto(dataUrl);
       setCameraActive(false);
       stopCamera();
       setShowDemoNotice(true);
-      setTimeout(() => setShowDemoNotice(false), 4000);
+      setTimeout(() => setShowDemoNotice(false), 5000);
     }
   };
 
@@ -244,63 +246,60 @@ export default function OwnerDashboard({ venue, onClose }) {
             </div>
           </div>
 
-          {/* Live Customer View panel — rich design */}
-          <div className={`lg:w-64 bg-gradient-to-br ${hero.bg} rounded-3xl p-5 flex flex-col gap-4 border border-white/60 shadow-lg h-fit sticky top-16`}>
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Live Customer View</p>
+          <div className="lg:w-72 bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl p-4 border border-gray-100 shadow-sm h-fit sticky top-16">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Live Customer View</p>
             
-            {/* === LIVE PHOTO SECTION === */}
-            <div className="relative bg-gray-900 rounded-2xl overflow-hidden" style={{ minHeight: '200px' }}>
-
-              {/* State 1: No photo, camera off — show prompt */}
+            {/* === CAMERA UI STATES === */}
+            <div className="relative bg-gray-900 rounded-2xl overflow-hidden" style={{ height: '240px' }}>
+              
+              {/* State 1: No photo, camera off */}
               {!cameraActive && !capturedPhoto && (
-                <div className="flex flex-col items-center justify-center h-full py-10 gap-3">
-                  <span className="text-4xl">📷</span>
-                  <p className="text-sm font-bold text-white text-center px-4">Show Punters Your Venue Live</p>
-                  <p className="text-xs text-gray-400 text-center px-6">Capture your beer garden, rooftop or bar right now</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+                  <span className="text-4xl mb-3">📷</span>
+                  <p className="text-sm font-bold text-white mb-1">Show Punters Your Venue Live</p>
+                  <p className="text-xs text-gray-300 mb-4 max-w-[200px]">Capture your space right now to show customers the real conditions</p>
                   <button
                     onClick={startCamera}
-                    className="mt-2 bg-teal-500 hover:bg-teal-400 text-white font-bold text-sm px-5 py-2.5 rounded-full transition-colors"
+                    className="bg-teal-500 hover:bg-teal-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg transition-all duration-300"
                   >
                     📸 Open Camera
                   </button>
                 </div>
               )}
 
-              {/* State 2: Camera live — show viewfinder */}
+              {/* State 2: Live camera viewfinder */}
               {cameraActive && (
-                <div className="relative">
+                <div className="w-full h-full relative">
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
-                    className="w-full rounded-2xl"
-                    style={{ maxHeight: '260px', objectFit: 'cover' }}
+                    className="w-full h-full object-cover rounded-xl"
                   />
-                  {/* Weather overlay on viewfinder */}
+                  {/* Live weather overlay */}
                   <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-2">
-                    <span className="text-white text-xs font-bold">☀️ {w.uvIndex ?? '--'} UV</span>
-                    <span className="text-white/60 text-xs">·</span>
-                    <span className="text-white text-xs font-bold">💨 {w.windSpeed ?? '--'}km/h</span>
+                    <span className="text-white text-xs font-bold">{hero.icon}</span>
+                    <span className="text-white/80 text-xs">UV {w.uvIndex ?? '--'}</span>
                   </div>
-                  {/* Venue name overlay */}
-                  <div className="absolute bottom-14 left-3 right-3">
-                    <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2">
-                      <p className="text-white text-xs font-bold">{venue?.name}</p>
-                      <p className="text-gray-300 text-[10px]">Live from the venue · {new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</p>
+                  {/* Venue name + timestamp */}
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <div className="bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2">
+                      <p className="text-white text-xs font-bold truncate">{venue?.name}</p>
+                      <p className="text-gray-300 text-[10px]">Live · {new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
-                  {/* Capture button */}
-                  <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-3">
+                  {/* Camera controls */}
+                  <div className="absolute bottom-3 left-3 right-3 flex gap-3 justify-center">
                     <button
                       onClick={stopCamera}
-                      className="bg-white/20 text-white text-xs font-bold px-4 py-2 rounded-full backdrop-blur-sm"
+                      className="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-4 py-2.5 rounded-xl"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={capturePhoto}
-                      className="bg-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl border-4 border-gray-200 hover:scale-105 transition-transform"
+                      className="w-14 h-14 bg-white rounded-full shadow-lg flex items-center justify-center border-4 border-white hover:scale-105 transition-all duration-300"
                     >
                       📸
                     </button>
@@ -308,31 +307,31 @@ export default function OwnerDashboard({ venue, onClose }) {
                 </div>
               )}
 
-              {/* State 3: Photo captured — show preview with weather overlay */}
+              {/* State 3: Photo captured */}
               {capturedPhoto && !cameraActive && (
-                <div className="relative">
+                <div className="w-full h-full relative">
                   <img
                     src={capturedPhoto}
-                    alt="Live venue"
-                    className="w-full rounded-2xl"
-                    style={{ maxHeight: '260px', objectFit: 'cover' }}
+                    alt="Live venue photo"
+                    className="w-full h-full object-cover rounded-xl"
                   />
-                  {/* Weather badge overlay */}
+                  {/* Weather overlay */}
                   <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-2">
-                    <span className="text-white text-xs font-bold">{hero.icon} {hero.label}</span>
+                    <span className="text-white text-xs font-bold">{hero.icon}</span>
+                    <span className="text-white/80 text-xs">UV {w.uvIndex ?? '--'}</span>
                   </div>
-                  {/* Venue + time stamp */}
-                  <div className="absolute bottom-12 left-3 right-3">
-                    <div className="bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2">
-                      <p className="text-white text-xs font-bold">{venue?.name} · Live Now</p>
-                      <p className="text-gray-300 text-[10px]">Updated {new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</p>
+                  {/* Venue + timestamp */}
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <div className="bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2">
+                      <p className="text-white text-xs font-bold truncate">{venue?.name}</p>
+                      <p className="text-gray-300 text-[10px]">Live photo · {new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
                   {/* Retake button */}
-                  <div className="absolute bottom-3 left-0 right-0 flex justify-center">
+                  <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2">
                     <button
                       onClick={retakePhoto}
-                      className="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full"
+                      className="bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-bold px-4 py-2 rounded-xl shadow-lg hover:bg-white"
                     >
                       🔄 Retake
                     </button>
@@ -341,22 +340,22 @@ export default function OwnerDashboard({ venue, onClose }) {
               )}
             </div>
 
-            {/* Hidden canvas for capture */}
-            <canvas ref={canvasRef} className="hidden" />
+            {/* Hidden canvas for photo capture */}
+            <canvas ref={canvasRef} className="hidden" style={{ maxWidth: '400px' }} />
 
-            {/* Demo notice toast */}
+            {/* Demo toast notification */}
             {showDemoNotice && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
-                <span className="text-lg">🚧</span>
+              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                <span className="text-lg mt-0.5">🚧</span>
                 <div>
-                  <p className="text-xs font-bold text-amber-800">Demo Mode – Photo Not Saved</p>
-                  <p className="text-[10px] text-amber-600 mt-0.5">In production, this photo would update your live venue card visible to all nearby Sunstay users instantly.</p>
+                  <p className="text-sm font-bold text-amber-800">Demo Mode – Photo Preview Only</p>
+                  <p className="text-xs text-amber-600 mt-1">In production, this live photo would instantly update your venue card for all nearby Sunstay users to see current conditions.</p>
                 </div>
               </div>
             )}
 
             {/* Active badges */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 mt-4">
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Active Now</p>
               {!dogsAllowed && !mulledWine && !frozenMargs && !blindsDown && !heatersOn && !umbrellasOut && !liveMusicOn && !lateNightFood && !lastRound && !walkInsOn && !pinBoost && (
                 <p className="text-xs text-gray-400 italic px-1">No active specials</p>
