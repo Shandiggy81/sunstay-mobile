@@ -366,116 +366,63 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </button>
 
             {actualHappyHour && (
-              <div className="flex items-center justify-between bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/20 rounded-2xl p-3.5 mb-4 shadow-sm">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-bold tracking-wider text-amber-600 uppercase mb-0.5 m-0">
-                    Happy Hour • {actualHappyHour.start} - {actualHappyHour.end}
+              <div className="flex flex-row items-center justify-between bg-orange-50/80 border border-orange-200/60 rounded-2xl p-4 mb-4">
+                <div className="flex flex-col gap-1">
+                  <p className="text-xs font-bold text-orange-600 uppercase tracking-widest m-0">
+                    🍻 Happy Hour • {actualHappyHour.start} - {actualHappyHour.end}
                   </p>
-                  <p className="text-sm font-extrabold text-gray-900 m-0 tracking-tight">
+                  <p className="text-[16px] font-extrabold text-gray-900 leading-snug m-0">
                     {actualHappyHour.deal}
                   </p>
-                </div>
-                <div className="h-10 w-10 rounded-full bg-white/60 shadow-sm border border-amber-100 flex items-center justify-center text-xl">
-                  🍻
                 </div>
               </div>
             )}
 
             <motion.div 
               ref={panelRef}
-              className="bg-white border border-black/5 rounded-2xl p-4 cursor-pointer relative overflow-hidden shadow-sm"
+              className="bg-white border border-black/5 rounded-2xl p-5 cursor-pointer relative overflow-hidden shadow-sm"
               onClick={() => setPanelExpanded(!panelExpanded)}
               whileHover={{ scale: 1.005 }}
               whileTap={{ scale: 0.995 }}
             >
-              <div className="flex justify-between items-center relative z-10 w-full">
-                <div className="flex-1 pr-3 flex flex-col justify-center">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-amber-500 text-sm leading-none m-0">⚡</span>
-                    <h4 className="text-gray-900 font-extrabold text-[13px] tracking-tight m-0 leading-none">Sun Intelligence</h4>
+              <div className="flex flex-row items-center justify-between relative z-10 w-full">
+                <div className="flex-1 pr-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-amber-500 text-lg">⚡</span>
+                    <h4 className="text-gray-900 font-extrabold text-[15px] tracking-tight m-0">Sun Intelligence</h4>
                   </div>
-                  <div className="flex flex-col mt-2.5">
-                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-[0.15em] mb-1.5 m-0 leading-none">Outdoor Sun Exposure</div>
-                    <div className="flex flex-wrap gap-1.5 text-[10px] font-bold">
+                  
+                  <div className="flex flex-col">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 m-0">
+                      Outdoor Sun Exposure
+                    </p>
+                    <div className="flex flex-wrap gap-y-2">
                       {venue.balconyData ? (
                         <>
-                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">Balcony: {venue.balconyData.hours}h</span>
-                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">{venue.balconyData.direction}</span>
-                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">{venue.balconyData.views}</span>
+                          <span className="inline-block bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-sm font-semibold mr-2">Balcony: {venue.balconyData.hours}h</span>
+                          <span className="inline-block bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-sm font-semibold mr-2">{venue.balconyData.direction}</span>
+                          <span className="inline-block bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-sm font-semibold">{venue.balconyData.views}</span>
                         </>
                       ) : (
                         <>
-                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">{sunHours.labels.outdoor}: {sunHours.outdoor}</span>
-                          <span className="bg-white border border-black/5 shadow-sm rounded-full px-2.5 py-1 text-gray-800 leading-none">{sunHours.labels.covered}: {sunHours.covered}</span>
+                          <span className="inline-block bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-sm font-semibold mr-2">{sunHours.labels.outdoor}: {sunHours.outdoor}</span>
+                          <span className="inline-block bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-sm font-semibold">{sunHours.labels.covered}: {sunHours.covered}</span>
                         </>
                       )}
                     </div>
 
                     {cozyWeatherActive && (
-                      <div className="bg-white border border-black/5 shadow-sm text-gray-800 px-2.5 py-1.5 rounded-lg text-[10px] font-bold mt-2.5 flex items-center gap-1.5 w-fit leading-none">
-                         <span className="m-0 leading-none">☕</span> Cozy Indoor | Heaters | Shelter
+                      <div className="inline-flex items-center gap-2 bg-gray-50 border border-gray-100 text-gray-700 px-3 py-2 rounded-xl text-xs font-bold mt-4 w-fit">
+                         <span>☕</span> Cozy Indoor | Heaters | Shelter
                       </div>
                     )}
                   </div>
-                  {false && (
-                    <div className="flex flex-col gap-1 mt-2">
-                      <div style={{
-                        background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
-                        border: '1px solid #FDE68A',
-                        borderRadius: '12px',
-                        padding: '12px 14px',
-                        margin: '10px 0',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '16px' }}>⚡</span>
-                          <span style={{ fontWeight: '800', fontSize: '14px', color: '#92400E' }}>Sun Intelligence</span>
-                          <span style={{
-                            marginLeft: 'auto',
-                            background: '#F59E0B',
-                            color: '#FFFFFF',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            padding: '2px 8px',
-                            borderRadius: '999px',
-                          }}>LIVE</span>
-                        </div>
-                        <p style={{ fontSize: '13px', color: '#78350F', margin: 0, lineHeight: '1.5' }}>
-                          {venue.sunIntelligence || 'Beautiful golden light right now — grab a seat outside and soak it in. Perfect for a long, lazy afternoon.'}
-                        </p>
-                      </div>
-                      {cozyWeatherActive && (
-                        <div className="bg-orange-500/5 text-orange-800 px-3 py-1 rounded-lg border border-orange-500/10 text-[10px] font-bold mt-1 flex items-center gap-2 w-fit">
-                           ☕ Cozy Indoor | Heaters lit | Rain shelter | Cozy Score 92/100
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
-                {venue.heating && venue.heating !== 'no heating' && (
-                  <div 
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '6px', 
-                      margin: '8px 0',
-                      color: (venue.heating === 'electric-fireplace' || venue.heating === 'traditional-fireplace') ? '#EF4444' : '#1A1A1A'
-                    }}
-                  >
-                    <span style={{ fontSize: '15px' }}>
-                      {(venue.heating === 'electric-fireplace' || venue.heating === 'traditional-fireplace' || venue.heating === 'fireplace') ? '🔥' : '♨️'}
-                    </span>
-                    <span style={{ fontSize: '13px', fontWeight: '600' }}>
-                      {(venue.heating === 'electric-fireplace' || venue.heating === 'traditional-fireplace' || venue.heating === 'fireplace') ? 'Fireplace Active' :
-                       venue.heating === 'heated outdoor' ? 'Heated outdoor area' :
-                       'Fully indoor'}
-                    </span>
-                  </div>
-                )}
-                
-                {/* Gauge update for Light Mode */}
-                <div className="flex-shrink-0 bg-white rounded-2xl p-1 shadow-sm border border-black/5">
+                <div className="flex-shrink-0 flex items-center justify-center">
+                  <div className="bg-white rounded-full p-1 shadow-sm border border-black/5">
                     <RadialGauge score={score} temp={Math.round(temp)} wind={Math.round(wind)} dark />
+                  </div>
                 </div>
               </div>
 
@@ -488,14 +435,14 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     transition={{ duration: 0.35, ease: 'circOut' }}
                     className="overflow-hidden border-t border-black/5 mt-4 pt-2 relative"
                   >
-                    <div className="absolute top-2 right-0 text-[9px] text-[#4A4A4A]/40 uppercase tracking-widest font-bold">Hourly Path</div>
+                    <div className="absolute top-2 right-0 text-[10px] text-gray-400 uppercase tracking-widest font-bold">Hourly Path</div>
                     <HourlyTimeline hourlyData={hourlyData} dark />
                   </motion.div>
                 )}
               </AnimatePresence>
               
-              <div className="absolute bottom-[3px] left-1/2 -translate-x-1/2 opacity-20 group-hover:opacity-40 transition-opacity">
-                {!panelExpanded && <div className="w-10 h-1 rounded-full bg-black/20" />}
+              <div className="absolute bottom-[4px] left-1/2 -translate-x-1/2 opacity-20 transition-opacity">
+                {!panelExpanded && <div className="w-12 h-1.5 rounded-full bg-black/10" />}
               </div>
             </motion.div>
 
