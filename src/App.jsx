@@ -54,7 +54,7 @@ const WeatherIndicator = () => {
             {getWeatherIcon()}
             <div className="text-right">
                 <span className="font-bold text-gray-800 text-sm">{getTemperature()}°</span>
-                <span className="text-[10px] text-gray-500 hidden sm:block leading-tight">{getWeatherDescription()}</span>
+                <span className="text-[10px] text-gray-500 hidden sm:block leading-tight">{getTemperature()}</span>
             </div>
         </div>
     );
@@ -173,9 +173,6 @@ const VenueChip = ({ venue, isSelected, onClick, weather }) => {
         </motion.button>
     );
 };
-
-
-
 
 
 // ── Header Weather row ─────────────────────────────────────────────
@@ -474,6 +471,7 @@ const AppContent = () => {
                 onRecenter={handleRecenter}
                 weather={weather}
                 onFiltersOpen={openMobileFilters}
+                onShowDashboard={() => setShowOwnerDashboard(true)}
             />
 
             {/* ═══ MAIN SPLIT LAYOUT ═══ */}
@@ -702,14 +700,6 @@ const AppContent = () => {
                 <img src="/assets/fire-icon.jpg" alt="" className="ss-footer-badge-icon" />
                 Sales Demo · {demoVenues.length} Partner Venues
             </motion.div>
-
-            {/* Venue Manager View Button */}
-            <button
-                onClick={() => setShowOwnerDashboard(true)}
-                className="fixed bottom-6 left-6 z-50 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-sm px-5 py-3 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform"
-            >
-                <span>🏢</span> Venue Manager View
-            </button>
 
             {/* Owner Dashboard Modal */}
             <AnimatePresence>

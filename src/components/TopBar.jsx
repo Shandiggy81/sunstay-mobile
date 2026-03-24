@@ -19,7 +19,7 @@ const WeatherIcon = ({ condition, windSpeed }) => {
     return <Sun size={16} className="text-yellow-300" />;
 };
 
-const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen }) => {
+const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen, onShowDashboard }) => {
     const [searchOpen, setSearchOpen] = useState(false);
     const [logoFailed, setLogoFailed] = useState(false);
 
@@ -89,28 +89,29 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                     </span>
                 </div>
 
-                {/* Right side stats with divider */}
-                {weather && (
-                    <>
-                        <div
-                            className="h-[48px] w-[1px] bg-white/30 flex-shrink-0 relative z-10"
-                            style={{ alignSelf: 'center' }}
-                        />
-                        <div className="flex-shrink-0 flex flex-col gap-1.5 items-start pr-4 relative z-10">
-                            <span className="text-white text-[12px] leading-tight">
-                                💨 {windSpeed} km/h
-                            </span>
-                            <span className="text-white text-[12px] leading-tight">
-                                🌧 {rainChance}%
-                            </span>
-                            {cloudLabel && (
+                {/* Right side stats with Partner View button */}
+                <div className="flex-shrink-0 flex items-center gap-3 relative z-10">
+                    {weather && (
+                        <>
+                            <div className="h-[48px] w-[1px] bg-white/30 flex-shrink-0" />
+                            <div className="flex flex-col gap-1.5 items-start">
                                 <span className="text-white text-[12px] leading-tight">
-                                    ☁️ {cloudLabel}
+                                    💨 {windSpeed} km/h
                                 </span>
-                            )}
-                        </div>
-                    </>
-                )}
+                                <span className="text-white text-[12px] leading-tight">
+                                    🌧 {rainChance}%
+                                </span>
+                            </div>
+                        </>
+                    )}
+                    
+                    <button
+                        onClick={onShowDashboard}
+                        className="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors border border-white/30 backdrop-blur-sm"
+                    >
+                        <span>🏢</span> Partner View
+                    </button>
+                </div>
             </div>
 
             <AnimatePresence>
