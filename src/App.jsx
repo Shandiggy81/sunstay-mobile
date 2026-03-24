@@ -706,7 +706,7 @@ const AppContent = () => {
             {/* Venue Manager View Button */}
             <button
                 onClick={() => setShowOwnerDashboard(true)}
-                className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-sm px-5 py-3 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform"
+                className="fixed bottom-6 left-6 z-50 bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-sm px-5 py-3 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 transition-transform"
             >
                 <span>🏢</span> Venue Manager View
             </button>
@@ -714,19 +714,19 @@ const AppContent = () => {
             {/* Owner Dashboard Modal */}
             <AnimatePresence>
                 {showOwnerDashboard && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 pt-10">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowOwnerDashboard(false)}
-                            className="bg-black/60 backdrop-blur-sm fixed inset-0 z-50"
+                            className="fixed inset-0"
                         />
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="max-w-2xl w-full mx-auto mt-10 rounded-3xl shadow-2xl overflow-hidden bg-white relative z-50 flex flex-col max-h-[90vh]"
+                            className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl min-h-[400px] overflow-hidden flex flex-col"
                         >
                             <div className="flex justify-between items-center p-6 border-b border-gray-100">
                                 <h2 className="text-xl font-black text-gray-800">Venue Manager</h2>
