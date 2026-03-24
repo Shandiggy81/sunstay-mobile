@@ -471,264 +471,258 @@ const AppContent = () => {
                 onRecenter={handleRecenter}
                 weather={weather}
                 onFiltersOpen={openMobileFilters}
-                onShowDashboard={() => setShowOwnerDashboard(true)}
             />
 
-            {/* ═══ MAIN SPLIT LAYOUT ═══ */}
-            <main className="ss-main">
-                {/* ── LEFT: Venue List (desktop) ────────────────── */}
-                <aside className="ss-sidebar">
-                    {/* Search bar */}
-                    <div className="ss-search-wrap">
-                        <Search size={15} className="ss-search-icon" />
-                        <input
-                            type="text"
-                            placeholder="Search venues, suburbs…"
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                            className="ss-search-input"
-                            id="venue-search"
-                        />
-                        {/* Sunny mascot FAB */}
-                        <SunnyMascot
-                            onClick={() => setIsChatOpen(!isChatOpen)}
-                            isChatOpen={isChatOpen}
-                            selectedVenue={selectedVenue}
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="ss-search-clear"
-                            >
-                                <X size={13} />
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Results count */}
-                    <div className="ss-sidebar-count">
-                        <span>{matchingCount} venue{matchingCount !== 1 ? 's' : ''}</span>
-                        {(activeFilters.length > 0 || mapQuickFilter) && (
-                            <button onClick={handleClearFilters} className="ss-sidebar-clear">Clear all</button>
-                        )}
-                    </div>
-
-                    {/* Scrollable venue list */}
-                    <div className="ss-venue-list" ref={listRef}>
-                        <AnimatePresence mode="popLayout">
-                            {filteredVenues.map(venue => (
-                                <VenueListCard
-                                    key={venue.id}
-                                    venue={venue}
-                                    isSelected={selectedVenue?.id === venue.id}
-                                    onClick={() => handleVenueSelect(venue)}
-                                    weather={weather}
-                                />
-                            ))}
-                        </AnimatePresence>
-                        {filteredVenues.length === 0 && (
-                            <div className="ss-venue-list-empty">
-                                <span>🔍</span>
-                                <p>Showing all venues — couldn't find an exact match</p>
-                                <button onClick={handleClearFilters}>Show all venues</button>
-                            </div>
-                        )}
-                    </div>
-                </aside>
-
-                {/* ── RIGHT: Map ────────────────────────────────── */}
-                <section className={`ss-map-area ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-
-                    {/* Filters FAB (mobile only) */}
-                    <button
-                        className="ss-filters-fab"
-                        onClick={openMobileFilters}
-                        disabled={mobileFilterOpen}
-                        aria-expanded={mobileFilterOpen}
-                    >
-                        <ListFilter size={18} />
-                        <span>Filters</span>
-                        {activeFilters.length > 0 && (
-                            <span className="ss-filters-fab-badge">{activeFilters.length}</span>
-                        )}
-                    </button>
-
-                    {/* Map container */}
-                    <div className="ss-map-container">
-                        <MapView
-                            onVenueSelect={handleVenueSelect}
-                            selectedVenue={selectedVenue}
-                            filteredVenueIds={filteredVenueIds}
-                            mapRef={mapRef}
-                            weatherColorFn={getMarkerWeatherColor}
-                            cozyWeatherActive={cozyWeatherActive}
-                            cozyFilterActive={activeFilters.includes('cozy-mode')}
-                            isExpanded={mobileMapExpanded}
-                        />
-                    </div>
-
-                    {/* Recenter button */}
-                    <motion.button
-                        className="ss-recenter-btn"
-                        whileTap={{ scale: 0.9 }}
-                        onClick={handleRecenter}
-                        id="recenter-map"
-                    >
-                        <Locate size={18} />
-                    </motion.button>
-
-                    {/* Weather legend */}
-                    <div className="ss-map-legend">
-                        <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-sunny" />Sunny</div>
-                        <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-cloudy" />Cloudy</div>
-                        <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-windy" />Windy</div>
-                    </div>
-                </section>
-
-                {/* ═══ Mobile Filter Bottom Sheet ═══ */}
-                <FilterSheet
-                    isOpen={mobileFilterOpen}
-                    onClose={closeMobileFilters}
-                    activeFilters={activeFilters}
-                    onToggleFilter={handleFilterToggle}
-                    onClearAll={handleClearFilters}
-                    customFilters={customFilters}
-                    newCustomFilter={newFilter}
-                    setNewCustomFilter={setNewFilter}
-                    onAddCustomFilter={addCustomFilter}
-                    resultCount={filteredVenues.length}
-                />
-            </main>
-
-            {/* MOBILE: Carousel removed from render path entirely */}
-
-            {/* ═══ MOBILE: Bottom sheet venue list ═══ */}
-            {!mobileMapExpanded && (
-                <div
-                    className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
-                    onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
+            {/* Navigation Tabs */}
+            <div className="flex bg-white border-b border-gray-200 shadow-sm sticky top-[72px] z-30">
+                <button
+                    onClick={() => setShowOwnerDashboard(false)}
+                    className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${!showOwnerDashboard ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-400 hover:text-gray-700'}`}
                 >
-                    <div className="ss-mobile-sheet-grab" />
-                    <span>{matchingCount} venues nearby</span>
-                    {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                    🗺️ Explore Venues
+                </button>
+                <button
+                    onClick={() => setShowOwnerDashboard(true)}
+                    className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${showOwnerDashboard ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-400 hover:text-gray-700'}`}
+                >
+                    🏢 Partner Dashboard
+                </button>
+            </div>
+
+            {showOwnerDashboard ? (
+                <div className="flex-1 bg-gray-50 overflow-y-auto min-h-0">
+                    <OwnerDashboard venue={venues[0]} />
                 </div>
-            )}
-
-            <AnimatePresence>
-                {mobileSheetState === 'expanded' && (
-                    <>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setMobileSheetState('peek')}
-                            className="ss-mobile-sheet-backdrop"
-                        />
-                        <motion.div
-                            drag="y"
-                            dragConstraints={{ top: 0, bottom: 0 }}
-                            dragElastic={0.1}
-                            onDragEnd={(e, { offset, velocity }) => {
-                                if (offset.y > 100 || velocity.y > 500) {
-                                    setMobileSheetState('peek');
-                                }
-                            }}
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="ss-mobile-sheet"
-                        >
-                            <div className="ss-mobile-sheet-head">
-                                <div className="ss-mobile-sheet-grab" />
-                                <h3>Venues</h3>
-                                <p>{matchingCount} results</p>
+            ) : (
+                <>
+                    {/* ═══ MAIN SPLIT LAYOUT ═══ */}
+                    <main className="ss-main">
+                        {/* ── LEFT: Venue List (desktop) ────────────────── */}
+                        <aside className="ss-sidebar">
+                            {/* Search bar */}
+                            <div className="ss-search-wrap">
+                                <Search size={15} className="ss-search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Search venues, suburbs…"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    className="ss-search-input"
+                                    id="venue-search"
+                                />
+                                {/* Sunny mascot FAB */}
+                                <SunnyMascot
+                                    onClick={() => setIsChatOpen(!isChatOpen)}
+                                    isChatOpen={isChatOpen}
+                                    selectedVenue={selectedVenue}
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="ss-search-clear"
+                                    >
+                                        <X size={13} />
+                                    </button>
+                                )}
                             </div>
-                            <div className="ss-mobile-sheet-list">
-                                {filteredVenues.map(venue => (
-                                    <VenueListCard
-                                        key={venue.id}
-                                        venue={venue}
-                                        isSelected={selectedVenue?.id === venue.id}
-                                        onClick={() => {
-                                            handleVenueSelect(venue);
+
+                            {/* Results count */}
+                            <div className="ss-sidebar-count">
+                                <span>{matchingCount} venue{matchingCount !== 1 ? 's' : ''}</span>
+                                {(activeFilters.length > 0 || mapQuickFilter) && (
+                                    <button onClick={handleClearFilters} className="ss-sidebar-clear">Clear all</button>
+                                )}
+                            </div>
+
+                            {/* Scrollable venue list */}
+                            <div className="ss-venue-list" ref={listRef}>
+                                <AnimatePresence mode="popLayout">
+                                    {filteredVenues.map(venue => (
+                                        <VenueListCard
+                                            key={venue.id}
+                                            venue={venue}
+                                            isSelected={selectedVenue?.id === venue.id}
+                                            onClick={() => handleVenueSelect(venue)}
+                                            weather={weather}
+                                        />
+                                    ))}
+                                </AnimatePresence>
+                                {filteredVenues.length === 0 && (
+                                    <div className="ss-venue-list-empty">
+                                        <span>🔍</span>
+                                        <p>Showing all venues — couldn't find an exact match</p>
+                                        <button onClick={handleClearFilters}>Show all venues</button>
+                                    </div>
+                                )}
+                            </div>
+                        </aside>
+
+                        {/* ── RIGHT: Map ────────────────────────────────── */}
+                        <section className={`ss-map-area ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
+
+                            {/* Filters FAB (mobile only) */}
+                            <button
+                                className="ss-filters-fab"
+                                onClick={openMobileFilters}
+                                disabled={mobileFilterOpen}
+                                aria-expanded={mobileFilterOpen}
+                            >
+                                <ListFilter size={18} />
+                                <span>Filters</span>
+                                {activeFilters.length > 0 && (
+                                    <span className="ss-filters-fab-badge">{activeFilters.length}</span>
+                                )}
+                            </button>
+
+                            {/* Map container */}
+                            <div className="ss-map-container">
+                                <MapView
+                                    onVenueSelect={handleVenueSelect}
+                                    selectedVenue={selectedVenue}
+                                    filteredVenueIds={filteredVenueIds}
+                                    mapRef={mapRef}
+                                    weatherColorFn={getMarkerWeatherColor}
+                                    cozyWeatherActive={cozyWeatherActive}
+                                    cozyFilterActive={activeFilters.includes('cozy-mode')}
+                                    isExpanded={mobileMapExpanded}
+                                />
+                            </div>
+
+                            {/* Recenter button */}
+                            <motion.button
+                                className="ss-recenter-btn"
+                                whileTap={{ scale: 0.9 }}
+                                onClick={handleRecenter}
+                                id="recenter-map"
+                            >
+                                <Locate size={18} />
+                            </motion.button>
+
+                            {/* Weather legend */}
+                            <div className="ss-map-legend">
+                                <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-sunny" />Sunny</div>
+                                <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-cloudy" />Cloudy</div>
+                                <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-windy" />Windy</div>
+                            </div>
+                        </section>
+
+                        {/* ═══ Mobile Filter Bottom Sheet ═══ */}
+                        <FilterSheet
+                            isOpen={mobileFilterOpen}
+                            onClose={closeMobileFilters}
+                            activeFilters={activeFilters}
+                            onToggleFilter={handleFilterToggle}
+                            onClearAll={handleClearFilters}
+                            customFilters={customFilters}
+                            newCustomFilter={newFilter}
+                            setNewCustomFilter={setNewFilter}
+                            onAddCustomFilter={addCustomFilter}
+                            resultCount={filteredVenues.length}
+                        />
+                    </main>
+
+                    {/* MOBILE: Carousel removed from render path entirely */}
+
+                    {/* ═══ MOBILE: Bottom sheet venue list ═══ */}
+                    {!mobileMapExpanded && (
+                        <div
+                            className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
+                            onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
+                        >
+                            <div className="ss-mobile-sheet-grab" />
+                            <span>{matchingCount} venues nearby</span>
+                            {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                        </div>
+                    )}
+
+                    <AnimatePresence>
+                        {mobileSheetState === 'expanded' && (
+                            <>
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    onClick={() => setMobileSheetState('peek')}
+                                    className="ss-mobile-sheet-backdrop"
+                                />
+                                <motion.div
+                                    drag="y"
+                                    dragConstraints={{ top: 0, bottom: 0 }}
+                                    dragElastic={0.1}
+                                    onDragEnd={(e, { offset, velocity }) => {
+                                        if (offset.y > 100 || velocity.y > 500) {
                                             setMobileSheetState('peek');
-                                        }}
-                                        weather={weather}
-                                    />
-                                ))}
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
+                                        }
+                                    }}
+                                    initial={{ y: '100%' }}
+                                    animate={{ y: 0 }}
+                                    exit={{ y: '100%' }}
+                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                    className="ss-mobile-sheet"
+                                >
+                                    <div className="ss-mobile-sheet-head">
+                                        <div className="ss-mobile-sheet-grab" />
+                                        <h3>Venues</h3>
+                                        <p>{matchingCount} results</p>
+                                    </div>
+                                    <div className="ss-mobile-sheet-list">
+                                        {filteredVenues.map(venue => (
+                                            <VenueListCard
+                                                key={venue.id}
+                                                venue={venue}
+                                                isSelected={selectedVenue?.id === venue.id}
+                                                onClick={() => {
+                                                    handleVenueSelect(venue);
+                                                    setMobileSheetState('peek');
+                                                }}
+                                                weather={weather}
+                                            />
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
 
-            {/* ═══ Venue detail card ═══ */}
-            {selectedVenue && (
-                <VenueCard
-                    key={selectedVenue?.id}
-                    venue={selectedVenue}
-                    weather={weather}
-                    onClose={handleCloseCard}
-                    onCenter={handleVenueSelect}
-                    cozyWeatherActive={cozyWeatherActive}
-                />
-            )}
-
-            {/* Chat */}
-            <ChatWidget
-                isOpen={isChatOpen}
-                onClose={closeChat}
-                onFindWheelchair={handleFindWheelchair}
-                onFindDogFriendly={handleFindDogFriendly}
-                onFindSmoking={handleFindSmoking}
-                onSurpriseMe={handleSurpriseMe}
-                onFindFamily={handleFindFamily}
-                onFindBusiness={handleFindBusiness}
-            />
-
-            {/* Sunny mascot FAB */}
-            <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />
-
-            {/* Footer badge */}
-            <motion.div
-                initial={{ y: 100, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-                className="ss-footer-badge"
-            >
-                <img src="/assets/fire-icon.jpg" alt="" className="ss-footer-badge-icon" />
-                Sales Demo · {demoVenues.length} Partner Venues
-            </motion.div>
-
-            {/* Owner Dashboard Modal */}
-            <AnimatePresence>
-                {showOwnerDashboard && (
-                    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 pt-10">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setShowOwnerDashboard(false)}
-                            className="fixed inset-0"
+                    {/* ═══ Venue detail card ═══ */}
+                    {selectedVenue && (
+                        <VenueCard
+                            key={selectedVenue?.id}
+                            venue={selectedVenue}
+                            weather={weather}
+                            onClose={handleCloseCard}
+                            onCenter={handleVenueSelect}
+                            cozyWeatherActive={cozyWeatherActive}
                         />
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl min-h-[400px] overflow-hidden flex flex-col"
-                        >
-                            <div className="flex items-center justify-between px-6 pt-6 pb-0">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Venue Manager</h3>
-                                <button onClick={() => setShowOwnerDashboard(false)} className="text-gray-400 hover:text-gray-700 text-xl font-light">✕</button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto">
-                                <OwnerDashboard venue={venues[0]} />
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+                    )}
+
+                    {/* Chat */}
+                    <ChatWidget
+                        isOpen={isChatOpen}
+                        onClose={closeChat}
+                        onFindWheelchair={handleFindWheelchair}
+                        onFindDogFriendly={handleFindDogFriendly}
+                        onFindSmoking={handleFindSmoking}
+                        onSurpriseMe={handleSurpriseMe}
+                        onFindFamily={handleFindFamily}
+                        onFindBusiness={handleFindBusiness}
+                    />
+
+                    {/* Sunny mascot FAB */}
+                    <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />
+
+                    {/* Footer badge */}
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 0.6, delay: 0.6 }}
+                        className="ss-footer-badge"
+                    >
+                        <img src="/assets/fire-icon.jpg" alt="" className="ss-footer-badge-icon" />
+                        Sales Demo · {demoVenues.length} Partner Venues
+                    </motion.div>
+                </>
+            )}
         </div>
     );
 };

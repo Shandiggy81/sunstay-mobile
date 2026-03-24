@@ -1,15 +1,36 @@
 import { useState } from 'react';
 
 export default function OwnerDashboard({ venue }) {
+  // Group 1: Climate & Structural
   const [fireplaceOn, setFireplaceOn] = useState(false);
   const [heatersOn, setHeatersOn] = useState(false);
   const [blindsDown, setBlindsDown] = useState(false);
   const [roofClosed, setRoofClosed] = useState(false);
   const [mistersOn, setMistersOn] = useState(false);
   const [umbrellasOut, setUmbrellasOut] = useState(false);
+  const [heatedBlankets, setHeatedBlankets] = useState(false);
+  const [acMaxOn, setAcMaxOn] = useState(false);
+  const [sunscreenStation, setSunscreenStation] = useState(false);
+
+  // Group 2: Vibe & Atmosphere
   const [dogsAllowed, setDogsAllowed] = useState(false);
   const [mulledWine, setMulledWine] = useState(false);
   const [frozenMargs, setFrozenMargs] = useState(false);
+  const [liveMusicOn, setLiveMusicOn] = useState(false);
+  const [candlesOn, setCandlesOn] = useState(false);
+  const [lateNightFood, setLateNightFood] = useState(false);
+  const [socialMoment, setSocialMoment] = useState(false);
+
+  // Group 3: Booking & Capacity
+  const [walkInsOn, setWalkInsOn] = useState(false);
+  const [reservationsOnly, setReservationsOnly] = useState(false);
+  const [privateEvent, setPrivateEvent] = useState(false);
+  const [lastRound, setLastRound] = useState(false);
+
+  // Group 4: Sunstay Visibility Boost (Premium)
+  const [pinBoost, setPinBoost] = useState(false);
+  const [pushNotif, setPushNotif] = useState(false);
+  const [featureList, setFeatureList] = useState(false);
 
   const w = venue?.weatherNow || {};
 
@@ -22,7 +43,7 @@ export default function OwnerDashboard({ venue }) {
   };
   const hero = getHeroStatus();
 
-  const Toggle = ({ label, icon, value, onChange, recommended }) => (
+  const Toggle = ({ label, icon, value, onChange, recommended, premium }) => (
     <div className={`flex items-center justify-between py-3 px-3 rounded-xl border-b border-gray-100 last:border-0 transition-colors duration-200 ${value ? 'bg-teal-50' : 'hover:bg-gray-50'}`}>
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <span className="text-2xl flex-shrink-0">{icon}</span>
@@ -31,6 +52,9 @@ export default function OwnerDashboard({ venue }) {
           <span className="flex-shrink-0 text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
             Rec
           </span>
+        )}
+        {premium && (
+          <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Premium</span>
         )}
       </div>
       <button
@@ -43,7 +67,7 @@ export default function OwnerDashboard({ venue }) {
   );
 
   return (
-    <div className="p-5">
+    <div className="p-5 pb-24">
       {/* Header Block — Dark Gradient Hero */}
       <div className="bg-gradient-to-r from-gray-900 to-slate-800 rounded-t-3xl p-6 -mx-5 -mt-5 mb-5 shadow-inner">
         <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-1">Partner Control Center</p>
@@ -78,6 +102,9 @@ export default function OwnerDashboard({ venue }) {
             <Toggle label="Retractable Roof Closed"     icon="🏗️" value={roofClosed}   onChange={setRoofClosed}   recommended={w.precipProb > 60} />
             <Toggle label="Evaporative Misters On"      icon="💨" value={mistersOn}    onChange={setMistersOn} />
             <Toggle label="Umbrellas Deployed"          icon="⛱️" value={umbrellasOut} onChange={setUmbrellasOut} recommended={w.uvIndex >= 6} />
+            <Toggle label="Heated Blankets / Throws Available" icon="🧥" value={heatedBlankets} onChange={setHeatedBlankets} />
+            <Toggle label="AC Max 'Cool Sanctuary' Mode" icon="🌡️" value={acMaxOn} onChange={setAcMaxOn} />
+            <Toggle label="Free Sunscreen Station Active" icon="🧴" value={sunscreenStation} onChange={setSunscreenStation} />
           </div>
 
           <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
@@ -98,6 +125,41 @@ export default function OwnerDashboard({ venue }) {
               value={frozenMargs}
               onChange={(v) => { setFrozenMargs(v); if (v) setMulledWine(false); }}
             />
+            <Toggle label="Live Music On Tonight" icon="🎵" value={liveMusicOn} onChange={setLiveMusicOn} />
+            <Toggle label="Candles & Low Lighting" icon="🕯️" value={candlesOn} onChange={setCandlesOn} />
+            <Toggle label="Late Night Food Available" icon="🍕" value={lateNightFood} onChange={setLateNightFood} />
+            <Toggle label="Social Media Moment Active" icon="📸" value={socialMoment} onChange={setSocialMoment} />
+          </div>
+
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-4 bg-teal-400 rounded-full"></div>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">Booking & Capacity</p>
+            </div>
+            <Toggle
+              label="Walk-ins Welcome Right Now"
+              icon="🪑"
+              value={walkInsOn}
+              onChange={(v) => { setWalkInsOn(v); if (v) setReservationsOnly(false); }}
+            />
+            <Toggle
+              label="Reservations Only Tonight"
+              icon="📋"
+              value={reservationsOnly}
+              onChange={(v) => { setReservationsOnly(v); if (v) setWalkInsOn(false); }}
+            />
+            <Toggle label="Private Event – Venue Partially Closed" icon="🎉" value={privateEvent} onChange={setPrivateEvent} />
+            <Toggle label="Last Round Called (30 min warning)" icon="⏰" value={lastRound} onChange={setLastRound} />
+          </div>
+
+          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1 h-4 bg-amber-400 rounded-full"></div>
+              <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">⭐ Sunstay Visibility</p>
+            </div>
+            <Toggle label="Boost My Pin on Map Right Now" icon="🔝" value={pinBoost} onChange={setPinBoost} premium={true} />
+            <Toggle label="Push Notification to Nearby Users" icon="📣" value={pushNotif} onChange={setPushNotif} premium={true} />
+            <Toggle label="Feature in 'Best Right Now' List" icon="🌟" value={featureList} onChange={setFeatureList} premium={true} />
           </div>
         </div>
 
@@ -115,7 +177,7 @@ export default function OwnerDashboard({ venue }) {
           {/* Active badges */}
           <div className="flex flex-col gap-2">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Active Now</p>
-            {!dogsAllowed && !mulledWine && !frozenMargs && !blindsDown && !heatersOn && !umbrellasOut && (
+            {!dogsAllowed && !mulledWine && !frozenMargs && !blindsDown && !heatersOn && !umbrellasOut && !liveMusicOn && !lateNightFood && !lastRound && !walkInsOn && !pinBoost && (
               <p className="text-xs text-gray-400 italic px-1">No active specials</p>
             )}
             {dogsAllowed   && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🐶 Dogs Welcome Today</span>}
@@ -124,6 +186,11 @@ export default function OwnerDashboard({ venue }) {
             {blindsDown    && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">⛺ Wind Protected</span>}
             {heatersOn     && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🍄 Heaters Running</span>}
             {umbrellasOut  && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">⛱️ Umbrellas Out</span>}
+            {liveMusicOn   && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🎵 Live Music Tonight</span>}
+            {lateNightFood && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🍕 Late Night Food On</span>}
+            {lastRound     && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">⏰ Last Round – 30 Min</span>}
+            {walkInsOn     && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white">🪑 Walk-ins Welcome</span>}
+            {pinBoost      && <span className="bg-white/80 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm border border-white text-amber-600">🔝 Pin Boosted on Map</span>}
           </div>
         </div>
       </div>
