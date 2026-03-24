@@ -9,8 +9,10 @@ export const venues = [
         emoji: "🌿",
         tags: ["Sunny", "Garden", "Beer Garden", "Pet Friendly", "Pram Friendly"],
         lat: -37.8556,
-        lng: 144.9947,
-        happyHour: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], start: '16:00', end: '20:00', deal: '$9 Pints, $7 Basics & $12 Cocktails' }
+        lng: 144.9947,
+        happyHour: { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], start: '16:00', end: '20:00', deal: '$9 Pints, $7 Basics & $12 Cocktails' },
+        weatherNow: { windSpeed: 12, uvIndex: 6, precipProb: 18 },
+        shielding: { windbreak: 82, rainCover: 65, shadeFactor: 70 }
     },
     {
         id: 2,
@@ -20,8 +22,10 @@ export const venues = [
         emoji: "🔥",
         tags: ["Cozy", "After Work", "Rooftop", "Wheelchair Accessible"],
         lat: -37.8136,
-        lng: 144.9631,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"18:00","deal":"$8 Wines, $9 Pints & $15 Cocktails"}
+        lng: 144.9631,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"18:00","deal":"$8 Wines, $9 Pints & $15 Cocktails"},
+        weatherNow: { windSpeed: 28, uvIndex: 7, precipProb: 12 },
+        shielding: { windbreak: 45, rainCover: 55, shadeFactor: 45 }
     },
     {
         id: 3,
@@ -31,8 +35,10 @@ export const venues = [
         emoji: "🍷",
         tags: ["People Watching", "Sunny", "Pet Friendly", "Smoking Area"],
         lat: -37.8679,
-        lng: 144.9797,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"15:00","end":"17:00","deal":"Daily Discounted Drinks"}
+        lng: 144.9797,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"15:00","end":"17:00","deal":"Daily Discounted Drinks"},
+        weatherNow: { windSpeed: 18, uvIndex: 6, precipProb: 22 },
+        shielding: { windbreak: 60, rainCover: 75, shadeFactor: 55 }
     },
     {
         id: 4,
@@ -42,8 +48,10 @@ export const venues = [
         emoji: "🍸",
         tags: ["Party", "Views", "Rooftop", "Smoking Area"],
         lat: -37.8394,
-        lng: 145.0008,
-        happyHour: {"days":["Fri"],"start":"17:00","end":"20:00","deal":"$7 Tap Beers/Wines & $3.50 Oysters"}
+        lng: 145.0008,
+        happyHour: {"days":["Fri"],"start":"17:00","end":"20:00","deal":"$7 Tap Beers/Wines & $3.50 Oysters"},
+        weatherNow: { windSpeed: 32, uvIndex: 8, precipProb: 15 },
+        shielding: { windbreak: 35, rainCover: 60, shadeFactor: 50 }
     },
     {
         id: 5,
@@ -53,8 +61,10 @@ export const venues = [
         emoji: "⚓",
         tags: ["Fireplace", "Cozy", "Wheelchair Accessible"],
         lat: -37.8563,
-        lng: 144.9951,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"19:00","deal":"$6 Wines/Pots & $12 Pints"}
+        lng: 144.9951,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"15:00","end":"19:00","deal":"$6 Wines/Pots & $12 Pints"},
+        weatherNow: { windSpeed: 8, uvIndex: 4, precipProb: 12 },
+        shielding: { windbreak: 92, rainCover: 95, shadeFactor: 85 }
     },
     {
         id: 6,
@@ -64,8 +74,10 @@ export const venues = [
         emoji: "🥂",
         tags: ["Hidden Gem", "Sunny", "Pet Friendly"],
         lat: -37.8686,
-        lng: 145.0039,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat"],"start":"16:00","end":"19:00","deal":"$10.50 Pints & 2-for-$26 Espresso Martinis"}
+        lng: 145.0039,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat"],"start":"16:00","end":"19:00","deal":"$10.50 Pints & 2-for-$26 Espresso Martinis"},
+        weatherNow: { windSpeed: 10, uvIndex: 5, precipProb: 15 },
+        shielding: { windbreak: 88, rainCover: 90, shadeFactor: 75 }
     },
     {
         id: 7,
@@ -75,8 +87,10 @@ export const venues = [
         emoji: "🍺",
         tags: ["24h License", "Deck", "Beer Garden", "Smoking Area", "Wheelchair Accessible"],
         lat: -37.8553,
-        lng: 144.9945,
-        happyHour: {"days":["Wed","Thu","Fri","Sat"],"start":"16:00","end":"19:00","deal":"$7 Spirits/Wines & $10 Pints"}
+        lng: 144.9945,
+        happyHour: {"days":["Wed","Thu","Fri","Sat"],"start":"16:00","end":"19:00","deal":"$7 Spirits/Wines & $10 Pints"},
+        weatherNow: { windSpeed: 15, uvIndex: 5, precipProb: 25 },
+        shielding: { windbreak: 75, rainCover: 80, shadeFactor: 65 }
     },
     {
         id: 8,
@@ -86,8 +100,10 @@ export const venues = [
         emoji: "🏖️",
         tags: ["Sunset", "Sand", "Pet Friendly", "Pram Friendly", "Wheelchair Accessible"],
         lat: -37.8629,
-        lng: 144.9736,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"Happy Hour by the Bay Drinks"}
+        lng: 144.9736,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"Happy Hour by the Bay Drinks"},
+        weatherNow: { windSpeed: 30, uvIndex: 8, precipProb: 20 },
+        shielding: { windbreak: 45, rainCover: 35, shadeFactor: 55 }
     },
     {
         id: 9,
@@ -97,8 +113,10 @@ export const venues = [
         emoji: "🛋️",
         tags: ["Comfy", "Fireplace", "Wheelchair Accessible"],
         lat: -37.8575,
-        lng: 144.9960,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"21:00","deal":"Sliding Prices: $5 at 5pm, $6 at 6pm, $7 at 7pm"}
+        lng: 144.9960,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"21:00","deal":"Sliding Prices: $5 at 5pm, $6 at 6pm, $7 at 7pm"},
+        weatherNow: { windSpeed: 6, uvIndex: 3, precipProb: 10 },
+        shielding: { windbreak: 95, rainCover: 100, shadeFactor: 90 }
     },
     {
         id: 10,
@@ -108,7 +126,9 @@ export const venues = [
         emoji: "🎸",
         tags: ["Live Music", "Views", "Rooftop", "Beer Garden", "Wheelchair Accessible"],
         lat: -37.8673,
-        lng: 144.9753
+        lng: 144.9753,
+        weatherNow: { windSpeed: 22, uvIndex: 7, precipProb: 28 },
+        shielding: { windbreak: 65, rainCover: 75, shadeFactor: 55 }
     },
     {
         id: 11,
@@ -118,7 +138,9 @@ export const venues = [
         emoji: "🌊",
         tags: ["River", "Premium", "Wheelchair Accessible", "Smoking Area"],
         lat: -37.8183,
-        lng: 144.9671
+        lng: 144.9671,
+        weatherNow: { windSpeed: 28, uvIndex: 8, precipProb: 18 },
+        shielding: { windbreak: 50, rainCover: 40, shadeFactor: 60 }
     },
     {
         id: 12,
@@ -128,8 +150,10 @@ export const venues = [
         emoji: "🍻",
         tags: ["Pet Friendly", "Large Groups", "Beer Garden", "Pram Friendly", "Wheelchair Accessible"],
         lat: -37.8363,
-        lng: 144.9353,
-        happyHour: {"days":["Sat"],"start":"14:00","end":"17:00","deal":"$6 Schooners (Tappy Hour)"}
+        lng: 144.9353,
+        happyHour: {"days":["Sat"],"start":"14:00","end":"17:00","deal":"$6 Schooners (Tappy Hour)"},
+        weatherNow: { windSpeed: 12, uvIndex: 5, precipProb: 24 },
+        shielding: { windbreak: 80, rainCover: 85, shadeFactor: 70 }
     },
     {
         id: 13,
@@ -139,7 +163,9 @@ export const venues = [
         emoji: "🎱",
         tags: ["Fireplace", "Pub Grub", "Pet Friendly", "Smoking Area"],
         lat: -37.8597,
-        lng: 144.9953
+        lng: 144.9953,
+        weatherNow: { windSpeed: 18, uvIndex: 6, precipProb: 32 },
+        shielding: { windbreak: 65, rainCover: 80, shadeFactor: 55 }
     },
     // CBD Rooftops
     {
@@ -150,8 +176,10 @@ export const venues = [
         emoji: "🍿",
         tags: ["Views", "Casual", "Rooftop", "Wheelchair Accessible"],
         lat: -37.8136,
-        lng: 144.9669,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"Discounted House Drinks"}
+        lng: 144.9669,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"Discounted House Drinks"},
+        weatherNow: { windSpeed: 35, uvIndex: 8, precipProb: 12 },
+        shielding: { windbreak: 40, rainCover: 55, shadeFactor: 45 }
     },
     {
         id: 15,
@@ -161,8 +189,10 @@ export const venues = [
         emoji: "🍹",
         tags: ["Cocktails", "Sunny", "Rooftop", "Smoking Area"],
         lat: -37.8136,
-        lng: 144.9685,
-        happyHour: {"days":["Tue","Wed","Thu","Fri"],"start":"15:00","end":"18:00","deal":"$8 Wines & $10 Spirits"}
+        lng: 144.9685,
+        happyHour: {"days":["Tue","Wed","Thu","Fri"],"start":"15:00","end":"18:00","deal":"$8 Wines & $10 Spirits"},
+        weatherNow: { windSpeed: 26, uvIndex: 7, precipProb: 14 },
+        shielding: { windbreak: 50, rainCover: 65, shadeFactor: 55 }
     },
     {
         id: 16,
@@ -172,7 +202,9 @@ export const venues = [
         emoji: "🏛️",
         tags: ["Premium", "Cigars", "Rooftop", "Smoking Area"],
         lat: -37.8136,
-        lng: 144.9734
+        lng: 144.9734,
+        weatherNow: { windSpeed: 30, uvIndex: 8, precipProb: 18 },
+        shielding: { windbreak: 42, rainCover: 50, shadeFactor: 58 }
     },
     // Northside & Friendly
     {
@@ -183,7 +215,9 @@ export const venues = [
         emoji: "🐾",
         tags: ["Dog Friendly", "Sport", "Pet Friendly", "Beer Garden"],
         lat: -37.7833,
-        lng: 144.9717
+        lng: 144.9717,
+        weatherNow: { windSpeed: 14, uvIndex: 5, precipProb: 28 },
+        shielding: { windbreak: 72, rainCover: 82, shadeFactor: 60 }
     },
     {
         id: 18,
@@ -193,8 +227,10 @@ export const venues = [
         emoji: "🚚",
         tags: ["Pram Friendly", "Beer Garden", "Pet Friendly", "Wheelchair Accessible"],
         lat: -37.7608,
-        lng: 145.0125,
-        happyHour: {"days":["Wed","Thu","Fri"],"start":"17:00","end":"19:00","deal":"$9 Schooners, $8 Spirits, $7 Wines"}
+        lng: 145.0125,
+        happyHour: {"days":["Wed","Thu","Fri"],"start":"17:00","end":"19:00","deal":"$9 Schooners, $8 Spirits, $7 Wines"},
+        weatherNow: { windSpeed: 10, uvIndex: 6, precipProb: 22 },
+        shielding: { windbreak: 85, rainCover: 75, shadeFactor: 65 }
     },
     {
         id: 19,
@@ -204,8 +240,10 @@ export const venues = [
         emoji: "🌿",
         tags: ["Hidden", "Vines", "Beer Garden", "Pet Friendly"],
         lat: -37.7997,
-        lng: 144.9789,
-        happyHour: {"days":["Mon","Tue","Wed","Thu"],"start":"15:00","end":"18:00","deal":"$4 Pots & $8 Pints"}
+        lng: 144.9789,
+        happyHour: {"days":["Mon","Tue","Wed","Thu"],"start":"15:00","end":"18:00","deal":"$4 Pots & $8 Pints"},
+        weatherNow: { windSpeed: 14, uvIndex: 6, precipProb: 26 },
+        shielding: { windbreak: 80, rainCover: 72, shadeFactor: 70 }
     },
     {
         id: 20,
@@ -215,8 +253,10 @@ export const venues = [
         emoji: "🌳",
         tags: ["Garden", "Arts", "Beer Garden", "Pet Friendly", "Pram Friendly"],
         lat: -37.7686,
-        lng: 144.9597,
-        happyHour: {"days":["Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"19:00","deal":"$10 Pints"}
+        lng: 144.9597,
+        happyHour: {"days":["Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"19:00","deal":"$10 Pints"},
+        weatherNow: { windSpeed: 9, uvIndex: 5, precipProb: 22 },
+        shielding: { windbreak: 82, rainCover: 88, shadeFactor: 72 }
     },
     {
         id: 21,
@@ -226,8 +266,10 @@ export const venues = [
         emoji: "☕",
         tags: ["Day/Night", "Sunny", "Pet Friendly", "Wheelchair Accessible"],
         lat: -37.7997,
-        lng: 144.9944,
-        happyHour: {"days":["Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"$8 Pints & $12 Espresso Martinis"}
+        lng: 144.9944,
+        happyHour: {"days":["Tue","Wed","Thu","Fri"],"start":"16:00","end":"18:00","deal":"$8 Pints & $12 Espresso Martinis"},
+        weatherNow: { windSpeed: 7, uvIndex: 4, precipProb: 15 },
+        shielding: { windbreak: 90, rainCover: 95, shadeFactor: 80 }
     },
     {
         id: 22,
@@ -237,8 +279,10 @@ export const venues = [
         emoji: "🌉",
         tags: ["River", "Sunny", "Wheelchair Accessible", "Smoking Area"],
         lat: -37.8183,
-        lng: 144.9625,
-        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"19:00","deal":"$10 Pints, Wines, Spirits & Spritz"}
+        lng: 144.9625,
+        happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"19:00","deal":"$10 Pints, Wines, Spirits & Spritz"},
+        weatherNow: { windSpeed: 25, uvIndex: 7, precipProb: 22 },
+        shielding: { windbreak: 55, rainCover: 45, shadeFactor: 58 }
     }
 ];
 

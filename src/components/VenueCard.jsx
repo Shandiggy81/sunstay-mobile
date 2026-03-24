@@ -220,6 +220,17 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   );
   const actualHappyHour = fullVenueData?.happyHour;
 
+  const getSmartBadge = () => {
+    const { windSpeed, uvIndex, precipProb } = venue.weatherNow || {};
+    if (precipProb > 60)
+      return <div className="bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 w-fit mb-3"><span>🌧️</span> Wet Conditions – Check Cover</div>;
+    if (windSpeed > 30)
+      return <div className="bg-slate-100 text-slate-800 border border-slate-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 w-fit mb-3"><span>🌬️</span> High Wind – Sit Indoors</div>;
+    if (uvIndex >= 5 && windSpeed < 20)
+      return <div className="bg-orange-100 text-orange-800 border border-orange-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 w-fit mb-3"><span>☀️</span> Prime Outdoor Conditions</div>;
+    return <div className="bg-gray-100 text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 w-fit mb-3"><span>🌤️</span> Good Afternoon Sun Expected</div>;
+  };
+
   return (
     <AnimatePresence>
       <motion.div
@@ -378,6 +389,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             )}
 
+            {getSmartBadge()}
             <motion.div 
               ref={panelRef}
               className="bg-white border border-black/5 rounded-2xl p-5 cursor-pointer relative overflow-hidden shadow-sm"
@@ -425,6 +437,36 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   </div>
                 </div>
               </div>
+
+              {venue.shielding && (
+                <div className="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Venue Shielding</p>
+
+                  <div className="flex items-center gap-3">
+                    <span className="min-w-[64px] text-xs font-semibold text-gray-600 truncate">Windbreak</span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-teal-400 rounded-full" style={{ width: `${venue.shielding.windbreak}%` }}></div>
+                    </div>
+                    <span className="text-xs font-bold text-gray-800 w-8 text-right">{venue.shielding.windbreak}%</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="min-w-[64px] text-xs font-semibold text-gray-600 truncate">Rain Cover</span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-400 rounded-full" style={{ width: `${venue.shielding.rainCover}%` }}></div>
+                    </div>
+                    <span className="text-xs font-bold text-gray-800 w-8 text-right">{venue.shielding.rainCover}%</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="min-w-[64px] text-xs font-semibold text-gray-600 truncate">Shade</span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full" style={{ width: `${venue.shielding.shadeFactor}%` }}></div>
+                    </div>
+                    <span className="text-xs font-bold text-gray-800 w-8 text-right">{venue.shielding.shadeFactor}%</span>
+                  </div>
+                </div>
+              )}
 
               <AnimatePresence>
                 {panelExpanded && (
