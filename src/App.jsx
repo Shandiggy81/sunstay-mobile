@@ -473,25 +473,13 @@ const AppContent = () => {
                 onFiltersOpen={openMobileFilters}
             />
 
-            {/* Navigation Tabs */}
-            <div className="flex bg-white border-b border-gray-200 shadow-sm sticky top-[72px] z-30">
-                <button
-                    onClick={() => setShowOwnerDashboard(false)}
-                    className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${!showOwnerDashboard ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-400 hover:text-gray-700'}`}
-                >
-                    🗺️ Explore Venues
-                </button>
-                <button
-                    onClick={() => setShowOwnerDashboard(true)}
-                    className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${showOwnerDashboard ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-400 hover:text-gray-700'}`}
-                >
-                    🏢 Partner Dashboard
-                </button>
-            </div>
-
             {showOwnerDashboard ? (
                 <div className="flex-1 bg-gray-50 overflow-y-auto min-h-0">
-                    <OwnerDashboard venue={venues[0]} />
+                    <OwnerDashboard 
+                        venue={selectedVenue || venues[0]} 
+                        venues={venues} 
+                        onClose={() => setShowOwnerDashboard(false)} 
+                    />
                 </div>
             ) : (
                 <>
@@ -710,6 +698,14 @@ const AppContent = () => {
 
                     {/* Sunny mascot FAB */}
                     <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />
+
+                    {/* Partner Dashboard FAB */}
+                    <button
+                        onClick={() => setShowOwnerDashboard(true)}
+                        className="fixed bottom-6 left-6 z-40 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2"
+                    >
+                        🏢 Partner Dashboard
+                    </button>
 
                     {/* Footer badge */}
                     <motion.div
