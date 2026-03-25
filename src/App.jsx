@@ -209,6 +209,7 @@ const AppContent = () => {
     // Initial filters: empty to show all venues by default
     const [activeFilters, setActiveFilters] = useState([]);
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
+    const [liveVenueFeatures, setLiveVenueFeatures] = useState({});
     
     // Custom filters
     const [customFilters, setCustomFilters] = useState(
@@ -477,6 +478,8 @@ const AppContent = () => {
                 <div className="min-h-screen">
                     <OwnerDashboard 
                         venue={selectedVenue} 
+                        liveVenueFeatures={liveVenueFeatures}
+                        setLiveVenueFeatures={setLiveVenueFeatures}
                         onClose={() => {
                             setShowOwnerDashboard(false);
                             setSelectedVenue(null);
@@ -680,6 +683,7 @@ const AppContent = () => {
                             key={selectedVenue?.id}
                             venue={selectedVenue}
                             weather={weather}
+                            liveVenueFeatures={liveVenueFeatures}
                             onClose={handleCloseCard}
                             onCenter={handleVenueSelect}
                             cozyWeatherActive={cozyWeatherActive}

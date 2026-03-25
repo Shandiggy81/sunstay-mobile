@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, MapPin, Share2, Wind, Droplets, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import { getSunPositionForMap } from '../util/sunPosition';
 import { venues } from '../data/venues';
+import { FEATURE_BADGES } from '../config/features';
 
 // Helper to check if happy hour is live
 function isHappyHourNow(happyHour) {
@@ -117,10 +118,17 @@ const HourlyTimeline = ({ hourlyData, dark }) => {
   );
 };
 
-export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue }) {
+export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [demoModalOpen, setDemoModalOpen] = useState(false);
   const panelRef = useRef(null);
+
+  // Derive active features from lifted state
+  const venueLiveState = liveVenueFeatures?.[venue.id] || {};
+  const activeFeatures = Object.entries(venueLiveState)
+    .filter(([_, value]) => value)
+    .map(([key]) => FEATURE_BADGES[key])
+    .filter(Boolean);
 
   useEffect(() => {
     if (panelExpanded) {
@@ -521,6 +529,26 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   <Share2 size={18} />
                 </motion.button>
               </div>
+
+              {/* Live from the Venue Section */}
+              {activeFeatures.length > 0 && (
+                <div className="mt-4 p-3 bg-green-50/50 border border-green-200 rounded-xl">
+                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-widest mb-2 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    Live from the Venue
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {activeFeatures.map((feature, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-white border border-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm"
+                      >
+                        {feature}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Bottom row: Full-width Book button */}
               <motion.button
