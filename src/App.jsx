@@ -209,8 +209,16 @@ const AppContent = () => {
     // Initial filters: empty to show all venues by default
     const [activeFilters, setActiveFilters] = useState([]);
     const [activeFilter, setActiveFilter] = useState('All');
-    const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
     const [liveVenueFeatures, setLiveVenueFeatures] = useState({});
+    const [debouncedLiveFeatures, setDebouncedLiveFeatures] = useState({});
+
+    // Debounce live feature updates for the map to prevent "wake up" lag
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedLiveFeatures(liveVenueFeatures);
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [liveVenueFeatures]);
     
     // Custom filters
     const [customFilters, setCustomFilters] = useState(
@@ -327,7 +335,7 @@ const AppContent = () => {
     // Get filtered + searched venues for list
     const filteredVenues = useMemo(() => {
         return demoVenues.filter((venue) => {
-            const liveState = liveVenueFeatures?.[venue.id] || {};
+            const liveState = debouncedLiveFeatures?.[venue.id] || {};
 
             // 1. Check activeFilter ('All', 'Sunny', 'Cozy')
             if (activeFilter !== 'All') {
@@ -578,7 +586,7 @@ const AppContent = () => {
                                     onVenueSelect={handleVenueSelect}
                                     selectedVenue={selectedVenue}
                                     filteredVenueIds={filteredVenues.map(v => v.id)}
-                                    liveVenueFeatures={liveVenueFeatures}
+                                    liveVenueFeatures={debouncedLiveFeatures}
                                     mapRef={mapRef}
                                     weatherColorFn={getMarkerWeatherColor}
                                     cozyWeatherActive={cozyWeatherActive}

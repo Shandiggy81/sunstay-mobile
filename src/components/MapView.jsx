@@ -606,32 +606,85 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             const emoji = getVenuePinEmoji(venue);
             const isSelected = selectedMarkerId === venue.id;
 
+            const liveState = liveVenueFeatures?.[venue.id] || {};
+            const isCozyLive = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
+
             const el = document.createElement('div');
             el.className = 'custom-sun-pin';
             el.style.cursor = 'pointer';
-            el.innerHTML = `
-              <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none; position: relative;">
-                <div style="font-size: ${isSelected ? '34px' : '28px'}; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: font-size 0.15s ease;">${emoji}</div>
-                <div class="venue-pin-label" style="
-                  background: rgba(255,255,255,0.92);
-                  backdrop-filter: blur(8px);
-                  -webkit-backdrop-filter: blur(8px);
-                  padding: 2px 8px;
-                  border-radius: 12px;
-                  font-size: 11px;
-                  font-weight: 700;
-                  color: #1A1A1A;
-                  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-                  white-space: nowrap;
-                  margin-top: 3px;
-                  border: 1px solid rgba(255,255,255,0.6);
-                  opacity: ${isSelected ? '1' : '0'};
-                  transform: translateY(${isSelected ? '0' : '-4px'});
-                  transition: opacity 0.2s ease, transform 0.2s ease;
-                  pointer-events: none;
-                ">${venue.venueName}</div>
-              </div>
-            `;
+
+            if (isCozyLive) {
+                // High-visibility glowing fire pin
+                el.innerHTML = `
+                  <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none; position: relative;">
+                    <div style="
+                      width: ${isSelected ? '50px' : '44px'}; 
+                      height: ${isSelected ? '50px' : '44px'}; 
+                      background: radial-gradient(circle, #FF4500 0%, #FF6B35 70%, #FFA726 100%);
+                      border-radius: 50%; 
+                      display: flex; align-items: center; justify-content: center;
+                      box-shadow: 
+                        0 0 ${isSelected ? '25px' : '15px'} #FF4500AA, 
+                        0 4px 12px rgba(0,0,0,0.3),
+                        inset 0 2px 4px rgba(255,255,255,0.3);
+                      font-size: ${isSelected ? '24px' : '20px'}; 
+                      transition: all 0.2s ease;
+                      animation: cozyPulse 2s infinite ease-in-out;
+                    ">
+                      🔥
+                    </div>
+                    <div class="venue-pin-label" style="
+                      background: rgba(255,255,255,0.92);
+                      backdrop-filter: blur(8px);
+                      -webkit-backdrop-filter: blur(8px);
+                      padding: 2px 8px;
+                      border-radius: 12px;
+                      font-size: 11px;
+                      font-weight: 700;
+                      color: #1A1A1A;
+                      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+                      white-space: nowrap;
+                      margin-top: 5px;
+                      border: 1px solid rgba(255,255,255,0.6);
+                      opacity: ${isSelected ? '1' : '0'};
+                      transform: translateY(${isSelected ? '0' : '-4px'});
+                      transition: opacity 0.2s ease, transform 0.2s ease;
+                      pointer-events: none;
+                    ">${venue.venueName}</div>
+                  </div>
+                  <style>
+                    @keyframes cozyPulse { 
+                        0%, 100% { box-shadow: 0 0 15px #FF4500AA; transform: scale(1); } 
+                        50% { box-shadow: 0 0 30px #FF6B35CC; transform: scale(1.05); } 
+                    }
+                  </style>
+                `;
+            } else {
+                // Standard sunny/cloudy emoji pin
+                el.innerHTML = `
+                  <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none; position: relative;">
+                    <div style="font-size: ${isSelected ? '34px' : '28px'}; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: font-size 0.15s ease;">${emoji}</div>
+                    <div class="venue-pin-label" style="
+                      background: rgba(255,255,255,0.92);
+                      backdrop-filter: blur(8px);
+                      -webkit-backdrop-filter: blur(8px);
+                      padding: 2px 8px;
+                      border-radius: 12px;
+                      font-size: 11px;
+                      font-weight: 700;
+                      color: #1A1A1A;
+                      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+                      white-space: nowrap;
+                      margin-top: 3px;
+                      border: 1px solid rgba(255,255,255,0.6);
+                      opacity: ${isSelected ? '1' : '0'};
+                      transform: translateY(${isSelected ? '0' : '-4px'});
+                      transition: opacity 0.2s ease, transform 0.2s ease;
+                      pointer-events: none;
+                    ">${venue.venueName}</div>
+                  </div>
+                `;
+            }
 
             const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                 .setLngLat([lng, lat])
