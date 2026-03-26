@@ -209,6 +209,7 @@ const AppContent = () => {
     // Initial filters: empty to show all venues by default
     const [activeFilters, setActiveFilters] = useState([]);
     const [activeFilter, setActiveFilter] = useState('All');
+    const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
     const [liveVenueFeatures, setLiveVenueFeatures] = useState({});
     const [debouncedLiveFeatures, setDebouncedLiveFeatures] = useState({});
 
