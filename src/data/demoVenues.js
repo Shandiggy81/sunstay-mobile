@@ -241,6 +241,7 @@ export const demoVenues = [
         capacity: 300,
         notes: 'Real AVC venue — rooftop.',
         hasFireplace: true,
+        shielding: { rainCover: 95 },
         proTip: 'Ideal for golden hour cocktails on the west deck. 🍸',
     },
     {

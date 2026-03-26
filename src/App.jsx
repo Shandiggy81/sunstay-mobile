@@ -203,11 +203,12 @@ const HeaderWeather = () => {
 // Main App Content
 // ═══════════════════════════════════════════════════════════════════
 const AppContent = () => {
-    const { weather } = useWeather();
+    const { weather, getUVIndex } = useWeather();
     const [selectedVenue, setSelectedVenue] = useState(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     // Initial filters: empty to show all venues by default
     const [activeFilters, setActiveFilters] = useState([]);
+    const [activeFilter, setActiveFilter] = useState('All');
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
     const [liveVenueFeatures, setLiveVenueFeatures] = useState({});
     
@@ -325,41 +326,45 @@ const AppContent = () => {
 
     // Get filtered + searched venues for list
     const filteredVenues = useMemo(() => {
-        let vList = demoVenues.filter(v => filteredVenueIds.includes(v.id));
+        return demoVenues.filter((venue) => {
+            const liveState = liveVenueFeatures?.[venue.id] || {};
 
-        // Map quick-filter
-        if (mapQuickFilter && weather) {
-            vList = vList.filter(v => {
-                if (mapQuickFilter === 'sunny') {
-                    const cond = (weather.weather?.[0]?.main || '').toLowerCase();
-                    return cond.includes('clear') || cond.includes('sun');
+            // 1. Check activeFilter ('All', 'Sunny', 'Cozy')
+            if (activeFilter !== 'All') {
+                if (activeFilter === 'Cozy') {
+                    const hasLiveCozy = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
+                    const hasStaticCozy = 
+                        (venue.shielding?.rainCover ?? 0) > 80 ||
+                        venue.tags?.some(tag => ['cozy', 'covered', 'indoor'].includes(tag.toLowerCase())) ||
+                        venue.hasCozy;
+                    if (!hasLiveCozy && !hasStaticCozy) return false;
                 }
-                if (mapQuickFilter === 'calm') {
-                    const w = getWindWarning(weather.wind?.speed, v);
-                    return w.level === 'green' || w.level === 'yellow';
-                }
-                if (mapQuickFilter === 'outdoor') {
-                    return v.tags.some(t => ['Beer Garden', 'Rooftop', 'Garden'].includes(t));
-                }
-                if (mapQuickFilter === 'rooftop') {
-                    return v.tags.includes('Rooftop');
-                }
-                return true;
-            });
-        }
 
-        // Text search
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            vList = vList.filter(v =>
-                v.venueName.toLowerCase().includes(q) ||
-                v.suburb?.toLowerCase().includes(q) ||
-                v.vibe?.toLowerCase().includes(q)
-            );
-        }
+                if (activeFilter === 'Sunny') {
+                    const roofClosed = !!liveState.roofClosed;
+                    const uvIndexValue = getUVIndex() || 0;
+                    if (uvIndexValue < 4 || roofClosed) return false;
+                }
+            }
 
-        return vList;
-    }, [activeFilters, mapQuickFilter, searchQuery, weather]);
+            // 2. Integration with existing activeFilters (Category pills)
+            if (activeFilters.length > 0) {
+                if (!filteredVenueIds.includes(venue.id)) return false;
+            }
+
+            // 3. Text search
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const matchesSearch = 
+                    venue.venueName.toLowerCase().includes(q) ||
+                    venue.suburb?.toLowerCase().includes(q) ||
+                    venue.vibe?.toLowerCase().includes(q);
+                if (!matchesSearch) return false;
+            }
+
+            return true;
+        });
+    }, [activeFilter, activeFilters, filteredVenueIds, liveVenueFeatures, searchQuery, weather]);
 
     const matchingCount = filteredVenues.length;
 
@@ -572,11 +577,12 @@ const AppContent = () => {
                                 <MapView
                                     onVenueSelect={handleVenueSelect}
                                     selectedVenue={selectedVenue}
-                                    filteredVenueIds={filteredVenueIds}
+                                    filteredVenueIds={filteredVenues.map(v => v.id)}
+                                    liveVenueFeatures={liveVenueFeatures}
                                     mapRef={mapRef}
                                     weatherColorFn={getMarkerWeatherColor}
                                     cozyWeatherActive={cozyWeatherActive}
-                                    cozyFilterActive={activeFilters.includes('cozy-mode')}
+                                    cozyFilterActive={activeFilter === 'Cozy'}
                                     isExpanded={mobileMapExpanded}
                                 />
                             </div>
@@ -591,11 +597,40 @@ const AppContent = () => {
                                 <Locate size={18} />
                             </motion.button>
 
-                            {/* Weather legend */}
-                            <div className="ss-map-legend">
-                                <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-sunny" />Sunny</div>
-                                <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-cloudy" />Cloudy</div>
-                                <div className="ss-legend-item"><span className="ss-legend-dot ss-legend-windy" />Windy</div>
+                            {/* Functional Filter Buttons */}
+                            <div className="ss-map-filters-row absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex gap-2 w-full px-4 justify-center">
+                                <button
+                                    onClick={() => setActiveFilter('All')}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
+                                        activeFilter === 'All'
+                                            ? 'bg-sky-600 text-white border-sky-600 scale-105'
+                                            : 'bg-white/90 backdrop-blur text-sky-700 border-sky-100 hover:bg-sky-50'
+                                    }`}
+                                >
+                                    🌐 All
+                                </button>
+
+                                <button
+                                    onClick={() => setActiveFilter('Sunny')}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
+                                        activeFilter === 'Sunny'
+                                            ? 'bg-amber-400 text-amber-950 border-amber-500 scale-105'
+                                            : 'bg-white/90 backdrop-blur text-amber-700 border-amber-100 hover:bg-amber-50'
+                                    }`}
+                                >
+                                    ☀️ Sunny Patios
+                                </button>
+
+                                <button
+                                    onClick={() => setActiveFilter('Cozy')}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
+                                        activeFilter === 'Cozy'
+                                            ? 'bg-orange-600 text-white border-orange-700 scale-105'
+                                            : 'bg-white/90 backdrop-blur text-orange-700 border-orange-100 hover:bg-orange-50'
+                                    }`}
+                                >
+                                    🔥 Cozy & Covered
+                                </button>
                             </div>
                         </section>
 

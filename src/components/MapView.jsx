@@ -16,29 +16,7 @@ import SunCalc from 'suncalc';
 // ── Build a venue lookup for click handlers ──────────────────────
 const venueById = Object.fromEntries(demoVenues.map(v => [v.id, v]));
 
-// ── Dynamic venue emoji logic: Weather-driven rule only ─────────
-const getVenuePinEmoji = (venue) => {
-    // Current temperature fallback if not provided
-    const currentTemp = venue.currentTemp ?? 20;
-
-    // Fire pin: venue has fireplace or heated outdoor AND current temp is under 18°C
-    if ((venue.heating === 'fireplace' || venue.heating === 'heated outdoor') && currentTemp < 18) {
-        return '🔥';
-    }
-
-    // Weather-driven: use current weather condition for the venue
-    const condition = (venue.weatherCondition || venue.condition || '').toLowerCase();
-    
-    if (condition.includes('cloud') || condition.includes('overcast')) {
-        return '⛅';
-    }
-    if (condition.includes('rain')) {
-        return '🌧️';
-    }
-    
-    // Default: sunny
-    return '☀️';
-};
+// venue pin emoji logic moved inside MapView for prop access
 
 // ── Convert venues to GeoJSON FeatureCollection ──────────────────
 function buildGeoJSON(venues, weatherData) {
@@ -57,7 +35,37 @@ function buildGeoJSON(venues, weatherData) {
     };
 }
 
-const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, mapRef, weatherColorFn, cozyWeatherActive, cozyFilterActive, isExpanded }, ref) => {
+const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, liveVenueFeatures, mapRef, weatherColorFn, cozyWeatherActive, cozyFilterActive, isExpanded }, ref) => {
+    // ── Dynamic venue emoji logic: Dashboard-reactive ─────────
+    const getVenuePinEmoji = useCallback((venue) => {
+        const liveState = liveVenueFeatures?.[venue.id] || {};
+        
+        // Dashboard overrides: if heaters, fireplace, or roof closed are active -> FIRE!
+        if (liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed) {
+            return '🔥';
+        }
+
+        // Current temperature fallback if not provided
+        const currentTemp = venue.currentTemp ?? 20;
+
+        // Default Fire pin (static data): venue has fireplace or heated outdoor AND current temp is under 18°C
+        if ((venue.heating === 'fireplace' || venue.heating === 'heated outdoor') && currentTemp < 18) {
+            return '🔥';
+        }
+
+        // Weather-driven: use current weather condition for the venue
+        const condition = (venue.weatherCondition || venue.condition || '').toLowerCase();
+        
+        if (condition.includes('cloud') || condition.includes('overcast')) {
+            return '⛅';
+        }
+        if (condition.includes('rain')) {
+            return '🌧️';
+        }
+        
+        // Default: sunny
+        return '☀️';
+    }, [liveVenueFeatures]);
     const mapContainer = useRef(null);
     const map = useRef(null);
     const markersRef = useRef([]);
@@ -645,7 +653,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, ma
             markersRef.current.forEach(m => m.remove());
             markersRef.current = [];
         };
-    }, [mapLoaded, filteredVenues, selectedMarkerId]);
+    }, [mapLoaded, filteredVenues, selectedMarkerId, liveVenueFeatures, getVenuePinEmoji]);
 
     useEffect(() => {
         // Re-calculate emojis if cozy filters change, without recreating all markers
