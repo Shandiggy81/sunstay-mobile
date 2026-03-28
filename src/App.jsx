@@ -37,30 +37,6 @@ const LoadingScreen = () => (
     </div>
 );
 
-// Weather indicator for header
-const WeatherIndicator = () => {
-    const { weather, getTemperature, getWeatherDescription, theme } = useWeather();
-
-    const getWeatherIcon = () => {
-        if (!weather) return <Cloud size={16} className="text-gray-400" />;
-        const main = weather.weather?.[0]?.main?.toLowerCase() || '';
-        if (main.includes('clear') || main.includes('sun')) return <Sun size={16} className="text-amber-400" />;
-        if (main.includes('rain')) return <Cloud size={16} className="text-blue-400" />;
-        if (main.includes('cloud')) return <Cloud size={16} className="text-gray-400" />;
-        return <Sun size={16} className="text-amber-400" />;
-    };
-
-    return (
-        <div className="flex items-center gap-2">
-            {getWeatherIcon()}
-            <div className="text-right">
-                <span className="font-bold text-gray-800 text-sm">{getTemperature()}°</span>
-                <span className="text-[10px] text-gray-500 hidden sm:block leading-tight">{getTemperature()}</span>
-            </div>
-        </div>
-    );
-};
-
 // ── Weather badge for venue list cards ────────────────────────────
 const getWeatherBadge = (weather, venue) => {
     if (!weather) return { emoji: '🌤️', label: 'Fair', color: '#9ca3af' };
@@ -175,31 +151,6 @@ const VenueChip = ({ venue, isSelected, onClick, weather }) => {
     );
 };
 
-
-// ── Header Weather row ─────────────────────────────────────────────
-const HeaderWeather = () => {
-    const [weatherData, setWeatherData] = useState(null);
-
-    useEffect(() => {
-        // Dynamically import to avoid top level issues and get live data
-        import('./util/weatherService').then(({ getMelbourneWeather }) => {
-            getMelbourneWeather().then(weather => {
-                setWeatherData(weather);
-            });
-        });
-    }, []);
-
-    if (!weatherData) {
-        return <div className="weather-info weather-row opacity-50">☀️ Loading…</div>;
-    }
-
-    return (
-        <div className="weather-info weather-row">
-            ☀️ {weatherData.temperature}°C · UV {weatherData.uvIndex} · Sun Score: {weatherData.sunScore}/100
-        </div>
-    );
-};
-
 // ═══════════════════════════════════════════════════════════════════
 // Main App Content
 // ═══════════════════════════════════════════════════════════════════
@@ -221,7 +172,7 @@ const AppContent = () => {
         }, 100);
         return () => clearTimeout(timer);
     }, [liveVenueFeatures]);
-    
+
     // Custom filters
     const [customFilters, setCustomFilters] = useState(
       JSON.parse(localStorage.getItem('sunstay-custom-filters') || '[]')
@@ -235,7 +186,15 @@ const AppContent = () => {
       localStorage.setItem('sunstay-custom-filters', JSON.stringify(updated));
       setNewFilter('');
     };
-    const isMobile = window.innerWidth < 768;
+
+    // FIX: isMobile is now reactive — updates on window resize
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState] = useState('peek'); // 'peek', 'expanded', 'closed'
     const [mapQuickFilter, setMapQuickFilter] = useState(null);
@@ -254,10 +213,10 @@ const AppContent = () => {
         setMobileFilterOpen(false);
     }, []);
 
-    const [cozyMode, setCozyMode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const mapRef = useRef(null);
     const listRef = useRef(null);
+
     // Calculate cozy weather conditions
     const cozyWeatherActive = useMemo(() => {
         if (!weather) return false;
@@ -269,18 +228,15 @@ const AppContent = () => {
 
     // Calculate filtered venue IDs based on active filters (Types + Intents + Tags)
     const filteredVenueIds = useMemo(() => {
-        // Separate filter types
         const filters = activeFilters || [];
         const typeFilters = filters.filter(f => f.startsWith('all-'));
         const intentFilters = filters.filter(f => f.startsWith('sun-'));
         const tagFilters = filters.filter(f => !f.startsWith('all-') && !f.startsWith('sun-'));
 
-        // Match logic
         const categoryData = FILTER_CATEGORIES;
 
         return demoVenues
             .filter(v => {
-                // 1. Type matching
                 const vType = v.typeCategory || 'Bar';
                 const hasTypeMatch = typeFilters.length === 0 || typeFilters.some(f => {
                     if (f === 'all-bars' && vType === 'Bar') return true;
@@ -290,7 +246,6 @@ const AppContent = () => {
                 });
                 if (!hasTypeMatch) return false;
 
-                // 2. Intent matching (Room-level)
                 if (intentFilters.length > 0) {
                     const rooms = v.roomTypes || [];
                     const hasRoomMatch = rooms.some(room => {
@@ -318,7 +273,6 @@ const AppContent = () => {
                     if (!hasRoomMatch) return false;
                 }
 
-                // 3. Tag matching - look up the 'tag' property for each filter ID
                 const vTags = v.tags || [];
                 const hasTagMatch = tagFilters.length === 0 || tagFilters.some(id => {
                     const filter = categoryData.find(c => c.id === id);
@@ -334,16 +288,16 @@ const AppContent = () => {
             .map(v => v.id);
     }, [activeFilters]);
 
-    // Get filtered + searched venues for list
+    // FIX: filteredVenues now correctly depends on debouncedLiveFeatures (not liveVenueFeatures)
+    // and weather dep removed since only getUVIndex() (from context) is used directly
     const filteredVenues = useMemo(() => {
         return demoVenues.filter((venue) => {
             const liveState = debouncedLiveFeatures?.[venue.id] || {};
 
-            // 1. Check activeFilter ('All', 'Sunny', 'Cozy')
             if (activeFilter !== 'All') {
                 if (activeFilter === 'Cozy') {
                     const hasLiveCozy = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
-                    const hasStaticCozy = 
+                    const hasStaticCozy =
                         (venue.shielding?.rainCover ?? 0) > 80 ||
                         venue.tags?.some(tag => ['cozy', 'covered', 'indoor'].includes(tag.toLowerCase())) ||
                         venue.hasCozy;
@@ -357,15 +311,13 @@ const AppContent = () => {
                 }
             }
 
-            // 2. Integration with existing activeFilters (Category pills)
             if (activeFilters.length > 0) {
                 if (!filteredVenueIds.includes(venue.id)) return false;
             }
 
-            // 3. Text search
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
-                const matchesSearch = 
+                const matchesSearch =
                     venue.venueName.toLowerCase().includes(q) ||
                     venue.suburb?.toLowerCase().includes(q) ||
                     venue.vibe?.toLowerCase().includes(q);
@@ -374,7 +326,7 @@ const AppContent = () => {
 
             return true;
         });
-    }, [activeFilter, activeFilters, filteredVenueIds, liveVenueFeatures, searchQuery, weather]);
+    }, [activeFilter, activeFilters, filteredVenueIds, debouncedLiveFeatures, searchQuery]);
 
     const matchingCount = filteredVenues.length;
 
@@ -473,8 +425,6 @@ const AppContent = () => {
         }
     }, [selectedVenue]);
 
-
-
     return (
         <div className={`ss-app-root ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
             {/* Weather background */}
@@ -491,14 +441,14 @@ const AppContent = () => {
 
             {showOwnerDashboard ? (
                 <div className="min-h-screen">
-                    <OwnerDashboard 
-                        venue={selectedVenue} 
+                    <OwnerDashboard
+                        venue={selectedVenue}
                         liveVenueFeatures={liveVenueFeatures}
                         setLiveVenueFeatures={setLiveVenueFeatures}
                         onClose={() => {
                             setShowOwnerDashboard(false);
                             setSelectedVenue(null);
-                        }} 
+                        }}
                     />
                 </div>
             ) : (
@@ -517,12 +467,6 @@ const AppContent = () => {
                                     onChange={e => setSearchQuery(e.target.value)}
                                     className="ss-search-input"
                                     id="venue-search"
-                                />
-                                {/* Sunny mascot FAB */}
-                                <SunnyMascot
-                                    onClick={() => setIsChatOpen(!isChatOpen)}
-                                    isChatOpen={isChatOpen}
-                                    selectedVenue={selectedVenue}
                                 />
                                 {searchQuery && (
                                     <button
@@ -661,8 +605,6 @@ const AppContent = () => {
                         />
                     </main>
 
-                    {/* MOBILE: Carousel removed from render path entirely */}
-
                     {/* ═══ MOBILE: Bottom sheet venue list ═══ */}
                     {!mobileMapExpanded && (
                         <div
@@ -751,19 +693,17 @@ const AppContent = () => {
                         onFindBusiness={handleFindBusiness}
                     />
 
-                    {/* Sunny mascot FAB */}
+                    {/* FIX: Single SunnyMascot FAB — duplicate in sidebar removed */}
                     <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />
 
-
-
-                    {/* Footer badge */}
+                    {/* Footer badge — FIX: use imported fireIconImg instead of hardcoded path */}
                     <motion.div
                         initial={{ y: 100, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.6, delay: 0.6 }}
                         className="ss-footer-badge"
                     >
-                        <img src="/assets/fire-icon.jpg" alt="" className="ss-footer-badge-icon" />
+                        <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
                         Sales Demo · {demoVenues.length} Partner Venues
                     </motion.div>
                 </>
