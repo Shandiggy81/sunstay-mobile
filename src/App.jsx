@@ -554,7 +554,7 @@ const AppContent = () => {
                             </motion.button>
 
                             {/* Functional Filter Buttons */}
-                            <div className="ss-map-filters-row absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex gap-2 w-full px-4 justify-center">
+                            <div className="ss-map-filters-row absolute bottom-40 left-1/2 -translate-x-1/2 z-20 flex gap-2 w-full px-4 justify-center">
                                 <button
                                     onClick={() => setActiveFilter('All')}
                                     className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
