@@ -243,7 +243,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             if (!features.length) return;
             const clusterId = features[0].properties.cluster_id;
             map.current.getSource('venues').getClusterExpansionZoom(clusterId, (err, zoom) => {
-                if (err) return;
+                if (err || !map.current || !map.current.isSourceLoaded('venues')) return;
                 map.current.easeTo({
                     center: features[0].geometry.coordinates,
                     zoom: zoom,
