@@ -1,43 +1,55 @@
-import { useState, useCallback } from 'react';
-import { storage } from '../utils/platform';
+import { useState, useEffect, useCallback } from 'react';
+import { getCurrentWeather, getHourlyForecast, getSunstayScore, getScoreLabel } from '../api/weatherService';
 
-const CACHE_KEY_PREFIX = 'sunstay_weather_';
-const CACHE_EXPIRY = 900000; // 15 Minutes
+// Default to Melbourne CBD
+const DEFAULT_LAT = -37.8136;
+const DEFAULT_LNG = 144.9631;
 
-export const useWeather = () => {
-    const [loading, setLoading] = useState(false);
+/**
+ * useWeather hook — fetches live weather and computes Sunstay score
+ * @param {number} lat - Latitude (defaults to Melbourne)
+ * @param {number} lng - Longitude (defaults to Melbourne)
+ */
+export function useWeather(lat = DEFAULT_LAT, lng = DEFAULT_LNG) {
+  const [weather, setWeather] = useState(null);
+  const [hourly, setHourly] = useState([]);
+  const [score, setScore] = useState(null);
+  const [scoreLabel, setScoreLabel] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-    const fetchWeatherWithCache = useCallback(async (lat, lon) => {
-        const bucket = `${lat.toFixed(2)}_${lon.toFixed(2)}`;
-        const cacheKey = `${CACHE_KEY_PREFIX}${bucket}`;
+  const fetchWeather = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [current, forecast] = await Promise.all([
+        getCurrentWeather(lat, lng),
+        getHourlyForecast(lat, lng).catch(() => []), // graceful fallback
+      ]);
 
-        setLoading(true);
-        try {
-            const cachedString = await storage.getItem(cacheKey);
-            if (cachedString) {
-                const { data, timestamp } = JSON.parse(cachedString);
-                if (Date.now() - timestamp < CACHE_EXPIRY) {
-                    setLoading(false);
-                    return data;
-                }
-            }
+      const uvIndex = current?.uvi ?? 5;
+      const calculatedScore = getSunstayScore(current, uvIndex);
+      const label = getScoreLabel(calculatedScore);
 
-            const response = await fetch(`{{weather_api_url}}?lat=${lat}&lon=${lon}`);
-            const freshData = await response.json();
+      setWeather(current);
+      setHourly(forecast);
+      setScore(calculatedScore);
+      setScoreLabel(label);
+      setLastUpdated(new Date());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [lat, lng]);
 
-            await storage.setItem(cacheKey, JSON.stringify({
-                data: freshData,
-                timestamp: Date.now()
-            }));
+  useEffect(() => {
+    fetchWeather();
+    // Refresh every 10 minutes
+    const interval = setInterval(fetchWeather, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchWeather]);
 
-            return freshData;
-        } catch (error) {
-            console.error("[SunStay Weather] Error:", error);
-            return null;
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    return { fetchWeatherWithCache, loading };
-};
+  return { weather, hourly, score, scoreLabel, loading, error, lastUpdated, refresh: fetchWeather };
+}
