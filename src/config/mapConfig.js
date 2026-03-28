@@ -15,6 +15,8 @@ export const INITIAL_VIEW_STATE = {
     bearing: 0
 };
 
+export const MAX_BOUNDS = [[144.5, -38.2], [145.5, -37.5]];
+
 export const MARKER_STYLE = {
     width: 'auto',
     height: '32px',

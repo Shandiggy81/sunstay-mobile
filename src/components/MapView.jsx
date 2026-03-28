@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, us
 import FiltersSheet from './FiltersSheet';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../config/mapConfig';
+import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../config/mapConfig';
 import { demoVenues } from '../data/demoVenues';
 import { venues as realVenues } from '../data/venues';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -184,7 +184,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             data: geojson,
             cluster: true,
             clusterRadius: 50,
-            clusterMaxZoom: 16,
+            clusterMaxZoom: 14, // Zoom level where clustering stops
         });
 
         // ── Clusters circle layer ──────────────────────────────
@@ -194,8 +194,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             source: 'venues',
             filter: ['has', 'point_count'],
             paint: {
-                'circle-color': '#F59E0B',
-                'circle-radius': 20,
+                // Orange fill for clusters
+                'circle-color': '#F97316', 
+                'circle-radius': [
+                    'step',
+                    ['get', 'point_count'],
+                    20,   // Radius for < 10 points
+                    10, 30,  // 30px for 10-30 points
+                    30, 40   // 40px for > 30 points
+                ],
                 'circle-stroke-width': 2,
                 'circle-stroke-color': '#fff'
             }
@@ -213,6 +220,18 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 'text-size': 14,
             },
             paint: { 'text-color': '#ffffff' }
+        });
+
+        // ── Unclustered points layer (for hit testing and sync) ──
+        map.current.addLayer({
+            id: 'unclustered-point',
+            type: 'circle',
+            source: 'venues',
+            filter: ['!', ['has', 'point_count']],
+            paint: {
+                'circle-radius': 0, // Keep invisible, markers handle visuals
+                'circle-opacity': 0
+            }
         });
 
         // ── Unclustered points (Emoji Pins) moved to useEffect for performance ──
@@ -239,6 +258,13 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         });
 
         // ── Hover effects ──────────────────────────────────────────
+        map.current.on('mouseenter', 'clusters', () => {
+            map.current.getCanvas().style.cursor = 'pointer';
+        });
+        map.current.on('mouseleave', 'clusters', () => {
+            map.current.getCanvas().style.cursor = '';
+        });
+
         map.current.on('mouseenter', 'unclustered-point', () => {
             map.current.getCanvas().style.cursor = 'pointer';
         });
@@ -246,10 +272,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             map.current.getCanvas().style.cursor = '';
         });
         
-        // Initial marker draw
-        setTimeout(map.current._updateDOMMarkers, 100);
-
-        // Remove setup of DOM markers manually as layer handles it now
+        // Initial marker draw via sync event
+        map.current.on('moveend', map.current._updateDOMMarkers);
     }, [onVenueSelect]);
 
     // ── Apply SunCalc-driven sky layer to the map ─────────────────
@@ -403,7 +427,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 pitch: INITIAL_VIEW_STATE.pitch,
                 bearing: INITIAL_VIEW_STATE.bearing,
                 minZoom: 0,
-                maxZoom: 22
+                maxZoom: 22,
+                maxBounds: MAX_BOUNDS
             });
 
             map.current.on('load', () => {
@@ -591,21 +616,35 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         setTimeout(() => setIsUpdating(false), 200);
     }, [filteredVenueIds, mapLoaded, weather]);
 
-    // ── Efficient Marker Management ──
-    useEffect(() => {
+    // ── Cluster-Aware HTML Marker Sync ───────────────────────────
+    const updateDOMMarkers = useCallback(() => {
         if (!map.current || !mapLoaded) return;
 
-        markersRef.current.forEach(m => m.remove());
-        markersRef.current = [];
+        // 1. Get IDs of features that are currently unclustered in the viewport
+        const features = map.current.queryRenderedFeatures({ layers: ['unclustered-point'] });
+        const currentFeatureIds = new Set(features.map(f => f.properties.id));
 
-        filteredVenues.forEach((venue) => {
-            const lng = Number(venue.lng);
-            const lat = Number(venue.lat);
-            if (isNaN(lng) || isNaN(lat) || lng === 0 || lat === 0) return;
+        // 2. Remove markers that are no longer unclustered or are off-screen
+        markersRef.current = markersRef.current.filter(m => {
+            if (!currentFeatureIds.has(m._venueId)) {
+                m.remove();
+                return false;
+            }
+            return true;
+        });
+
+        // 3. Add markers for new unclustered features
+        const existingIds = new Set(markersRef.current.map(m => m._venueId));
+        
+        features.forEach((feature) => {
+            const venueId = feature.properties.id;
+            if (existingIds.has(venueId)) return;
+
+            const venue = demoVenues.find(v => v.id === venueId);
+            if (!venue) return;
 
             const emoji = getVenuePinEmoji(venue);
             const isSelected = selectedMarkerId === venue.id;
-
             const liveState = liveVenueFeatures?.[venue.id] || {};
             const isCozyLive = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
 
@@ -623,40 +662,19 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                       background: radial-gradient(circle, #FF4500 0%, #FF6B35 70%, #FFA726 100%);
                       border-radius: 50%; 
                       display: flex; align-items: center; justify-content: center;
-                      box-shadow: 
-                        0 0 ${isSelected ? '25px' : '15px'} #FF4500AA, 
-                        0 4px 12px rgba(0,0,0,0.3),
-                        inset 0 2px 4px rgba(255,255,255,0.3);
+                      box-shadow: 0 0 ${isSelected ? '25px' : '15px'} #FF4500AA, 0 4px 12px rgba(0,0,0,0.3);
                       font-size: ${isSelected ? '24px' : '20px'}; 
-                      transition: all 0.2s ease;
                       animation: cozyPulse 2s infinite ease-in-out;
-                    ">
-                      🔥
-                    </div>
+                    ">🔥</div>
                     <div class="venue-pin-label" style="
-                      background: rgba(255,255,255,0.92);
-                      backdrop-filter: blur(8px);
-                      -webkit-backdrop-filter: blur(8px);
-                      padding: 2px 8px;
-                      border-radius: 12px;
-                      font-size: 11px;
-                      font-weight: 700;
-                      color: #1A1A1A;
-                      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-                      white-space: nowrap;
-                      margin-top: 5px;
-                      border: 1px solid rgba(255,255,255,0.6);
-                      opacity: ${isSelected ? '1' : '0'};
-                      transform: translateY(${isSelected ? '0' : '-4px'});
+                      background: rgba(255,255,255,0.92); padding: 2px 8px; border-radius: 12px;
+                      font-size: 11px; font-weight: 700; color: #1A1A1A;
+                      opacity: ${isSelected ? '1' : '0'}; transform: translateY(${isSelected ? '0' : '-4px'});
                       transition: opacity 0.2s ease, transform 0.2s ease;
-                      pointer-events: none;
                     ">${venue.venueName}</div>
                   </div>
                   <style>
-                    @keyframes cozyPulse { 
-                        0%, 100% { box-shadow: 0 0 15px #FF4500AA; transform: scale(1); } 
-                        50% { box-shadow: 0 0 30px #FF6B35CC; transform: scale(1.05); } 
-                    }
+                    @keyframes cozyPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
                   </style>
                 `;
             } else {
@@ -665,30 +683,14 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                   <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none; position: relative;">
                     <div style="font-size: ${isSelected ? '34px' : '28px'}; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: font-size 0.15s ease;">${emoji}</div>
                     <div class="venue-pin-label" style="
-                      background: rgba(255,255,255,0.92);
-                      backdrop-filter: blur(8px);
-                      -webkit-backdrop-filter: blur(8px);
-                      padding: 2px 8px;
-                      border-radius: 12px;
-                      font-size: 11px;
-                      font-weight: 700;
-                      color: #1A1A1A;
-                      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-                      white-space: nowrap;
-                      margin-top: 3px;
-                      border: 1px solid rgba(255,255,255,0.6);
-                      opacity: ${isSelected ? '1' : '0'};
-                      transform: translateY(${isSelected ? '0' : '-4px'});
+                      background: rgba(255,255,255,0.92); padding: 2px 8px; border-radius: 12px;
+                      font-size: 11px; font-weight: 700; color: #1A1A1A;
+                      opacity: ${isSelected ? '1' : '0'}; transform: translateY(${isSelected ? '0' : '-4px'});
                       transition: opacity 0.2s ease, transform 0.2s ease;
-                      pointer-events: none;
                     ">${venue.venueName}</div>
                   </div>
                 `;
             }
-
-            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-                .setLngLat([lng, lat])
-                .addTo(map.current);
 
             const handleSelect = (e) => {
                 e.stopPropagation();
@@ -699,14 +701,43 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             el.addEventListener('click', handleSelect);
             el.addEventListener('touchend', handleSelect, { passive: false });
 
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+                .setLngLat([venue.lng, venue.lat])
+                .addTo(map.current);
+
+            marker._venueId = venueId;
             markersRef.current.push(marker);
         });
+    }, [mapLoaded, selectedMarkerId, liveVenueFeatures, getVenuePinEmoji]);
+
+    // ── Efficient Marker Management ─────────────────────────────
+    useEffect(() => {
+        if (!map.current || !mapLoaded) return;
+
+        // Perform initial sync
+        updateDOMMarkers();
+
+        // Attach listeners for dynamic updates
+        const mapInstance = map.current;
+        const handleSync = () => updateDOMMarkers();
+        const handleSourceData = (e) => {
+            if (e.sourceId === 'venues' && e.isSourceLoaded) {
+                updateDOMMarkers();
+            }
+        };
+
+        mapInstance.on('moveend', handleSync);
+        mapInstance.on('zoomend', handleSync);
+        mapInstance.on('sourcedata', handleSourceData);
 
         return () => {
+            mapInstance.off('moveend', handleSync);
+            mapInstance.off('zoomend', handleSync);
+            mapInstance.off('sourcedata', handleSourceData);
             markersRef.current.forEach(m => m.remove());
             markersRef.current = [];
         };
-    }, [mapLoaded, filteredVenues, selectedMarkerId, liveVenueFeatures, getVenuePinEmoji]);
+    }, [mapLoaded, updateDOMMarkers]);
 
     useEffect(() => {
         // Re-calculate emojis if cozy filters change, without recreating all markers
@@ -719,14 +750,12 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
     // ── Interaction sync (simplified) ──────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-        const syncMap = () => {
+        const resizeMap = () => {
             if (map.current) map.current.resize();
         };
-        map.current.on('zoomend', syncMap);
-        map.current.on('moveend', syncMap);
+        map.current.on('idle', resizeMap);
         return () => {
-            map.current?.off('zoomend', syncMap);
-            map.current?.off('moveend', syncMap);
+            map.current?.off('idle', resizeMap);
         };
     }, [mapLoaded]);
 
@@ -912,88 +941,95 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
             {/* Overlay for Loading, Error, or Missing Token */}
             {showOverlay && (
-                <div className="ss-map-overlay-error bg-orange-50/80 backdrop-blur-sm">
-                    {/* High-Fidelity Fallback UI: Sun Intelligence Heatmap */}
-                    {(isTokenMissing || mapError) ? (
-                        <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                            {/* Heatmap Background - High quality aerial */}
-                            <img
-                                src="https://images.unsplash.com/photo-1549443542-99086fd59379?auto=format&fit=crop&q=80&w=2000"
-                                alt="Melbourne Aerial View"
-                                className="absolute inset-0 w-full h-full object-cover opacity-15 mix-blend-multiply grayscale-[20%]"
-                                onError={(e) => {
-                                    e.target.src = 'https://images.unsplash.com/photo-1518173946687-a4c8a9833d8e?auto=format&fit=crop&q=80&w=2000';
-                                }}
-                            />
-
-                            {/* Map UI Shield / Pattern - Warm Sunny Gradients */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-amber-200/30 via-transparent to-amber-100/20" />
-                            <div className="absolute inset-0 pointer-events-none opacity-50" style={{ backgroundImage: 'radial-gradient(rgb(245, 158, 11) 0.6px, transparent 0.6px)', backgroundSize: '30px 30px' }} />
-
-                            {/* Fallback Search/Marker Layer (Interactive) */}
-                            <div className="relative z-10 w-full h-full">
-                                {filteredVenues.map((venue) => {
-
-
-                                    {/* Manual projection for Melbourne CBD focused heatmap */ }
-                                    const left = ((venue.lng - INITIAL_VIEW_STATE.longitude + 0.1) / 0.2) * 100;
-                                    const top = ((-venue.lat + INITIAL_VIEW_STATE.latitude + 0.08) / 0.16) * 100;
-
-                                    return (
-                                        <motion.div
-                                            key={venue.id}
-                                            initial={{ scale: 0, opacity: 0 }}
-                                            animate={{ scale: 1, opacity: 1 }}
-                                            className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 group"
-                                            style={{ left: `${left}%`, top: `${top}%` }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onVenueSelect(venue);
-                                            }}
-                                        >
-                                            <div className={`ss-marker-pill ss-marker-${weather && weatherColorFn ? weatherColorFn(weather, venue) : 'sunny'} shadow-xl border-2 border-white/30 ${(venue.hasCozy && cozyWeatherActive && cozyFilterActive) ? 'ss-marker-cozy-glow' : ''}`}>
-                                                <span className="ss-marker-emoji">{getVenuePinEmoji({
-                                                    ...venue,
-                                                    weatherCondition: weather?.weather?.[0]?.main || '',
-                                                    currentTemp: weather?.main?.temp ?? 20
-                                                })}</span>
-                                            </div>
-                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/80 text-white text-[10px] px-2 py-1 rounded-full pointer-events-none">
-                                                {venue.venueName}
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Bottom Fallback Info Chip */}
-                            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
-                                <motion.div
-                                    initial={{ y: 20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2"
-                                >
-                                    <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                                    <span className="text-[10px] font-bold text-white uppercase tracking-widest">Demo Mode: Sun Intelligence Static Overlay</span>
-                                </motion.div>
-                            </div>
-
-                            {/* Token Missing Warning Banner (Discreet) */}
-                            {!mapLoaded && (isTokenMissing || mapError) && (
-                                <div className="absolute top-6 right-6 z-20">
-                                    <button
-                                        onClick={() => setMapError(false)}
-                                        className="bg-amber-400/20 hover:bg-amber-400/40 text-amber-200 text-[10px] font-bold px-3 py-1.5 rounded-full backdrop-blur-sm border border-amber-400/20 transition-all"
-                                    >
-                                        Map Setup Info
-                                    </button>
-                                </div>
-                            )}
+                <div className="absolute inset-0 z-[40] flex items-center justify-center">
+                    {!mapLoaded && !mapError && !isTokenMissing ? (
+                        <div className="absolute inset-0 bg-blue-50 animate-pulse flex flex-col items-center justify-center">
+                            <div className="text-4xl mb-4">☀️</div>
+                            <h2 className="text-xl font-bold text-blue-900">Loading Live Map...</h2>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            <div className="animate-spin-slow text-6xl mb-4">☀️</div>
-                            <p className="text-gray-400 font-semibold italic">Waking up the map...</p>
+                        <div className="ss-map-overlay-error bg-orange-50/80 backdrop-blur-sm w-full h-full">
+                            {/* High-Fidelity Fallback UI: Sun Intelligence Heatmap */}
+                            {(isTokenMissing || mapError) ? (
+                                <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                                    {/* Heatmap Background - High quality aerial */}
+                                    <img
+                                        src="https://images.unsplash.com/photo-1549443542-99086fd59379?auto=format&fit=crop&q=80&w=2000"
+                                        alt="Melbourne Aerial View"
+                                        className="absolute inset-0 w-full h-full object-cover opacity-15 mix-blend-multiply grayscale-[20%]"
+                                        onError={(e) => {
+                                            e.target.src = 'https://images.unsplash.com/photo-1518173946687-a4c8a9833d8e?auto=format&fit=crop&q=80&w=2000';
+                                        }}
+                                    />
+
+                                    {/* Map UI Shield / Pattern - Warm Sunny Gradients */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-amber-200/30 via-transparent to-amber-100/20" />
+                                    <div className="absolute inset-0 pointer-events-none opacity-50" style={{ backgroundImage: 'radial-gradient(rgb(245, 158, 11) 0.6px, transparent 0.6px)', backgroundSize: '30px 30px' }} />
+
+                                    {/* Fallback Search/Marker Layer (Interactive) */}
+                                    <div className="relative z-10 w-full h-full">
+                                        {filteredVenues.map((venue) => {
+                                            {/* Manual projection for Melbourne CBD focused heatmap */ }
+                                            const left = ((venue.lng - INITIAL_VIEW_STATE.longitude + 0.1) / 0.2) * 100;
+                                            const top = ((-venue.lat + INITIAL_VIEW_STATE.latitude + 0.08) / 0.16) * 100;
+
+                                            return (
+                                                <motion.div
+                                                    key={venue.id}
+                                                    initial={{ scale: 0, opacity: 0 }}
+                                                    animate={{ scale: 1, opacity: 1 }}
+                                                    className="absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 group"
+                                                    style={{ left: `${left}%`, top: `${top}%` }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onVenueSelect(venue);
+                                                    }}
+                                                >
+                                                    <div className={`ss-marker-pill ss-marker-${weather && weatherColorFn ? weatherColorFn(weather, venue) : 'sunny'} shadow-xl border-2 border-white/30 ${(venue.hasCozy && cozyWeatherActive && cozyFilterActive) ? 'ss-marker-cozy-glow' : ''}`}>
+                                                        <span className="ss-marker-emoji">{getVenuePinEmoji({
+                                                            ...venue,
+                                                            weatherCondition: weather?.weather?.[0]?.main || '',
+                                                            currentTemp: weather?.main?.temp ?? 20
+                                                        })}</span>
+                                                    </div>
+                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-black/80 text-white text-[10px] px-2 py-1 rounded-full pointer-events-none">
+                                                        {venue.venueName}
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Bottom Fallback Info Chip */}
+                                    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
+                                        <motion.div
+                                            initial={{ y: 20, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2"
+                                        >
+                                            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                            <span className="text-[10px] font-bold text-white uppercase tracking-widest">Demo Mode: Sun Intelligence Static Overlay</span>
+                                        </motion.div>
+                                    </div>
+
+                                    {/* Token Missing Warning Banner (Discreet) */}
+                                    {!mapLoaded && (isTokenMissing || mapError) && (
+                                        <div className="absolute top-6 right-6 z-20">
+                                            <button
+                                                onClick={() => setMapError(false)}
+                                                className="bg-amber-400/20 hover:bg-amber-400/40 text-amber-200 text-[10px] font-bold px-3 py-1.5 rounded-full backdrop-blur-sm border border-amber-400/20 transition-all"
+                                            >
+                                                Map Setup Info
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-4 flex flex-col items-center justify-center h-full">
+                                    <div className="animate-spin-slow text-6xl mb-4">☀️</div>
+                                    <p className="text-gray-400 font-semibold italic">Waking up the map...</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
