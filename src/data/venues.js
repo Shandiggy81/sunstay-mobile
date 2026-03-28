@@ -283,6 +283,44 @@ export const venues = [
         happyHour: {"days":["Mon","Tue","Wed","Thu","Fri"],"start":"16:00","end":"19:00","deal":"$10 Pints, Wines, Spirits & Spritz"},
         weatherNow: { windSpeed: 25, uvIndex: 7, precipProb: 22 },
         shielding: { windbreak: 55, rainCover: 45, shadeFactor: 58 }
+    },
+    {
+        id: 23,
+        name: "St Kilda Beachfront Penthouse",
+        address: "1 The Esplanade, St Kilda",
+        vibe: "Luxury Penthouse",
+        type: "Airbnb",
+        emoji: "🌅",
+        tags: ["Beachfront", "Pool", "Balcony", "Pet Friendly", "Wheelchair Accessible"],
+        lat: -37.8674,
+        lng: 144.9752,
+        weatherNow: { windSpeed: 14, uvIndex: 7, precipProb: 10 },
+        shielding: { windbreak: 70, rainCover: 85, shadeFactor: 60 },
+        roomIntelligence: {
+            naturalLight: "Premium (North Facing)",
+            balconySun: "7:00 AM – 11:30 AM",
+            poolExposure: "Full Afternoon Sun",
+            summary: "Perfect conditions for morning coffees on the balcony and afternoon pool sessions."
+        }
+    },
+    {
+        id: 24,
+        name: "Pullman Melbourne on the Park",
+        address: "192 Wellington Pde, East Melbourne",
+        vibe: "Boutique Hotel",
+        type: "Hotel",
+        emoji: "🏨",
+        tags: ["Pool", "Spa", "City Views", "Wheelchair Accessible"],
+        lat: -37.8142,
+        lng: 144.9833,
+        weatherNow: { windSpeed: 18, uvIndex: 6, precipProb: 15 },
+        shielding: { windbreak: 80, rainCover: 90, shadeFactor: 65 },
+        roomIntelligence: {
+            naturalLight: "East Facing City Views",
+            balconySun: "6:30 AM – 10:00 AM",
+            poolExposure: "Morning to Midday Sun",
+            summary: "Sunrise from your suite every morning — the rooftop pool catches 4 hours of direct sun before noon."
+        }
     }
 ];
 

@@ -4,6 +4,9 @@ import { X, MapPin, Share2, Wind, Droplets, Shield, ChevronDown, ChevronUp } fro
 import { getSunPositionForMap } from '../util/sunPosition';
 import { venues } from '../data/venues';
 import { FEATURE_BADGES } from '../config/features';
+import WeatherWidget from './WeatherWidget';
+import SunArcWidget from './SunArcWidget';
+import HourlyForecastStrip from './HourlyForecastStrip';
 
 // Helper to check if happy hour is live
 function isHappyHourNow(happyHour) {
@@ -118,6 +121,50 @@ const HourlyTimeline = ({ hourlyData, dark }) => {
   );
 };
 
+const RoomIntelligencePanel = ({ roomIntelligence }) => {
+  if (!roomIntelligence) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15 }}
+      className="mb-4 rounded-2xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #FFF8E7 0%, #FFF0C8 100%)',
+        border: '1.5px solid #F59E0B40',
+        padding: '16px'
+      }}
+    >
+      <div className="flex items-center gap-1.5 mb-3">
+        <span className="text-amber-500 text-sm">🌞</span>
+        <span className="text-[11px] font-extrabold text-amber-800 uppercase tracking-widest">Room Intelligence</span>
+        <div className="ml-auto flex items-center gap-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">Bespoke Data</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="bg-white/70 rounded-xl p-3 shadow-sm">
+          <div className="text-[9px] font-extrabold text-amber-600 uppercase tracking-widest mb-1">Natural Light</div>
+          <div className="text-[13px] font-black text-gray-900 leading-snug">{roomIntelligence.naturalLight}</div>
+        </div>
+        <div className="bg-white/70 rounded-xl p-3 shadow-sm">
+          <div className="text-[9px] font-extrabold text-sky-600 uppercase tracking-widest mb-1">☕ Balcony Sun</div>
+          <div className="text-[13px] font-black text-gray-900 leading-snug">{roomIntelligence.balconySun}</div>
+        </div>
+        <div className="col-span-2 bg-white/70 rounded-xl p-3 shadow-sm">
+          <div className="text-[9px] font-extrabold text-blue-600 uppercase tracking-widest mb-1">🏊 Pool / Courtyard</div>
+          <div className="text-[13px] font-black text-gray-900 leading-snug">{roomIntelligence.poolExposure}</div>
+        </div>
+      </div>
+      <div className="flex items-start gap-2 rounded-xl px-3 py-2.5" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}>
+        <span className="text-base flex-shrink-0 mt-0.5">✨</span>
+        <p className="text-[12px] text-amber-900 font-semibold leading-snug m-0">{roomIntelligence.summary}</p>
+      </div>
+    </motion.div>
+  );
+};
+
 export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [demoModalOpen, setDemoModalOpen] = useState(false);
@@ -149,7 +196,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const temp = weather?.rawWeather?.temperature || 22;
   const wind = weather?.rawWeather?.windSpeed || 10;
   const score = weather?.rawWeather?.sunScore ?? 75;
-  const isHotelOrStay = type === 'Hotel' || type === 'ShortStay';
+  const isHotelOrStay = type === 'Hotel' || type === 'ShortStay' || venue.type === 'Hotel' || venue.type === 'Airbnb';
 
   // Calculate dynamic outdoor features based on demo venue types
   const isPoolMatch = (name || '').toLowerCase().includes('pool') || tags.some(t => (t || '').toLowerCase() === 'pool');
@@ -227,6 +274,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     (v.name || '').toLowerCase().includes((name || '').toLowerCase())
   );
   const actualHappyHour = fullVenueData?.happyHour;
+  const roomIntelligence = venue.roomIntelligence || fullVenueData?.roomIntelligence;
 
   const getSmartBadge = () => {
     const { windSpeed, uvIndex, precipProb } = venue.weatherNow || {};
@@ -332,30 +380,40 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </div>
 
-            {/* Live Sunshine Check Panel */}
-            <div className="mb-4 rounded-2xl overflow-hidden" style={{ background: '#f8f5f0', padding: '16px' }}>
-              <div className="flex items-center gap-1.5 mb-3">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[11px] font-extrabold text-amber-800 uppercase tracking-widest">Live Sunshine Check</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
-                  <Wind size={16} className="text-sky-500 mb-1" />
-                  <span className="text-[15px] font-black text-gray-900 leading-none">{Math.round(wind)}km/h</span>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Wind</span>
-                </div>
-                <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
-                  <Droplets size={16} className="text-blue-500 mb-1" />
-                  <span className="text-[15px] font-black text-gray-900 leading-none">{isRain ? '80%' : '20%'}</span>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Rain</span>
-                </div>
-                <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
-                  <span className="text-base leading-none mb-1">☀️</span>
-                  <span className="text-[15px] font-black text-gray-900 leading-none">6pm</span>
-                  <span className="text-[9px] font-bold text-green-600 uppercase tracking-wider mt-1">Optimal</span>
-                </div>
-              </div>
+            {isHotelOrStay && roomIntelligence && (
+              <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
+            )}
+
+            {/* Premium Live Weather Widget */}
+            <div className="mb-4">
+              <WeatherWidget lat={venue.lat} lng={venue.lng} venueName={venue.venueName} />
             </div>
+
+            {!isHotelOrStay && (
+              <div className="mb-4 rounded-2xl overflow-hidden" style={{ background: '#f8f5f0', padding: '16px' }}>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[11px] font-extrabold text-amber-800 uppercase tracking-widest">Live Sunshine Check</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
+                    <Wind size={16} className="text-sky-500 mb-1" />
+                    <span className="text-[15px] font-black text-gray-900 leading-none">{Math.round(wind)}km/h</span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Wind</span>
+                  </div>
+                  <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
+                    <Droplets size={16} className="text-blue-500 mb-1" />
+                    <span className="text-[15px] font-black text-gray-900 leading-none">{isRain ? '80%' : '20%'}</span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Rain</span>
+                  </div>
+                  <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
+                    <span className="text-base leading-none mb-1">☀️</span>
+                    <span className="text-[15px] font-black text-gray-900 leading-none">6pm</span>
+                    <span className="text-[9px] font-bold text-green-600 uppercase tracking-wider mt-1">Optimal</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {venue.heating && venue.heating !== 'no heating' && venue.heating !== 'indoor only' && venue.heating !== 'heated outdoor' && (
               <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl" style={{ background: 'linear-gradient(135deg, #FFF0E6 0%, #FFDAB9 100%)', border: '1px solid #FFCBA4' }}>
@@ -424,6 +482,11 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-amber-500 text-lg">⚡</span>
                     <h4 className="text-gray-900 font-extrabold text-[15px] tracking-tight m-0">Sun Intelligence</h4>
+                  </div>
+                  
+                  {/* Sun Arc Path Visualizer */}
+                  <div className="mb-4 last:mb-0">
+                    <SunArcWidget lat={venue.lat} lng={venue.lng} />
                   </div>
                   
                   <div className="flex flex-col">
@@ -500,7 +563,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     className="overflow-hidden border-t border-black/5 mt-4 pt-2 relative"
                   >
                     <div className="absolute top-2 right-0 text-[10px] text-gray-400 uppercase tracking-widest font-bold">Hourly Path</div>
-                    <HourlyTimeline hourlyData={hourlyData} dark />
+                    <div className="mt-6">
+                      <HourlyForecastStrip lat={venue.lat} lng={venue.lng} />
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
