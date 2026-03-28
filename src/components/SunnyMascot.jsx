@@ -25,7 +25,7 @@ const SunnyMascot = ({ onClick, isChatOpen, selectedVenue }) => {
 
     return (
         <motion.div
-            className="fixed bottom-40 right-6 z-[1000] pointer-events-none"
+            className="fixed bottom-52 right-6 z-[1000] pointer-events-none"
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', damping: 15, delay: 0.5 }}
