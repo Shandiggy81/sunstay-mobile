@@ -238,7 +238,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
         // ── Click on cluster → zoom in ───────────────────────────
         map.current.on('click', 'clusters', (e) => {
+            if (!map.current || !map.current.isSourceLoaded('venues')) return;
             const features = map.current.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+            if (!features.length) return;
             const clusterId = features[0].properties.cluster_id;
             map.current.getSource('venues').getClusterExpansionZoom(clusterId, (err, zoom) => {
                 if (err) return;
@@ -252,24 +254,29 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
         // ── Click on individual pin → open card ────────────────────
         map.current.on('click', 'unclustered-point', (e) => {
-            const venueId = e.features[0].properties.id;
+            if (!map.current || !map.current.isSourceLoaded('venues')) return;
+            const features = map.current.queryRenderedFeatures(e.point, { layers: ['unclustered-point'] });
+            if (!features.length) return;
+            const venueId = features[0].properties.id;
             const fullVenue = demoVenues.find(v => v.id === venueId);
             if (fullVenue) onVenueSelect(fullVenue);
         });
 
         // ── Hover effects ──────────────────────────────────────────
         map.current.on('mouseenter', 'clusters', () => {
+            if (!map.current || !map.current.isSourceLoaded('venues')) return;
             map.current.getCanvas().style.cursor = 'pointer';
         });
         map.current.on('mouseleave', 'clusters', () => {
-            map.current.getCanvas().style.cursor = '';
+            if (map.current) map.current.getCanvas().style.cursor = '';
         });
 
         map.current.on('mouseenter', 'unclustered-point', () => {
+            if (!map.current || !map.current.isSourceLoaded('venues')) return;
             map.current.getCanvas().style.cursor = 'pointer';
         });
         map.current.on('mouseleave', 'unclustered-point', () => {
-            map.current.getCanvas().style.cursor = '';
+            if (map.current) map.current.getCanvas().style.cursor = '';
         });
         
         // Initial marker draw via sync event
@@ -715,7 +722,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         if (!map.current || !mapLoaded) return;
 
         // Perform initial sync
-        updateDOMMarkers();
+        if (map.current && map.current.isSourceLoaded('venues')) {
+            updateDOMMarkers();
+        }
 
         // Attach listeners for dynamic updates
         const mapInstance = map.current;

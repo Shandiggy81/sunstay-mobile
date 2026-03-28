@@ -20,6 +20,7 @@ import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning }
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
+import MapErrorBoundary from './components/MapErrorBoundary';
 
 // Loading fallback component
 const LoadingScreen = () => (
@@ -583,17 +584,19 @@ const AppContent = () => {
 
                             {/* Map container */}
                             <div className="ss-map-container">
-                                <MapView
-                                    onVenueSelect={handleVenueSelect}
-                                    selectedVenue={selectedVenue}
-                                    filteredVenueIds={filteredVenues.map(v => v.id)}
-                                    liveVenueFeatures={debouncedLiveFeatures}
-                                    mapRef={mapRef}
-                                    weatherColorFn={getMarkerWeatherColor}
-                                    cozyWeatherActive={cozyWeatherActive}
-                                    cozyFilterActive={activeFilter === 'Cozy'}
-                                    isExpanded={mobileMapExpanded}
-                                />
+                                <MapErrorBoundary>
+                                    <MapView
+                                        onVenueSelect={handleVenueSelect}
+                                        selectedVenue={selectedVenue}
+                                        filteredVenueIds={filteredVenues.map(v => v.id)}
+                                        liveVenueFeatures={debouncedLiveFeatures}
+                                        mapRef={mapRef}
+                                        weatherColorFn={getMarkerWeatherColor}
+                                        cozyWeatherActive={cozyWeatherActive}
+                                        cozyFilterActive={activeFilter === 'Cozy'}
+                                        isExpanded={mobileMapExpanded}
+                                    />
+                                </MapErrorBoundary>
                             </div>
 
                             {/* Recenter button */}
