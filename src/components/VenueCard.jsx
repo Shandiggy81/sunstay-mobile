@@ -294,7 +294,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: '100%', opacity: 0, scale: 0.95 }}
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        className="fixed bottom-0 left-0 right-0 z-[99999] md:bottom-auto md:top-1/2 md:left-auto md:right-4 md:-translate-y-1/2 md:w-[380px] pointer-events-none"
+        className="fixed bottom-0 left-0 right-0 z-[99999] md:static md:w-[400px] md:h-full md:pointer-events-auto md:z-10 md:flex flex-col bg-white border-l border-gray-200 shadow-2xl overflow-y-auto"
       >
         <div 
           style={{ 
@@ -321,7 +321,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4wMiIvPjwvc3ZnPg==')] opacity-30" />
           </div>
 
-          <div className="relative z-10 p-5 pt-7 pb-6">
+          <div className="relative z-10 p-5 pt-7 pb-6 flex flex-col gap-4">
             {/* Premium Mobile Pull Handle */}
             <div 
               style={{
@@ -389,31 +389,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <WeatherWidget lat={venue.lat} lng={venue.lng} venueName={venue.venueName} />
             </div>
 
-            {!isHotelOrStay && (
-              <div className="mb-4 rounded-2xl overflow-hidden" style={{ background: '#f8f5f0', padding: '16px' }}>
-                <div className="flex items-center gap-1.5 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-[11px] font-extrabold text-amber-800 uppercase tracking-widest">Live Sunshine Check</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
-                    <Wind size={16} className="text-sky-500 mb-1" />
-                    <span className="text-[15px] font-black text-gray-900 leading-none">{Math.round(wind)}km/h</span>
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Wind</span>
-                  </div>
-                  <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
-                    <Droplets size={16} className="text-blue-500 mb-1" />
-                    <span className="text-[15px] font-black text-gray-900 leading-none">{isRain ? '80%' : '20%'}</span>
-                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-1">Rain</span>
-                  </div>
-                  <div className="flex flex-col items-center py-3 px-2 bg-white rounded-xl shadow-sm">
-                    <span className="text-base leading-none mb-1">☀️</span>
-                    <span className="text-[15px] font-black text-gray-900 leading-none">6pm</span>
-                    <span className="text-[9px] font-bold text-green-600 uppercase tracking-wider mt-1">Optimal</span>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Legacy live check removed for premium widgets */}
 
             {venue.heating && venue.heating !== 'no heating' && venue.heating !== 'indoor only' && venue.heating !== 'heated outdoor' && (
               <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl" style={{ background: 'linear-gradient(135deg, #FFF0E6 0%, #FFDAB9 100%)', border: '1px solid #FFCBA4' }}>

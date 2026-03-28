@@ -8,6 +8,8 @@ import ChatWidget from './components/ChatWidget';
 import TopBar from './components/TopBar';
 import FilterSheet from './components/FilterSheet';
 import NotificationCenter from './components/NotificationCenter';
+import WeatherWidget from './components/WeatherWidget';
+import SunArcWidget from './components/SunArcWidget';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
@@ -454,9 +456,9 @@ const AppContent = () => {
             ) : (
                 <>
                     {/* ═══ MAIN SPLIT LAYOUT ═══ */}
-                    <main className="ss-main">
+                    <main className="ss-main flex h-full w-full overflow-hidden">
                         {/* ── LEFT: Venue List (desktop) ────────────────── */}
-                        <aside className="ss-sidebar">
+                        <aside className="ss-sidebar w-full md:w-96 h-full overflow-y-auto flex flex-col bg-white border-r border-gray-200">
                             {/* Search bar */}
                             <div className="ss-search-wrap">
                                 <Search size={15} className="ss-search-icon" />
@@ -510,7 +512,7 @@ const AppContent = () => {
                         </aside>
 
                         {/* ── RIGHT: Map ────────────────────────────────── */}
-                        <section className={`ss-map-area ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
+                        <section className={`ss-map-area flex-1 h-full relative ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
 
                             {/* Filters FAB (mobile only) */}
                             <button
@@ -589,6 +591,21 @@ const AppContent = () => {
                                 </button>
                             </div>
                         </section>
+                        
+                        {/* ═══ Venue detail card ═══ */}
+                        {selectedVenue && (
+                            <VenueCard
+                                key={selectedVenue?.id || 'empty'}
+                                venue={selectedVenue}
+                                weather={weather}
+                                liveVenueFeatures={liveVenueFeatures}
+                                onClose={handleCloseCard}
+                                onCenter={handleVenueSelect}
+                                cozyWeatherActive={cozyWeatherActive}
+                                setShowOwnerDashboard={setShowOwnerDashboard}
+                                setSelectedVenue={setSelectedVenue}
+                            />
+                        )}
 
                         {/* ═══ Mobile Filter Bottom Sheet ═══ */}
                         <FilterSheet
@@ -665,21 +682,6 @@ const AppContent = () => {
                             </>
                         )}
                     </AnimatePresence>
-
-                    {/* ═══ Venue detail card ═══ */}
-                    {selectedVenue && (
-                        <VenueCard
-                            key={selectedVenue?.id}
-                            venue={selectedVenue}
-                            weather={weather}
-                            liveVenueFeatures={liveVenueFeatures}
-                            onClose={handleCloseCard}
-                            onCenter={handleVenueSelect}
-                            cozyWeatherActive={cozyWeatherActive}
-                            setShowOwnerDashboard={setShowOwnerDashboard}
-                            setSelectedVenue={setSelectedVenue}
-                        />
-                    )}
 
                     {/* Chat */}
                     <ChatWidget
