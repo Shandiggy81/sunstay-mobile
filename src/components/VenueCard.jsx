@@ -5,7 +5,6 @@ import { getSunPositionForMap } from '../util/sunPosition';
 import { venues } from '../data/venues';
 import { FEATURE_BADGES } from '../config/features';
 import WeatherWidget from './WeatherWidget';
-import SunArcWidget from './SunArcWidget';
 import HourlyForecastStrip from './HourlyForecastStrip';
 
 // Helper to check if happy hour is live
@@ -294,13 +293,12 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: '100%', opacity: 0, scale: 0.95 }}
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        className="fixed inset-0 z-[100] bg-white overflow-y-auto md:relative md:inset-auto md:z-auto md:w-[400px] md:h-full md:border-l"
+        className="fixed inset-0 z-[9999] w-full h-full bg-white overflow-y-auto flex flex-col md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l"
       >
-        <div className="sticky top-0 z-[110] bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between shadow-sm">
+        <div className="sticky top-0 z-[10000] w-full bg-white px-4 py-4 border-b border-gray-100 flex items-center justify-between shadow-sm">
           <button onClick={onClose} className="flex items-center gap-2 text-slate-800 font-bold bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full transition-colors">
-            <span className="text-lg">←</span> Back
+            <span className="text-xl leading-none">←</span> Back to Map
           </button>
-          <div className="font-bold text-slate-800 truncate ml-4">{venue.name}</div>
         </div>
         <div 
           style={{ 
@@ -461,10 +459,26 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     <h4 className="text-gray-900 font-extrabold text-[15px] tracking-tight m-0">Sun Intelligence</h4>
                   </div>
                   
-                  {/* Sunrise / Sunset Summary */}
-                    <div className="flex justify-between text-sm font-bold text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span>🌅 Sunrise: 6:08 AM</span>
-                      <span>🌇 Sunset: 5:52 PM</span>
+                  {/* Sun Intelligence Grid */}
+                    <div className="mt-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center text-center">
+                          <span className="text-2xl mb-1">🌅</span>
+                          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sunrise</span>
+                          <span className="text-sm font-bold text-slate-800">{venue.sunrise ?? '--'}</span>
+                        </div>
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center text-center">
+                          <span className="text-2xl mb-1">🌇</span>
+                          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sunset</span>
+                          <span className="text-sm font-bold text-slate-800">{venue.sunset ?? '--'}</span>
+                        </div>
+                        <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex flex-col items-center text-center col-span-2">
+                          <span className="text-xs text-orange-600 font-bold uppercase tracking-wider mb-1">Current Exposure</span>
+                          <span className="text-sm font-bold text-orange-900">
+                            {venue.outdoorHours ? `Outdoor: ${venue.outdoorHours}h | Covered: ${venue.coveredHours}h` : 'Live data loading...'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   
                   <div className="flex flex-col">

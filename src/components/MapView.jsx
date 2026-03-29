@@ -699,14 +699,13 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 `;
             }
 
-            const handleSelect = (e) => {
-                e.stopPropagation();
-                setSelectedMarkerId(prev => prev === venue.id ? null : venue.id);
-                onVenueSelectRef.current?.(venue, isMobileViewport());
-            };
-
-            el.addEventListener('click', handleSelect);
-            el.addEventListener('touchend', handleSelect, { passive: false });
+            let startTouches = 0;
+            el.addEventListener('touchstart', (e) => { startTouches = e.touches.length; });
+            el.addEventListener('click', () => {
+              if (startTouches > 1) return;
+              setSelectedMarkerId(prev => prev === venue.id ? null : venue.id);
+              onVenueSelectRef.current?.(venue, isMobileViewport());
+            });
 
             const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                 .setLngLat([venue.lng, venue.lat])
