@@ -1,5 +1,6 @@
 import React from 'react';
 import { useWeather } from '../hooks/useWeather';
+import { useOpenMeteo } from '../hooks/useOpenMeteo';
 
 /**
  * WeatherWidget – displays live weather + Sunstay Score for a venue location
@@ -9,6 +10,10 @@ import { useWeather } from '../hooks/useWeather';
  */
 export default function WeatherWidget({ lat, lng, venueName }) {
   const { weather, score, scoreLabel, loading, error, lastUpdated, refresh } = useWeather(lat, lng);
+  const { data: solarData } = useOpenMeteo(lat, lng);
+
+  const displayScore = solarData?.sunstayScore ?? score;
+  const displayLabel = solarData?.scoreLabel ?? scoreLabel;
 
   if (loading) {
     return (
@@ -55,11 +60,11 @@ export default function WeatherWidget({ lat, lng, venueName }) {
       {/* Sunstay Score */}
       <div className="flex items-center gap-3">
         <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-white border border-slate-100 shadow-sm">
-          <span className="text-2xl">{scoreLabel?.emoji}</span>
-          <span className="text-slate-800 font-bold text-sm">{score}</span>
+          <span className="text-2xl">{displayLabel?.emoji}</span>
+          <span className="text-slate-800 font-bold text-sm">{displayScore}</span>
         </div>
         <div>
-          <p className="text-slate-800 font-semibold text-lg">{scoreLabel?.label}</p>
+          <p className="text-slate-800 font-semibold text-lg">{displayLabel?.label}</p>
           <p className="text-slate-500 text-xs">Sunstay Score</p>
         </div>
       </div>
@@ -71,6 +76,16 @@ export default function WeatherWidget({ lat, lng, venueName }) {
         <Stat icon="💨" label="Wind" value={`${windSpeed} m/s`} />
         <Stat icon="💧" label="Humidity" value={`${humidity}%`} />
       </div>
+
+      {/* Solar Intelligence Data */}
+      {solarData && (
+        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+          <Stat icon="🛰️" label="Solar Radiation" value={`${solarData.current.solarRadiation} W/m²`} />
+          <Stat icon="🔆" label="UV Index" value={solarData.current.uvIndex.toFixed(1)} sub={`Clear sky: ${solarData.current.uvIndexClearSky.toFixed(1)}`} />
+          <Stat icon="☀️" label="Direct Sun" value={`${solarData.current.directRadiation} W/m²`} />
+          <Stat icon="⏱️" label="Sun Duration" value={`${Math.round(solarData.current.sunshineDuration / 60)} min`} />
+        </div>
+      )}
 
       {/* Last updated */}
       {lastUpdated && (
