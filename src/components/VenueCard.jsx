@@ -294,13 +294,13 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: '100%', opacity: 0, scale: 0.95 }}
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        className="fixed bottom-0 left-0 right-0 z-[99999] md:static md:w-[400px] md:h-full md:pointer-events-auto md:z-10 md:flex flex-col bg-white border-l border-gray-200 shadow-2xl overflow-y-auto"
+        className="fixed inset-0 z-[100] bg-white overflow-y-auto md:relative md:inset-auto md:z-auto md:w-[400px] md:h-full md:border-l"
       >
-        <div className="sticky top-0 z-50 flex justify-between items-center p-4 bg-white border-b border-gray-100 shadow-sm">
-          <h2 className="font-bold text-lg truncate pr-4">{venue.name}</h2>
-          <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-800 font-bold text-sm hover:bg-gray-200 flex-shrink-0">
-            ✕ Close
+        <div className="sticky top-0 z-[110] bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between shadow-sm">
+          <button onClick={onClose} className="flex items-center gap-2 text-slate-800 font-bold bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full transition-colors">
+            <span className="text-lg">←</span> Back
           </button>
+          <div className="font-bold text-slate-800 truncate ml-4">{venue.name}</div>
         </div>
         <div 
           style={{ 
