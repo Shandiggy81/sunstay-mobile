@@ -296,6 +296,12 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
         className="fixed bottom-0 left-0 right-0 z-[99999] md:static md:w-[400px] md:h-full md:pointer-events-auto md:z-10 md:flex flex-col bg-white border-l border-gray-200 shadow-2xl overflow-y-auto"
       >
+        <div className="sticky top-0 z-50 flex justify-between items-center p-4 bg-white border-b border-gray-100 shadow-sm">
+          <h2 className="font-bold text-lg truncate pr-4">{venue.name}</h2>
+          <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-800 font-bold text-sm hover:bg-gray-200 flex-shrink-0">
+            ✕ Close
+          </button>
+        </div>
         <div 
           style={{ 
             backgroundColor: '#FFFDF5',
@@ -321,7 +327,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4wMiIvPjwvc3ZnPg==')] opacity-30" />
           </div>
 
-          <div className="relative z-10 p-5 pt-7 pb-6 flex flex-col gap-4">
+          <div className="relative z-10 p-4 flex flex-col gap-4">
             {/* Premium Mobile Pull Handle */}
             <div 
               style={{
@@ -413,11 +419,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             )}
 
-            {/* High Contrast Close Button for Light Mode */}
-            <button onClick={onClose} className="absolute top-3 right-3 z-50 bg-black/5 hover:bg-black/10 rounded-full p-2 text-[#1A1A1A] transition-colors" aria-label="Close">
-              <X size={18} strokeWidth={2.5} />
-            </button>
-
             {actualHappyHour && (
               <div className="flex flex-row items-center justify-between bg-orange-50/80 border border-orange-200/60 rounded-2xl p-4 mb-4">
                 <div className="flex flex-col gap-1">
@@ -479,7 +480,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                       ) : (
                         <>
                           <span className="inline-block bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-sm font-semibold mr-2">{sunHours.labels.outdoor}: {sunHours.outdoor}</span>
-                          <span className="inline-block bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-sm font-semibold">{sunHours.labels.covered}: {sunHours.covered}</span>
+                          <span className="text-gray-400 text-sm font-semibold">|</span>
+                          <span className="inline-block bg-gray-100 text-gray-800 px-2.5 py-1 rounded-lg text-sm font-semibold ml-2">{sunHours.labels.covered}: {sunHours.covered}</span>
                         </>
                       )}
                     </div>

@@ -19,7 +19,6 @@ function getSunTimes(lat, lng) {
   const month = now.getMonth();
   const day = now.getDate();
 
-  // Approximate sunrise/sunset for Melbourne
   const rad = Math.PI / 180;
   const dayOfYear = Math.floor((now - new Date(year, 0, 0)) / 86400000);
   const declination = -23.45 * Math.cos(rad * (360 / 365) * (dayOfYear + 10));
@@ -29,8 +28,6 @@ function getSunTimes(lat, lng) {
 
   const sunriseHour = 12 - hourAngle / 15;
   const sunsetHour = 12 + hourAngle / 15;
-  const goldenMorningEnd = sunriseHour + 1;
-  const goldenEveningStart = sunsetHour - 1;
 
   const toTime = (hour) => {
     const h = Math.floor(hour);
@@ -41,13 +38,11 @@ function getSunTimes(lat, lng) {
   return {
     sunrise: toTime(sunriseHour),
     sunset: toTime(sunsetHour),
-    goldenMorningEnd: toTime(goldenMorningEnd),
-    goldenEveningStart: toTime(goldenEveningStart),
   };
 }
 
 /**
- * SunArcWidget — shows sun position arc, sunrise/sunset, golden hour
+ * SunArcWidget – shows sun position arc, sunrise/sunset times, and sun dot
  * @param {number} lat - Venue latitude (default Melbourne)
  * @param {number} lng - Venue longitude (default Melbourne)
  */
@@ -75,40 +70,31 @@ export default function SunArcWidget({ lat = -37.8136, lng = 144.9631 }) {
 
   const fmt = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const isGoldenHour =
-    (now >= sunTimes.sunrise && now <= sunTimes.goldenMorningEnd) ||
-    (now >= sunTimes.goldenEveningStart && now <= sunTimes.sunset);
-
   return (
-    <div className="bg-gradient-to-b from-amber-950/50 to-orange-950/30 border border-amber-500/20 rounded-2xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-amber-400 text-xs font-medium uppercase tracking-wider">Sun Position</p>
-        {isGoldenHour && (
-          <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full animate-pulse">
-            ✨ Golden Hour
-          </span>
-        )}
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-slate-800 text-xs font-medium uppercase tracking-wider">Sun Position</p>
       </div>
 
       {/* SVG Sun Arc */}
-      <svg viewBox="0 0 100 65" className="w-full">
+      <svg viewBox="0 0 100 70" className="w-full h-32">
         {/* Sky gradient */}
         <defs>
           <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={isAboveHorizon ? '#92400e' : '#1e1b4b'} stopOpacity="0.3" />
+            <stop offset="0%" stopColor={isAboveHorizon ? '#f8fafc' : '#e2e8f0'} stopOpacity="0.5" />
             <stop offset="100%" stopColor="transparent" />
           </linearGradient>
         </defs>
-        <rect x="0" y="0" width="100" height="65" fill="url(#skyGrad)" rx="4" />
+        <rect x="0" y="0" width="100" height="70" fill="url(#skyGrad)" rx="4" />
 
         {/* Horizon line */}
-        <line x1="10" y1="60" x2="90" y2="60" stroke="#f59e0b" strokeOpacity="0.3" strokeWidth="0.5" />
+        <line x1="10" y1="60" x2="90" y2="60" stroke="#94a3b8" strokeOpacity="0.3" strokeWidth="0.5" />
 
         {/* Arc path */}
         <path
           d="M 10 60 A 40 40 0 0 1 90 60"
           fill="none"
-          stroke="#f59e0b"
+          stroke="#94a3b8"
           strokeOpacity="0.25"
           strokeWidth="0.8"
           strokeDasharray="2 1"
@@ -134,26 +120,10 @@ export default function SunArcWidget({ lat = -37.8136, lng = 144.9631 }) {
         )}
 
         {/* Sunrise label */}
-        <text x="10" y="65" fontSize="4" fill="#f59e0b" opacity="0.7" textAnchor="middle">{fmt(sunTimes.sunrise)}</text>
+        <text x="10" y="68" fontSize="4" fill="#64748b" opacity="0.7" textAnchor="middle">{fmt(sunTimes.sunrise)}</text>
         {/* Sunset label */}
-        <text x="90" y="65" fontSize="4" fill="#f59e0b" opacity="0.7" textAnchor="middle">{fmt(sunTimes.sunset)}</text>
+        <text x="90" y="68" fontSize="4" fill="#64748b" opacity="0.7" textAnchor="middle">{fmt(sunTimes.sunset)}</text>
       </svg>
-
-      {/* Golden hour info */}
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="bg-amber-500/10 rounded-xl px-3 py-2">
-          <p className="text-amber-500/60">🌅 Morning Gold</p>
-          <p className="text-amber-300 font-medium">{fmt(sunTimes.sunrise)} – {fmt(sunTimes.goldenMorningEnd)}</p>
-        </div>
-        <div className="bg-amber-500/10 rounded-xl px-3 py-2">
-          <p className="text-amber-500/60">🌇 Evening Gold</p>
-          <p className="text-amber-300 font-medium">{fmt(sunTimes.goldenEveningStart)} – {fmt(sunTimes.sunset)}</p>
-        </div>
-      </div>
-
-      <p className="text-white/30 text-xs text-center">
-        Altitude: {altitude.toFixed(1)}° {isAboveHorizon ? '☀️ Above horizon' : '🌑 Below horizon'}
-      </p>
     </div>
   );
 }
