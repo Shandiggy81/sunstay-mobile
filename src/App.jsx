@@ -623,7 +623,7 @@ const AppContent = () => {
                     </main>
 
                     {/* ═══ MOBILE: Bottom sheet venue list ═══ */}
-                    {!mobileMapExpanded && (
+                    {!mobileMapExpanded && !selectedVenue && (
                         <div
                             className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
                             onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
@@ -635,7 +635,7 @@ const AppContent = () => {
                     )}
 
                     <AnimatePresence>
-                        {mobileSheetState === 'expanded' && (
+                        {mobileSheetState === 'expanded' && !selectedVenue && (
                             <>
                                 <motion.div
                                     initial={{ opacity: 0 }}
@@ -695,15 +695,15 @@ const AppContent = () => {
                         onFindBusiness={handleFindBusiness}
                     />
 
-                    {/* FIX: Single SunnyMascot FAB — duplicate in sidebar removed */}
-                    <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />
+                    {/* FIX: Single SunnyMascot FAB – hidden when venue card is open */}
+                    {!selectedVenue && <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />}
 
                     {/* Footer badge — FIX: use imported fireIconImg instead of hardcoded path */}
                     <motion.div
                         initial={{ y: 100, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.6, delay: 0.6 }}
-                        className="ss-footer-badge"
+                        className={`ss-footer-badge ${selectedVenue ? "hidden" : ""}`}
                     >
                         <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
                         Sales Demo · {demoVenues.length} Partner Venues

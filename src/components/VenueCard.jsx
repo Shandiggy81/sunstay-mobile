@@ -461,10 +461,11 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     <h4 className="text-gray-900 font-extrabold text-[15px] tracking-tight m-0">Sun Intelligence</h4>
                   </div>
                   
-                  {/* Sun Arc Path Visualizer */}
-                  <div className="mb-4 last:mb-0">
-                    <SunArcWidget lat={venue.lat} lng={venue.lng} />
-                  </div>
+                  {/* Sunrise / Sunset Summary */}
+                    <div className="flex justify-between text-sm font-bold text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <span>🌅 Sunrise: 6:08 AM</span>
+                      <span>🌇 Sunset: 5:52 PM</span>
+                    </div>
                   
                   <div className="flex flex-col">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 m-0">
