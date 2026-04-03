@@ -46,7 +46,7 @@ Already set up with demo keys that work.
 
 ### Production (Recommended)
 Create a `.env` file in your deployment:
-```
+```text
 VITE_MAPBOX_TOKEN=your_real_token
 VITE_OPENWEATHER_KEY=your_real_key
 ```

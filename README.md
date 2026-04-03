@@ -76,7 +76,7 @@ The app is fully optimized for mobile devices with:
 
 ## 🏗️ Project Structure
 
-```
+```text
 sunstay-mobile/
 ├── src/
 │   ├── api/
@@ -140,7 +140,7 @@ npx expo start --web   # Runs on Expo's Metro bundler
 The `src/utils/platform.js` module auto-detects the runtime and provides:
 
 | Feature | Web | Mobile (Future) |
-|---------|-----|-----------------|
+| --- | --- | --- |
 | Storage | `localStorage` | `AsyncStorage` |
 | Maps | `mapbox-gl` | `@rnmapbox/maps` |
 | Detection | `typeof window` | `Platform.OS` |
@@ -149,7 +149,7 @@ All new modules (`useWeather`, `BookingSummary`, `bookingSlice`, `venues` API) u
 
 ### Melbourne Test Coordinates
 
-```
+```text
 Latitude:  -37.8136
 Longitude: 144.9631
 ```

@@ -72,7 +72,7 @@ const WEATHER_API_KEY = import.meta.env.VITE_OPENWEATHER_KEY || '8448b7dad269322
 **Severity:** MEDIUM - Performance issue
 
 **Problem:**
-```
+```text
 (!) Some chunks are larger than 500 kB after minification
 ```
 
@@ -138,7 +138,7 @@ Your app **should now work on both mobile and laptop** because:
 1. Get Mapbox token: https://account.mapbox.com/
 2. Get OpenWeather API key: https://www.openweathermap.org/api
 3. Update `.env.local`:
-```
+```text
 VITE_MAPBOX_TOKEN=your_real_mapbox_token
 VITE_OPENWEATHER_KEY=your_real_openweather_key
 ```
