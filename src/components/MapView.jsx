@@ -361,9 +361,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 const bgColor = comfortColors[hourData.comfort.level] || comfortColors.unknown;
 
                 el.innerHTML = `
-                    <div class="comfort-map-pill" style="background:${bgColor};">
-                        <span class="comfort-map-temp">${hourData.feelsLike}°</span>
-                        <span class="comfort-map-icon">${hourData.comfort.icon}</span>
+                    <div class="comfort-map-pill" style="background:${bgColor}; pointer-events: none;">
+                        <span class="comfort-map-temp" style="pointer-events: none;">${hourData.feelsLike}°</span>
+                        <span class="comfort-map-icon" style="pointer-events: none;">${hourData.comfort.icon}</span>
                     </div>
                 `;
             } else if (activeLayer === 'uv') {
@@ -371,17 +371,17 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 const modifiedUv = Math.max(0, uvIndex + (venue.tags?.includes('Rooftop') ? 1 : 0) - (venue.tags?.includes('Indoor Warmth') ? 5 : 0));
                 
                 el.innerHTML = `
-                    <div class="uv-map-pill" style="background:${uvColor};">
-                        <span class="uv-map-num">UV ${modifiedUv.toFixed(1)}</span>
+                    <div class="uv-map-pill" style="background:${uvColor}; pointer-events: none;">
+                        <span class="uv-map-num" style="pointer-events: none;">UV ${modifiedUv.toFixed(1)}</span>
                     </div>
                 `;
             } else if (activeLayer === 'radar') {
                 const isRain = weather?.weather?.[0]?.main?.toLowerCase().includes('rain') || false;
                 const chance = Math.min(100, Math.round(Math.random() * 40 + (isRain ? 50 : 0)));
                 el.innerHTML = `
-                    <div class="radar-map-pill">
-                        <span class="radar-map-icon">💧</span>
-                        <span class="radar-map-pct">${chance}%</span>
+                    <div class="radar-map-pill" style="pointer-events: none;">
+                        <span class="radar-map-icon" style="pointer-events: none;">💧</span>
+                        <span class="radar-map-pct" style="pointer-events: none;">${chance}%</span>
                     </div>
                 `;
             }
@@ -770,7 +770,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 .then(data => {
                     if (!map.current) return;
                     const past = data.radar.past;
-                    const path = past[past.length - 1].path; // e.g. "/v2/radar/1691234560/256"
+                    const pastItem = past[past.length - 1];
+                    const path = pastItem.path; // e.g. "/v2/radar/1691234560/256"
+                    const time = pastItem.time;
                     const sourceId = 'rainviewer-source';
                     const layerId = 'rainviewer-layer';
                     
@@ -781,7 +783,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                     
                     map.current.addSource(sourceId, {
                         type: 'raster',
-                        tiles: [`https://tilecache.rainviewer.com${path}/{z}/{x}/{y}/2/1_1.png`],
+                        tiles: [`https://tilecache.rainviewer.com${path}/{z}/{x}/{y}/2/1_1.png?time=${time}`],
                         tileSize: 256
                     });
                     

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { X, MapPin, Share2, Wind, Droplets, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import { getSunPositionForMap } from '../util/sunPosition';
 import { venues } from '../data/venues';
@@ -168,6 +168,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [demoModalOpen, setDemoModalOpen] = useState(false);
   const panelRef = useRef(null);
+  const dragControls = useDragControls();
 
   // Derive active features from lifted state
   const venueLiveState = liveVenueFeatures?.[venue.id] || {};
@@ -193,7 +194,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   // Use raw weather data passed through from context
   const hourlyData = weather?.rawWeather?.hourlyData;
   const temp = weather?.rawWeather?.temperature || 22;
-  const wind = weather?.rawWeather?.windSpeed || 10;
+  const wind = (weather?.rawWeather?.windSpeed || 10) * 3.6; // convert m/s to km/h for display
   const score = weather?.rawWeather?.sunScore ?? 75;
   const isHotelOrStay = type === 'Hotel' || type === 'ShortStay' || venue.type === 'Hotel' || venue.type === 'Airbnb';
 
@@ -286,6 +287,37 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     return <div className="bg-gray-100 text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 w-fit mb-3"><span>🌤️</span> Good Afternoon Sun Expected</div>;
   };
 
+  // Safe Sunrise/Sunset logic
+  const displaySunrise = useMemo(() => {
+    if (venue.sunrise) return venue.sunrise;
+    let fallback = '--';
+    if (venue.lat && venue.lng) {
+        import('suncalc').then(SunCalc => {
+            const times = SunCalc.getTimes(new Date(), venue.lat, venue.lng);
+            fallback = times.sunrise.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+    }
+    if (fallback === '--' && weather?.sys?.sunrise) {
+        return new Date(weather.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return fallback;
+  }, [venue.sunrise, venue.lat, venue.lng, weather?.sys?.sunrise]);
+
+  const displaySunset = useMemo(() => {
+    if (venue.sunset) return venue.sunset;
+    let fallback = '--';
+    if (venue.lat && venue.lng) {
+        import('suncalc').then(SunCalc => {
+            const times = SunCalc.getTimes(new Date(), venue.lat, venue.lng);
+            fallback = times.sunset.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+    }
+    if (fallback === '--' && weather?.sys?.sunset) {
+        return new Date(weather.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return fallback;
+  }, [venue.sunset, venue.lat, venue.lng, weather?.sys?.sunset]);
+
   return (
     <AnimatePresence>
       <motion.div
@@ -293,7 +325,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: '100%', opacity: 0, scale: 0.95 }}
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        className="fixed inset-0 z-[9999] w-full h-full bg-black/40 md:bg-white overflow-y-auto flex flex-col md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l"
+        className="fixed inset-0 z-[9999] w-full h-full bg-black/40 md:bg-white flex flex-col md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l"
         onClick={onClose}
       >
         <div className="sticky top-0 z-[10000] w-full bg-transparent md:bg-white px-4 py-4 border-b border-transparent md:border-gray-100 flex items-center justify-between shadow-none md:shadow-sm pt-8 md:pt-4 pointer-events-none">
@@ -304,6 +336,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         <motion.div 
           onClick={e => e.stopPropagation()}
           drag="y"
+          dragControls={dragControls}
+          dragListener={false}
           dragConstraints={{ top: 0, bottom: 0 }}
           dragElastic={0.2}
           onDragEnd={(_, info) => { if (info.offset.y > 100 || info.velocity.y > 400) onClose(); }}
@@ -311,7 +345,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             backgroundColor: '#FFFDF5',
             boxShadow: '0 -4px 20px rgba(59, 130, 246, 0.08)'
           }}
-          className="pointer-events-auto relative rounded-t-[32px] md:rounded-3xl overflow-hidden md:shadow-2xl border border-black/5 select-none mt-auto mx-0 md:m-0 w-full"
+          className="pointer-events-auto relative rounded-t-[32px] md:rounded-3xl overflow-y-auto md:shadow-2xl border border-black/5 select-none mt-auto mx-0 md:m-0 w-full"
         >
           
           <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10" style={{ backgroundColor: '#FFFDF5' }}>
@@ -331,9 +365,13 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMwMDAwMDAiIGZpbGwtb3BhY2l0eT0iMC4wMiIvPjwvc3ZnPg==')] opacity-30" />
           </div>
 
-          <div className="relative z-10 p-4 flex flex-col gap-4">
+            <div className="relative z-10 p-4 flex flex-col gap-4">
             {/* Premium Mobile Pull Handle */}
-            <div className="flex-shrink-0 flex justify-center cursor-grab active:cursor-grabbing touch-none w-full pb-2 md:hidden">
+            <div 
+              className="flex-shrink-0 flex justify-center w-full pb-2 md:hidden"
+              onPointerDown={(e) => dragControls.start(e)}
+              style={{ touchAction: "none" }}
+            >
               <div 
                 style={{
                   width: '48px',
@@ -472,12 +510,12 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center text-center">
                           <span className="text-2xl mb-1">🌅</span>
                           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sunrise</span>
-                          <span className="text-sm font-bold text-slate-800">{venue.sunrise || (weather?.sys?.sunrise ? new Date(weather.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--')}</span>
+                          <span className="text-sm font-bold text-slate-800">{displaySunrise}</span>
                         </div>
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center text-center">
                           <span className="text-2xl mb-1">🌇</span>
                           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sunset</span>
-                          <span className="text-sm font-bold text-slate-800">{venue.sunset || (weather?.sys?.sunset ? new Date(weather.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--')}</span>
+                          <span className="text-sm font-bold text-slate-800">{displaySunset}</span>
                         </div>
                         <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex flex-col items-center text-center col-span-2">
                           <span className="text-xs text-orange-600 font-bold uppercase tracking-wider mb-1">Current Exposure</span>
