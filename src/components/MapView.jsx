@@ -376,14 +376,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                     </div>
                 `;
             } else if (activeLayer === 'radar') {
-                const isRain = weather?.weather?.[0]?.main?.toLowerCase().includes('rain') || false;
-                const chance = Math.min(100, Math.round(Math.random() * 40 + (isRain ? 50 : 0)));
-                el.innerHTML = `
-                    <div class="radar-map-pill" style="pointer-events: none;">
-                        <span class="radar-map-icon" style="pointer-events: none;">💧</span>
-                        <span class="radar-map-pct" style="pointer-events: none;">${chance}%</span>
-                    </div>
-                `;
+                return; // Do not render map markers for radar, rely on the RainViewer overlay tiles natively.
             }
 
             const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
@@ -765,7 +758,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         if (activeLayer === 'radar') {
-            fetch('https://api.rainviewer.com/public/weather-maps.json')
+            fetch(`https://api.rainviewer.com/public/weather-maps.json?_c=${Date.now()}`)
                 .then(res => res.json())
                 .then(data => {
                     if (!map.current) return;

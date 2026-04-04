@@ -328,7 +328,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         className="fixed inset-0 z-[9999] w-full h-full bg-black/40 md:bg-white flex flex-col md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l"
         onClick={onClose}
       >
-        <div className="absolute top-12 left-4 z-[10000] pointer-events-none md:static md:w-full md:bg-white md:px-4 md:py-4 md:border-b md:border-gray-100 md:flex md:items-center md:justify-between md:shadow-sm">
+        <div 
+          className="absolute left-4 z-[10000] pointer-events-none md:static md:w-full md:bg-white md:px-4 md:py-4 md:border-b md:border-gray-100 md:flex md:items-center md:justify-between md:shadow-sm"
+          style={{ top: 'max(env(safe-area-inset-top, 20px), 16px)' }}
+        >
           <button onClick={onClose} className="pointer-events-auto flex items-center gap-2 text-slate-800 font-bold bg-white md:bg-slate-100 hover:bg-gray-100 md:hover:bg-slate-200 px-4 py-2 rounded-full transition-colors shadow-md md:shadow-none">
             <span className="text-xl leading-none">←</span> Back to Map
           </button>
@@ -343,7 +346,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
           onDragEnd={(_, info) => { if (info.offset.y > 100 || info.velocity.y > 400) onClose(); }}
           style={{ 
             backgroundColor: '#FFFDF5',
-            boxShadow: '0 -4px 20px rgba(59, 130, 246, 0.08)'
+            boxShadow: '0 -4px 20px rgba(59, 130, 246, 0.08)',
+            maxHeight: 'calc(100vh - env(safe-area-inset-top, 20px) - 72px)'
           }}
           className="pointer-events-auto relative rounded-t-[32px] md:rounded-3xl overflow-y-auto md:shadow-2xl border border-black/5 select-none mt-auto mx-0 md:m-0 w-full"
         >

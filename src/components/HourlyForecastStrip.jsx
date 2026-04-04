@@ -48,16 +48,16 @@ export default function HourlyForecastStrip({ lat, lng }) {
               key={i}
               className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border transition-all ${
                 isGolden
-                  ? 'bg-amber-500/15 border-amber-500/40'
-                  : 'bg-white/5 border-white/10'
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-gray-50 border-gray-100'
               }`}
             >
-              <p className="text-white/50 text-xs">
+              <p className="text-gray-500 text-xs font-bold">
                 {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
               <span className="text-xl">{emoji}</span>
-              <p className="text-white font-medium text-sm">{temp}°</p>
-              <p className="text-white/40 text-xs">{clouds}%</p>
+              <p className="text-gray-900 font-extrabold text-sm">{temp}°</p>
+              <p className="text-gray-400 font-bold text-xs">{clouds}%</p>
             </div>
           );
         })}
