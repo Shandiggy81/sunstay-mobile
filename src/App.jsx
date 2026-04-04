@@ -449,7 +449,6 @@ const AppContent = () => {
                         setLiveVenueFeatures={setLiveVenueFeatures}
                         onClose={() => {
                             setShowOwnerDashboard(false);
-                            setSelectedVenue(null);
                         }}
                     />
                 </div>

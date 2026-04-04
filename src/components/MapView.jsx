@@ -367,7 +367,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                     </div>
                 `;
             } else if (activeLayer === 'uv') {
-                const uvColor = uvIndex <= 2 ? '#a78bfa' : uvIndex <= 5 ? '#8b5cf6' : uvIndex <= 7 ? '#7c3aed' : uvIndex <= 10 ? '#6d28d9' : '#4c1d95';
+                const uvColor = uvIndex <= 2 ? '#22c55e' : uvIndex <= 5 ? '#eab308' : uvIndex <= 7 ? '#f9731e' : uvIndex <= 10 ? '#ef4444' : '#a855f7';
                 const modifiedUv = Math.max(0, uvIndex + (venue.tags?.includes('Rooftop') ? 1 : 0) - (venue.tags?.includes('Indoor Warmth') ? 5 : 0));
                 
                 el.innerHTML = `
@@ -784,7 +784,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                     map.current.addSource(sourceId, {
                         type: 'raster',
                         tiles: [`https://tilecache.rainviewer.com${path}/{z}/{x}/{y}/2/1_1.png?time=${time}`],
-                        tileSize: 256
+                        tileSize: 256,
+                        minzoom: 0,
+                        maxzoom: 6
                     });
                     
                     map.current.addLayer({
@@ -934,9 +936,11 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                                     max="23"
                                     value={comfortHour}
                                     onChange={(e) => setComfortHour(parseInt(e.target.value))}
-                                    className="comfort-slider-input"
+                                    className="comfort-slider-input w-full h-[44px]"
                                     id="comfort-hour-slider"
                                     style={{ touchAction: 'none' }}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onPointerMove={(e) => e.stopPropagation()}
                                     onTouchStart={(e) => e.stopPropagation()}
                                     onTouchMove={(e) => e.stopPropagation()}
                                 />

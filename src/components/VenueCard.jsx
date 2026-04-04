@@ -328,8 +328,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         className="fixed inset-0 z-[9999] w-full h-full bg-black/40 md:bg-white flex flex-col md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l"
         onClick={onClose}
       >
-        <div className="sticky top-0 z-[10000] w-full bg-transparent md:bg-white px-4 py-4 border-b border-transparent md:border-gray-100 flex items-center justify-between shadow-none md:shadow-sm pt-8 md:pt-4 pointer-events-none">
-          <button onClick={onClose} className="pointer-events-auto flex items-center gap-2 text-slate-800 font-bold bg-white md:bg-slate-100 hover:bg-gray-100 md:hover:bg-slate-200 px-4 py-2 rounded-full transition-colors shadow-sm md:shadow-none mt-2 md:mt-0">
+        <div className="absolute top-12 left-4 z-[10000] pointer-events-none md:static md:w-full md:bg-white md:px-4 md:py-4 md:border-b md:border-gray-100 md:flex md:items-center md:justify-between md:shadow-sm">
+          <button onClick={onClose} className="pointer-events-auto flex items-center gap-2 text-slate-800 font-bold bg-white md:bg-slate-100 hover:bg-gray-100 md:hover:bg-slate-200 px-4 py-2 rounded-full transition-colors shadow-md md:shadow-none">
             <span className="text-xl leading-none">←</span> Back to Map
           </button>
         </div>
@@ -493,15 +493,23 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             <motion.div 
               ref={panelRef}
               className="bg-white border border-black/5 rounded-2xl p-5 cursor-pointer relative overflow-hidden shadow-sm"
-              onClick={() => setPanelExpanded(!panelExpanded)}
+              onClick={() => { 
+                setPanelExpanded(!panelExpanded);
+                if (!panelExpanded) setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              }}
               whileHover={{ scale: 1.005 }}
               whileTap={{ scale: 0.995 }}
             >
               <div className="flex flex-row items-center justify-between relative z-10 w-full">
                 <div className="flex-1 pr-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-amber-500 text-lg">⚡</span>
-                    <h4 className="text-gray-900 font-extrabold text-[15px] tracking-tight m-0">Sun Intelligence</h4>
+                  <div className="flex items-center justify-between mb-3 w-full">
+                    <div className="flex items-center gap-2">
+                        <span className="text-amber-500 text-lg">⚡</span>
+                        <h4 className="text-gray-900 font-extrabold text-[15px] tracking-tight m-0">Sun Intelligence</h4>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center">
+                        <ChevronDown size={18} className={`text-gray-400 transition-transform duration-300 ${panelExpanded ? 'rotate-180' : ''}`} />
+                    </div>
                   </div>
                   
                   {/* Sun Intelligence Grid */}
@@ -520,7 +528,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                         <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex flex-col items-center text-center col-span-2">
                           <span className="text-xs text-orange-600 font-bold uppercase tracking-wider mb-1">Current Exposure</span>
                           <span className="text-sm font-bold text-orange-900">
-                            {venue.outdoorHours ? `Outdoor: ${venue.outdoorHours}h | Covered: ${venue.coveredHours}h` : 'Live data loading...'}
+                             Outdoor: {sunHours.outdoor} | Covered: {sunHours.covered}
                           </span>
                         </div>
                       </div>
