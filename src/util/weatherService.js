@@ -6,7 +6,7 @@ const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 export async function getMelbourneWeather() {
   const lat = -37.8136;
   const lng = 144.9631;
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&hourly=temperature_2m,direct_normal_irradiance,sunshine_duration,cloud_cover_low,wind_speed_10m,precipitation&daily=sunrise,sunset,uv_index_max,temperature_2m_min&timezone=Australia%2FMelbourne&forecast_days=1`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index&hourly=temperature_2m,direct_normal_irradiance,sunshine_duration,cloud_cover_low,wind_speed_10m,precipitation&daily=sunrise,sunset,uv_index_max,temperature_2m_min&timezone=Australia%2FMelbourne&forecast_days=1&wind_speed_unit=ms`;
 
   try {
     const cached = localStorage.getItem(CACHE_KEY);
@@ -29,12 +29,12 @@ export async function getMelbourneWeather() {
     const currentHour = Math.min(23, now.getHours());
     
     const result = {
-      temperature: data.current_weather.temperature,
-      windSpeed: data.current_weather.windspeed,
-      weatherCode: data.current_weather.weathercode,
+      temperature: data.current.temperature_2m,
+      windSpeed: data.current.wind_speed_10m,
+      weatherCode: data.current.weather_code,
       sunrise: data.daily.sunrise[0],
       sunset: data.daily.sunset[0],
-      uvIndex: data.daily.uv_index_max[0],
+      uvIndex: data.current.uv_index,
       minTemp: data.daily.temperature_2m_min[0],
       precipitation: data.hourly.precipitation[currentHour],
       sunScore: Math.min(100, Math.round(data.hourly.direct_normal_irradiance[currentHour] / 8)),

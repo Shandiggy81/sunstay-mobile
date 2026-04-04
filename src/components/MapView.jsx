@@ -350,7 +350,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         filteredVenues.forEach((venue) => {
             const el = document.createElement('div');
             el.className = 'layer-map-marker';
-            
+            el.style.pointerEvents = 'none';
+
             if (activeLayer === 'comfort') {
                 const forecast = generateHourlyForecast(temp, windSpeed, humidity, venue);
                 const currentH = new Date().getHours();
@@ -384,13 +385,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                     </div>
                 `;
             }
-
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const popups = document.getElementsByClassName('mapboxgl-popup');
-                for (let p of popups) p.remove();
-                onVenueSelect(venue);
-            });
 
             const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                 .setLngLat([venue.lng, venue.lat])
@@ -767,6 +761,48 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         };
     }, [mapLoaded]);
 
+    // ── RainViewer Radar Sync ──────────────────────────────
+    useEffect(() => {
+        if (!map.current || !mapLoaded) return;
+        if (activeLayer === 'radar') {
+            fetch('https://api.rainviewer.com/public/weather-maps.json')
+                .then(res => res.json())
+                .then(data => {
+                    if (!map.current) return;
+                    const past = data.radar.past;
+                    const path = past[past.length - 1].path; // e.g. "/v2/radar/1691234560/256"
+                    const sourceId = 'rainviewer-source';
+                    const layerId = 'rainviewer-layer';
+                    
+                    if (map.current.getSource(sourceId)) {
+                        map.current.removeLayer(layerId);
+                        map.current.removeSource(sourceId);
+                    }
+                    
+                    map.current.addSource(sourceId, {
+                        type: 'raster',
+                        tiles: [`https://tilecache.rainviewer.com${path}/{z}/{x}/{y}/2/1_1.png`],
+                        tileSize: 256
+                    });
+                    
+                    map.current.addLayer({
+                        id: layerId,
+                        type: 'raster',
+                        source: sourceId,
+                        paint: { 'raster-opacity': 0.6 }
+                    });
+                })
+                .catch(err => console.error('RainViewer error:', err));
+        } else {
+            if (map.current.getLayer('rainviewer-layer')) {
+               map.current.removeLayer('rainviewer-layer');
+            }
+            if (map.current.getSource('rainviewer-source')) {
+               map.current.removeSource('rainviewer-source');
+            }
+        }
+    }, [activeLayer, mapLoaded]);
+
     // ── Custom Layer Markers ─────────────────────────────────
 
 
@@ -796,13 +832,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                     }`} />
             )}
 
-            {radarMode && (
-                <div className="radar-map-overlay">
-                    <div className="radar-storm-cell cell-1" />
-                    <div className="radar-storm-cell cell-2" />
-                    <div className="radar-storm-cell cell-3" />
-                </div>
-            )}
+
 
             {/* Floating Layer Controls */}
             {mapLoaded && !mapError && (
@@ -904,6 +934,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                                     onChange={(e) => setComfortHour(parseInt(e.target.value))}
                                     className="comfort-slider-input"
                                     id="comfort-hour-slider"
+                                    style={{ touchAction: 'none' }}
+                                    onTouchStart={(e) => e.stopPropagation()}
+                                    onTouchMove={(e) => e.stopPropagation()}
                                 />
                                 <div className="comfort-slider-times">
                                     <span>6am</span>

@@ -293,19 +293,25 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: '100%', opacity: 0, scale: 0.95 }}
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-        className="fixed inset-0 z-[9999] w-full h-full bg-white overflow-y-auto flex flex-col md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l"
+        className="fixed inset-0 z-[9999] w-full h-full bg-black/40 md:bg-white overflow-y-auto flex flex-col md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l"
+        onClick={onClose}
       >
-        <div className="sticky top-0 z-[10000] w-full bg-white px-4 py-4 border-b border-gray-100 flex items-center justify-between shadow-sm">
-          <button onClick={onClose} className="flex items-center gap-2 text-slate-800 font-bold bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full transition-colors">
+        <div className="sticky top-0 z-[10000] w-full bg-transparent md:bg-white px-4 py-4 border-b border-transparent md:border-gray-100 flex items-center justify-between shadow-none md:shadow-sm pt-8 md:pt-4 pointer-events-none">
+          <button onClick={onClose} className="pointer-events-auto flex items-center gap-2 text-slate-800 font-bold bg-white md:bg-slate-100 hover:bg-gray-100 md:hover:bg-slate-200 px-4 py-2 rounded-full transition-colors shadow-sm md:shadow-none mt-2 md:mt-0">
             <span className="text-xl leading-none">←</span> Back to Map
           </button>
         </div>
-        <div 
+        <motion.div 
+          onClick={e => e.stopPropagation()}
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={0.2}
+          onDragEnd={(_, info) => { if (info.offset.y > 100 || info.velocity.y > 400) onClose(); }}
           style={{ 
             backgroundColor: '#FFFDF5',
             boxShadow: '0 -4px 20px rgba(59, 130, 246, 0.08)'
           }}
-          className="pointer-events-auto relative rounded-t-[32px] md:rounded-3xl overflow-hidden md:shadow-2xl border border-black/5 select-none m-2 md:m-0"
+          className="pointer-events-auto relative rounded-t-[32px] md:rounded-3xl overflow-hidden md:shadow-2xl border border-black/5 select-none mt-auto mx-0 md:m-0 w-full"
         >
           
           <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10" style={{ backgroundColor: '#FFFDF5' }}>
@@ -327,20 +333,21 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
           <div className="relative z-10 p-4 flex flex-col gap-4">
             {/* Premium Mobile Pull Handle */}
-            <div 
-              style={{
-                width: '48px',
-                height: '6px',
-                borderRadius: '999px',
-                backgroundColor: '#F59E0B',
-                margin: '12px auto 8px',
-                display: 'block',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                opacity: 1,
-                flexShrink: 0
-              }}
-              className="md:hidden" 
-            />
+            <div className="flex-shrink-0 flex justify-center cursor-grab active:cursor-grabbing touch-none w-full pb-2 md:hidden">
+              <div 
+                style={{
+                  width: '48px',
+                  height: '6px',
+                  borderRadius: '999px',
+                  backgroundColor: '#F59E0B',
+                  margin: '12px auto 8px',
+                  display: 'block',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  opacity: 1,
+                  flexShrink: 0
+                }}
+              />
+            </div>
 
             <div
               style={{
@@ -465,12 +472,12 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center text-center">
                           <span className="text-2xl mb-1">🌅</span>
                           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sunrise</span>
-                          <span className="text-sm font-bold text-slate-800">{venue.sunrise ?? '--'}</span>
+                          <span className="text-sm font-bold text-slate-800">{venue.sunrise || (weather?.sys?.sunrise ? new Date(weather.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--')}</span>
                         </div>
                         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex flex-col items-center text-center">
                           <span className="text-2xl mb-1">🌇</span>
                           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sunset</span>
-                          <span className="text-sm font-bold text-slate-800">{venue.sunset ?? '--'}</span>
+                          <span className="text-sm font-bold text-slate-800">{venue.sunset || (weather?.sys?.sunset ? new Date(weather.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--')}</span>
                         </div>
                         <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex flex-col items-center text-center col-span-2">
                           <span className="text-xs text-orange-600 font-bold uppercase tracking-wider mb-1">Current Exposure</span>
@@ -624,7 +631,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </div>
 
           </div>
-        </div>
+        </motion.div>
 
         {/* Demo Photo Modal */}
         <AnimatePresence>
