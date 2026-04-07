@@ -534,6 +534,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                           <span className="text-sm font-bold text-orange-900">
                              Outdoor: {sunHours.outdoor} | Covered: {sunHours.covered}
                           </span>
+                          <SunTimeline sunData={venue.sunData} />
                         </div>
                       </div>
                     </div>
