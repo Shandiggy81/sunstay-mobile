@@ -333,6 +333,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         exit={{ y: '100%', opacity: 0, scale: 0.95 }}
         transition={{ type: 'spring', damping: 28, stiffness: 260 }}
         className="fixed inset-0 z-[9999] w-full h-full bg-black/40 md:bg-white flex flex-col md:relative md:inset-auto md:z-auto md:w-[400px] md:border-l"
+        style={{ top: '72px' }}
         onClick={onClose}
       >
         <div 
