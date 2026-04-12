@@ -51,7 +51,7 @@ const ScoreOrb = ({ score }) => {
     <Float range={5} duration={5} delay={0.3}>
       <motion.div
         className="relative flex items-center justify-center flex-shrink-0"
-        style={{ width: 96, height: 96 }}
+        style={{ width: 72, height: 72 }}
         animate={{ boxShadow: [`0 0 0px 0px ${glowColor}`, `0 0 28px 8px ${glowColor}`, `0 0 0px 0px ${glowColor}`] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       >
@@ -76,7 +76,7 @@ const ScoreOrb = ({ score }) => {
           />
         </svg>
         <div className="flex flex-col items-center justify-center text-center z-10">
-          <span className="text-white font-black text-[22px] leading-none">{Math.round(score)}</span>
+          <span className="text-white font-black text-[1.5rem] leading-none">{Math.round(score)}</span>
           <span className="text-[9px] uppercase tracking-widest font-bold mt-0.5" style={{ color }}>Score</span>
         </div>
       </motion.div>
@@ -87,14 +87,14 @@ const ScoreOrb = ({ score }) => {
 const StatChip = ({ icon, label, value, delay = 0 }) => (
   <Float delay={delay} range={4} duration={4.5} className="flex-1 min-w-0">
     <motion.div
-      className="flex flex-col items-center justify-center rounded-2xl py-3 px-1"
+      className="flex flex-col items-center justify-center rounded-2xl py-1 px-2"
       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}
       whileHover={{ scale: 1.06, background: 'rgba(255,255,255,0.07)' }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
       <span className="text-lg mb-0.5">{icon}</span>
-      <span className="text-white font-black text-[13px] leading-none">{value}</span>
-      <span className="text-white/35 text-[8px] uppercase tracking-widest font-bold mt-0.5">{label}</span>
+      <span className="text-white font-black text-[0.8rem] leading-none">{value}</span>
+      <span className="text-white/35 text-[0.6rem] uppercase tracking-widest font-bold mt-0.5">{label}</span>
     </motion.div>
   </Float>
 );
@@ -113,13 +113,13 @@ const GoldenWindowBar = ({ sunData }) => {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-amber-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+        <span className="text-amber-400 text-[0.7rem] font-black uppercase tracking-widest flex items-center gap-1.5">
           <motion.span animate={{ scale: [1, 1.3, 1], rotate: [0, 10, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} style={{ display: 'inline-block' }}>☀️</motion.span>
           Golden Window
         </span>
         <motion.span className="text-amber-300 text-[11px] font-black" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>{hours}h direct sun today</motion.span>
       </div>
-      <div className="relative h-6 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+      <div className="relative h-[28px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
         <motion.div
           className="absolute h-full rounded-full"
           style={{ left: `${left}%`, background: 'linear-gradient(90deg, #F59E0B, #FDE68A, #F97316)', boxShadow: '0 0 16px rgba(245,158,11,0.6), 0 0 40px rgba(245,158,11,0.2)' }}
@@ -196,8 +196,8 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
     roomIntelligence.balcony && { icon: '🪟', label: 'Private Balcony' },
   ].filter(Boolean);
   return (
-    <motion.div className="rounded-2xl p-4" style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-      <span className="text-sky-400 text-[9px] font-black uppercase tracking-widest block mb-3">🛎 Room Intelligence</span>
+    <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+      <span className="text-sky-400 text-[0.7rem] font-black uppercase tracking-widest block mb-2">🛎 Room Intelligence</span>
       <div className="grid grid-cols-2 gap-2">
         {items.map((item, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
           onDragEnd={(_, i) => { if (i.offset.y > 100 || i.velocity.y > 400) onClose(); }}
           initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 280 }}
-          style={{ rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200, maxHeight: 'calc(100vh - env(safe-area-inset-top,20px) - 72px)', borderRadius: '28px 28px 0 0', background: 'linear-gradient(160deg, #0D1B2A 0%, #0F172A 55%, #080D1A 100%)', boxShadow: '0 -8px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200, maxHeight: '70vh', borderRadius: '28px 28px 0 0', background: 'linear-gradient(160deg, #0D1B2A 0%, #0F172A 55%, #080D1A 100%)', boxShadow: '0 -8px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.06)' }}
           className="pointer-events-auto mt-auto w-full overflow-y-auto select-none"
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
@@ -317,7 +317,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
-          <div className="relative z-10 px-4 pb-10 pt-2 flex flex-col gap-4">
+          <div className="relative z-10 px-4 pb-10 pt-2 flex flex-col gap-2">
             <div className="flex justify-center pt-3 pb-0 md:hidden" onPointerDown={e => dragControls.start(e)} style={{ touchAction: 'none' }}>
               <motion.div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(245,158,11,0.5)' }} animate={{ scaleX: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
             </div>
@@ -337,9 +337,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <ScoreOrb score={score} />
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 24 }} className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${verdict.color}28`, boxShadow: `0 0 32px ${verdict.color}12, inset 0 1px 0 rgba(255,255,255,0.04)` }}>
+            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 24 }} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${verdict.color}28`, boxShadow: `0 0 32px ${verdict.color}12, inset 0 1px 0 rgba(255,255,255,0.04)` }}>
               <Float range={3} duration={3} delay={0}><span className="text-xl">{verdict.icon}</span></Float>
-              <span className="font-black text-[13px]" style={{ color: verdict.color }}>{verdict.text}</span>
+              <span className="font-black text-[0.75rem]" style={{ color: verdict.color }}>{verdict.text}</span>
             </motion.div>
 
             <motion.div className="flex gap-2.5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
@@ -349,7 +349,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <StatChip icon="🔆" label="UV"         value={uvIndex ?? '–'}               delay={0.24} />
             </motion.div>
 
-            <motion.div className="rounded-2xl p-4" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+            <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
               <GoldenWindowBar sunData={sunData} />
               <div className="flex gap-5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunrise</span><span className="text-amber-300 font-black text-sm">{displaySunrise}</span></div>
@@ -361,26 +361,26 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             {lat && lng && (
               <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
-                <div className="px-4 pt-3 pb-1"><span className="text-white/30 text-[9px] font-black uppercase tracking-widest">12-Hour Forecast</span></div>
+                <div className="px-3 pt-2 pb-1"><span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest">12-Hour Forecast</span></div>
                 <HourlyForecastStrip lat={lat} lng={lng} dark />
               </motion.div>
             )}
 
             {sunData && (
-              <motion.div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
-                <span className="text-white/30 text-[9px] font-black uppercase tracking-widest block mb-3">Sun Position Today</span>
+              <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
+                <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest block mb-2">Sun Position Today</span>
                 <SunTimeline sunData={sunData} dark />
               </motion.div>
             )}
 
             <motion.div className="rounded-2xl overflow-hidden cursor-pointer" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} onClick={() => setGraphExpanded(g => !g)} whileHover={{ background: 'rgba(255,255,255,0.035)' }}>
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-white/40 text-[10px] font-black uppercase tracking-widest flex items-center gap-2"><span className="text-indigo-400">📈</span> Climate Graphs</span>
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-white/40 text-[0.7rem] font-black uppercase tracking-widest flex items-center gap-2"><span className="text-indigo-400">📈</span> Climate Graphs</span>
                 <motion.div animate={{ rotate: graphExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}><ChevronDown size={15} className="text-white/25" /></motion.div>
               </div>
               <AnimatePresence>
                 {graphExpanded && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-4 pb-4 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
                     <div className="flex gap-4">
                       <SparkLine data={buildSpark('temperature_2m')} color="#F59E0B" label="Temperature" unit="°" />
                       <SparkLine data={buildSpark('direct_normal_irradiance')} color="#FDE68A" label="Solar" unit="" />
@@ -395,8 +395,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </motion.div>
 
             {shielding && (
-              <motion.div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
-                <span className="text-white/30 text-[9px] font-black uppercase tracking-widest">Venue Shielding</span>
+              <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
+                <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest">Venue Shielding</span>
                 {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={shielding.windbreak} color="#38BDF8" delay={0.1} />}
                 {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={shielding.rainCover} color="#818CF8" delay={0.2} />}
                 {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={shielding.shade}    color="#F59E0B" delay={0.3} />}
@@ -405,8 +405,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             {balconyData && (
               <Float range={3} duration={5.5} delay={0.5}>
-                <div className="rounded-2xl p-4 flex justify-between items-center" style={{ background: 'rgba(56,189,248,0.05)', border: '1px solid rgba(56,189,248,0.13)' }}>
-                  <div><span className="text-sky-400 text-[9px] font-black uppercase tracking-widest block mb-1">🪟 Balcony</span><span className="text-white font-black text-lg">{balconyData.hours}h Sun</span></div>
+                <div className="rounded-2xl p-3 flex justify-between items-center" style={{ background: 'rgba(56,189,248,0.05)', border: '1px solid rgba(56,189,248,0.13)' }}>
+                  <div><span className="text-sky-400 text-[0.7rem] font-black uppercase tracking-widest block mb-1">🪟 Balcony</span><span className="text-white font-black text-lg">{balconyData.hours}h Sun</span></div>
                   <div className="text-right"><span className="text-white/35 text-[10px] font-bold block">{balconyData.direction}</span><span className="text-white/60 text-sm font-semibold">{balconyData.views}</span></div>
                 </div>
               </Float>
@@ -416,7 +416,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             {heating && !['no heating','indoor only','heated outdoor'].includes(heating) && (
               <Float range={4} duration={4} delay={0.1}>
-                <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.18)' }}>
                   <motion.span className="text-xl" animate={{ scale: [1, 1.15, 0.95, 1.1, 1], rotate: [-3, 3, -2, 2, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}>🔥</motion.span>
                   <span className="text-amber-300 text-sm font-black">{heating === 'electric-fireplace' ? 'Premium Electric Fireplace' : heating === 'traditional-fireplace' ? 'Traditional Gas Fireplace' : 'Fireplace Active'}</span>
                 </div>
@@ -425,9 +425,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             {actualHappyHour && (
               <Float range={3} duration={6} delay={0.4}>
-                <div className="flex items-center justify-between rounded-2xl px-4 py-3" style={{ background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.18)' }}>
+                <div className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.18)' }}>
                   <div>
-                    <span className="text-orange-400 text-[9px] font-black uppercase tracking-widest block mb-0.5">🍻 Happy Hour · {actualHappyHour.start} – {actualHappyHour.end}</span>
+                    <span className="text-orange-400 text-[0.7rem] font-black uppercase tracking-widest block mb-0.5">🍻 Happy Hour · {actualHappyHour.start} – {actualHappyHour.end}</span>
                     <span className="text-white font-black text-[15px]">{actualHappyHour.deal}</span>
                   </div>
                   {isHappyHourNow(actualHappyHour) && (
@@ -450,7 +450,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             )}
 
             {cozyWeatherActive && (
-              <div className="flex items-center gap-2 rounded-2xl px-4 py-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.18)' }}>
+              <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.18)' }}>
                 <Float range={4} duration={4}><span>☕</span></Float>
                 <span className="text-indigo-300 text-sm font-black">Cozy Indoor · Heaters · Shelter</span>
               </div>
