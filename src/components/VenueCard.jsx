@@ -234,6 +234,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const uvIndex    = weather?.rawWeather?.uvIndex ?? venue.weatherNow?.uvIndex ?? 3;
   const precipProb = weather?.rawWeather?.precipProb ?? venue.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
+  const { windSpeed, windGusts, rainMm, weatherCode, showerMm } = weather || {};
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
@@ -344,8 +345,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             <motion.div className="flex gap-2.5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
               <StatChip icon="🌡️" label="Feels Like" value={`${Math.round(feelsLike)}°`} delay={0} />
-              <StatChip icon="💨" label="Wind"       value={`${Math.round(wind)} km`}     delay={0.08} />
-              <StatChip icon="🌂" label="Rain"       value={`${Math.round(precipProb)}%`} delay={0.16} />
+              <StatChip icon="💨" label="Wind / Gusts" value={`${weather?.windSpeed ?? '–'} / ${weather?.windGusts ?? '–'} km/h`} delay={0.08} />
+              <StatChip icon="🌂" label="Rain"       value={weather?.rainMm > 0 ? `${weather?.rainChance ?? precipProb ?? '–'}% · ${weather?.rainMm}mm` : `${weather?.rainChance ?? precipProb ?? '–'}%`} delay={0.16} />
               <StatChip icon="🔆" label="UV"         value={uvIndex ?? '–'}               delay={0.24} />
             </motion.div>
 
