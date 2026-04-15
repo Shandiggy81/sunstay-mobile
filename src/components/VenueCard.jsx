@@ -213,6 +213,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
 export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
   const [graphExpanded, setGraphExpanded] = useState(false);
+  const [vibeExpanded, setVibeExpanded] = useState(false);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [4, -4]), { stiffness: 200, damping: 25 });
@@ -225,7 +226,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   }
   function handlePointerLeave() { mouseX.set(0); mouseY.set(0); }
 
-  const { name, type, suburb, emoji, lat, lng, shielding, balconyData, heating } = venue;
+  const { name, type, suburb, emoji, lat, lng, shielding, balconyData, heating, vibe, tags, photo } = venue;
   const isHotelOrStay = ['hotel','airbnb','accommodation','stay','apartment'].some(t => (type || '').toLowerCase().includes(t));
   const hourlyData = weather?.rawWeather?.hourly ?? weather?.rawWeather ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
@@ -252,6 +253,26 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     return 'clear';
   }, [weather]);
   const isRain = weatherCondition.includes('rain') || weatherCondition.includes('shower');
+
+  const getWeatherDisplay = useMemo(() => {
+    const code = weather?.rawWeather?.weatherCode ?? weatherCode;
+    if (code === 0) return { emoji: '☀️', label: 'Brilliant Sun' };
+    if (code === 1) return { emoji: '🌤️', label: 'Mostly Sunny' };
+    if (code === 2) return { emoji: '⛅', label: 'Partly Cloudy' };
+    if (code === 3) return { emoji: '☁️', label: 'Overcast' };
+    if (code === 45 || code === 48) return { emoji: '🌫️', label: 'Foggy' };
+    if (code >= 51 && code <= 57) return { emoji: '🌦️', label: 'Drizzle' };
+    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return { emoji: '🌧️', label: 'Raining' };
+    if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return { emoji: '❄️', label: 'Snow' };
+    if (code >= 95) return { emoji: '⛈️', label: 'Storm' };
+    if (weatherCondition === 'clear') return { emoji: '☀️', label: 'Brilliant Sun' };
+    if (weatherCondition.includes('cloud')) return { emoji: '⛅', label: 'Partly Cloudy' };
+    if (weatherCondition.includes('rain') || weatherCondition.includes('shower')) return { emoji: '🌧️', label: 'Raining' };
+    if (weatherCondition.includes('snow')) return { emoji: '❄️', label: 'Snow' };
+    if (weatherCondition.includes('thunder') || weatherCondition.includes('storm')) return { emoji: '⛈️', label: 'Storm' };
+    if (weatherCondition.includes('fog') || weatherCondition.includes('mist')) return { emoji: '🌫️', label: 'Foggy' };
+    return { emoji: '🌡️', label: 'Checking...' };
+  }, [weather, weatherCode, weatherCondition]);
 
   const fullVenueData = venues.find(v => (name || '').toLowerCase().includes((v.name || '').toLowerCase()) || (v.name || '').toLowerCase().includes((name || '').toLowerCase()));
   const actualHappyHour  = fullVenueData?.happyHour;
@@ -327,52 +348,26 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 <ArrowLeft size={18} color="#F1F5F9" />
               </motion.button>
               <div className="flex-1 min-w-0">
-                <h1 className="text-white font-bold text-[20px] leading-tight truncate" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{emoji} {name}</h1>
-                <span className="text-amber-400/80 text-[11px] font-medium">{suburb} {type ? `\u00B7 ${type}` : ''}</span>
+                <h1 className="text-white font-bold text-[1rem] leading-tight truncate" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{emoji} {name}</h1>
+                <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{type || 'Venue'}</span>
               </div>
+            </motion.div>
+
+            <motion.div className="flex items-start gap-3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
               <ScoreOrb score={score} />
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 24 }} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${verdict.color}28`, boxShadow: `0 0 32px ${verdict.color}12, inset 0 1px 0 rgba(255,255,255,0.04)` }}>
-              <Float range={3} duration={3} delay={0}><span className="text-xl">{verdict.icon}</span></Float>
-              <span className="font-black text-[0.75rem]" style={{ color: verdict.color }}>{verdict.text}</span>
-            </motion.div>
-
-            <motion.div className="flex gap-2.5" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
+              <div className="flex-1 grid grid-cols-2 gap-2">
               <StatChip icon="🌡️" label="Feels Like" value={`${Math.round(feelsLike)}°`} delay={0} />
               <StatChip icon="💨" label="Wind / Gusts" value={`${weather?.windSpeed ?? '–'} / ${weather?.windGusts ?? '–'} km/h`} delay={0.08} />
               <StatChip icon="🌂" label="Rain"       value={weather?.rainMm > 0 ? `${weather?.rainChance ?? precipProb ?? '–'}% · ${weather?.rainMm}mm` : `${weather?.rainChance ?? precipProb ?? '–'}%`} delay={0.16} />
               <StatChip icon="🔆" label="UV"         value={uvIndex ?? '–'}               delay={0.24} />
-            </motion.div>
-
-            <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
-              <GoldenWindowBar sunData={sunData} />
-              <div className="flex gap-5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunrise</span><span className="text-amber-300 font-black text-sm">{displaySunrise}</span></div>
-                <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunset</span><span className="text-orange-300 font-black text-sm">{displaySunset}</span></div>
-                <div className="flex flex-col ml-auto items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.outdoor}</span><span className="text-white font-black text-sm">{sunHours.outdoor}</span></div>
-                <div className="flex flex-col items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.covered}</span><span className="text-white font-black text-sm">{sunHours.covered}</span></div>
               </div>
             </motion.div>
 
-            {lat && lng && (
-              <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
-                <div className="px-3 pt-2 pb-1"><span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest">12-Hour Forecast</span></div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark />
-              </motion.div>
-            )}
-
-            {sunData && (
-              <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
-                <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest block mb-2">Sun Position Today</span>
-                <SunTimeline sunData={sunData} dark />
-              </motion.div>
-            )}
 
             <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Live Sun Exposure</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: weatherCondition === 'clear' ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)', color: weatherCondition === 'clear' ? '#10B981' : '#94A3B8', border: weatherCondition === 'clear' ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(148,163,184,0.2)' }}>{weatherCondition === 'clear' ? 'Currently Peaking' : weatherCondition === 'cloudy' ? 'Partly Cloudy' : 'Overcast'}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: getWeatherDisplay.label === 'Brilliant Sun' || getWeatherDisplay.label === 'Mostly Sunny' ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)', color: getWeatherDisplay.label === 'Brilliant Sun' || getWeatherDisplay.label === 'Mostly Sunny' ? '#10B981' : '#94A3B8', border: '1px solid rgba(255,255,255,0.1)' }}>{getWeatherDisplay.emoji} {getWeatherDisplay.label}</span>
               </div>
               <div style={{ height: 96 }}>
                 <SparkLine data={buildSpark('direct_normal_irradiance', 24)} color="#FDE68A" label="Solar Intensity" unit=" W/m²" />
@@ -397,6 +392,78 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 </AnimatePresence>
               </div>
             </motion.div>
+            <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+              <GoldenWindowBar sunData={sunData} />
+              <div className="flex gap-5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunrise</span><span className="text-amber-300 font-black text-sm">{displaySunrise}</span></div>
+                <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunset</span><span className="text-orange-300 font-black text-sm">{displaySunset}</span></div>
+                <div className="flex flex-col ml-auto items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.outdoor}</span><span className="text-white font-black text-sm">{sunHours.outdoor}</span></div>
+                <div className="flex flex-col items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.covered}</span><span className="text-white font-black text-sm">{sunHours.covered}</span></div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="rounded-2xl overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
+            >
+              <div className="flex items-center justify-between px-3 py-2 cursor-pointer" onClick={() => setVibeExpanded(v => !v)}>
+                <span className="text-white/40" style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>How's the Vibe Now?</span>
+                <motion.div animate={{ rotate: vibeExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}><ChevronDown size={13} className="text-white/25" /></motion.div>
+              </div>
+              <AnimatePresence>
+                {vibeExpanded && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(tags || (vibe ? [vibe] : ['Chill'])).map((t, i) => (
+                        <span key={i} className="rounded-full" style={{ padding: '2px 8px', fontSize: '0.65rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>{t}</span>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
+            {!photo && (
+              <motion.div className="rounded-lg overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38 }}>
+                <img
+                  src={`${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
+                  alt="Sunstay"
+                  className="w-full object-cover rounded-lg"
+                  style={{ maxHeight: '7rem' }}
+                />
+              </motion.div>
+            )}
+
+            {setShowOwnerDashboard && (
+              <motion.button
+                onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
+                className="w-full flex items-center justify-center rounded-xl"
+                style={{ padding: '8px 0', fontSize: '0.75rem', fontWeight: 700, background: '#0d9488', color: '#fff' }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+              >Manage This Venue →</motion.button>
+            )}
+
+            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 24 }} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${verdict.color}28`, boxShadow: `0 0 32px ${verdict.color}12, inset 0 1px 0 rgba(255,255,255,0.04)` }}>
+              <Float range={3} duration={3} delay={0}><span className="text-xl">{verdict.icon}</span></Float>
+              <span className="font-black text-[0.75rem]" style={{ color: verdict.color }}>{verdict.text}</span>
+            </motion.div>
+
+            {lat && lng && (
+              <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
+                <div className="px-3 pt-2 pb-1"><span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest">12-Hour Forecast</span></div>
+                <HourlyForecastStrip lat={lat} lng={lng} dark />
+              </motion.div>
+            )}
+
+            {sunData && (
+              <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
+                <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest block mb-2">Sun Position Today</span>
+                <SunTimeline sunData={sunData} dark />
+              </motion.div>
+            )}
 
             {shielding && (
               <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
@@ -464,15 +531,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
           </div>
         </motion.div>
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '16px', background: 'linear-gradient(to top, #12141a 60%, transparent)', zIndex: 10001, pointerEvents: 'auto' }} onClick={e => e.stopPropagation()}>
-          <motion.button
-            onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
-            style={{ width: '100%', padding: '14px', borderRadius: '12px', background: '#0d9488', color: '#fff', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-          >Manage This Venue</motion.button>
-        </div>
       </motion.div>
     </AnimatePresence>
   );
