@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { MapPin, Share2, ChevronDown } from 'lucide-react';
+import { MapPin, ArrowLeft, ChevronDown } from 'lucide-react';
 import { getSunPositionForMap } from '../util/sunPosition';
 import { venues } from '../data/venues';
 import { FEATURE_BADGES } from '../config/features';
@@ -87,14 +87,14 @@ const ScoreOrb = ({ score }) => {
 const StatChip = ({ icon, label, value, delay = 0 }) => (
   <Float delay={delay} range={4} duration={4.5} className="flex-1 min-w-0">
     <motion.div
-      className="flex flex-col items-center justify-center rounded-2xl py-1 px-2"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}
+      className="flex flex-col items-center justify-center rounded-2xl"
+      style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}
       whileHover={{ scale: 1.06, background: 'rgba(255,255,255,0.07)' }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
       <span className="text-lg mb-0.5">{icon}</span>
-      <span className="text-white font-black text-[0.8rem] leading-none">{value}</span>
-      <span className="text-white/35 text-[0.6rem] uppercase tracking-widest font-bold mt-0.5">{label}</span>
+      <span className="text-white leading-none" style={{ fontSize: "13px", fontWeight: 700 }}>{value}</span>
+      <span className="uppercase tracking-widest font-bold mt-0.5" style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)" }}>{label}</span>
     </motion.div>
   </Float>
 );
@@ -119,7 +119,7 @@ const GoldenWindowBar = ({ sunData }) => {
         </span>
         <motion.span className="text-amber-300 text-[11px] font-black" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>{hours}h direct sun today</motion.span>
       </div>
-      <div className="relative h-[28px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+      <div className="relative h-[24px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
         <motion.div
           className="absolute h-full rounded-full"
           style={{ left: `${left}%`, background: 'linear-gradient(90deg, #F59E0B, #FDE68A, #F97316)', boxShadow: '0 0 16px rgba(245,158,11,0.6), 0 0 40px rgba(245,158,11,0.2)' }}
@@ -141,7 +141,7 @@ const GoldenWindowBar = ({ sunData }) => {
         />
       </div>
       <div className="flex justify-between px-0.5">
-        {labels.map(h => <span key={h} className="text-white/20 text-[8px] font-bold">{h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`}</span>)}
+        {labels.map(h => <span key={h} style={{ fontSize: '10px', color: 'rgba(148,163,184,0.7)', fontWeight: 500 }}>{h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`}</span>)}
       </div>
     </div>
   );
@@ -290,17 +290,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
         style={{ top: '72px', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
         onClick={onClose}
       >
-        <div className="absolute z-[10000] pointer-events-none" style={{ top: 'max(env(safe-area-inset-top,16px),16px)', left: '16px' }}>
-          <motion.button
-            initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15, type: 'spring', stiffness: 300, damping: 25 }}
-            onClick={onClose}
-            className="pointer-events-auto flex items-center gap-2 font-black text-sm px-4 py-2 rounded-full"
-            style={{ background: 'rgba(15,23,42,0.82)', color: '#F1F5F9', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(16px)', boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}
-            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
-          >
-            <span className="text-base">←</span> Back
-          </motion.button>
-        </div>
 
         <motion.div
           onClick={e => e.stopPropagation()}
@@ -318,22 +307,28 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
-          <div className="relative z-10 px-4 pb-10 pt-2 flex flex-col gap-2">
+          <div className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2">
             <div className="flex justify-center pt-3 pb-0 md:hidden" onPointerDown={e => dragControls.start(e)} style={{ touchAction: 'none' }}>
               <motion.div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(245,158,11,0.5)' }} animate={{ scaleX: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
             </div>
 
-            <motion.div className="flex items-start gap-4 pt-1" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, type: 'spring', stiffness: 280, damping: 28 }}>
-              <Float range={5} duration={5} delay={0.2} className="flex-shrink-0">
-                <motion.div className="flex items-center justify-center text-[30px] rounded-2xl" style={{ width: 62, height: 62, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)', transformStyle: 'preserve-3d' }} whileHover={{ rotateY: 180, scale: 1.08 }} transition={{ duration: 0.5 }}>{emoji}</motion.div>
-              </Float>
-              <div className="flex-1 min-w-0 pt-2">
-                <h2 className="text-white font-black text-[21px] leading-tight truncate" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.5)' }}>{name}</h2>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.55)' }}>{type}</span>
-                  <span className="text-white/25 text-[9px]">·</span>
-                  <span className="text-white/45 text-[11px] font-semibold flex items-center gap-1"><MapPin size={9} className="text-amber-400/70" />{suburb}</span>
-                </div>
+            <motion.div
+              className="flex items-center gap-3"
+              style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(12px)', background: 'rgba(13,27,42,0.85)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '12px 16px', margin: '-8px -16px 0', borderRadius: '28px 28px 0 0' }}
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, type: 'spring', stiffness: 280, damping: 28 }}
+            >
+              <motion.button
+                onClick={onClose}
+                className="flex items-center justify-center flex-shrink-0"
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
+                whileHover={{ scale: 1.08, background: 'rgba(255,255,255,0.12)' }}
+                whileTap={{ scale: 0.92 }}
+              >
+                <ArrowLeft size={18} color="#F1F5F9" />
+              </motion.button>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-white font-bold text-[20px] leading-tight truncate" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{emoji} {name}</h1>
+                <span className="text-amber-400/80 text-[11px] font-medium">{suburb} {type ? `\u00B7 ${type}` : ''}</span>
               </div>
               <ScoreOrb score={score} />
             </motion.div>
@@ -374,25 +369,33 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </motion.div>
             )}
 
-            <motion.div className="rounded-2xl overflow-hidden cursor-pointer" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} onClick={() => setGraphExpanded(g => !g)} whileHover={{ background: 'rgba(255,255,255,0.035)' }}>
-              <div className="flex items-center justify-between px-3 py-2">
-                <span className="text-white/40 text-[0.7rem] font-black uppercase tracking-widest flex items-center gap-2"><span className="text-indigo-400">📈</span> Climate Graphs</span>
-                <motion.div animate={{ rotate: graphExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}><ChevronDown size={15} className="text-white/25" /></motion.div>
+            <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Live Sun Exposure</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: weatherCondition === 'clear' ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)', color: weatherCondition === 'clear' ? '#10B981' : '#94A3B8', border: weatherCondition === 'clear' ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(148,163,184,0.2)' }}>{weatherCondition === 'clear' ? 'Currently Peaking' : weatherCondition === 'cloudy' ? 'Partly Cloudy' : 'Overcast'}</span>
               </div>
-              <AnimatePresence>
-                {graphExpanded && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
-                    <div className="flex gap-4">
-                      <SparkLine data={buildSpark('temperature_2m')} color="#F59E0B" label="Temperature" unit="°" />
-                      <SparkLine data={buildSpark('direct_normal_irradiance')} color="#FDE68A" label="Solar" unit="" />
-                    </div>
-                    <div className="flex gap-4">
-                      <SparkLine data={buildSpark('cloudcover')} color="#94A3B8" label="Cloud" unit="%" />
-                      <SparkLine data={buildSpark('windspeed_10m')} color="#38BDF8" label="Wind" unit=" km" />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <div style={{ height: 96 }}>
+                <SparkLine data={buildSpark('direct_normal_irradiance', 24)} color="#FDE68A" label="Solar Intensity" unit=" W/m²" />
+              </div>
+              <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <div className="flex items-center justify-between cursor-pointer" onClick={() => setGraphExpanded(g => !g)}>
+                  <span className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Temp / Cloud / Wind</span>
+                  <motion.div animate={{ rotate: graphExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}><ChevronDown size={13} className="text-white/25" /></motion.div>
+                </div>
+                <AnimatePresence>
+                  {graphExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="flex flex-col gap-2 mt-2" onClick={e => e.stopPropagation()}>
+                      <div className="flex gap-4">
+                        <SparkLine data={buildSpark('temperature_2m')} color="#F59E0B" label="Temperature" unit="°" />
+                        <SparkLine data={buildSpark('cloudcover')} color="#94A3B8" label="Cloud" unit="%" />
+                      </div>
+                      <div className="flex gap-4">
+                        <SparkLine data={buildSpark('windspeed_10m')} color="#38BDF8" label="Wind" unit=" km" />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </motion.div>
 
             {shielding && (
@@ -457,26 +460,19 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             )}
 
-            <motion.button
-              onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
-              className="w-full font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2"
-              style={{ background: 'linear-gradient(135deg, #0F766E, #0D9488)', color: '#fff', boxShadow: '0 4px 24px rgba(13,148,136,0.35)' }}
-              whileHover={{ scale: 1.02, boxShadow: '0 6px 30px rgba(13,148,136,0.45)' }}
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-            >🏢 Manage This Venue</motion.button>
-
-            <div className="flex gap-3 pb-2">
-              <motion.button className="flex-1 font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg, #1D4ED8, #2563EB)', color: '#fff', boxShadow: '0 4px 24px rgba(37,99,235,0.3)' }} onClick={onCenter} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 320, damping: 22 }}>
-                <MapPin size={14} /> Centre Map
-              </motion.button>
-              <motion.button className="flex-1 font-black text-sm py-3.5 rounded-2xl flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg, #B45309, #D97706)', color: '#fff', boxShadow: '0 4px 24px rgba(217,119,6,0.3)' }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 320, damping: 22 }}>
-                <Share2 size={14} /> Share
-              </motion.button>
-            </div>
+            <div style={{ height: 72 }} />
 
           </div>
         </motion.div>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '16px', background: 'linear-gradient(to top, #12141a 60%, transparent)', zIndex: 10001, pointerEvents: 'auto' }} onClick={e => e.stopPropagation()}>
+          <motion.button
+            onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
+            style={{ width: '100%', padding: '14px', borderRadius: '12px', background: '#0d9488', color: '#fff', fontWeight: 700, fontSize: '14px', border: 'none', cursor: 'pointer' }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+          >Manage This Venue</motion.button>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
