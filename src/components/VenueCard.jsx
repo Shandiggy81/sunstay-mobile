@@ -51,7 +51,7 @@ const ScoreOrb = ({ score }) => {
     <Float range={5} duration={5} delay={0.3}>
       <motion.div
         className="relative flex items-center justify-center flex-shrink-0"
-        style={{ width: 72, height: 72 }}
+        style={{ width: 72, height: 72, willChange: 'transform', transform: 'translateZ(0)' }}
         animate={{ boxShadow: [`0 0 0px 0px ${glowColor}`, `0 0 28px 8px ${glowColor}`, `0 0 0px 0px ${glowColor}`] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       >
@@ -353,7 +353,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
 
-            <motion.div className="flex items-start gap-3" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
+            <motion.div className="flex items-start gap-3" style={{ overflow: 'visible' }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
               <ScoreOrb score={score} />
               <div className="flex-1 grid grid-cols-2 gap-2">
               <StatChip icon="🌡️" label="Feels Like" value={`${Math.round(feelsLike)}°`} delay={0} />
@@ -416,7 +416,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3">
                     <div className="flex flex-wrap gap-1.5">
                       {(tags || (vibe ? [vibe] : ['Chill'])).map((t, i) => (
-                        <span key={i} className="rounded-full" style={{ padding: '2px 8px', fontSize: '0.65rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>{t}</span>
+                        <motion.span key={i} className="venue-vibe-pill" style={{ padding: '2px 8px', fontSize: '0.65rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>{t}</motion.span>
                       ))}
                     </div>
                   </motion.div>
@@ -429,9 +429,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 <img
                   src={`${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
                   alt="Sunstay"
-                  className="w-full object-cover rounded-lg"
-                  style={{ maxHeight: '7rem' }}
-                />
+                  className="w-full object-cover rounded-lg venue-mascot-img"
+                  style={{ maxHeight: '7rem', opacity: 0, transition: 'opacity 300ms ease' }}
+                onLoad={e => { e.target.style.opacity = 1; }} />
               </motion.div>
             )}
 
@@ -439,9 +439,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <motion.button
                 onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
                 className="w-full flex items-center justify-center rounded-xl"
-                style={{ padding: '8px 0', fontSize: '0.75rem', fontWeight: 700, background: '#0d9488', color: '#fff' }}
+                style={{ padding: '8px 0', fontSize: '0.75rem', fontWeight: 700, background: '#0d9488', transition: 'transform 150ms ease, background-color 150ms ease', color: '#fff' }}
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
+                whileTap={{ scale: 0.95, background: '#0f766e' }}
                 transition={{ type: 'spring', stiffness: 320, damping: 22 }}
               >Manage This Venue →</motion.button>
             )}
