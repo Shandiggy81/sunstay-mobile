@@ -1,55 +1,59 @@
-import { useState, useEffect, useCallback } from 'react';
-import { getCurrentWeather, getHourlyForecast, getSunstayScore, getScoreLabel } from '../api/weatherService';
+import { useState, useCallback } from 'react';
+import { storage } from '../utils/platform';
 
-// Default to Melbourne CBD
-const DEFAULT_LAT = -37.8136;
-const DEFAULT_LNG = 144.9631;
+const CACHE_KEY_PREFIX = 'sunstay_weather_';
+const CACHE_EXPIRY = 900000; // 15 Minutes
 
-/**
- * useWeather hook — fetches live weather and computes Sunstay score
- * @param {number} lat - Latitude (defaults to Melbourne)
- * @param {number} lng - Longitude (defaults to Melbourne)
- */
-export function useWeather(lat = DEFAULT_LAT, lng = DEFAULT_LNG) {
-  const [weather, setWeather] = useState(null);
-  const [hourly, setHourly] = useState([]);
-  const [score, setScore] = useState(null);
-  const [scoreLabel, setScoreLabel] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+export const useWeather = () => {
+    const [loading, setLoading] = useState(false);
 
-  const fetchWeather = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [current, forecast] = await Promise.all([
-        getCurrentWeather(lat, lng),
-        getHourlyForecast(lat, lng).catch(() => []), // graceful fallback
-      ]);
+    const fetchWeatherWithCache = useCallback(async (lat, lon) => {
+        const bucket = `${lat.toFixed(2)}_${lon.toFixed(2)}`;
+        const cacheKey = `${CACHE_KEY_PREFIX}${bucket}`;
 
-      const uvIndex = current?.uvi ?? 5;
-      const calculatedScore = getSunstayScore(current, uvIndex);
-      const label = getScoreLabel(calculatedScore);
+        setLoading(true);
+        try {
+            const cachedString = await storage.getItem(cacheKey);
+            if (cachedString) {
+                const { data, timestamp } = JSON.parse(cachedString);
+                if (Date.now() - timestamp < CACHE_EXPIRY) {
+                    setLoading(false);
+                    return data;
+                }
+            }
 
-      setWeather(current);
-      setHourly(forecast);
-      setScore(calculatedScore);
-      setScoreLabel(label);
-      setLastUpdated(new Date());
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [lat, lng]);
+            const params = new URLSearchParams({
+                latitude: String(lat),
+                longitude: String(lon),
+                current: [
+                    'temperature_2m',
+                    'apparent_temperature',
+                    'relative_humidity_2m',
+                    'weather_code',
+                    'cloud_cover',
+                    'wind_speed_10m',
+                    'uv_index',
+                ].join(','),
+                daily: 'sunrise,sunset',
+                timezone: 'auto',
+                forecast_days: '1',
+            });
+            const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+            const freshData = await response.json();
 
-  useEffect(() => {
-    fetchWeather();
-    // Refresh every 10 minutes
-    const interval = setInterval(fetchWeather, 10 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchWeather]);
+            await storage.setItem(cacheKey, JSON.stringify({
+                data: freshData,
+                timestamp: Date.now()
+            }));
 
-  return { weather, hourly, score, scoreLabel, loading, error, lastUpdated, refresh: fetchWeather };
-}
+            return freshData;
+        } catch (error) {
+            console.error("[SunStay Weather] Error:", error);
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    return { fetchWeatherWithCache, loading };
+};

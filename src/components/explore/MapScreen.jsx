@@ -9,6 +9,111 @@ import VenuePeekCard from './VenuePeekCard';
 import SunnyMascot from '../SunnyMascot';
 import ChatWidget from '../ChatWidget';
 
+const VENUE_TYPE_MAP = {
+    Hotel: 'Hotel',
+    ShortStay: 'ShortStay',
+};
+
+const MORNING_ORIENTATIONS = new Set(['E', 'NE', 'N']);
+const SUNSET_ORIENTATIONS = new Set(['W', 'NW', 'SW']);
+const ALL_DAY_ORIENTATIONS = new Set(['N', 'NE', 'NW']);
+
+const getVenueType = (venue) => VENUE_TYPE_MAP[venue.typeCategory] || 'Bar';
+
+const buildVenueSearchBlob = (venue) => {
+    const roomText = (venue.roomTypes || [])
+        .map(r => `${r.orientation || ''} ${r.useCase || ''} ${r.obstructionLevel || ''}`)
+        .join(' ');
+
+    return [
+        venue.venueName,
+        venue.suburb,
+        venue.vibe,
+        venue.segment,
+        venue.address,
+        venue.typeLabel,
+        venue.notes,
+        venue.proTip,
+        (venue.tags || []).join(' '),
+        roomText,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+};
+
+const matchesIntentFilter = (venue, intent) => {
+    const tagsBlob = [
+        venue.vibe || '',
+        venue.notes || '',
+        venue.proTip || '',
+        (venue.tags || []).join(' '),
+    ].join(' ').toLowerCase();
+
+    const roomTypes = venue.roomTypes || [];
+    const orientations = roomTypes.map(r => String(r.orientation || '').toUpperCase());
+    const hasHighFloorRoom = roomTypes.some(r => Number(r.floorLevel) >= 8);
+    const hasOpenRoom = roomTypes.some(r => String(r.obstructionLevel || '').toLowerCase() === 'open');
+    const hasShadeObstruction = roomTypes.some(r => {
+        const level = String(r.obstructionLevel || '').toLowerCase();
+        return level === 'partial' || level === 'heavy';
+    });
+
+    if (intent === 'Morning') {
+        return (
+            tagsBlob.includes('morning') ||
+            tagsBlob.includes('sunrise') ||
+            orientations.some(o => MORNING_ORIENTATIONS.has(o))
+        );
+    }
+
+    if (intent === 'Sunset') {
+        return (
+            tagsBlob.includes('sunset') ||
+            tagsBlob.includes('golden hour') ||
+            tagsBlob.includes('afternoon sun') ||
+            tagsBlob.includes('evening sun') ||
+            orientations.some(o => SUNSET_ORIENTATIONS.has(o))
+        );
+    }
+
+    if (intent === 'AllDay') {
+        const hasHighSunScoreRoom = roomTypes.some(r => Number(r.sunScore || 0) >= 80);
+        return (
+            tagsBlob.includes('all-day sun') ||
+            tagsBlob.includes('all day sun') ||
+            tagsBlob.includes('sunny') ||
+            hasHighSunScoreRoom ||
+            orientations.some(o => ALL_DAY_ORIENTATIONS.has(o))
+        );
+    }
+
+    if (intent === 'Shaded') {
+        return (
+            tagsBlob.includes('shaded') ||
+            tagsBlob.includes('shade') ||
+            tagsBlob.includes('covered') ||
+            tagsBlob.includes('umbrella') ||
+            tagsBlob.includes('indoor warmth') ||
+            orientations.includes('S') ||
+            hasShadeObstruction
+        );
+    }
+
+    if (intent === 'HighFloor') {
+        return (
+            tagsBlob.includes('high floor') ||
+            tagsBlob.includes('open sky') ||
+            tagsBlob.includes('rooftop') ||
+            tagsBlob.includes('views') ||
+            hasHighFloorRoom ||
+            (hasOpenRoom && roomTypes.some(r => Number(r.floorLevel) >= 5))
+        );
+    }
+
+    return true;
+};
+
 const MapScreen = () => {
     const { weather } = useWeather();
 
@@ -22,42 +127,63 @@ const MapScreen = () => {
 
     const mapRef = useRef(null);
 
-    const filteredVenueIds = useMemo(() => {
-        const tagFilters = activeFilters.filter(f => !f.startsWith('sun-'));
-        let ids = null;
+    const filterById = useMemo(
+        () => new Map(FILTER_CATEGORIES.map(filter => [filter.id, filter])),
+        []
+    );
+
+    const venueMatchesFilters = useCallback((venue, query, filters) => {
+        const defs = filters
+            .map(filterId => filterById.get(filterId))
+            .filter(Boolean);
+
+        const tagFilters = defs.filter(def => def.tag).map(def => def.tag.toLowerCase());
+        const intentFilters = defs.filter(def => def.intent).map(def => def.intent);
+        const typeFilters = defs.filter(def => def.typeFilter).map(def => def.typeFilter);
+
+        if (typeFilters.length > 0 && !typeFilters.includes(getVenueType(venue))) {
+            return false;
+        }
 
         if (tagFilters.length > 0) {
-            const matching = demoVenues.filter(v => {
-                const vTags = v.tags || [];
-                return tagFilters.every(filterId => {
-                    const def = FILTER_CATEGORIES.find(c => c.id === filterId);
-                    if (!def?.tag) return true;
-                    return vTags.includes(def.tag);
-                });
-            }).map(v => v.id);
-
-            ids = ids === null ? new Set(matching) : new Set(matching.filter(id => ids.has(id)));
+            const venueTags = new Set((venue.tags || []).map(tag => String(tag).toLowerCase()));
+            const hasAllTags = tagFilters.every(tag => venueTags.has(tag));
+            if (!hasAllTags) return false;
         }
 
-        return ids === null ? null : [...ids];
-    }, [activeFilters]);
+        if (intentFilters.length > 0) {
+            const hasAllIntents = intentFilters.every(intent => matchesIntentFilter(venue, intent));
+            if (!hasAllIntents) return false;
+        }
+
+        if (query) {
+            const venueText = buildVenueSearchBlob(venue);
+            if (!venueText.includes(query)) return false;
+        }
+
+        return true;
+    }, [filterById]);
 
     const filteredVenues = useMemo(() => {
-        let list = filteredVenueIds === null
-            ? demoVenues
-            : demoVenues.filter(v => filteredVenueIds.includes(v.id));
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            list = list.filter(v =>
-                v.venueName.toLowerCase().includes(q) ||
-                (v.suburb || '').toLowerCase().includes(q) ||
-                (v.vibe || '').toLowerCase().includes(q)
-            );
-        }
-        return list;
-    }, [filteredVenueIds, searchQuery]);
+        const normalizedQuery = searchQuery.trim().toLowerCase();
+        return demoVenues.filter(venue => venueMatchesFilters(venue, normalizedQuery, activeFilters));
+    }, [searchQuery, activeFilters, venueMatchesFilters]);
 
-    const handleVenueSelect = useCallback((venue, openDetail = false) => {
+    const filteredVenueIds = useMemo(() => {
+        if (filteredVenues.length === demoVenues.length) return null;
+        return filteredVenues.map(v => v.id);
+    }, [filteredVenues]);
+
+    const resolveVenue = useCallback((venueOrId) => {
+        if (!venueOrId) return null;
+        if (typeof venueOrId === 'object') return venueOrId;
+        return demoVenues.find(v => String(v.id) === String(venueOrId)) || null;
+    }, []);
+
+    const handleVenueSelect = useCallback((venueOrId, openDetail = false) => {
+        const venue = resolveVenue(venueOrId);
+        if (!venue) return;
+
         setSelectedVenue(venue);
         setSheetMode(openDetail ? 'full' : 'collapsed');
         if (mapRef.current?.flyTo) {
@@ -68,7 +194,7 @@ const MapScreen = () => {
                 duration: 900,
             });
         }
-    }, []);
+    }, [resolveVenue]);
 
     const handleCloseDetail = useCallback(() => {
         setSelectedVenue(null);
@@ -80,6 +206,29 @@ const MapScreen = () => {
             prev.includes(filterId) ? prev.filter(f => f !== filterId) : [...prev, filterId]
         );
     }, []);
+
+    const handleMapModeChange = useCallback((nextMode) => {
+        setMapMode(nextMode);
+
+        if (nextMode === 'list') {
+            setSelectedVenue(null);
+            setSheetMode('list');
+            return;
+        }
+
+        if (!selectedVenue) {
+            setSheetMode('collapsed');
+        }
+    }, [selectedVenue]);
+
+    const handleSheetModeChange = useCallback((nextMode) => {
+        if (mapMode === 'list' && nextMode !== 'full') {
+            setMapMode('map');
+            setSheetMode(nextMode);
+            return;
+        }
+        setSheetMode(nextMode);
+    }, [mapMode]);
 
     const handleRecenter = useCallback(() => {
         if (mapRef.current?.flyTo) {
@@ -93,7 +242,7 @@ const MapScreen = () => {
         }
     }, []);
 
-    const getMarkerColor = useCallback((w, venue) => {
+    const getMarkerColor = useCallback((w) => {
         if (!w) return 'sunny';
         const condition = (w.weather?.[0]?.main || '').toLowerCase();
         const windSpeed = w.wind?.speed || 0;
@@ -107,41 +256,16 @@ const MapScreen = () => {
 
     return (
         <div className="fixed inset-0 bg-[#e8e4dc] overflow-hidden">
-            {!isListMode && (
-                <div className="absolute inset-0">
-                    <MapView
-                        onVenueSelect={handleVenueSelect}
-                        selectedVenue={selectedVenue}
-                        filteredVenueIds={filteredVenueIds}
-                        mapRef={mapRef}
-                        weatherColorFn={getMarkerColor}
-                        cozyMode={activeFilters.includes('cozy')}
-                    />
-                </div>
-            )}
-
-            {isListMode && (
-                <div className="absolute inset-0 bg-gray-50 overflow-y-auto"
-                    style={{ paddingTop: 120, paddingBottom: 80 }}>
-                    {filteredVenues.map(venue => (
-                        <button
-                            key={venue.id}
-                            onClick={() => handleVenueSelect(venue)}
-                            className="w-full flex items-start gap-3 px-4 py-3.5 text-left bg-white border-b border-gray-100 hover:bg-gray-50"
-                        >
-                            <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center text-xl flex-shrink-0">
-                                {venue.emoji}
-                            </div>
-                            <div className="flex-1 min-w-0 pt-0.5">
-                                <p className="font-semibold text-[13px] text-gray-900 truncate">{venue.venueName}</p>
-                                <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                                    {venue.vibe || venue.segment} · {venue.suburb}
-                                </p>
-                            </div>
-                        </button>
-                    ))}
-                </div>
-            )}
+            <div className={`absolute inset-0 ${isListMode ? 'pointer-events-none' : ''}`}>
+                <MapView
+                    onVenueSelect={handleVenueSelect}
+                    selectedVenue={selectedVenue}
+                    filteredVenueIds={filteredVenueIds}
+                    mapRef={mapRef}
+                    weatherColorFn={getMarkerColor}
+                    cozyMode={activeFilters.includes('cozy')}
+                />
+            </div>
 
             <TopBar
                 searchQuery={searchQuery}
@@ -152,62 +276,45 @@ const MapScreen = () => {
             />
 
             {!isListMode && (
-                <>
-                    <AnimatePresence>
-                        {selectedVenue && sheetMode === 'collapsed' && (
-                            <div className="absolute left-0 right-0 z-50 pointer-events-none px-3"
-                                style={{ bottom: 60 }}>
-                                <div className="pointer-events-auto">
-                                    <VenuePeekCard
-                                        venue={selectedVenue}
-                                        weather={weather}
-                                        onExpand={() => setSheetMode('full')}
-                                        onClose={() => { setSelectedVenue(null); }}
-                                    />
-                                </div>
+                <AnimatePresence>
+                    {selectedVenue && sheetMode === 'collapsed' && (
+                        <div className="hidden lg:block absolute left-0 right-0 z-50 pointer-events-none px-3" style={{ bottom: 60 }}>
+                            <div className="pointer-events-auto">
+                                <VenuePeekCard
+                                    venue={selectedVenue}
+                                    weather={weather}
+                                    onExpand={() => setSheetMode('full')}
+                                    onClose={() => { setSelectedVenue(null); }}
+                                />
                             </div>
-                        )}
-                    </AnimatePresence>
-
-                    <ExploreSheet
-                        mode={sheetMode}
-                        onModeChange={setSheetMode}
-                        mapMode={mapMode}
-                        onMapModeChange={setMapMode}
-                        venues={filteredVenues}
-                        totalCount={demoVenues.length}
-                        selectedVenue={selectedVenue}
-                        onVenueSelect={(v) => handleVenueSelect(v, true)}
-                        onCloseDetail={handleCloseDetail}
-                        activeFilters={activeFilters}
-                        onFilterToggle={handleFilterToggle}
-                        filterCategories={FILTER_CATEGORIES}
-                        weather={weather}
-                        externalFiltersOpen={filtersOpenFromBanner}
-                        onExternalFiltersClose={() => setFiltersOpenFromBanner(false)}
-                    />
-                </>
+                        </div>
+                    )}
+                </AnimatePresence>
             )}
 
-            {isListMode && (
-                <ExploreSheet
-                    mode="full"
-                    onModeChange={(m) => { if (m === 'collapsed') setMapMode('map'); else setSheetMode(m); }}
-                    mapMode={mapMode}
-                    onMapModeChange={setMapMode}
-                    venues={filteredVenues}
-                    totalCount={demoVenues.length}
-                    selectedVenue={selectedVenue}
-                    onVenueSelect={(v) => { setMapMode('map'); handleVenueSelect(v, true); }}
-                    onCloseDetail={() => { setSelectedVenue(null); setMapMode('map'); }}
-                    activeFilters={activeFilters}
-                    onFilterToggle={handleFilterToggle}
-                    filterCategories={FILTER_CATEGORIES}
-                    weather={weather}
-                    externalFiltersOpen={filtersOpenFromBanner}
-                    onExternalFiltersClose={() => setFiltersOpenFromBanner(false)}
-                />
-            )}
+            <ExploreSheet
+                mode={isListMode ? 'full' : sheetMode}
+                onModeChange={handleSheetModeChange}
+                mapMode={mapMode}
+                onMapModeChange={handleMapModeChange}
+                venues={filteredVenues}
+                totalCount={demoVenues.length}
+                selectedVenue={selectedVenue}
+                onVenueSelect={(v) => {
+                    if (isListMode) setMapMode('map');
+                    handleVenueSelect(v, true);
+                }}
+                onCloseDetail={() => {
+                    if (isListMode) setMapMode('map');
+                    handleCloseDetail();
+                }}
+                activeFilters={activeFilters}
+                onFilterToggle={handleFilterToggle}
+                filterCategories={FILTER_CATEGORIES}
+                weather={weather}
+                externalFiltersOpen={filtersOpenFromBanner}
+                onExternalFiltersClose={() => setFiltersOpenFromBanner(false)}
+            />
 
             <SunnyMascot
                 onClick={() => setIsChatOpen(v => !v)}
@@ -216,14 +323,17 @@ const MapScreen = () => {
             <ChatWidget
                 isOpen={isChatOpen}
                 onClose={() => setIsChatOpen(false)}
-                onFindWheelchair={() => { setActiveFilters(['wheelchair']); setSelectedVenue(null); setIsChatOpen(false); setSheetMode('list'); }}
-                onFindDogFriendly={() => { setActiveFilters(['pet-friendly']); setSelectedVenue(null); setIsChatOpen(false); setSheetMode('list'); }}
-                onFindSmoking={() => { setActiveFilters(['smoking']); setSelectedVenue(null); setIsChatOpen(false); setSheetMode('list'); }}
-                onFindFamily={() => { setActiveFilters(['pram-friendly']); setSelectedVenue(null); setIsChatOpen(false); setSheetMode('list'); }}
-                onFindBusiness={() => { setActiveFilters(['large-groups']); setSelectedVenue(null); setIsChatOpen(false); setSheetMode('list'); }}
+                onFindWheelchair={() => { setActiveFilters(['wheelchair']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
+                onFindDogFriendly={() => { setActiveFilters(['pet-friendly']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
+                onFindSmoking={() => { setActiveFilters(['smoking']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
+                onFindFamily={() => { setActiveFilters(['pram-friendly']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
+                onFindBusiness={() => { setActiveFilters(['large-groups']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
                 onSurpriseMe={() => {
                     const v = filteredVenues[Math.floor(Math.random() * filteredVenues.length)];
-                    if (v) handleVenueSelect(v);
+                    if (v) {
+                        setMapMode('map');
+                        handleVenueSelect(v);
+                    }
                     setIsChatOpen(false);
                 }}
             />

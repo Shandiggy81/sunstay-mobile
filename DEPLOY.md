@@ -1,41 +1,34 @@
-# Deployment Guide: SunStay Melbourne
+# Netlify Deploy (GitHub Connected)
 
-Follow these steps to deploy the SunStay "Room-Level Sun Intelligence" demo to a public URL using Cloudflare Pages.
+This repo is configured for Netlify with [`netlify.toml`](./netlify.toml):
 
-## Step 1: Prerequisites
+- Build command: `npm run build`
+- Publish directory: `dist`
+- SPA redirect: `/* -> /index.html`
 
-Ensure you have the following environment variables ready:
+## 1) Push to GitHub
 
-- `VITE_MAPBOX_TOKEN`: Your Mapbox access token (starts with `pk.`).
-- `VITE_OPENWEATHER_KEY`: Your OpenWeatherMap API key.
+```bash
+git add .
+git commit -m "Update weather demo app"
+git push
+```
 
-## Step 2: Deployment via Cloudflare Pages (GitHub Integration)
+## 2) Netlify site settings
 
-Cloudflare Pages integrates directly with your GitHub repository to automatically build and deploy your site when you push changes.
+In Netlify Dashboard -> Site settings -> Build & deploy -> Environment variables, set:
 
-1. Go to the [Cloudflare Dashboard](https://dash.cloudflare.com/) and navigate to **Workers & Pages**.
-2. Click **Create application**, select the **Pages** tab, and then click **Connect to Git**.
-3. Connect your GitHub account and select the `sunstay-app` repository.
-4. Set up the build settings:
-   - **Framework preset:** `Vite` (if it doesn't auto-detect, set the build command to `npm run build` and the build output directory to `dist`).
-5. Click **Save and Deploy**. (The first build might fail if environment variables are missing — this is expected. We will add them in the next step).
+- `VITE_MAPBOX_TOKEN` (required)
+- `VITE_OPENWEATHER_KEY` (optional)
+- `VITE_OPENAQ_API_KEY` (optional)
 
-## Step 3: Configure Environment Variables
+## 3) Trigger deploy
 
-The map and weather data require environment variables to function correctly in production.
+- If Git is linked, pushing to the connected branch triggers deploy automatically.
+- Or run a manual deploy from Netlify dashboard.
 
-1. In your Cloudflare Pages project dashboard, go to the **Settings** tab.
-2. Under **Environment variables**, click **Add variables** for the **Production** environment.
-3. Add `VITE_MAPBOX_TOKEN` and `VITE_OPENWEATHER_KEY` with your real keys.
-4. Go to **Deployments** and click **Retry deployment** (or trigger a new deploy by pushing a new commit) to apply the changes.
+## 4) Verify production
 
-## Step 4: SEO and SPA Routing
-
-The site is pre-configured with:
-
-- **Title**: SunStay – Room-Level Sun Intelligence for Melbourne Stays
-- **SPA Routing**: Handled via `public/_redirects` (redirects all paths to `index.html`).
-
----
-**Build Command**: `npm run build`
-**Output Folder**: `dist/`
+- Open the site URL in desktop + mobile.
+- Hard refresh on mobile (`clear cache` + reload) when testing UI updates.
+- Confirm map pins, weather chips, and venue detail panel update with live conditions.
