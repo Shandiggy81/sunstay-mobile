@@ -441,18 +441,20 @@ const AppContent = () => {
                 onFiltersOpen={openMobileFilters}
             />
 
-            {showOwnerDashboard ? (
-                <div className="min-h-screen">
+            <AnimatePresence>
+                {showOwnerDashboard && (
                     <OwnerDashboard
                         venue={selectedVenue}
                         liveVenueFeatures={liveVenueFeatures}
                         setLiveVenueFeatures={setLiveVenueFeatures}
-                        onClose={() => {
-                            setShowOwnerDashboard(false);
+                        onClose={() => setShowOwnerDashboard(false)}
+                        onVenueUpdate={(updated) => {
+                            setSelectedVenue(prev => ({ ...prev, ...updated }));
                         }}
                     />
-                </div>
-            ) : (
+                )}
+            </AnimatePresence>
+
                 <>
                     {/* ═══ MAIN SPLIT LAYOUT ═══ */}
                     <main className="ss-main flex h-full w-full overflow-hidden">
@@ -708,7 +710,6 @@ const AppContent = () => {
                         Sales Demo · {demoVenues.length} Partner Venues
                     </motion.div>
                 </>
-            )}
         </div>
     );
 };

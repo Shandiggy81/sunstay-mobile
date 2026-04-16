@@ -1,338 +1,474 @@
-import { useState, useRef, useEffect } from 'react';
-import { FEATURE_BADGES } from '../config/features';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
-export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setLiveVenueFeatures }) {
-  // STEP 1: Detect Venue Type
-  const venueType = venue?.type?.toLowerCase() || '';
-  const venueTags = venue?.tags?.map(tag => tag.toLowerCase()) || [];
-  const isAccommodation =
-    venueType.includes('hotel') ||
-    venueType.includes('stay') ||
-    venueType.includes('apartment') ||
-    venueType.includes('airbnb') ||
-    venueType.includes('bnb') ||
-    venueTags.some(tag =>
-      tag.includes('hotel') ||
-      tag.includes('stay') ||
-      tag.includes('apartment') ||
-      tag.includes('airbnb') ||
-      tag.includes('bnb')
-    );
+// ── Shared Spinner ──────────────────────────────────────────────
+const Spinner = () => (
+  <motion.div
+    className="inline-block rounded-full"
+    style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.15)', borderTopColor: '#14B8A6' }}
+    animate={{ rotate: 360 }}
+    transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
+  />
+);
 
-  // STEP 2: State Variables (Derive from lifted state)
-  const venueLiveState = liveVenueFeatures[venue.id] || {};
+// ── Section Heading ─────────────────────────────────────────────
+const SectionHeading = ({ children }) => (
+  <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>{children}</p>
+);
 
-  const updateVenueFeature = (key, value) => {
-    setLiveVenueFeatures(prev => ({
-      ...prev,
-      [venue.id]: {
-        ...prev[venue.id],
-        [key]: value,
-      }
-    }));
-  };
+// ── Inline Status ───────────────────────────────────────────────
+const InlineStatus = ({ text, type }) => (
+  <AnimatePresence>
+    {text && (
+      <motion.span
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0 }}
+        style={{ fontSize: '0.7rem', color: type === 'error' ? '#F87171' : '#34D399', fontWeight: 600, marginLeft: 8 }}
+      >{text}</motion.span>
+    )}
+  </AnimatePresence>
+);
 
-  // Shared
-  const fireplaceOn = !!venueLiveState.fireplaceOn;
-
-  // Pub Only
-  const blindsDown = !!venueLiveState.blindsDown;
-  const roofClosed = !!venueLiveState.roofClosed;
-  const heatersOn = !!venueLiveState.heatersOn;
-  const walkinsWelcome = !!venueLiveState.walkinsWelcome;
-  const atCapacity = !!venueLiveState.atCapacity;
-  const rooftopOpen = !!venueLiveState.rooftopOpen;
-  const sunnyTables = !!venueLiveState.sunnyTables;
-  const dogFriendly = !!venueLiveState.dogFriendly;
-  const familyFriendly = !!venueLiveState.familyFriendly;
-  const accessibleVenue = !!venueLiveState.accessibleVenue;
-  const liveSports = !!venueLiveState.liveSports;
-  const djPlaying = !!venueLiveState.djPlaying;
-  const triviaTonight = !!venueLiveState.triviaTonight;
-  const acousticLiveTonight = !!venueLiveState.acousticLiveTonight;
-
-  // Accommodation Only
-  const heatedPoolOpen = !!venueLiveState.heatedPoolOpen;
-  const acMaxMode = !!venueLiveState.acMaxMode;
-  const poolUmbrellasOut = !!venueLiveState.poolUmbrellasOut;
-  const instantBook = !!venueLiveState.instantBook;
-  const lateCheckout = !!venueLiveState.lateCheckout;
-  const roomUpgrade = !!venueLiveState.roomUpgrade;
-  const weatherDiscount = !!venueLiveState.weatherDiscount;
-  const petFriendlyRoom = !!venueLiveState.petFriendlyRoom;
-  const familySuite = !!venueLiveState.familySuite;
-  const accessibleRoom = !!venueLiveState.accessibleRoom;
-  const bikeHire = !!venueLiveState.bikeHire;
-  const breakfastIncluded = !!venueLiveState.breakfastIncluded;
-  const welcomeDrinks = !!venueLiveState.welcomeDrinks;
-  const rainyDayKit = !!venueLiveState.rainyDayKit;
-  const spaSlots = !!venueLiveState.spaSlots;
-
-  // Mutual Exclusivity Logic (Pub)
-  const handleWalkinsChange = (val) => {
-    updateVenueFeature('walkinsWelcome', val);
-    if (val) updateVenueFeature('atCapacity', false);
-  };
-  const handleCapacityChange = (val) => {
-    updateVenueFeature('atCapacity', val);
-    if (val) updateVenueFeature('walkinsWelcome', false);
-  };
-
-  const w = venue?.weatherNow || {};
-
-  // STEP 6: Hero Icon Logic
-  const getHeroIcon = () => {
-    if (isAccommodation) {
-      if (heatedPoolOpen) return '🏊';
-      if (acMaxMode) return '❄️';
-      if (fireplaceOn) return '🔥';
-    } else {
-      if (fireplaceOn) return '🔥';
-      if (roofClosed) return '🏗️';
-      if (heatersOn) return '🍄';
-    }
-    return '☀️';
-  };
-  const heroIcon = getHeroIcon();
-
-  // STEP 6: Active Badges Array (Supports Both Modes)
-  const activeBadges = [];
-  
-  if (isAccommodation) {
-    if (heatedPoolOpen) activeBadges.push({ text: FEATURE_BADGES.heatedPoolOpen, color: "bg-blue-100 text-blue-700" });
-    if (acMaxMode) activeBadges.push({ text: FEATURE_BADGES.acMaxMode, color: "bg-cyan-100 text-cyan-700" });
-    if (fireplaceOn) activeBadges.push({ text: FEATURE_BADGES.fireplaceOn, color: "bg-orange-100 text-orange-700" });
-    if (poolUmbrellasOut) activeBadges.push({ text: "⛱️ Pool Umbrellas Out", color: "bg-amber-100 text-amber-700" });
-    if (instantBook) activeBadges.push({ text: FEATURE_BADGES.instantBook, color: "bg-green-100 text-green-700" });
-    if (lateCheckout) activeBadges.push({ text: FEATURE_BADGES.lateCheckout, color: "bg-purple-100 text-purple-700" });
-    if (roomUpgrade) activeBadges.push({ text: FEATURE_BADGES.roomUpgrade, color: "bg-indigo-100 text-indigo-700" });
-    if (weatherDiscount) activeBadges.push({ text: FEATURE_BADGES.weatherDiscount, color: "bg-rose-100 text-rose-700" });
-    if (petFriendlyRoom) activeBadges.push({ text: FEATURE_BADGES.petFriendlyRoom, color: "bg-emerald-100 text-emerald-700" });
-    if (familySuite) activeBadges.push({ text: FEATURE_BADGES.familySuite, color: "bg-pink-100 text-pink-700" });
-    if (accessibleRoom) activeBadges.push({ text: FEATURE_BADGES.accessibleRoom, color: "bg-sky-100 text-sky-700" });
-    if (bikeHire) activeBadges.push({ text: FEATURE_BADGES.bikeHire, color: "bg-orange-100 text-orange-800" });
-    if (breakfastIncluded) activeBadges.push({ text: FEATURE_BADGES.breakfastIncluded, color: "bg-yellow-100 text-yellow-700" });
-    if (welcomeDrinks) activeBadges.push({ text: FEATURE_BADGES.welcomeDrinks, color: "bg-rose-100 text-rose-800" });
-    if (rainyDayKit) activeBadges.push({ text: FEATURE_BADGES.rainyDayKit, color: "bg-slate-100 text-slate-700" });
-    if (spaSlots) activeBadges.push({ text: FEATURE_BADGES.spaSlots, color: "bg-teal-100 text-teal-700" });
-  } else {
-    if (fireplaceOn) activeBadges.push({ text: "🔥 Fireplace On", color: "bg-orange-100 text-orange-700" });
-    if (blindsDown) activeBadges.push({ text: FEATURE_BADGES.blindsDown, color: "bg-blue-100 text-blue-700" });
-    if (roofClosed) activeBadges.push({ text: FEATURE_BADGES.roofClosed, color: "bg-slate-100 text-slate-700" });
-    if (heatersOn) activeBadges.push({ text: FEATURE_BADGES.heatersOn, color: "bg-orange-100 text-orange-800" });
-    if (walkinsWelcome) activeBadges.push({ text: FEATURE_BADGES.walkinsWelcome, color: "bg-green-100 text-green-700" });
-    if (atCapacity) activeBadges.push({ text: FEATURE_BADGES.atCapacity, color: "bg-red-100 text-red-700" });
-    if (rooftopOpen) activeBadges.push({ text: FEATURE_BADGES.rooftopOpen, color: "bg-indigo-100 text-indigo-700" });
-    if (sunnyTables) activeBadges.push({ text: FEATURE_BADGES.sunnyTables, color: "bg-amber-100 text-amber-700" });
-    if (dogFriendly) activeBadges.push({ text: FEATURE_BADGES.dogFriendly, color: "bg-emerald-100 text-emerald-700" });
-    if (familyFriendly) activeBadges.push({ text: FEATURE_BADGES.familyFriendly, color: "bg-pink-100 text-pink-700" });
-    if (accessibleVenue) activeBadges.push({ text: FEATURE_BADGES.accessibleVenue, color: "bg-sky-100 text-sky-700" });
-    if (liveSports) activeBadges.push({ text: FEATURE_BADGES.liveSports, color: "bg-blue-100 text-blue-800" });
-    if (djPlaying) activeBadges.push({ text: FEATURE_BADGES.djPlaying, color: "bg-purple-100 text-purple-700" });
-    if (triviaTonight) activeBadges.push({ text: FEATURE_BADGES.triviaTonight, color: "bg-teal-100 text-teal-700" });
-    if (acousticLiveTonight) activeBadges.push({ text: FEATURE_BADGES.acousticLiveTonight, color: "bg-amber-100 text-amber-800" });
-  }
-
-  const Toggle = ({ label, icon, value, onChange, recommended }) => (
-    <div className={`flex items-center justify-between py-3.5 px-3 border-b border-gray-50 last:border-0 transition-colors ${value ? 'bg-teal-50/30' : ''}`}>
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <span className="text-xl flex-shrink-0">{icon}</span>
-        <div className="flex flex-col min-w-0">
-          <span className="text-[13px] font-bold text-gray-700 leading-tight">{label}</span>
-          {recommended && (
-            <span className="w-fit mt-1 text-[9px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded uppercase tracking-wider">
-              Recommended
-            </span>
-          )}
-        </div>
-      </div>
+// ── Dark Toggle Switch ──────────────────────────────────────────
+const DarkToggle = ({ label, icon, value, onChange, saving, saved }) => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+      <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{icon}</span>
+      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>{label}</span>
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {saving && <Spinner />}
+      <AnimatePresence>
+        {saved && (
+          <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} style={{ fontSize: '0.75rem' }}>✅</motion.span>
+        )}
+      </AnimatePresence>
       <button
         onClick={() => onChange(!value)}
-        className={`ml-4 flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 relative ${value ? 'bg-teal-500' : 'bg-gray-200'}`}
+        style={{
+          width: 44, height: 24, borderRadius: 12, position: 'relative', border: 'none', cursor: 'pointer',
+          background: value ? '#14B8A6' : 'rgba(255,255,255,0.2)', transition: 'background 200ms ease',
+        }}
       >
-        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${value ? 'translate-x-6' : 'translate-x-1'}`} />
+        <div style={{
+          position: 'absolute', top: 2, width: 20, height: 20, borderRadius: '50%', background: '#fff',
+          transition: 'transform 200ms ease', transform: value ? 'translateX(22px)' : 'translateX(2px)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+        }} />
       </button>
     </div>
-  );
+  </div>
+);
 
+// ── Styled Text Input ───────────────────────────────────────────
+const inputStyle = {
+  background: 'rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 12px',
+  color: '#fff', fontSize: '0.85rem', border: '1px solid rgba(255,255,255,0.2)',
+  outline: 'none', width: '100%',
+};
+
+const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAY_LABELS = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+
+const PRESET_TAGS = [
+  'Sunny Terrace', 'Dog Friendly', 'Live Music', 'Late Night',
+  'Cosy Inside', 'Rooftop', 'Garden', 'Sports Screens',
+  'Firepit', 'BYO', 'Cocktails', 'Family Friendly',
+];
+
+// ═════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═════════════════════════════════════════════════════════════════
+export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setLiveVenueFeatures, onVenueUpdate }) {
+  const fileInputRef = useRef(null);
+
+  // ── Photo Upload State ──────────────────────────────────────
+  const [photoUrl, setPhotoUrl] = useState(venue?.photo || null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+
+  // ── Hours State ─────────────────────────────────────────────
+  const defaultHours = {};
+  DAYS.forEach(d => {
+    const existing = venue?.hours?.[d];
+    defaultHours[d] = existing || { open: '08:00', close: '22:00', closed: false };
+  });
+  const [hours, setHours] = useState(defaultHours);
+  const [hoursSaving, setHoursSaving] = useState(false);
+  const [hoursStatus, setHoursStatus] = useState({ text: '', type: '' });
+
+  // ── Heating Toggles State ───────────────────────────────────
+  const heatingFields = [
+    { key: 'hasHeaters', label: 'Outdoor Heaters', icon: '🔆' },
+    { key: 'hasFireplace', label: 'Fireplace', icon: '🔥' },
+    { key: 'hasUmbrellas', label: 'Shade Umbrellas', icon: '⛱️' },
+    { key: 'hasWindProtection', label: 'Wind Protection', icon: '🌬️' },
+  ];
+  const [heatingState, setHeatingState] = useState({
+    hasHeaters: !!venue?.hasHeaters,
+    hasFireplace: !!venue?.hasFireplace,
+    hasUmbrellas: !!venue?.hasUmbrellas,
+    hasWindProtection: !!venue?.hasWindProtection,
+  });
+  const [heatingSaving, setHeatingSaving] = useState({});
+  const [heatingSaved, setHeatingSaved] = useState({});
+
+  // ── Vibe Tags State ─────────────────────────────────────────
+  const [activeTags, setActiveTags] = useState(venue?.tags || (venue?.vibe ? [venue.vibe] : []));
+  const [customTag, setCustomTag] = useState('');
+  const [vibeSaving, setVibeSaving] = useState(false);
+  const [vibeStatus, setVibeStatus] = useState({ text: '', type: '' });
+
+  // ── Helpers ─────────────────────────────────────────────────
+  const flashStatus = useCallback((setter, text, type = 'success', duration = 2000) => {
+    setter({ text, type });
+    setTimeout(() => setter({ text: '', type: '' }), duration);
+  }, []);
+
+  // ── Photo Upload Handler ────────────────────────────────────
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoError('');
+
+    // Validate format
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setPhotoError('Only JPG, PNG, or WebP accepted');
+      return;
+    }
+    // Validate size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setPhotoError('Maximum file size is 5MB');
+      return;
+    }
+
+    setPhotoUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `venues/${venue.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('venue-photos').upload(path, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('venue-photos').getPublicUrl(path);
+      const { error: dbError } = await supabase.from('venues').update({ photo: publicUrl }).eq('id', venue.id);
+      if (dbError) throw dbError;
+
+      setPhotoUrl(publicUrl);
+      onVenueUpdate?.({ ...venue, photo: publicUrl });
+    } catch (err) {
+      setPhotoError(err.message || 'Upload failed');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  // ── Hours Save Handler ──────────────────────────────────────
+  const handleSaveHours = async () => {
+    setHoursSaving(true);
+    try {
+      const { error } = await supabase.from('venues').update({ hours }).eq('id', venue.id);
+      if (error) throw error;
+      flashStatus(setHoursStatus, '✅ Saved');
+      onVenueUpdate?.({ ...venue, hours });
+    } catch (err) {
+      flashStatus(setHoursStatus, err.message || 'Save failed', 'error', 3000);
+    } finally {
+      setHoursSaving(false);
+    }
+  };
+
+  // ── Heating Toggle Handler (auto-save) ──────────────────────
+  const handleHeatingToggle = async (field, newValue) => {
+    const prev = heatingState[field];
+    setHeatingState(s => ({ ...s, [field]: newValue }));
+    setHeatingSaving(s => ({ ...s, [field]: true }));
+
+    try {
+      const { error } = await supabase.from('venues').update({ [field]: newValue }).eq('id', venue.id);
+      if (error) throw error;
+      setHeatingSaved(s => ({ ...s, [field]: true }));
+      setTimeout(() => setHeatingSaved(s => ({ ...s, [field]: false })), 1500);
+      onVenueUpdate?.({ ...venue, [field]: newValue });
+    } catch {
+      // Revert on error
+      setHeatingState(s => ({ ...s, [field]: prev }));
+      setHeatingSaving(s => ({ ...s, [field]: false }));
+    } finally {
+      setHeatingSaving(s => ({ ...s, [field]: false }));
+    }
+  };
+
+  // ── Vibe Save Handler ──────────────────────────────────────
+  const handleSaveVibe = async () => {
+    setVibeSaving(true);
+    try {
+      const { error } = await supabase.from('venues').update({ tags: activeTags }).eq('id', venue.id);
+      if (error) throw error;
+      flashStatus(setVibeStatus, '✅ Saved');
+      onVenueUpdate?.({ ...venue, tags: activeTags });
+    } catch (err) {
+      flashStatus(setVibeStatus, err.message || 'Save failed', 'error', 3000);
+    } finally {
+      setVibeSaving(false);
+    }
+  };
+
+  const addTag = (tag) => {
+    if (activeTags.length >= 8 || activeTags.includes(tag)) return;
+    setActiveTags(t => [...t, tag]);
+  };
+
+  const removeTag = (tag) => {
+    setActiveTags(t => t.filter(x => x !== tag));
+  };
+
+  const handleAddCustomTag = () => {
+    const trimmed = customTag.trim().slice(0, 20);
+    if (!trimmed || activeTags.includes(trimmed) || activeTags.length >= 8) return;
+    setActiveTags(t => [...t, trimmed]);
+    setCustomTag('');
+  };
+
+  // ── Render ──────────────────────────────────────────────────
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      {/* Sticky Top Bar */}
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🏢</span>
-          <span className="text-sm font-black text-gray-900 uppercase tracking-tight">
-            {isAccommodation ? 'Accommodation Command Center' : 'Venue Operations'}
-          </span>
+    <motion.div
+      key="owner-dashboard"
+      initial={{ y: '100%' }}
+      animate={{ y: 0 }}
+      exit={{ y: '100%' }}
+      transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+      style={{
+        position: 'fixed', inset: 0, top: 48, zIndex: 9999,
+        background: '#1a1a2e', borderRadius: '16px 16px 0 0',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Drag Handle */}
+      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, cursor: 'pointer' }} onClick={onClose}>
+        <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.3)' }} />
+      </div>
+
+      {/* Top Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div>
+          <h2 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{venue?.name || 'Venue'}</h2>
+          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>Owner Dashboard</span>
         </div>
         <button
           onClick={onClose}
-          className="bg-gray-900 hover:bg-black text-white font-bold text-xs px-4 py-2 rounded-full transition-all active:scale-95"
+          style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
-          ✕ Close
+          <X size={16} color="#F1F5F9" />
         </button>
       </div>
 
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-        {/* STEP 7: Main Scroll Container */}
-        <div className="flex-1 overflow-y-auto max-h-[85vh] md:max-h-none pb-32 p-4 md:p-6 lg:p-8 space-y-6">
-          <header className="mb-8">
-            <p className="text-[10px] font-black text-teal-500 uppercase tracking-[0.2em] mb-1">Partner Control Center</p>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">{venue?.name || 'Your Venue'}</h1>
-          </header>
+      {/* Scrollable Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 16, WebkitOverflowScrolling: 'touch' }}>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* STEP 3: Pub Dashboard */}
-            {!isAccommodation && (
-              <>
-                {/* GROUP 1: CLIMATE & STRUCTURAL */}
-                <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-fit">
-                  <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group 1: Climate & Structural</p>
-                  </div>
-                  <Toggle label="Ignite Main Fireplace" icon="🔥" value={fireplaceOn} onChange={(val) => updateVenueFeature('fireplaceOn', val)} />
-                  <Toggle label="Cafe Blinds / PVC Down" icon="⛺" value={blindsDown} onChange={(val) => updateVenueFeature('blindsDown', val)} />
-                  <Toggle label="Retractable Roof Closed" icon="🏗️" value={roofClosed} onChange={(val) => updateVenueFeature('roofClosed', val)} />
-                  <Toggle label="Outdoor Gas Heaters On" icon="🍄" value={heatersOn} onChange={(val) => updateVenueFeature('heatersOn', val)} />
-                </section>
-
-                {/* GROUP 2: CAPACITY & SPACE */}
-                <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-fit">
-                  <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group 2: Capacity & Space</p>
-                  </div>
-                  <Toggle label="Tables Available (Walk-ins Welcome)" icon="🟢" value={walkinsWelcome} onChange={handleWalkinsChange} />
-                  <Toggle label="Currently at Capacity" icon="🔴" value={atCapacity} onChange={handleCapacityChange} />
-                  <Toggle label="Beer Garden / Rooftop Open" icon="🍻" value={rooftopOpen} onChange={(val) => updateVenueFeature('rooftopOpen', val)} />
-                  <Toggle label="Sunny Outdoor Tables Available" icon="🌤️" value={sunnyTables} onChange={(val) => updateVenueFeature('sunnyTables', val)} />
-                </section>
-
-                {/* GROUP 3: VENUE EXPERIENCE */}
-                <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-fit">
-                  <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group 3: Venue Experience</p>
-                  </div>
-                  <Toggle label="Dog-Friendly Courtyard Open" icon="🐶" value={dogFriendly} onChange={(val) => updateVenueFeature('dogFriendly', val)} />
-                  <Toggle label="Family / Pram Friendly" icon="👨‍👩‍👧" value={familyFriendly} onChange={(val) => updateVenueFeature('familyFriendly', val)} />
-                  <Toggle label="Accessible Entrance & Parking" icon="♿" value={accessibleVenue} onChange={(val) => updateVenueFeature('accessibleVenue', val)} />
-                </section>
-
-                {/* GROUP 4: ENTERTAINMENT */}
-                <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-fit">
-                  <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group 4: Entertainment</p>
-                  </div>
-                  <Toggle label="Live Sports / AFL on Big Screen" icon="🏉" value={liveSports} onChange={(val) => updateVenueFeature('liveSports', val)} />
-                  <Toggle label="DJ Playing Now" icon="🎧" value={djPlaying} onChange={(val) => updateVenueFeature('djPlaying', val)} />
-                  <Toggle label="Trivia Night Tonight" icon="🧠" value={triviaTonight} onChange={(val) => updateVenueFeature('triviaTonight', val)} />
-                  <Toggle label="Acoustic Set Live Tonight" icon="🎸" value={acousticLiveTonight} onChange={(val) => updateVenueFeature('acousticLiveTonight', val)} />
-                </section>
-              </>
+        {/* ═══ 1. VENUE PHOTO ═══ */}
+        <section>
+          <SectionHeading>📷 Venue Photo</SectionHeading>
+          <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: 'rgba(255,255,255,0.05)', marginBottom: 8 }}>
+            <img
+              src={photoUrl || `${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
+              alt={venue?.name || 'Venue'}
+              style={{ width: '100%', height: 144, objectFit: 'cover', display: 'block' }}
+            />
+            {photoUploading && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Spinner />
+              </div>
             )}
-
-            {/* STEP 4: Accommodation Dashboard */}
-            {isAccommodation && (
-              <>
-                {/* GROUP 1: CLIMATE & AMENITIES */}
-                <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-fit">
-                  <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group 1: Climate & Amenities</p>
-                  </div>
-                  <Toggle label="Heated Pool / Spa Open" icon="🏊" value={heatedPoolOpen} onChange={(val) => updateVenueFeature('heatedPoolOpen', val)} />
-                  <Toggle label="AC 'Cool Sanctuary' Mode" icon="❄️" value={acMaxMode} onChange={(val) => updateVenueFeature('acMaxMode', val)} />
-                  <Toggle label="Poolside Cabanas / Umbrellas Setup" icon="⛱️" value={poolUmbrellasOut} onChange={(val) => updateVenueFeature('poolUmbrellasOut', val)} recommended={w.temp >= 24} />
-                  <Toggle label="Indoor Fireplace Active" icon="🔥" value={fireplaceOn} onChange={(val) => updateVenueFeature('fireplaceOn', val)} />
-                </section>
-
-                {/* GROUP 2: AVAILABILITY & OFFERS */}
-                <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-fit">
-                  <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group 2: Availability & Offers</p>
-                  </div>
-                  <Toggle label="Instant Book Ready" icon="🔑" value={instantBook} onChange={(val) => updateVenueFeature('instantBook', val)} />
-                  <Toggle label="Early Check-in / Late Check-out" icon="🛎️" value={lateCheckout} onChange={(val) => updateVenueFeature('lateCheckout', val)} />
-                  <Toggle label="Free Room Upgrade (Last Minute)" icon="🛏️" value={roomUpgrade} onChange={(val) => updateVenueFeature('roomUpgrade', val)} />
-                  <Toggle label="Rainy Day Discount Active" icon="💰" value={weatherDiscount} onChange={(val) => updateVenueFeature('weatherDiscount', val)} />
-                </section>
-
-                {/* GROUP 3: GUEST EXPERIENCE */}
-                <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-fit">
-                  <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group 3: Guest Experience</p>
-                  </div>
-                  <Toggle label="Pet-Friendly Room Available" icon="🐶" value={petFriendlyRoom} onChange={(val) => updateVenueFeature('petFriendlyRoom', val)} />
-                  <Toggle label="Family Suite / Portacot Available" icon="👨‍👩‍👧" value={familySuite} onChange={(val) => updateVenueFeature('familySuite', val)} />
-                  <Toggle label="Accessible Room Available" icon="♿" value={accessibleRoom} onChange={(val) => updateVenueFeature('accessibleRoom', val)} />
-                  <Toggle label="Free Bike / Scooter Hire" icon="🚲" value={bikeHire} onChange={(val) => updateVenueFeature('bikeHire', val)} recommended={w.uvIndex > 4} />
-                </section>
-
-                {/* GROUP 4: PERKS & EXTRAS */}
-                <section className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden h-fit">
-                  <div className="bg-gray-50/50 px-4 py-3 border-b border-gray-100">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Group 4: Perks & Extras</p>
-                  </div>
-                  <Toggle label="Breakfast Included Today" icon="🍳" value={breakfastIncluded} onChange={(val) => updateVenueFeature('breakfastIncluded', val)} />
-                  <Toggle label="Evening Welcome Drinks Active" icon="🍷" value={welcomeDrinks} onChange={(val) => updateVenueFeature('welcomeDrinks', val)} />
-                  <Toggle label="Rainy Day Board Game / Movie Kit" icon="🍿" value={rainyDayKit} onChange={(val) => updateVenueFeature('rainyDayKit', val)} recommended={w.precipProb > 50} />
-                  <Toggle label="Spa / Massage Slots Available" icon="💆" value={spaSlots} onChange={(val) => updateVenueFeature('spaSlots', val)} />
-                </section>
-              </>
-            )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                position: 'absolute', bottom: 8, right: 8, padding: '6px 12px', borderRadius: 8,
+                background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '0.7rem', fontWeight: 700,
+                border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', backdropFilter: 'blur(8px)',
+              }}
+            >{photoUrl ? 'Change Photo' : 'Upload Photo'}</button>
           </div>
-        </div>
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handlePhotoSelect} />
+          {photoError && <p style={{ fontSize: '0.7rem', color: '#F87171', margin: '4px 0 0' }}>{photoError}</p>}
+        </section>
 
-        {/* Live Customer View Mirror */}
-        <aside className="lg:w-80 p-4 md:p-6 lg:p-8 bg-gray-50/50 border-l border-gray-100 overflow-y-auto">
-          <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm sticky top-8">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Live Customer View</p>
-            
-            {/* Mirror Hero Area */}
-            <div className="aspect-[4/3] rounded-2xl bg-gradient-to-br from-gray-900 to-slate-800 flex items-center justify-center relative overflow-hidden mb-6 group">
-               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(20,184,166,0.1),transparent)]" />
-               <span className="text-7xl group-hover:scale-110 transition-transform duration-500">{heroIcon}</span>
-               <div className="absolute bottom-4 left-4 right-4">
-                 <div className="bg-white/10 backdrop-blur-md rounded-xl px-3 py-2 border border-white/10">
-                   <p className="text-white text-xs font-bold truncate">{venue?.name}</p>
-                   <p className="text-white/60 text-[10px] font-medium uppercase tracking-wider">Live Status Updated</p>
-                 </div>
-               </div>
-            </div>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
 
-            {/* Active Badges */}
-            <div className="space-y-4">
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest border-b border-gray-100 pb-2">Active Features</p>
-              {activeBadges.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No features active. Toggle switches to update live view.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5 align-start">
-                  {activeBadges.map((badge, i) => (
-                    <span 
-                      key={i} 
-                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold uppercase tracking-tight transition-all animate-in fade-in slide-in-from-bottom-1 duration-300 ${badge.color}`}
-                    >
-                      {badge.text}
-                    </span>
-                  ))}
+        {/* ═══ 2. OPERATING HOURS ═══ */}
+        <section>
+          <SectionHeading>🕐 Operating Hours</SectionHeading>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {DAYS.map(day => {
+              const d = hours[day];
+              return (
+                <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 32, fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{DAY_LABELS[day]}</span>
+                  {/* Open/Closed toggle */}
+                  <button
+                    onClick={() => setHours(h => ({ ...h, [day]: { ...h[day], closed: !h[day].closed } }))}
+                    style={{
+                      width: 36, height: 20, borderRadius: 10, position: 'relative', border: 'none', cursor: 'pointer', flexShrink: 0,
+                      background: d.closed ? 'rgba(255,255,255,0.15)' : '#14B8A6', transition: 'background 200ms ease',
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                      transition: 'transform 200ms ease', transform: d.closed ? 'translateX(2px)' : 'translateX(18px)',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }} />
+                  </button>
+                  {d.closed ? (
+                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Closed</span>
+                  ) : (
+                    <>
+                      <input
+                        type="time"
+                        value={d.open}
+                        onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], open: e.target.value } }))}
+                        style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }}
+                      />
+                      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}>–</span>
+                      <input
+                        type="time"
+                        value={d.close}
+                        onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], close: e.target.value } }))}
+                        style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }}
+                      />
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
-
-            {/* Upsell context */}
-            <div className="mt-8 pt-6 border-t border-gray-100">
-               <div className="flex items-center gap-2 mb-2">
-                 <span className="text-amber-500 text-sm italic font-black uppercase">Sunstay Pro</span>
-               </div>
-               <p className="text-[10px] text-gray-500 leading-relaxed font-medium">
-                 {isAccommodation 
-                   ? `Your property is currently trending for users looking for "${venue?.vibe || 'Staycations'}".`
-                   : `Your venue is currently visible to 142 nearby users looking for "${venue?.vibe || 'Sunshine'}".`
-                 }
-               </p>
-            </div>
+              );
+            })}
           </div>
-        </aside>
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 12 }}>
+            <button
+              onClick={handleSaveHours}
+              disabled={hoursSaving}
+              style={{
+                padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff',
+                fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer',
+                opacity: hoursSaving ? 0.6 : 1,
+              }}
+            >{hoursSaving ? 'Saving...' : 'Save Hours'}</button>
+            <InlineStatus text={hoursStatus.text} type={hoursStatus.type} />
+          </div>
+        </section>
+
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
+
+        {/* ═══ 3. HEATING & COMFORT ═══ */}
+        <section>
+          <SectionHeading>🔥 Heating & Comfort</SectionHeading>
+          {heatingFields.map(({ key, label, icon }) => (
+            <DarkToggle
+              key={key}
+              label={label}
+              icon={icon}
+              value={heatingState[key]}
+              onChange={val => handleHeatingToggle(key, val)}
+              saving={heatingSaving[key]}
+              saved={heatingSaved[key]}
+            />
+          ))}
+        </section>
+
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
+
+        {/* ═══ 4. VIBE TAG EDITOR ═══ */}
+        <section>
+          <SectionHeading>✨ Your Venue Vibe</SectionHeading>
+
+          {/* Active Tags */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            {activeTags.map(tag => (
+              <span
+                key={tag}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px',
+                  borderRadius: 999, background: '#14B8A6', color: '#fff', fontSize: '0.7rem', fontWeight: 700,
+                }}
+              >
+                {tag}
+                <button
+                  onClick={() => removeTag(tag)}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 0, fontSize: '0.8rem', lineHeight: 1 }}
+                >✕</button>
+              </span>
+            ))}
+            {activeTags.length === 0 && (
+              <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No tags yet — tap below to add</span>
+            )}
+          </div>
+
+          {/* Tag Counter */}
+          <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 8, fontWeight: 600 }}>{activeTags.length}/8 tags</p>
+
+          {/* Preset Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>
+            {PRESET_TAGS.map(tag => {
+              const active = activeTags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  onClick={() => !active && addTag(tag)}
+                  disabled={active || activeTags.length >= 8}
+                  style={{
+                    padding: '6px 10px', borderRadius: 8, fontSize: '0.7rem', fontWeight: 600,
+                    border: '1px solid rgba(255,255,255,0.1)', cursor: active ? 'default' : 'pointer',
+                    background: active ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)',
+                    color: active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.7)',
+                    transition: 'all 150ms ease',
+                  }}
+                >{tag}</button>
+              );
+            })}
+          </div>
+
+          {/* Custom Tag Input */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <input
+              type="text"
+              value={customTag}
+              onChange={e => setCustomTag(e.target.value.slice(0, 20))}
+              placeholder="Custom tag..."
+              maxLength={20}
+              onKeyDown={e => e.key === 'Enter' && handleAddCustomTag()}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={handleAddCustomTag}
+              disabled={!customTag.trim() || activeTags.length >= 8}
+              style={{
+                padding: '8px 16px', borderRadius: 8, background: '#14B8A6', color: '#fff',
+                fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer',
+                opacity: (!customTag.trim() || activeTags.length >= 8) ? 0.4 : 1,
+              }}
+            >Add</button>
+          </div>
+
+          {/* Save Vibe */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button
+              onClick={handleSaveVibe}
+              disabled={vibeSaving}
+              style={{
+                padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff',
+                fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer',
+                opacity: vibeSaving ? 0.6 : 1,
+              }}
+            >{vibeSaving ? 'Saving...' : 'Save Vibe'}</button>
+            <InlineStatus text={vibeStatus.text} type={vibeStatus.type} />
+          </div>
+        </section>
+
+        {/* Bottom padding for scroll */}
+        <div style={{ height: 48 }} />
       </div>
-    </div>
+    </motion.div>
   );
 }
