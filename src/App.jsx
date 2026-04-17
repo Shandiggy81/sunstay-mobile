@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
 import { venues } from './data/venues';
-import OwnerDashboard from './components/OwnerDashboard';
+// import OwnerDashboard from './components/OwnerDashboard';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
@@ -442,7 +442,7 @@ const AppContent = () => {
             />
 
             <AnimatePresence>
-                {showOwnerDashboard && (
+                {/* showOwnerDashboard && (
                     <OwnerDashboard
                         venue={selectedVenue}
                         liveVenueFeatures={liveVenueFeatures}
@@ -452,7 +452,7 @@ const AppContent = () => {
                             setSelectedVenue(prev => ({ ...prev, ...updated }));
                         }}
                     />
-                )}
+                ) */}
             </AnimatePresence>
 
                 <>
