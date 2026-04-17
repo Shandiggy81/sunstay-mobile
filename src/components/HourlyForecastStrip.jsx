@@ -30,7 +30,7 @@ export default function HourlyForecastStrip({ lat, lng }) {
     );
   }
 
-  if (!hourly.length) return null;
+  if (!hourly?.length) return null;
 
   return (
     <div className="space-y-2">
