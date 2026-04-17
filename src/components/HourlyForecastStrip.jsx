@@ -34,9 +34,8 @@ export default function HourlyForecastStrip({ lat, lng }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-amber-400 text-xs font-medium uppercase tracking-wider">Next 12 Hours</p>
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {hourly.map((hour, i) => {
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-3 pt-1">
+        {hourly.slice(0, 12).map((hour, i) => {
           const time = new Date(hour.dt * 1000);
           const temp = Math.round(hour.temp);
           const clouds = hour.clouds ?? 0;
@@ -46,18 +45,19 @@ export default function HourlyForecastStrip({ lat, lng }) {
           return (
             <div
               key={i}
-              className={`flex-shrink-0 flex flex-col items-center gap-1 px-3 py-3 rounded-xl border transition-all ${
-                isGolden
-                  ? 'bg-amber-50 border-amber-200'
-                  : 'bg-gray-50 border-gray-100'
-              }`}
+              className="flex-shrink-0 flex flex-col items-center gap-1 px-2.5 py-2.5 rounded-2xl transition-all"
+              style={{
+                background: isGolden ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.05)',
+                border: isGolden ? '1px solid rgba(245,158,11,0.25)' : '1px solid rgba(255,255,255,0.08)',
+                minWidth: '52px'
+              }}
             >
-              <p className="text-gray-500 text-xs font-bold">
-                {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>
+                {time.toLocaleTimeString([], { hour: 'numeric', hour12: true }).replace(' ', '').toLowerCase()}
               </p>
-              <span className="text-xl">{emoji}</span>
-              <p className="text-gray-900 font-extrabold text-sm">{temp}°</p>
-              <p className="text-gray-400 font-bold text-xs">{clouds}%</p>
+              <span className="text-base">{emoji}</span>
+              <p style={{ fontSize: '13px', color: '#fff', fontWeight: 800 }}>{temp}°</p>
+              <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>{clouds}%</p>
             </div>
           );
         })}
