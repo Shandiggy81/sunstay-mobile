@@ -226,9 +226,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   }
   function handlePointerLeave() { mouseX.set(0); mouseY.set(0); }
 
-  const { name, type, suburb, emoji, lat, lng, shielding, balconyData, heating, vibe, tags, photo } = venue;
+  const { name, type, suburb, emoji, lat, lng, shielding, balconyData, heating, vibe = [], tags = [], photo } = venue || {};
   const isHotelOrStay = ['hotel','airbnb','accommodation','stay','apartment'].some(t => (type || '').toLowerCase().includes(t));
-  const hourlyData = weather?.rawWeather?.hourly ?? weather?.rawWeather ?? null;
+  const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
   const wind       = weather?.rawWeather?.wind ?? weather?.wind?.speed ?? 0;
   const score      = weather?.score ?? weather?.rawWeather?.score ?? 70;
@@ -286,7 +286,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today',    color: '#64748B' };
   }, [precipProb, wind, score]);
 
-  const buildSpark = (key, slice = 14) => hourlyData?.[key] ? hourlyData[key].slice(0, slice).map(Number) : [];
+  const buildSpark = (key, slice = 14) => Array.isArray(hourlyData?.[key]) ? hourlyData[key].slice(0, slice).map(Number) : [];
 
   const displaySunrise = useMemo(() => {
     if (venue.sunrise) return venue.sunrise;
