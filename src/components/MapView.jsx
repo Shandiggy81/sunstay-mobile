@@ -98,7 +98,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
       if (!venues) return [];
       return venues.filter((venue) => {
         const tags = venue.tags || venue.vibes || venue.features || [];
-        const { vibe, sun, features } = activeFilters;
+        const { vibe = [], sun = [], features = [] } = activeFilters || {};
         const noFilters = !vibe.length && !sun.length && !features.length;
         if (noFilters) return true;
         return (
