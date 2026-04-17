@@ -348,7 +348,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 <ArrowLeft size={18} color="#F1F5F9" />
               </motion.button>
               <div className="flex-1 min-w-0">
-                <h1 className="text-white font-bold text-[1rem] leading-tight truncate" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{emoji} {name}</h1>
+                <h1 className="text-white font-bold truncate" style={{ fontSize: '1rem', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
+                  {emoji} {name}
+                </h1>
                 <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{vibe && vibe.length ? `${vibe} · ${suburb}` : suburb}</span>
               </div>
             </motion.div>
