@@ -349,7 +349,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </motion.button>
               <div className="flex-1 min-w-0">
                 <h1 className="text-white font-bold text-[1rem] leading-tight truncate" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>{emoji} {name}</h1>
-                <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{type || 'Venue'}</span>
+                <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{suburb || type}</span>
               </div>
             </motion.div>
 
@@ -357,7 +357,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <ScoreOrb score={score} />
               <div className="flex-1 grid grid-cols-2 gap-2">
               <StatChip icon="🌡️" label="Feels Like" value={`${Math.round(feelsLike)}°`} delay={0} />
-              <StatChip icon="💨" label="Wind / Gusts" value={`${weather?.windSpeed ?? '–'} / ${weather?.windGusts ?? '–'} km/h`} delay={0.08} />
+              <StatChip icon="💨" label="Wind / Gusts" value={windSpeed || windGusts ? `${windSpeed ?? windGusts}km/h` : '– km/h'} delay={0.08} />
               <StatChip icon="🌂" label="Rain"       value={weather?.rainMm > 0 ? `${weather?.rainChance ?? precipProb ?? '–'}% · ${weather?.rainMm}mm` : `${weather?.rainChance ?? precipProb ?? '–'}%`} delay={0.16} />
               <StatChip icon="🔆" label="UV"         value={uvIndex ?? '–'}               delay={0.24} />
               </div>
