@@ -228,6 +228,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   function handlePointerLeave() { mouseX.set(0); mouseY.set(0); }
 
   const { name, type, suburb, emoji, lat, lng, shielding, balconyData, heating, vibe = [], tags = [], photo } = venue || {};
+  console.log('VENUE DEBUG:', JSON.stringify(venue, null, 2));
   const isHotelOrStay = ['hotel','airbnb','accommodation','stay','apartment'].some(t => (type || '').toLowerCase().includes(t));
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
