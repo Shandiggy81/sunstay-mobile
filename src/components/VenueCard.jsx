@@ -337,7 +337,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             <motion.div
               className="flex items-center gap-3"
-              style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(12px)', background: 'rgba(13,27,42,0.85)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '12px 16px', margin: '-8px -16px 0', borderRadius: '28px 28px 0 0' }}
+              style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(12px)', background: 'rgba(13,27,42,0.85)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '12px 16px', margin: '0 -16px 0', borderRadius: '28px 28px 0 0' }}
               initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, type: 'spring', stiffness: 280, damping: 28 }}
             >
               <motion.button
@@ -353,7 +353,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 <h1 className="text-white font-bold truncate" style={{ fontSize: '18px' }}>
                   {name}
                 </h1>
-                <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{vibe && vibe.length ? `${vibe} · ${suburb}` : suburb}</span>
+                <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{vibe && vibe.length ? `${Array.isArray(vibe) ? vibe.join(', ') : vibe} · ${suburb}` : suburb}</span>
               </div>
             </motion.div>
 
