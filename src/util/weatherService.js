@@ -6,7 +6,7 @@ const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 export async function getMelbourneWeather() {
   const lat = -37.8136;
   const lng = 144.9631;
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index&hourly=temperature_2m,direct_normal_irradiance,sunshine_duration,cloud_cover_low,wind_speed_10m,precipitation,wind_gusts_10m,showers,weather_code&daily=sunrise,sunset,uv_index_max,temperature_2m_min&timezone=Australia%2FMelbourne&forecast_days=1&wind_speed_unit=ms`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,weather_code,uv_index&hourly=temperature_2m,direct_normal_irradiance,sunshine_duration,cloudcover,cloud_cover_low,wind_speed_10m,precipitation,wind_gusts_10m,showers,weather_code&daily=sunrise,sunset,uv_index_max,temperature_2m_min&timezone=Australia%2FMelbourne&forecast_days=1&wind_speed_unit=ms`;
 
   try {
     const cached = localStorage.getItem(CACHE_KEY);

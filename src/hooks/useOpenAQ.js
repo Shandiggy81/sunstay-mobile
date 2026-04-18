@@ -9,10 +9,19 @@ export function useOpenAQ(lat, lng) {
     let isMounted = true;
     setLoading(true);
 
+    if (!import.meta.env.VITE_OPENAQ_API_KEY) {
+      console.error('OpenAQ: missing VITE_OPENAQ_API_KEY');
+      if (isMounted) setAqLabel('–');
+      setLoading(false);
+      return;
+    }
+
     async function fetchAQ() {
       try {
         // v3 API: find nearest location first
-        const locRes = await fetch(`https://api.openaq.org/v3/locations?coordinates=${lat},${lng}&radius=25000&limit=1`);
+        const locRes = await fetch(`https://api.openaq.org/v3/locations?coordinates=${lat},${lng}&radius=25000&limit=1`, {
+          headers: { 'X-API-Key': import.meta.env.VITE_OPENAQ_API_KEY }
+        });
         if (!locRes.ok) throw new Error('Location fetch failed');
         const locData = await locRes.json();
         
@@ -24,7 +33,9 @@ export function useOpenAQ(lat, lng) {
         const locationId = locData.results[0].id;
         
         // Fetch the PM2.5 measurement for the location (parameters_id = 2)
-        const measRes = await fetch(`https://api.openaq.org/v3/locations/${locationId}/measurements?limit=1&parameters_id=2`);
+        const measRes = await fetch(`https://api.openaq.org/v3/locations/${locationId}/measurements?limit=1&parameters_id=2`, {
+          headers: { 'X-API-Key': import.meta.env.VITE_OPENAQ_API_KEY }
+        });
         if (!measRes.ok) throw new Error('Measurement fetch failed');
         const measData = await measRes.json();
         
@@ -38,7 +49,7 @@ export function useOpenAQ(lat, lng) {
           if (isMounted) setAqLabel('–');
         }
       } catch (error) {
-        console.error('OpenAQ failed:', error, { lat, lng });
+        console.error('OpenAQ Error:', error.message, { lat, lng });
         if (isMounted) setAqLabel('–');
       } finally {
         if (isMounted) setLoading(false);

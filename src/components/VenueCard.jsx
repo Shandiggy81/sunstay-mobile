@@ -211,6 +211,27 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
   );
 };
 
+const LiveSkyCondition = ({ cloudcover, windGusts }) => {
+  if (cloudcover === undefined || cloudcover === null) return null;
+  const sky = cloudcover < 30
+    ? { label: 'Clear Skies & Direct Sun', emoji: '☀️' }
+    : cloudcover <= 70
+    ? { label: 'Partly Cloudy', emoji: '⛅' }
+    : { label: 'Overcast', emoji: '☁️' };
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '14px 16px' }}>
+      <span style={{ color: '#fff', fontSize: '15px', fontWeight: 700 }}>
+        {sky.emoji} {sky.label}
+      </span>
+      {windGusts > 0 && (
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginTop: '6px' }}>
+          Wind gusts peaking at {Math.round(windGusts)} km/h
+        </p>
+      )}
+    </div>
+  );
+};
+
 export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
   const [graphExpanded, setGraphExpanded] = useState(false);
@@ -244,8 +265,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const uvIndex    = weather?.rawWeather?.uvIndex ?? venue.weatherNow?.uvIndex ?? 3;
   const precipProb = weather?.rawWeather?.precipProb ?? venue.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
-  const { windSpeed, windGusts, rainMm, weatherCode, showerMm } = weather || {};
+  const { windSpeed, rainMm, weatherCode, showerMm } = weather || {};
   const { aqLabel } = useOpenAQ(lat, lng);
+  const cloudcover = Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover[0] : null;
+  const windGusts = Array.isArray(hourlyData?.windgusts_10m) ? hourlyData.windgusts_10m[0] : null;
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
@@ -440,6 +463,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 )}
               </AnimatePresence>
             </motion.div>
+
+            <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} />
 
 
 
