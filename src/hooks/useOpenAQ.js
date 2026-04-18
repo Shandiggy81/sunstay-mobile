@@ -38,7 +38,7 @@ export function useOpenAQ(lat, lng) {
           if (isMounted) setAqLabel('–');
         }
       } catch (error) {
-        console.error('OpenAQ fallback triggered:', error);
+        console.error('OpenAQ failed:', error, { lat, lng });
         if (isMounted) setAqLabel('–');
       } finally {
         if (isMounted) setLoading(false);

@@ -350,8 +350,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 <ArrowLeft size={18} color="#F1F5F9" />
               </motion.button>
               <div className="flex-1 min-w-0">
-                <h1 className="text-white font-bold truncate" style={{ fontSize: '1rem', lineHeight: 1.2, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
-                  {emoji} {name}
+                <h1 className="text-white font-bold truncate" style={{ fontSize: '18px' }}>
+                  {name}
                 </h1>
                 <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{vibe && vibe.length ? `${vibe} · ${suburb}` : suburb}</span>
               </div>
@@ -361,14 +361,15 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <ScoreOrb score={score} />
               <div className="flex-1 grid grid-cols-6 gap-1.5">
               <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
-              <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={windSpeed || windGusts ? `${windSpeed ?? windGusts}` : '–'} delay={0.08} />
-              <StatChip className="col-span-2 min-w-0" icon="🌂" label="Rain" value={weather?.rainMm > 0 ? `${weather?.rainMm}mm` : `${weather?.rainChance ?? precipProb ?? '–'}%`} delay={0.16} />
+              <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
+              <StatChip className="col-span-2 min-w-0" icon="🌂" label="Rain" value={precipProb ? `${precipProb}%` : '0%'} delay={0.16} />
               <StatChip className="col-span-3 min-w-0" icon="🔆" label="UV" value={uvIndex ?? '–'} delay={0.24} />
               <StatChip className="col-span-3 min-w-0" icon="🌿" label="Air" value={aqLabel} delay={0.32} />
               </div>
             </motion.div>
 
 
+            {hourlyData && (
             <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Live Sun Exposure</span>
@@ -397,6 +398,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 </AnimatePresence>
               </div>
             </motion.div>
+            )}
+            {hourlyData && (
             <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
               <GoldenWindowBar sunData={sunData} />
               <div className="flex gap-5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -406,6 +409,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 <div className="flex flex-col items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.covered}</span><span className="text-white font-black text-sm">{sunHours.covered}</span></div>
               </div>
             </motion.div>
+            )}
 
             <motion.div
               className="rounded-2xl overflow-hidden"
