@@ -441,16 +441,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </AnimatePresence>
             </motion.div>
 
-            {!photo && (
-              <motion.div className="rounded-lg overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.38 }}>
-                <img
-                  src={`${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
-                  alt="Sunstay"
-                  className="w-full object-cover rounded-lg venue-mascot-img"
-                  style={{ maxHeight: '7rem', opacity: 0, transition: 'opacity 300ms ease' }}
-                onLoad={e => { e.target.style.opacity = 1; }} />
-              </motion.div>
-            )}
+
 
             {setShowOwnerDashboard && (
               <motion.button
