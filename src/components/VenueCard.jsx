@@ -9,6 +9,7 @@ import HourlyForecastStrip from './HourlyForecastStrip';
 import SunTimeline from './SunTimeline';
 import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
+import { useTomorrowRain } from '../hooks/useTomorrowRain';
 
 function isHappyHourNow(happyHour) {
   if (!happyHour) return false;
@@ -269,6 +270,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const { aqLabel } = useOpenAQ(lat, lng);
   const cloudcover = Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover[0] : null;
   const windGusts = Array.isArray(hourlyData?.windgusts_10m) ? hourlyData.windgusts_10m[0] : null;
+  const { isRainStartingSoon, minutesUntilRain } = useTomorrowRain(lat, lng);
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
@@ -454,9 +456,11 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <AnimatePresence>
                 {vibeExpanded && (
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3">
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                       {(tags || (vibe ? [vibe] : ['Chill'])).map((t, i) => (
-                        <motion.span key={i} className="venue-vibe-pill" style={{ padding: '2px 8px', fontSize: '0.65rem', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>{t}</motion.span>
+                        <span key={i} className="flex-shrink-0 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-white/70 whitespace-nowrap shadow-sm">
+                          {t}
+                        </span>
                       ))}
                     </div>
                   </motion.div>
@@ -483,6 +487,14 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               <Float range={3} duration={3} delay={0}><span className="text-xl">{verdict.icon}</span></Float>
               <span className="font-black text-[0.75rem]" style={{ color: verdict.color }}>{verdict.text}</span>
             </motion.div>
+
+            {isRainStartingSoon && minutesUntilRain > 0 && (
+              <div className="w-full bg-amber-500/15 border border-amber-500/40 rounded-full py-2 px-4 mb-4 flex items-center justify-center shadow-lg">
+                <span className="text-amber-400 font-semibold text-sm drop-shadow-md">
+                  ⚠️ Rain expected in {minutesUntilRain} mins
+                </span>
+              </div>
+            )}
 
             {lat && lng && (
               <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
