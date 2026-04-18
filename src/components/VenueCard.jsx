@@ -228,6 +228,13 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   function handlePointerLeave() { mouseX.set(0); mouseY.set(0); }
 
   const { name, type, suburb, emoji, lat, lng, shielding, balconyData, heating, vibe = [], tags = [], photo } = venue || {};
+  const displayName =
+    venue?.name ||
+    venue?.title ||
+    venue?.venueName ||
+    venue?.businessName ||
+    venue?.label ||
+    'Unknown Venue';
   console.log('VENUE DEBUG:', JSON.stringify(venue, null, 2));
   const isHotelOrStay = ['hotel','airbnb','accommodation','stay','apartment'].some(t => (type || '').toLowerCase().includes(t));
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
@@ -352,7 +359,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </motion.button>
               <div className="flex-1 min-w-0">
                 <h1 className="text-white font-bold truncate" style={{ fontSize: '18px' }}>
-                  {name}
+                  {displayName}
                 </h1>
                 <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{vibe && vibe.length ? `${Array.isArray(vibe) ? vibe.join(', ') : vibe} · ${suburb}` : suburb}</span>
               </div>
