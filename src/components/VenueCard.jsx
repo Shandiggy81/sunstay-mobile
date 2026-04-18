@@ -457,7 +457,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 {vibeExpanded && (
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3">
                     <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                      {(tags || (vibe ? [vibe] : ['Chill'])).map((t, i) => (
+                      {(tags?.length ? tags : vibe ? (Array.isArray(vibe) ? vibe : [vibe]) : ['Chill']).map((t, i) => (
                         <span key={i} className="flex-shrink-0 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-white/70 whitespace-nowrap shadow-sm">
                           {t}
                         </span>
@@ -513,9 +513,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             {shielding && (
               <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
                 <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest">Venue Shielding</span>
-                {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={shielding.windbreak} color="#38BDF8" delay={0.1} />}
-                {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={shielding.rainCover} color="#818CF8" delay={0.2} />}
-                {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={shielding.shade}    color="#F59E0B" delay={0.3} />}
+                {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#38BDF8" delay={0.1} />}
+                {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
+                {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={Math.min(100, shielding.shade)}    color="#F59E0B" delay={0.3} />}
               </motion.div>
             )}
 
