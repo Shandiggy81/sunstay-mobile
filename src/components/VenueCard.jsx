@@ -8,6 +8,7 @@ import WeatherWidget from './WeatherWidget';
 import HourlyForecastStrip from './HourlyForecastStrip';
 import SunTimeline from './SunTimeline';
 import { getSunData } from '../utils/getSunData';
+import { useOpenAQ } from '../hooks/useOpenAQ';
 
 function isHappyHourNow(happyHour) {
   if (!happyHour) return false;
@@ -84,11 +85,11 @@ const ScoreOrb = ({ score }) => {
   );
 };
 
-const StatChip = ({ icon, label, value, delay = 0 }) => (
-  <Float delay={delay} range={4} duration={4.5} className="flex-1 min-w-0">
+const StatChip = ({ icon, label, value, delay = 0, className = 'flex-1 min-w-0' }) => (
+  <Float delay={delay} range={4} duration={4.5} className={className}>
     <motion.div
       className="flex flex-col items-center justify-center rounded-2xl"
-      style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}
+      style={{ padding: '8px 4px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}
       whileHover={{ scale: 1.06, background: 'rgba(255,255,255,0.07)' }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
@@ -236,6 +237,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const precipProb = weather?.rawWeather?.precipProb ?? venue.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { windSpeed, windGusts, rainMm, weatherCode, showerMm } = weather || {};
+  const { aqLabel } = useOpenAQ(lat, lng);
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
@@ -357,11 +359,12 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             <motion.div className="flex items-start gap-3" style={{ overflow: 'visible' }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
               <ScoreOrb score={score} />
-              <div className="flex-1 grid grid-cols-2 gap-2">
-              <StatChip icon="🌡️" label="Feels Like" value={`${Math.round(feelsLike)}°`} delay={0} />
-              <StatChip icon="💨" label="Wind / Gusts" value={windSpeed || windGusts ? `${windSpeed ?? windGusts}km/h` : '– km/h'} delay={0.08} />
-              <StatChip icon="🌂" label="Rain"       value={weather?.rainMm > 0 ? `${weather?.rainChance ?? precipProb ?? '–'}% · ${weather?.rainMm}mm` : `${weather?.rainChance ?? precipProb ?? '–'}%`} delay={0.16} />
-              <StatChip icon="🔆" label="UV"         value={uvIndex ?? '–'}               delay={0.24} />
+              <div className="flex-1 grid grid-cols-6 gap-1.5">
+              <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
+              <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={windSpeed || windGusts ? `${windSpeed ?? windGusts}` : '–'} delay={0.08} />
+              <StatChip className="col-span-2 min-w-0" icon="🌂" label="Rain" value={weather?.rainMm > 0 ? `${weather?.rainMm}mm` : `${weather?.rainChance ?? precipProb ?? '–'}%`} delay={0.16} />
+              <StatChip className="col-span-3 min-w-0" icon="🔆" label="UV" value={uvIndex ?? '–'} delay={0.24} />
+              <StatChip className="col-span-3 min-w-0" icon="🌿" label="Air" value={aqLabel} delay={0.32} />
               </div>
             </motion.div>
 
