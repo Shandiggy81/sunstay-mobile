@@ -455,7 +455,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
               <AnimatePresence>
                 {vibeExpanded && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3">
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3 flex flex-col gap-3">
                     <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                       {(tags?.length ? tags : vibe ? (Array.isArray(vibe) ? vibe : [vibe]) : ['Chill']).map((t, i) => (
                         <span key={i} className="flex-shrink-0 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-white/70 whitespace-nowrap shadow-sm">
@@ -463,6 +463,19 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                         </span>
                       ))}
                     </div>
+                    <label
+                      className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 cursor-pointer"
+                      style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}
+                    >
+                      <span className="text-amber-400 text-sm font-black">📸 Capture the Vibe</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={() => {}}
+                      />
+                    </label>
                   </motion.div>
                 )}
               </AnimatePresence>
