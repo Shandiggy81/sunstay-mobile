@@ -10,6 +10,7 @@ import SunTimeline from './SunTimeline';
 import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
+import { useOpenUV } from '../hooks/useOpenUV';
 
 function isHappyHourNow(happyHour) {
   if (!happyHour) return false;
@@ -268,6 +269,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { windSpeed, rainMm, weatherCode, showerMm } = weather || {};
   const { aqLabel } = useOpenAQ(lat, lng);
+  const { burnTimeMins } = useOpenUV(lat, lng);
   const cloudcover = Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover[0] : null;
   const windGusts = Array.isArray(hourlyData?.windgusts_10m) ? hourlyData.windgusts_10m[0] : null;
   const { isRainStartingSoon, minutesUntilRain } = useTomorrowRain(lat, lng);
@@ -434,7 +436,14 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             )}
             {hourlyData && (
             <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
-              <GoldenWindowBar sunData={sunData} />
+              <div className="flex items-center gap-2 flex-wrap">
+                <GoldenWindowBar sunData={sunData} />
+                {burnTimeMins !== null && burnTimeMins < 60 && (
+                  <span className="text-red-400/90 font-medium text-[11px] ml-1 tracking-wide">
+                    ⚠️ Burn time: {burnTimeMins} mins
+                  </span>
+                )}
+              </div>
               <div className="flex gap-5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunrise</span><span className="text-amber-300 font-black text-sm">{displaySunrise}</span></div>
                 <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunset</span><span className="text-orange-300 font-black text-sm">{displaySunset}</span></div>
