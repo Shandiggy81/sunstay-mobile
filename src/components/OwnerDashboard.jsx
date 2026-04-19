@@ -83,13 +83,6 @@ const PRESET_TAGS = [
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════
 export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setLiveVenueFeatures, onVenueUpdate }) {
-  const fileInputRef = useRef(null);
-
-  // ── Photo Upload State ──────────────────────────────────────
-  const [photoUrl, setPhotoUrl] = useState(venue?.photo || null);
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const [photoError, setPhotoError] = useState('');
-
   // ── Hours State ─────────────────────────────────────────────
   const defaultHours = {};
   DAYS.forEach(d => {
@@ -128,44 +121,6 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
     setTimeout(() => setter({ text: '', type: '' }), duration);
   }, []);
 
-  // ── Photo Upload Handler ────────────────────────────────────
-  const handlePhotoSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoError('');
-
-    // Validate format
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowed.includes(file.type)) {
-      setPhotoError('Only JPG, PNG, or WebP accepted');
-      return;
-    }
-    // Validate size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setPhotoError('Maximum file size is 5MB');
-      return;
-    }
-
-    setPhotoUploading(true);
-    try {
-      const ext = file.name.split('.').pop();
-      const path = `venues/${venue.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('venue-photos').upload(path, file);
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from('venue-photos').getPublicUrl(path);
-      const { error: dbError } = await supabase.from('venues').update({ photo: publicUrl }).eq('id', venue.id);
-      if (dbError) throw dbError;
-
-      setPhotoUrl(publicUrl);
-      onVenueUpdate?.({ ...venue, photo: publicUrl });
-    } catch (err) {
-      setPhotoError(err.message || 'Upload failed');
-    } finally {
-      setPhotoUploading(false);
-    }
-  };
-
   // ── Hours Save Handler ──────────────────────────────────────
   const handleSaveHours = async () => {
     setHoursSaving(true);
@@ -182,25 +137,35 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
   };
 
   // ── Heating Toggle Handler (auto-save) ──────────────────────
-  const handleHeatingToggle = async (field, newValue) => {
-    const prev = heatingState[field];
-    setHeatingState(s => ({ ...s, [field]: newValue }));
-    setHeatingSaving(s => ({ ...s, [field]: true }));
+  const handleHeatingToggle = useCallback(async (key, value) => {
+    setHeatingState(prev => ({ ...prev, [key]: value }));
+    setHeatingSaving(prev => ({ ...prev, [key]: true }));
+
+    // Propagate immediately to App state so VenueCard + map update live
+    if (setLiveVenueFeatures && venue?.id) {
+      setLiveVenueFeatures(prev => ({
+        ...prev,
+        [venue.id]: {
+          ...(prev?.[venue.id] || {}),
+          [key]: value,
+        }
+      }));
+    }
 
     try {
-      const { error } = await supabase.from('venues').update({ [field]: newValue }).eq('id', venue.id);
+      const { error } = await supabase
+        .from('venues')
+        .update({ [key]: value })
+        .eq('id', venue.id);
       if (error) throw error;
-      setHeatingSaved(s => ({ ...s, [field]: true }));
-      setTimeout(() => setHeatingSaved(s => ({ ...s, [field]: false })), 1500);
-      onVenueUpdate?.({ ...venue, [field]: newValue });
-    } catch {
-      // Revert on error
-      setHeatingState(s => ({ ...s, [field]: prev }));
-      setHeatingSaving(s => ({ ...s, [field]: false }));
+      setHeatingSaved(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
+    } catch (e) {
+      console.error('Heating save error:', e.message);
     } finally {
-      setHeatingSaving(s => ({ ...s, [field]: false }));
+      setHeatingSaving(prev => ({ ...prev, [key]: false }));
     }
-  };
+  }, [venue?.id, setLiveVenueFeatures]);
 
   // ── Vibe Save Handler ──────────────────────────────────────
   const handleSaveVibe = async () => {
@@ -270,34 +235,7 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
       {/* Scrollable Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 16, WebkitOverflowScrolling: 'touch' }}>
 
-        {/* ═══ 1. VENUE PHOTO ═══ */}
-        <section>
-          <SectionHeading>📷 Venue Photo</SectionHeading>
-          <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: 'rgba(255,255,255,0.05)', marginBottom: 8 }}>
-            <img
-              src={photoUrl || `${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
-              alt={venue?.name || 'Venue'}
-              style={{ width: '100%', height: 144, objectFit: 'cover', display: 'block' }}
-            />
-            {photoUploading && (
-              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Spinner />
-              </div>
-            )}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                position: 'absolute', bottom: 8, right: 8, padding: '6px 12px', borderRadius: 8,
-                background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '0.7rem', fontWeight: 700,
-                border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', backdropFilter: 'blur(8px)',
-              }}
-            >{photoUrl ? 'Change Photo' : 'Upload Photo'}</button>
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handlePhotoSelect} />
-          {photoError && <p style={{ fontSize: '0.7rem', color: '#F87171', margin: '4px 0 0' }}>{photoError}</p>}
-        </section>
-
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
+        {/* Removed Venue Photo Section */}
 
         {/* ═══ 2. OPERATING HOURS ═══ */}
         <section>

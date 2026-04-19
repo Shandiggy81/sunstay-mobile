@@ -543,6 +543,24 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
 
+            {(liveVenueFeatures?.[venue?.id]?.hasFireplace || liveVenueFeatures?.[venue?.id]?.hasHeaters) && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-2 rounded-2xl px-3 py-2"
+                style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', boxShadow: '0 0 24px rgba(239,68,68,0.2)' }}
+              >
+                <motion.span
+                  className="text-xl"
+                  animate={{ scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] }}
+                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                >🔥</motion.span>
+                <span className="font-black text-sm" style={{ color: '#fca5a5' }}>
+                  {liveVenueFeatures?.[venue?.id]?.hasFireplace ? 'Fireplace Active — On Now' : 'Outdoor Heaters — On Now'}
+                </span>
+              </motion.div>
+            )}
+
             {heating && !['no heating','indoor only','heated outdoor'].includes(heating) && (
               <Float range={4} duration={4} delay={0.1}>
                 <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.18)' }}>

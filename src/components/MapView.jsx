@@ -41,7 +41,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         const liveState = liveVenueFeatures?.[venue.id] || {};
         
         // Dashboard overrides: if heaters, fireplace, or roof closed are active -> FIRE!
-        if (liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed) {
+        if (liveState.hasFireplace || liveState.hasHeaters || liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed) {
             return '🔥';
         }
 
