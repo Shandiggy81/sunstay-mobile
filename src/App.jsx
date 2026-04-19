@@ -18,6 +18,7 @@ import {
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
 import { venues } from './data/venues';
 import OwnerDashboard from './components/OwnerDashboard';
+import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
@@ -157,6 +158,7 @@ const VenueChip = ({ venue, isSelected, onClick, weather }) => {
 // Main App Content
 // ═══════════════════════════════════════════════════════════════════
 const AppContent = () => {
+    const [splashDone, setSplashDone] = useState(() => sessionStorage.getItem('splashShown') === 'true');
     const { weather, getUVIndex } = useWeather();
     const [selectedVenue, setSelectedVenue] = useState(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -428,8 +430,15 @@ const AppContent = () => {
     }, [selectedVenue]);
 
     return (
-        <div className={`ss-app-root ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
-            {/* Weather background */}
+        <>
+            {!splashDone && (
+                <SplashScreen onComplete={() => {
+                    sessionStorage.setItem('splashShown', 'true');
+                    setSplashDone(true);
+                }} />
+            )}
+            <div className={`ss-app-root ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
+                {/* Weather background */}
             <WeatherBackground />
 
             {/* ═══ HEADER ═══ */}
@@ -711,6 +720,7 @@ const AppContent = () => {
                     </motion.div>
                 </>
         </div>
+        </>
     );
 };
 
