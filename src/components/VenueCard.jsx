@@ -506,7 +506,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             {sunData && (
               <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
                 <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest block mb-2">Sun Position Today</span>
-                <SunTimeline sunData={sunData} dark />
+                <SunTimeline sunData={sunData} weatherCode={weather?.rawWeather?.weatherCode ?? 0} dark />
               </motion.div>
             )}
 

@@ -23,7 +23,7 @@ export default function HourlyForecastStrip({ lat, lng }) {
     const params = new URLSearchParams({
       latitude: String(lat),
       longitude: String(lng),
-      hourly: 'temperature_2m,weathercode,precipitation_probability,cloudcover',
+      hourly: 'temperature_2m,weathercode,precipitation_probability,cloudcover,windgusts_10m,precipitation,visibility',
       timezone: 'auto',
       forecast_days: '1',
     });
@@ -39,6 +39,9 @@ export default function HourlyForecastStrip({ lat, lng }) {
             code: data.hourly.weathercode[i],
             precip: data.hourly.precipitation_probability[i] ?? 0,
             clouds: data.hourly.cloudcover[i] ?? 0,
+            gusts: Math.round(data.hourly.windgusts_10m[i] ?? 0),
+            rainMm: (data.hourly.precipitation[i] ?? 0).toFixed(1),
+            visibility: Math.round((data.hourly.visibility[i] ?? 10000) / 1000),
           }))
           .filter(r => r.time >= now)
           .slice(0, 12);
@@ -79,7 +82,9 @@ export default function HourlyForecastStrip({ lat, lng }) {
             </p>
             <span className="text-base">{getWeatherEmoji(hour.code)}</span>
             <p style={{ fontSize: '13px', color: '#fff', fontWeight: 800 }}>{hour.temp}°</p>
-            <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>{hour.precip}%</p>
+            <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>
+              {hour.precip}% {hour.gusts > 20 ? `💨${hour.gusts}` : ''}
+            </p>
           </div>
         );
       })}

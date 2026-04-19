@@ -9,47 +9,29 @@ export function useOpenAQ(lat, lng) {
     let isMounted = true;
     setLoading(true);
 
-    if (!import.meta.env.VITE_OPENAQ_API_KEY) {
-      console.error('OpenAQ: missing VITE_OPENAQ_API_KEY');
-      if (isMounted) setAqLabel('–');
-      setLoading(false);
-      return;
-    }
-
     async function fetchAQ() {
       try {
-        // v3 API: find nearest location first
-        const locRes = await fetch(`https://api.openaq.org/v3/locations?coordinates=${lat},${lng}&radius=25000&limit=1`, {
-          headers: { 'X-API-Key': import.meta.env.VITE_OPENAQ_API_KEY }
+        const params = new URLSearchParams({
+          latitude: String(lat),
+          longitude: String(lng),
+          hourly: 'pm2_5',
+          timezone: 'auto',
+          forecast_days: '1',
         });
-        if (!locRes.ok) throw new Error('Location fetch failed');
-        const locData = await locRes.json();
-        
-        if (!locData.results || locData.results.length === 0) {
-          if (isMounted) setAqLabel('–');
-          return;
-        }
-        
-        const locationId = locData.results[0].id;
-        
-        // Fetch the PM2.5 measurement for the location (parameters_id = 2)
-        const measRes = await fetch(`https://api.openaq.org/v3/locations/${locationId}/measurements?limit=1&parameters_id=2`, {
-          headers: { 'X-API-Key': import.meta.env.VITE_OPENAQ_API_KEY }
-        });
-        if (!measRes.ok) throw new Error('Measurement fetch failed');
-        const measData = await measRes.json();
-        
-        if (isMounted && measData.results?.length > 0) {
-          const pm25 = measData.results[0].value;
-          if (pm25 <= 12) setAqLabel('Pristine');
-          else if (pm25 <= 35) setAqLabel('Good');
-          else if (pm25 <= 55) setAqLabel('Moderate');
+        const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params}`);
+        if (!res.ok) throw new Error('AQ fetch failed');
+        const data = await res.json();
+        const values = data?.hourly?.pm2_5?.filter(v => v !== null);
+        if (!values?.length) { if (isMounted) setAqLabel('–'); return; }
+        const avg = values.slice(0, 8).reduce((a, b) => a + b, 0) / Math.min(8, values.length);
+        if (isMounted) {
+          if (avg <= 10) setAqLabel('Pristine');
+          else if (avg <= 25) setAqLabel('Good');
+          else if (avg <= 50) setAqLabel('Moderate');
           else setAqLabel('Poor');
-        } else {
-          if (isMounted) setAqLabel('–');
         }
-      } catch (error) {
-        console.error('OpenAQ Error:', error.message, { lat, lng });
+      } catch (e) {
+        console.error('AQ Error:', e.message);
         if (isMounted) setAqLabel('–');
       } finally {
         if (isMounted) setLoading(false);
