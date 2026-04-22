@@ -3,6 +3,7 @@ import { X, ChevronUp, SlidersHorizontal, Map, List } from 'lucide-react';
 import VenueListCard from './VenueListCard';
 import VenueDetail from '../VenueDetail';
 import FiltersPanel from '../FiltersPanel';
+import { calculateLiveSunScore } from '../../util/sunScore';
 
 const QUICK_FILTERS = [
     { id: 'full-sun', label: 'Sunny', icon: '☀️' },
@@ -183,7 +184,23 @@ const ExploreSheet = ({
                             </button>
                         </div>
                     ) : (
-                        venues.map(venue => (
+                        [...venues]
+                            .sort((a, b) => {
+                                const buildInput = (v) => ({
+                                    shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
+                                    apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
+                                    precipProbability: weather?.precipProbability ?? 0,
+                                    cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
+                                    windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
+                                    isDay: weather?.isDay ?? 1,
+                                });
+                                const scoreA = calculateLiveSunScore(buildInput(a)).score
+                                    + (a.tags?.includes('Fireplace') && (weather?.main?.temp ?? 20) < 14 ? 15 : 0);
+                                const scoreB = calculateLiveSunScore(buildInput(b)).score
+                                    + (b.tags?.includes('Fireplace') && (weather?.main?.temp ?? 20) < 14 ? 15 : 0);
+                                return scoreB - scoreA;
+                            })
+                            .map(venue => (
                             <VenueListCard
                                 key={venue.id}
                                 venue={venue}
