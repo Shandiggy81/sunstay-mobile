@@ -22,6 +22,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
+import { calculateLiveSunScore, getComfortTier } from '../../util/sunScore';
 
 // ── Constants ───────────────────────────────────────────────────────
 
@@ -43,7 +44,13 @@ const VENUE_SYMBOL_LAYOUT = {
 const VENUE_SYMBOL_PAINT = {
     'text-color': '#ffffff',
     'text-halo-color': ['get', 'haloColor'],
-    'text-halo-width': 3,
+    'text-halo-width': [
+        'interpolate', ['linear'], ['get', 'score'],
+        0,  1.5,
+        45, 2.5,
+        65, 3.5,
+        80, 5.0,
+    ],
     'text-halo-blur': 1,
 };
 
@@ -107,15 +114,24 @@ const VenueMap = forwardRef(({
     // ── GeoJSON FeatureCollection (memoized) ──────────────────────
     const venueGeoJSON = useMemo(() => {
         const getHaloColor = (venue) => {
-            if (!weather || !weatherColorFn) return '#f59e0b'; // default amber
-            const color = weatherColorFn(weather, venue);
-            const colorMap = {
-                sunny: '#f59e0b',
-                cloudy: '#94a3b8',
-                rainy: '#3b82f6',
-                stormy: '#6366f1',
+            const liveInput = {
+                shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
+                apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
+                precipProbability: weather?.precipProbability ?? 0,
+                cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
+                windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
+                isDay: weather?.isDay ?? 1,
             };
-            return colorMap[color] || '#f59e0b';
+            const cozyBonus = (liveInput.apparentTemp < 14 || liveInput.precipProbability > 60)
+                && (venue.tags?.includes('Fireplace') || venue.heating || venue.fireplace) ? 15 : 0;
+            const { score } = calculateLiveSunScore(liveInput);
+            const tier = getComfortTier(Math.min(100, score + cozyBonus));
+            return {
+                prime:    '#f59e0b',  // amber
+                good:     '#34d399',  // emerald
+                moderate: '#94a3b8',  // slate
+                cosy:     '#818cf8',  // indigo
+            }[tier] || '#f59e0b';
         };
 
         function getPinEmoji(venue, weather) {
@@ -141,6 +157,17 @@ const VenueMap = forwardRef(({
                     name: v.venueName || v.name || '',
                     haloColor: getHaloColor(v),
                     visible: filteredVenueIds === null || filteredVenueIds.includes(v.id),
+                    score: (() => {
+                        const liveInput = {
+                            shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
+                            apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
+                            precipProbability: weather?.precipProbability ?? 0,
+                            cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
+                            windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
+                            isDay: weather?.isDay ?? 1,
+                        };
+                        return calculateLiveSunScore(liveInput).score;
+                    })(),
                 },
             })),
         };
