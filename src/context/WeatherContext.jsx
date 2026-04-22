@@ -273,9 +273,44 @@ export const WeatherProvider = ({ children }) => {
         return 'from-amber-400 via-orange-400 to-yellow-500';
     };
 
+    const getCozyModeMeta = () => {
+        if (!weather) {
+            return {
+                isActive: overrideType === 'rainy',
+                reason: overrideType === 'rainy' ? 'rain' : 'mild',
+                headline: overrideType === 'rainy'
+                    ? 'Best cozy venues right now'
+                    : 'Outdoor conditions are favourable',
+            };
+        }
+        const apparentTemp = weather.main?.feels_like ?? weather.main?.temp ?? 20;
+        const rainProb = weather.precipProbability ?? 0;
+        const gustKmh = weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6;
+        const condition = String(weather.weather?.[0]?.main || '').toLowerCase();
+        const isWet = condition.includes('rain') || rainProb >= 45;
+        const isCold = apparentTemp <= 16;
+        const isWindy = gustKmh >= 35;
+        const isActive = isWet || isCold || isWindy || overrideType === 'rainy';
+        const reason = isWet ? 'rain' : isCold ? 'cold' : isWindy ? 'wind' : 'mild';
+        const headline = isWet
+            ? 'Best cozy venues right now'
+            : isCold
+                ? 'Warm sheltered venues feel better now'
+                : isWindy
+                    ? 'Sheltered spots are trending now'
+                    : 'Outdoor conditions are favourable';
+        return {
+            isActive,
+            reason,
+            headline,
+            apparentTemp: Math.round(apparentTemp),
+            rainProb,
+            gustKmh: Math.round(gustKmh),
+        };
+    };
+
     const calculateSunstayScore = (venue) => {
         if (!weather) return 75;
-        // Build a weather object compatible with calculateLiveSunScore
         const liveWeatherInput = {
             shortwaveRadiation: weather.shortwaveRadiation ?? 0,
             apparentTemp: weather.main?.feels_like ?? weather.main?.temp ?? 20,
@@ -285,14 +320,24 @@ export const WeatherProvider = ({ children }) => {
             isDay: weather.isDay ?? 1,
         };
         const { score } = calculateLiveSunScore(liveWeatherInput);
-        // Venue-specific bonus: fireplace/heater venues score higher in cold/wet
-        const isCozy = liveWeatherInput.apparentTemp < 14 || liveWeatherInput.precipProbability > 60;
-        const hasHeat = venue?.tags?.includes('Fireplace') || venue?.heating || venue?.fireplace;
-        const cozyBonus = isCozy && hasHeat ? 15 : 0;
-        return Math.min(100, score + cozyBonus);
+        const cozyMode = getCozyModeMeta();
+        const tags = venue?.tags || [];
+        const hasHeat =
+            tags.includes('Fireplace') ||
+            tags.includes('Heaters') ||
+            venue?.heating ||
+            venue?.fireplace;
+        const outdoorOnly =
+            tags.includes('Beer Garden') ||
+            tags.includes('Rooftop') ||
+            tags.includes('Waterfront') ||
+            tags.includes('Outdoor Seating');
+        const cozyBonus = cozyMode.isActive && hasHeat ? 22 : 0;
+        const outdoorPenalty = cozyMode.isActive && outdoorOnly && !hasHeat ? 8 : 0;
+        return Math.max(0, Math.min(100, score + cozyBonus - outdoorPenalty));
     };
 
-    const getFireplaceMode = () => theme === 'rainy' || overrideType === 'rainy';
+    const getFireplaceMode = () => getCozyModeMeta().isActive;
     const getTemperature = () => (weather ? Math.round(weather.main?.temp ?? 0) : null);
     const getUVIndex = () => weather?.uvi ?? 0;
 
@@ -320,6 +365,7 @@ export const WeatherProvider = ({ children }) => {
         weather,
         loading,
         theme,
+        cozyMode: getCozyModeMeta(),
         overrideType,
         updateOverride,
         getBackgroundGradient,

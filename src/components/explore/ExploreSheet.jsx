@@ -186,7 +186,7 @@ const ExploreSheet = ({
                     ) : (
                         [...venues]
                             .sort((a, b) => {
-                                const buildInput = (v) => ({
+                                const buildInput = () => ({
                                     shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
                                     apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
                                     precipProbability: weather?.precipProbability ?? 0,
@@ -194,10 +194,39 @@ const ExploreSheet = ({
                                     windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
                                     isDay: weather?.isDay ?? 1,
                                 });
-                                const scoreA = calculateLiveSunScore(buildInput(a)).score
-                                    + (a.tags?.includes('Fireplace') && (weather?.main?.temp ?? 20) < 14 ? 15 : 0);
-                                const scoreB = calculateLiveSunScore(buildInput(b)).score
-                                    + (b.tags?.includes('Fireplace') && (weather?.main?.temp ?? 20) < 14 ? 15 : 0);
+                                const cozyNow =
+                                    (weather?.main?.feels_like ?? weather?.main?.temp ?? 20) <= 16 ||
+                                    (weather?.precipProbability ?? 0) >= 45 ||
+                                    String(weather?.weather?.[0]?.main || '').toLowerCase().includes('rain') ||
+                                    (weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6) >= 35;
+                                const hasHeatA =
+                                    a.tags?.includes('Fireplace') ||
+                                    a.tags?.includes('Heaters') ||
+                                    a.heating ||
+                                    a.fireplace;
+                                const hasHeatB =
+                                    b.tags?.includes('Fireplace') ||
+                                    b.tags?.includes('Heaters') ||
+                                    b.heating ||
+                                    b.fireplace;
+                                const outdoorOnlyA =
+                                    a.tags?.includes('Beer Garden') ||
+                                    a.tags?.includes('Rooftop') ||
+                                    a.tags?.includes('Waterfront') ||
+                                    a.tags?.includes('Outdoor Seating');
+                                const outdoorOnlyB =
+                                    b.tags?.includes('Beer Garden') ||
+                                    b.tags?.includes('Rooftop') ||
+                                    b.tags?.includes('Waterfront') ||
+                                    b.tags?.includes('Outdoor Seating');
+                                const scoreA =
+                                    calculateLiveSunScore(buildInput()).score +
+                                    (cozyNow && hasHeatA ? 22 : 0) -
+                                    (cozyNow && outdoorOnlyA && !hasHeatA ? 8 : 0);
+                                const scoreB =
+                                    calculateLiveSunScore(buildInput()).score +
+                                    (cozyNow && hasHeatB ? 22 : 0) -
+                                    (cozyNow && outdoorOnlyB && !hasHeatB ? 8 : 0);
                                 return scoreB - scoreA;
                             })
                             .map(venue => (
