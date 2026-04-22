@@ -270,8 +270,17 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const { windSpeed, rainMm, weatherCode, showerMm } = weather || {};
   const { aqLabel } = useOpenAQ(lat, lng);
   const { burnTimeMins } = useOpenUV(lat, lng);
-  const cloudcover = Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover[0] : null;
-  const windGusts = Array.isArray(hourlyData?.windgusts_10m) ? hourlyData.windgusts_10m[0] : null;
+  const cloudcover = weather?.cloudCover
+    ?? (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null)
+    ?? (Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover : null);
+  const windGusts = weather?.windGusts
+    ?? (Array.isArray(hourlyData?.wind_gusts_10m) ? hourlyData.wind_gusts_10m * 3.6 : null)
+    ?? (Array.isArray(hourlyData?.windgusts_10m) ? hourlyData.windgusts_10m : null);
+  const precipProbability = weather?.precipProbability ?? precipProb ?? 0;
+  const sunshineMins = weather?.sunshineDuration ? Math.round(weather.sunshineDuration / 60) : null;
+  const daylightHours = weather?.daylightDuration ? Math.round(weather.daylightDuration / 3600) : null;
+  const maxTemp = weather?.maxTemp ?? null;
+  const minTemp = weather?.minTemp ?? null;
   const { isRainStartingSoon, minutesUntilRain } = useTomorrowRain(lat, lng);
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
@@ -395,11 +404,14 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             <motion.div className="flex items-start gap-3" style={{ overflow: 'visible' }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
               <ScoreOrb score={score} />
               <div className="flex-1 grid grid-cols-6 gap-1.5">
-              <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
-              <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
-              <StatChip className="col-span-2 min-w-0" icon="🌂" label="Rain" value={precipProb ? `${precipProb}%` : '0%'} delay={0.16} />
-              <StatChip className="col-span-3 min-w-0" icon="🔆" label="UV" value={uvIndex ?? '–'} delay={0.24} />
-              <StatChip className="col-span-3 min-w-0" icon="🌿" label="Air" value={aqLabel} delay={0.32} />
+                <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
+                <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
+                <StatChip className="col-span-2 min-w-0" icon="🌂" label="Rain" value={precipProb ? `${precipProb}%` : '0%'} delay={0.16} />
+                {(minTemp !== null && maxTemp !== null) && (
+                  <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Range" value={`${Math.round(minTemp)}–${Math.round(maxTemp)}°`} delay={0.12} />
+                )}
+                <StatChip className="col-span-2 min-w-0" icon="🔆" label="UV" value={uvIndex ?? '–'} delay={0.24} />
+                <StatChip className="col-span-2 min-w-0" icon="🌿" label="Air" value={aqLabel} delay={0.32} />
               </div>
             </motion.div>
 
@@ -423,10 +435,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="flex flex-col gap-2 mt-2" onClick={e => e.stopPropagation()}>
                       <div className="flex gap-4">
                         <SparkLine data={buildSpark('temperature_2m')} color="#F59E0B" label="Temperature" unit="°" />
-                        <SparkLine data={buildSpark('cloudcover')} color="#94A3B8" label="Cloud" unit="%" />
+                        <SparkLine data={buildSpark('cloud_cover') || buildSpark('cloudcover')} color="#94A3B8" label="Cloud" unit="%" />
                       </div>
                       <div className="flex gap-4">
-                        <SparkLine data={buildSpark('windspeed_10m')} color="#38BDF8" label="Wind" unit=" km" />
+                        <SparkLine data={buildSpark('wind_speed_10m') || buildSpark('windspeed_10m')} color="#38BDF8" label="Wind" unit=" km" />
                       </div>
                     </motion.div>
                   )}
@@ -444,11 +456,23 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   </span>
                 )}
               </div>
-              <div className="flex gap-5 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="flex gap-5 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunrise</span><span className="text-amber-300 font-black text-sm">{displaySunrise}</span></div>
                 <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunset</span><span className="text-orange-300 font-black text-sm">{displaySunset}</span></div>
                 <div className="flex flex-col ml-auto items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.outdoor}</span><span className="text-white font-black text-sm">{sunHours.outdoor}</span></div>
                 <div className="flex flex-col items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.covered}</span><span className="text-white font-black text-sm">{sunHours.covered}</span></div>
+                {sunshineMins !== null && (
+                  <div className="flex flex-col">
+                    <span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunshine</span>
+                    <span className="text-amber-300 font-black text-sm">{sunshineMins}m</span>
+                  </div>
+                )}
+                {daylightHours !== null && (
+                  <div className="flex flex-col items-end">
+                    <span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Daylight</span>
+                    <span className="text-white font-black text-sm">{daylightHours}h</span>
+                  </div>
+                )}
               </div>
             </motion.div>
             )}
