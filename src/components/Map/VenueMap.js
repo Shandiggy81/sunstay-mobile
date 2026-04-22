@@ -118,6 +118,15 @@ const VenueMap = forwardRef(({
             return colorMap[color] || '#f59e0b';
         };
 
+        function getPinEmoji(venue, weather) {
+            const hasHeat = venue.heater || venue.fireplace;
+            if (hasHeat && (weather?.apparentTemp ?? 20) < 14) return '🔥';
+            if ((weather?.precipProbability ?? 0) > 60) return '🌧️';
+            if ((weather?.cloudCover ?? 0) > 70) return '☁️';
+            if ((weather?.isDay ?? 1) === 0) return '🌙';
+            return '☀️';
+        }
+
         return {
             type: 'FeatureCollection',
             features: venues.map(v => ({
@@ -128,7 +137,7 @@ const VenueMap = forwardRef(({
                 },
                 properties: {
                     id: v.id,
-                    emoji: v.emoji || '📍',
+                    emoji: getPinEmoji(v, weather),
                     name: v.venueName || v.name || '',
                     haloColor: getHaloColor(v),
                     visible: filteredVenueIds === null || filteredVenueIds.includes(v.id),

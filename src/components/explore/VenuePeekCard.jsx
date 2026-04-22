@@ -27,6 +27,21 @@ const VenuePeekCard = ({ venue, weather, onExpand, onClose }) => {
                     <p className="font-bold text-gray-900 text-[13px] leading-tight truncate">
                         {venue.venueName}
                     </p>
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                        <span className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full">
+                            Feels {Math.round(weather?.apparentTemp ?? 22)}°
+                        </span>
+                        {(weather?.precipProbability ?? 0) > 10 && (
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                                {weather.precipProbability < 30 ? '🌤️' : weather.precipProbability < 60 ? '🌦️' : '🌧️'} {weather.precipProbability}% rain
+                            </span>
+                        )}
+                        {((weather?.windGusts ?? 0) * 3.6) > 20 && (
+                            <span className="text-xs bg-gray-50 text-gray-600 px-2 py-0.5 rounded-full">
+                                💨 {Math.round(weather.windGusts * 3.6)}km/h gusts
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${badge.bg} ${badge.color}`}>
                             {badge.icon} {badge.label}

@@ -19,7 +19,7 @@ const WeatherIcon = ({ condition, windSpeed }) => {
     return <Sun size={16} className="text-yellow-300" />;
 };
 
-const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen }) => {
+const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen, comfort }) => {
     const [searchOpen, setSearchOpen] = useState(false);
     const [logoFailed, setLogoFailed] = useState(false);
 
@@ -84,9 +84,16 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                             {temp}°C
                         </span>
                     )}
-                    <span className="text-white/70 text-[11px] font-medium italic">
-                        {weather ? descFormatted : 'Loading…'}
-                    </span>
+                    <div className="flex flex-col items-center gap-1">
+                        <span className="text-white/70 text-[11px] font-medium italic">
+                            {weather ? descFormatted : 'Loading…'}
+                        </span>
+                        {comfort && comfort.label !== 'Loading' && (
+                            <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full shadow-sm border border-white/10 font-medium tracking-wide">
+                                {comfort.icon} {comfort.label}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* Right side stats with divider */}

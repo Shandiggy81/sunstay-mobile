@@ -20,6 +20,7 @@ import { venues } from './data/venues';
 import OwnerDashboard from './components/OwnerDashboard';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
+import { getComfortLevel } from './util/weatherService';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
@@ -160,6 +161,16 @@ const VenueChip = ({ venue, isSelected, onClick, weather }) => {
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(() => sessionStorage.getItem('splashShown') === 'true');
     const { weather, getUVIndex } = useWeather();
+
+    const comfort = useMemo(() => {
+        if (!weather) return { label: 'Loading', icon: '☁️', cozy: false };
+        return getComfortLevel({
+            apparentTemp: weather.apparentTemp,
+            precipProbability: weather.precipProbability,
+            windGusts: weather.windGusts
+        });
+    }, [weather]);
+
     const [selectedVenue, setSelectedVenue] = useState(null);
     const [isChatOpen, setIsChatOpen] = useState(false);
     // Initial filters: empty to show all venues by default
@@ -176,6 +187,13 @@ const AppContent = () => {
         }, 100);
         return () => clearTimeout(timer);
     }, [liveVenueFeatures]);
+
+    // Auto-enable cozy mode if comfort.cozy === true
+    useEffect(() => {
+        if (comfort.cozy) {
+            setActiveFilter('Cozy');
+        }
+    }, [comfort.cozy]);
 
     // Custom filters
     const [customFilters, setCustomFilters] = useState(
@@ -448,6 +466,7 @@ const AppContent = () => {
                 onRecenter={handleRecenter}
                 weather={weather}
                 onFiltersOpen={openMobileFilters}
+                comfort={comfort}
             />
 
             <AnimatePresence>
