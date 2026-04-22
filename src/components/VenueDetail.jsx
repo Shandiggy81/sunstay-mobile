@@ -15,6 +15,7 @@ import { useAirQuality } from '../hooks/useAirQuality';
 import { calculateApparentTemp } from '../data/windIntelligence';
 import { calculateDynamicToday } from '../util/sunCalcLogic';
 import { calculateLiveSunScore } from '../util/sunScore';
+import { getHappyHourStatus } from '../util/happyHour';
 
 const TRACK_START_HOUR = 6;
 const TRACK_END_HOUR = 21;
@@ -257,6 +258,7 @@ const VenueDetail = ({ venue, onClose, weather }) => {
 
     const hasFireplace = venue.tags?.includes('Fireplace');
     const hasHeaters = venue.tags?.includes('Heaters');
+    const hhStatus = getHappyHourStatus(venue.happyHour);
     const ctaHref = venue.bookingUrl || venue.bookingLink || venue.booking || null;
     const ctaLabel = ctaHref ? 'Book Now' : 'Manage This Venue';
 
@@ -404,6 +406,36 @@ const VenueDetail = ({ venue, onClose, weather }) => {
                         </div>
                     </div>
                 </div>
+
+                {(hhStatus.isActive || hhStatus.isUpcoming) && (
+                    <div className={`mt-3 rounded-2xl border p-4 ${
+                        hhStatus.isActive
+                            ? 'bg-amber-500/15 border-amber-400/30'
+                            : 'bg-emerald-500/10 border-emerald-400/25'
+                    }`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">🍺</span>
+                                <div>
+                                    <p className={`text-xs font-bold uppercase tracking-wide ${
+                                        hhStatus.isActive ? 'text-amber-300' : 'text-emerald-300'
+                                    }`}>
+                                        {hhStatus.isActive ? `Happy Hour · ${hhStatus.minutesLeft}min left` : `Happy Hour starts in ${hhStatus.minutesUntil}min`}
+                                    </p>
+                                    <p className="text-[11px] text-white/60 mt-0.5">{hhStatus.timeRange}</p>
+                                </div>
+                            </div>
+                            <motion.div
+                                animate={{ scale: [1, 1.15, 1] }}
+                                transition={{ repeat: Infinity, duration: 1.8 }}
+                                className={`w-2 h-2 rounded-full ${hhStatus.isActive ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                            />
+                        </div>
+                        {hhStatus.deal && (
+                            <p className="mt-2 text-[12px] text-white/80 font-medium leading-snug">{hhStatus.deal}</p>
+                        )}
+                    </div>
+                )}
 
                 <div className="mt-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4">
                     <div className="flex items-center gap-2 text-white/80">

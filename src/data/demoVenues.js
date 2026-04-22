@@ -209,6 +209,7 @@ export const demoVenues = [
     // ─── Real venues we already know ───
     {
         id: 'dv-01',
+        happyHour: { days: ['Mon','Tue','Wed','Thu','Fri'], start: '16:00', end: '18:30', deal: '$8 House Wines & $10 Pints' },
         companyName: 'Australian Venue Co',
         venueName: 'Wonderland Bar',
         address: '37–39 Chapel Street, Windsor VIC 3181',
@@ -227,6 +228,7 @@ export const demoVenues = [
     },
     {
         id: 'dv-02',
+        happyHour: { days: ['Wed','Thu','Fri','Sat'], start: '17:00', end: '19:00', deal: '$9 Craft Beers & $12 Cocktails' },
         companyName: 'Australian Venue Co',
         venueName: 'The Emerson Rooftop',
         address: '141 Commercial Road, South Yarra VIC 3141',
@@ -246,6 +248,7 @@ export const demoVenues = [
     },
     {
         id: 'dv-03',
+        happyHour: { days: ['Tue','Wed','Thu','Fri'], start: '15:00', end: '18:00', deal: '$7 Pots & $10 Spirits' },
         companyName: 'Good Company',
         venueName: 'The Vineyard',
         address: '71A Acland Street, St Kilda VIC 3182',
@@ -264,6 +267,7 @@ export const demoVenues = [
     },
     {
         id: 'dv-04',
+        happyHour: { days: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], start: '16:00', end: '20:00', deal: '$9 Pints & 2-for-1 Happy Hour Bites' },
         companyName: 'Good Company',
         venueName: 'CBCo Brewing',
         address: '89 Bertie Street, Port Melbourne VIC 3207',
@@ -279,6 +283,7 @@ export const demoVenues = [
     },
     {
         id: 'dv-05',
+        happyHour: { days: ['Thu','Fri','Sat'], start: '17:30', end: '19:30', deal: '$15 Cocktails & $10 Wines' },
         companyName: 'Good Company',
         venueName: 'Dick Whittington Tavern',
         address: '32 Chapel Street, St Kilda VIC 3182',
@@ -294,6 +299,7 @@ export const demoVenues = [
     },
     {
         id: 'dv-06',
+        happyHour: { days: ['Mon','Tue','Wed','Thu','Fri'], start: '16:00', end: '18:00', deal: '$8 Tap Beers & $9 House Wines' },
         companyName: 'Sand Hill Road',
         venueName: 'Garden State Hotel',
         address: '101 Flinders Lane, Melbourne VIC 3000',
@@ -312,6 +318,7 @@ export const demoVenues = [
     },
     {
         id: 'dv-07',
+        happyHour: { days: ['Fri','Sat','Sun'], start: '14:00', end: '17:00', deal: '$6 Schooners (Afternoon Special)' },
         companyName: 'Sand Hill Road',
         venueName: 'Welcome to Thornbury',
         address: '520 High Street, Thornbury VIC 3071',
@@ -327,6 +334,7 @@ export const demoVenues = [
     },
     {
         id: 'dv-08',
+        happyHour: { days: ['Mon','Tue','Wed','Thu','Fri'], start: '17:00', end: '19:30', deal: '$12 Espresso Martinis & $9 Pints' },
         companyName: 'ALH Group (Endeavour)',
         venueName: 'Royal Standard Hotel',
         address: '171 Bourke Street, Melbourne VIC 3000',

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Flame, MapPin } from 'lucide-react';
 import { useWeather } from '../../context/WeatherContext';
 import { calculateLiveSunScore, getComfortTier } from '../../util/sunScore';
+import { getHappyHourBadge } from '../../util/happyHour';
 
 const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
     const { cozyMode } = useWeather();
@@ -34,6 +35,7 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
         ['Beer Garden', 'Rooftop', 'Waterfront', 'Outdoor Seating'].includes(t)
     );
     const primaryTag = venue.tags?.[0];
+    const hhBadge = getHappyHourBadge(venue.happyHour);
 
     return (
         <motion.button
@@ -78,8 +80,18 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
                     </div>
                 </div>
 
-                {(primaryTag || hasOutdoor || isCozyPick) && (
+                {(primaryTag || hasOutdoor || isCozyPick || hhBadge.show) && (
                     <div className="flex items-center gap-1.5 mt-1.5">
+                        {hhBadge.show && (
+                            <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
+                                hhBadge.color === 'amber'
+                                    ? 'text-amber-700 bg-amber-100 border-amber-200'
+                                    : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                            }`}>
+                                <span>{hhBadge.icon}</span>
+                                <span>{hhBadge.label}</span>
+                            </span>
+                        )}
                         {isCozyPick && (
                             <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full font-semibold">
                                 <Flame size={10} />
