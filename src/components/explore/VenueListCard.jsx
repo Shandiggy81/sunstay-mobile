@@ -2,9 +2,26 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { MapPin } from 'lucide-react';
 import { getSunBadge } from './WeatherBadgeRow';
+import { calculateLiveSunScore, getComfortTier } from '../../util/sunScore';
 
 const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
     const badge = getSunBadge(weather);
+    const liveInput = {
+        shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
+        apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
+        precipProbability: weather?.precipProbability ?? 0,
+        cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
+        windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
+        isDay: weather?.isDay ?? 1,
+    };
+    const { score: sunScore, label: sunLabel } = calculateLiveSunScore(liveInput);
+    const tier = getComfortTier(sunScore);
+    const scorePillStyle = {
+        prime:    { bg: 'bg-amber-100',   text: 'text-amber-700',  icon: '☀️'  },
+        good:     { bg: 'bg-emerald-100', text: 'text-emerald-700',icon: '🌤️' },
+        moderate: { bg: 'bg-gray-100',    text: 'text-gray-600',   icon: '⛅'  },
+        cosy:     { bg: 'bg-blue-50',     text: 'text-blue-600',   icon: '🛋️' },
+    }[tier];
     const hasOutdoor = (venue.tags || []).some(t =>
         ['Beer Garden', 'Rooftop', 'Waterfront', 'Outdoor Seating'].includes(t)
     );
@@ -39,9 +56,9 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
                             </p>
                         </div>
                     </div>
-                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0 ${badge.bg}`}>
-                        {badge.icon && <span className="text-[10px]">{badge.icon}</span>}
-                        <span className={`text-[10px] font-semibold ${badge.color}`}>{badge.label}</span>
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0 ${scorePillStyle.bg}`}>
+                        <span className="text-[10px]">{scorePillStyle.icon}</span>
+                        <span className={`text-[10px] font-bold tabular-nums ${scorePillStyle.text}`}>{sunScore}</span>
                     </div>
                 </div>
 
