@@ -1,5 +1,5 @@
 import React from 'react';
-import { useWeather } from '../hooks/useWeather';
+import { useWeather } from '../context/WeatherContext';
 import { useOpenMeteo } from '../hooks/useOpenMeteo';
 
 /**
@@ -9,11 +9,13 @@ import { useOpenMeteo } from '../hooks/useOpenMeteo';
  * @param {string} venueName - Optional venue name for context
  */
 export default function WeatherWidget({ lat, lng, venueName }) {
-  const { weather, score, scoreLabel, loading, error, lastUpdated, refresh } = useWeather(lat, lng);
+  const { weather, loading, liveSunScore } = useWeather();
   const { data: solarData } = useOpenMeteo(lat, lng);
-
-  const displayScore = solarData?.sunstayScore ?? score;
-  const displayLabel = solarData?.scoreLabel ?? scoreLabel;
+  const displayScore = liveSunScore?.score ?? 75;
+  const displayLabel = liveSunScore ?? { label: 'Good', emoji: '🌤️' };
+  const error = null;
+  const lastUpdated = new Date();
+  const refresh = () => {};
 
   if (loading) {
     return (

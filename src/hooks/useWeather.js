@@ -1,59 +1,10 @@
-import { useState, useCallback } from 'react';
-import { storage } from '../utils/platform';
-
-const CACHE_KEY_PREFIX = 'sunstay_weather_';
-const CACHE_EXPIRY = 900000; // 15 Minutes
-
-export const useWeather = () => {
-    const [loading, setLoading] = useState(false);
-
-    const fetchWeatherWithCache = useCallback(async (lat, lon) => {
-        const bucket = `${lat.toFixed(2)}_${lon.toFixed(2)}`;
-        const cacheKey = `${CACHE_KEY_PREFIX}${bucket}`;
-
-        setLoading(true);
-        try {
-            const cachedString = await storage.getItem(cacheKey);
-            if (cachedString) {
-                const { data, timestamp } = JSON.parse(cachedString);
-                if (Date.now() - timestamp < CACHE_EXPIRY) {
-                    setLoading(false);
-                    return data;
-                }
-            }
-
-            const params = new URLSearchParams({
-                latitude: String(lat),
-                longitude: String(lon),
-                current: [
-                    'temperature_2m',
-                    'apparent_temperature',
-                    'relative_humidity_2m',
-                    'weather_code',
-                    'cloud_cover',
-                    'wind_speed_10m',
-                    'uv_index',
-                ].join(','),
-                daily: 'sunrise,sunset',
-                timezone: 'auto',
-                forecast_days: '1',
-            });
-            const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
-            const freshData = await response.json();
-
-            await storage.setItem(cacheKey, JSON.stringify({
-                data: freshData,
-                timestamp: Date.now()
-            }));
-
-            return freshData;
-        } catch (error) {
-            console.error("[SunStay Weather] Error:", error);
-            return null;
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    return { fetchWeatherWithCache, loading };
-};
+/**
+ * useWeather (hook) — thin re-export of WeatherContext.
+ * Previously made its own Open-Meteo fetch with local caching.
+ * Now delegates entirely to WeatherContext which owns the
+ * single shared fetch + 15-minute cache.
+ *
+ * Returns { weather, loading, theme, liveSunScore, ... }
+ * matching the WeatherContext value shape.
+ */
+export { useWeather } from '../context/WeatherContext';
