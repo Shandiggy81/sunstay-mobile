@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { storage } from '../utils/platform';
+import { calculateLiveSunScore } from '../util/sunScore';
+import { getMelbourneWeather } from '../util/weatherService';
 
 const WeatherContext = createContext(null);
 
@@ -58,8 +60,11 @@ const fetchOpenMeteoWeather = async (lat, lon) => {
             'weather_code',
             'cloud_cover',
             'wind_speed_10m',
+            'wind_gusts_10m',
             'uv_index',
+            'is_day',
         ].join(','),
+        hourly: 'shortwave_radiation,precipitation_probability',
         daily: 'sunrise,sunset',
         timezone: 'auto',
         forecast_days: '1',
@@ -86,6 +91,11 @@ const fetchOpenMeteoWeather = async (lat, lon) => {
         },
         clouds: { all: current.cloud_cover ?? null },
         uvi: current.uv_index ?? null,
+        windGusts: current.wind_gusts_10m ?? null,
+        precipProbability: response?.data?.hourly?.precipitation_probability?.[new Date().getHours()] ?? 0,
+        shortwaveRadiation: response?.data?.hourly?.shortwave_radiation?.[new Date().getHours()] ?? 0,
+        isDay: current.is_day ?? 1,
+        cloudCoverPct: current.cloud_cover ?? 0,
         sys: {
             sunrise: sunrise ?? Math.floor(Date.now() / 1000) - 7200,
             sunset: sunset ?? Math.floor(Date.now() / 1000) + 10800,
@@ -260,19 +270,21 @@ export const WeatherProvider = ({ children }) => {
 
     const calculateSunstayScore = (venue) => {
         if (!weather) return 75;
-        const temp = weather.main?.temp ?? 20;
-        const condition = String(weather.weather?.[0]?.main || '').toLowerCase();
-        let score = 50;
-
-        if (temp >= 20 && temp <= 26) score += 35;
-        else if (temp > 26) score += 15;
-        else score += 10;
-
-        if (condition.includes('clear')) score += 15;
-        if (condition.includes('rain') && venue?.tags?.includes('Fireplace')) score += 20;
-        if ((weather.wind?.speed || 0) > 11) score -= 12;
-
-        return Math.max(0, Math.min(100, score));
+        // Build a weather object compatible with calculateLiveSunScore
+        const liveWeatherInput = {
+            shortwaveRadiation: weather.shortwaveRadiation ?? 0,
+            apparentTemp: weather.main?.feels_like ?? weather.main?.temp ?? 20,
+            precipProbability: weather.precipProbability ?? 0,
+            cloudCover: weather.cloudCoverPct ?? weather.clouds?.all ?? 0,
+            windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
+            isDay: weather.isDay ?? 1,
+        };
+        const { score } = calculateLiveSunScore(liveWeatherInput);
+        // Venue-specific bonus: fireplace/heater venues score higher in cold/wet
+        const isCozy = liveWeatherInput.apparentTemp < 14 || liveWeatherInput.precipProbability > 60;
+        const hasHeat = venue?.tags?.includes('Fireplace') || venue?.heating || venue?.fireplace;
+        const cozyBonus = isCozy && hasHeat ? 15 : 0;
+        return Math.min(100, score + cozyBonus);
     };
 
     const getFireplaceMode = () => theme === 'rainy' || overrideType === 'rainy';
@@ -284,7 +296,7 @@ export const WeatherProvider = ({ children }) => {
         const desc = weather.weather?.[0]?.description || '';
         const temp = Math.round(weather.main?.temp || 0);
         const cleanDesc = desc ? desc.charAt(0).toUpperCase() + desc.slice(1) : 'Conditions unavailable';
-        return `${temp}� � ${cleanDesc}`;
+        return `${temp}° • ${cleanDesc}`;
     };
 
     const getCardBackground = () => {
@@ -313,6 +325,14 @@ export const WeatherProvider = ({ children }) => {
         getCardBackground,
         getCardAccent,
         getUVIndex,
+        liveSunScore: weather ? calculateLiveSunScore({
+            shortwaveRadiation: weather.shortwaveRadiation ?? 0,
+            apparentTemp: weather.main?.feels_like ?? weather.main?.temp ?? 20,
+            precipProbability: weather.precipProbability ?? 0,
+            cloudCover: weather.cloudCoverPct ?? weather.clouds?.all ?? 0,
+            windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
+            isDay: weather.isDay ?? 1,
+        }) : { score: 75, label: 'Great Conditions 🌤️', color: '#34D399' },
     };
 
     return (
@@ -321,4 +341,3 @@ export const WeatherProvider = ({ children }) => {
         </WeatherContext.Provider>
     );
 };
-
