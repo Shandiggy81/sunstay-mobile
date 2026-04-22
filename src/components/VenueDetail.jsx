@@ -14,6 +14,7 @@ import { useWeather } from '../context/WeatherContext';
 import { useAirQuality } from '../hooks/useAirQuality';
 import { calculateApparentTemp } from '../data/windIntelligence';
 import { calculateDynamicToday } from '../util/sunCalcLogic';
+import { calculateLiveSunScore } from '../util/sunScore';
 
 const TRACK_START_HOUR = 6;
 const TRACK_END_HOUR = 21;
@@ -175,12 +176,41 @@ const LiveExposureBars = ({ bars }) => (
 );
 
 const VenueDetail = ({ venue, onClose, weather }) => {
-    const { calculateSunstayScore, getTemperature } = useWeather();
+    const { calculateSunstayScore, getTemperature, weather: liveWeather } = useWeather();
     const { airQuality, loading: airQualityLoading } = useAirQuality(venue?.lat, venue?.lng);
 
     if (!venue) return null;
 
     const sunstayScore = calculateSunstayScore(venue);
+
+    // Build hourly Sunstay Scores from real Open-Meteo hourly arrays
+    const hourlyScores = useMemo(() => {
+        const radiation = liveWeather?.hourly?.shortwave_radiation || [];
+        const precip    = liveWeather?.hourly?.precipitation_probability || [];
+        const cloudArr  = liveWeather?.hourly?.cloud_cover || [];
+        const nowHour   = new Date().getHours();
+        // Show 8 hours starting from current hour
+        return Array.from({ length: 8 }, (_, i) => {
+            const hour = (nowHour + i) % 24;
+            const score = calculateLiveSunScore({
+                shortwaveRadiation: radiation[hour] ?? liveWeather?.shortwaveRadiation ?? 0,
+                apparentTemp:       liveWeather?.main?.feels_like ?? liveWeather?.main?.temp ?? 20,
+                precipProbability:  precip[hour] ?? liveWeather?.precipProbability ?? 0,
+                cloudCover:         cloudArr[hour] ?? liveWeather?.cloudCoverPct ?? liveWeather?.clouds?.all ?? 0,
+                windGusts:          liveWeather?.windGusts ?? 0,
+                isDay:              (hour >= 6 && hour < 20) ? 1 : 0,
+            }).score;
+            return {
+                hour,
+                score,
+                isNow: i === 0,
+                label: hour === 0 ? '12a'
+                     : hour < 12  ? `${hour}a`
+                     : hour === 12 ? '12p'
+                     : `${hour - 12}p`,
+            };
+        });
+    }, [liveWeather]);
     const temperature = getTemperature();
     const humidity = weather?.main?.humidity;
     const windSpeedKmh = weather?.wind?.speed != null ? Math.round(weather.wind.speed * 3.6) : null;
@@ -339,7 +369,40 @@ const VenueDetail = ({ venue, onClose, weather }) => {
                 </div>
 
                 <div className="mt-3">
-                    <LiveExposureBars bars={exposureBars} />
+                    <div className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-xs font-semibold tracking-[0.18em] uppercase text-white/60">Best Time to Visit</p>
+                            <p className="text-xs text-amber-200 font-semibold">
+                                Next 8 hrs · Live ☀️
+                            </p>
+                        </div>
+                        <div className="h-28 flex items-end justify-between gap-1.5">
+                            {hourlyScores.map((h) => (
+                                <div key={h.hour} className="flex-1 flex flex-col items-center gap-1.5">
+                                    <span className={`text-[9px] font-bold tabular-nums ${h.isNow ? 'text-amber-300' : 'text-white/40'}`}>
+                                        {h.score}
+                                    </span>
+                                    <motion.div
+                                        initial={{ height: 0 }}
+                                        animate={{ height: `${Math.max(h.score, 4)}%` }}
+                                        transition={{ duration: 0.5, delay: h.isNow ? 0 : 0.05 }}
+                                        className={`w-full rounded-t-md ${
+                                            h.isNow
+                                                ? 'bg-gradient-to-t from-amber-500 to-yellow-300 shadow-[0_0_14px_rgba(251,191,36,0.5)]'
+                                                : h.score >= 65
+                                                    ? 'bg-gradient-to-t from-emerald-500/80 to-emerald-300/80'
+                                                    : h.score >= 45
+                                                        ? 'bg-gradient-to-t from-slate-500/70 to-slate-300/60'
+                                                        : 'bg-gradient-to-t from-blue-600/60 to-indigo-400/50'
+                                        }`}
+                                    />
+                                    <span className={`text-[9px] ${h.isNow ? 'text-amber-300 font-bold' : 'text-white/45'}`}>
+                                        {h.label}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="mt-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4">

@@ -64,7 +64,7 @@ const fetchOpenMeteoWeather = async (lat, lon) => {
             'uv_index',
             'is_day',
         ].join(','),
-        hourly: 'shortwave_radiation,precipitation_probability',
+        hourly: 'shortwave_radiation,precipitation_probability,cloud_cover',
         daily: 'sunrise,sunset',
         timezone: 'auto',
         forecast_days: '1',
@@ -96,6 +96,11 @@ const fetchOpenMeteoWeather = async (lat, lon) => {
         shortwaveRadiation: response?.data?.hourly?.shortwave_radiation?.[new Date().getHours()] ?? 0,
         isDay: current.is_day ?? 1,
         cloudCoverPct: current.cloud_cover ?? 0,
+        hourly: {
+            shortwave_radiation:      response?.data?.hourly?.shortwave_radiation      || [],
+            precipitation_probability: response?.data?.hourly?.precipitation_probability || [],
+            cloud_cover:              response?.data?.hourly?.cloud_cover               || [],
+        },
         sys: {
             sunrise: sunrise ?? Math.floor(Date.now() / 1000) - 7200,
             sunset: sunset ?? Math.floor(Date.now() / 1000) + 10800,
