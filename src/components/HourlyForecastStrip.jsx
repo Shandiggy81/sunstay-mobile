@@ -24,7 +24,7 @@ export default function HourlyForecastStrip({ lat, lng }) {
     const params = new URLSearchParams({
       latitude: String(lat),
       longitude: String(lng),
-      hourly: 'temperature_2m,weathercode,precipitation_probability,cloudcover,windgusts_10m,precipitation,visibility,sunshine_duration',
+      hourly: 'temperature_2m,apparent_temperature,weather_code,weathercode,precipitation_probability,cloud_cover,cloudcover,wind_gusts_10m,windgusts_10m,precipitation,visibility,sunshine_duration,shortwave_radiation',
       timezone: 'auto',
       forecast_days: '1',
     });
@@ -37,13 +37,15 @@ export default function HourlyForecastStrip({ lat, lng }) {
           .map((t, i) => ({
             time: new Date(t),
             temp: Math.round(data.hourly.temperature_2m[i]),
-            code: data.hourly.weathercode[i],
+            feelsLike: Math.round(data.hourly.apparent_temperature?.[i] ?? data.hourly.temperature_2m[i]),
+            code: data.hourly.weather_code?.[i] ?? data.hourly.weathercode?.[i] ?? 0,
             precip: data.hourly.precipitation_probability[i] ?? 0,
-            clouds: data.hourly.cloudcover[i] ?? 0,
-            gusts: Math.round(data.hourly.windgusts_10m[i] ?? 0),
+            clouds: data.hourly.cloud_cover?.[i] ?? data.hourly.cloudcover?.[i] ?? 0,
+            gusts: Math.round((data.hourly.wind_gusts_10m?.[i] ?? data.hourly.windgusts_10m?.[i] ?? 0) * 3.6),
             rainMm: (data.hourly.precipitation[i] ?? 0).toFixed(1),
             visibility: Math.round((data.hourly.visibility[i] ?? 10000) / 1000),
-            sunshineMins: Math.round(data.hourly.sunshine_duration[i] ?? 0) / 60,
+            sunshineMins: Math.round((data.hourly.sunshine_duration?.[i] ?? 0) / 60),
+            solarW: Math.round(data.hourly.shortwave_radiation?.[i] ?? 0),
           }))
           .filter(r => r.time >= now)
           .slice(0, 12);
@@ -84,15 +86,17 @@ export default function HourlyForecastStrip({ lat, lng }) {
       )}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-3 pt-1">
         {hourly.map((hour, i) => {
-          const isGolden = hour.clouds < 20 && hour.precip < 20;
+          const isGolden = hour.solarW > 400 && hour.precip < 20;
+          const isWarm = hour.feelsLike >= 18 && hour.feelsLike < 28 && !isGolden;
+          const isWet = hour.precip >= 60;
           return (
             <div
               key={i}
               className="flex-shrink-0 flex flex-col items-center gap-1 px-2.5 py-2.5 rounded-2xl transition-all"
               style={{
-                background: isGolden ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.05)',
-                border: isGolden ? '1px solid rgba(245,158,11,0.25)' : '1px solid rgba(255,255,255,0.08)',
-                minWidth: '52px'
+                background: isWet ? 'rgba(56,189,248,0.10)' : isGolden ? 'rgba(245,158,11,0.13)' : isWarm ? 'rgba(16,185,129,0.07)' : 'rgba(255,255,255,0.05)',
+                border: isWet ? '1px solid rgba(56,189,248,0.22)' : isGolden ? '1px solid rgba(245,158,11,0.28)' : isWarm ? '1px solid rgba(16,185,129,0.18)' : '1px solid rgba(255,255,255,0.08)',
+                minWidth: '54px'
               }}
             >
               <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>
@@ -101,8 +105,14 @@ export default function HourlyForecastStrip({ lat, lng }) {
               <span className="text-base">{getWeatherEmoji(hour.code)}</span>
               <p style={{ fontSize: '13px', color: '#fff', fontWeight: 800 }}>{hour.temp}°</p>
               <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>
-                {hour.precip}% {hour.gusts > 20 ? `💨${hour.gusts}` : ''}
+                {hour.precip > 0 ? `${hour.precip}%🌧️` : hour.solarW > 0 ? `${hour.solarW}W` : ''}
               </p>
+              {hour.gusts > 25 && (
+                <p style={{ fontSize: '9px', color: 'rgba(56,189,248,0.7)', fontWeight: 700 }}>💨{hour.gusts}</p>
+              )}
+              {hour.feelsLike !== hour.temp && (
+                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', fontWeight: 600 }}>f{hour.feelsLike}°</p>
+              )}
             </div>
           );
         })}
