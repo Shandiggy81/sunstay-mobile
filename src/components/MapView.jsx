@@ -967,7 +967,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                                 </div>
                             ) : (
                                 <div className="space-y-4 flex flex-col items-center justify-center h-full">
-                                    <div className="animate-spin-slow text-6xl mb-4">☀️</div>
                                     <p className="text-gray-400 font-semibold italic">Waking up the map...</p>
                                 </div>
                             )}
