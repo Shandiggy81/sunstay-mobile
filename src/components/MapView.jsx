@@ -560,7 +560,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
 
 
-
     // ── Safe Resize helper ──────────────────────────────────────────
 
 
@@ -874,7 +873,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner">
                         {comfortMode
-                            ? `🌡️ Feels-like temperature at ${fmtHour(comfortHour)}`
+                            ? `Feels-like temperature at ${fmtHour(comfortHour)}`
                             : '📍 Tap a pin to see venue details'
                         }
                     </div>
