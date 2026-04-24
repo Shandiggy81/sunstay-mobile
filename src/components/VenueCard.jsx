@@ -80,7 +80,7 @@ const ScoreOrb = ({ score }) => {
         </svg>
         <div className="flex flex-col items-center justify-center text-center z-10">
           <span className="text-white font-black text-[1.5rem] leading-none">{Math.round(score)}</span>
-          <span className="text-[9px] uppercase tracking-widest font-bold mt-0.5" style={{ color }}>Score</span>
+          <span className="text-[9px] uppercase tracking-widest font-bold mt-0.5" style={{ color }}>Vibe</span>
         </div>
       </motion.div>
     </Float>
@@ -234,6 +234,14 @@ const LiveSkyCondition = ({ cloudcover, windGusts }) => {
   );
 };
 
+function formatSunHour(h) {
+  if (typeof h !== 'number') return '–';
+  const rounded = Math.round(h);
+  if (rounded < 12) return `${rounded}am`;
+  if (rounded === 12) return '12pm';
+  return `${rounded - 12}pm`;
+}
+
 export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
   const [graphExpanded, setGraphExpanded] = useState(false);
@@ -332,6 +340,12 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today',    color: '#64748B' };
   }, [precipProb, wind, score]);
 
+  const scoreLabel = useMemo(() => {
+    if (score > 75) return 'Perfect Now';
+    if (score >= 50) return 'Good Choice';
+    return 'Worth a Look';
+  }, [score]);
+
   const buildSpark = (key, slice = 14) => Array.isArray(hourlyData?.[key]) ? hourlyData[key].slice(0, slice).map(Number) : [];
 
   const displaySunrise = useMemo(() => {
@@ -401,8 +415,14 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
 
+            {/* ── Score Row: Orb + Context + Stat Chips ── */}
             <motion.div className="flex items-start gap-3" style={{ overflow: 'visible' }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
               <ScoreOrb score={score} />
+              {/* Score context block */}
+              <div className="flex flex-col justify-center ml-1 mr-2 flex-shrink-0" style={{ paddingTop: '6px' }}>
+                <span className="text-white font-bold text-lg leading-tight tracking-wide">{scoreLabel}</span>
+                <span className="text-white/60 text-[11px] uppercase tracking-wider mt-0.5">For Current Weather</span>
+              </div>
               <div className="flex-1 grid grid-cols-6 gap-1.5">
                 <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
                 <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
@@ -477,13 +497,15 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </motion.div>
             )}
 
+            {/* ── Vibe Section ── */}
             <motion.div
               className="rounded-2xl overflow-hidden"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
             >
               <div className="flex items-center justify-between px-3 py-2 cursor-pointer" onClick={() => setVibeExpanded(v => !v)}>
-                <span className="text-white/40" style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>How's the Vibe Now?</span>
+                {/* Fix 2: header visibility — was text-white/40, now text-white/90 font-extrabold */}
+                <span className="text-white/90 text-xs font-extrabold uppercase tracking-[0.15em] mb-0 ml-1 drop-shadow-sm">How's the Vibe Now?</span>
                 <motion.div animate={{ rotate: vibeExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}><ChevronDown size={13} className="text-white/25" /></motion.div>
               </div>
               <AnimatePresence>
@@ -552,6 +574,12 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             {sunData && (
               <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
                 <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest block mb-2">Sun Position Today</span>
+                {/* Fix 3: Dynamic sun context from real sunData — NOT hardcoded */}
+                {typeof sunData.startHour === 'number' && typeof sunData.endHour === 'number' && (
+                  <div className="text-amber-400 font-medium text-sm mb-2 ml-1">
+                    ✨ Best sun {formatSunHour(sunData.startHour)} – {formatSunHour(sunData.endHour)}
+                  </div>
+                )}
                 <SunTimeline sunData={sunData} weatherCode={weather?.rawWeather?.weatherCode ?? 0} dark />
               </motion.div>
             )}
