@@ -194,17 +194,24 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             source: 'venues',
             filter: ['has', 'point_count'],
             paint: {
-                // Orange fill for clusters
-                'circle-color': '#F97316', 
+                'circle-color': [
+                    'step',
+                    ['get', 'point_count'],
+                    '#FBBF24',   // amber — small clusters
+                    10, '#F97316', // orange — medium clusters
+                    30, '#EF4444'  // red — large clusters
+                ],
                 'circle-radius': [
                     'step',
                     ['get', 'point_count'],
-                    20,   // Radius for < 10 points
-                    10, 30,  // 30px for 10-30 points
-                    30, 40   // 40px for > 30 points
+                    18,
+                    10, 26,
+                    30, 34
                 ],
-                'circle-stroke-width': 2,
-                'circle-stroke-color': '#fff'
+                'circle-stroke-width': 3,
+                'circle-stroke-color': 'rgba(255,255,255,0.9)',
+                'circle-opacity': 0.92,
+                'circle-blur': 0,
             }
         });
 
@@ -422,7 +429,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 bearing: INITIAL_VIEW_STATE.bearing,
                 minZoom: 0,
                 maxZoom: 22,
-                maxBounds: MAX_BOUNDS
+                maxBounds: MAX_BOUNDS,
+                padding: { top: 60, bottom: 120, left: 16, right: 16 },
             });
 
             map.current.on('load', () => {
@@ -452,6 +460,13 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
                 setupClusterSource();
                 applySunSkyLayer();
+                map.current.setFog({
+                    'color': 'rgb(246, 245, 243)',
+                    'high-color': 'rgb(200, 210, 220)',
+                    'horizon-blend': 0.04,
+                    'space-color': 'rgb(180, 195, 210)',
+                    'star-intensity': 0.1,
+                });
 
                 // Real-time sun position via SunCalc
                 const updateSunLight = () => {
@@ -638,53 +653,35 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             if (!venue) return;
 
             const emoji = getVenuePinEmoji(venue);
-            const isSelected = selectedMarkerId === venue.id;
-            const liveState = liveVenueFeatures?.[venue.id] || {};
-            const isCozyLive = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
-
-            const el = document.createElement('div');
-            el.className = 'custom-sun-pin';
-            el.style.cursor = 'pointer';
-
-            if (isCozyLive) {
-                // High-visibility glowing fire pin
-                el.innerHTML = `
-                  <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none; position: relative;">
-                    <div style="
-                      width: ${isSelected ? '50px' : '44px'}; 
-                      height: ${isSelected ? '50px' : '44px'}; 
-                      background: radial-gradient(circle, #FF4500 0%, #FF6B35 70%, #FFA726 100%);
-                      border-radius: 50%; 
-                      display: flex; align-items: center; justify-content: center;
-                      box-shadow: 0 0 ${isSelected ? '25px' : '15px'} #FF4500AA, 0 4px 12px rgba(0,0,0,0.3);
-                      font-size: ${isSelected ? '24px' : '20px'}; 
-                      animation: cozyPulse 2s infinite ease-in-out;
-                    ">🔥</div>
-                    <div class="venue-pin-label" style="
-                      background: rgba(255,255,255,0.92); padding: 2px 8px; border-radius: 12px;
-                      font-size: 11px; font-weight: 700; color: #1A1A1A;
-                      opacity: ${isSelected ? '1' : '0'}; transform: translateY(${isSelected ? '0' : '-4px'});
-                      transition: opacity 0.2s ease, transform 0.2s ease;
-                    ">${venue.venueName}</div>
-                  </div>
-                  <style>
-                    @keyframes cozyPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-                  </style>
-                `;
-            } else {
-                // Standard sunny/cloudy emoji pin
-                el.innerHTML = `
-                  <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none; position: relative;">
-                    <div style="font-size: ${isSelected ? '34px' : '28px'}; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: font-size 0.15s ease;">${emoji}</div>
-                    <div class="venue-pin-label" style="
-                      background: rgba(255,255,255,0.92); padding: 2px 8px; border-radius: 12px;
-                      font-size: 11px; font-weight: 700; color: #1A1A1A;
-                      opacity: ${isSelected ? '1' : '0'}; transform: translateY(${isSelected ? '0' : '-4px'});
-                      transition: opacity 0.2s ease, transform 0.2s ease;
-                    ">${venue.venueName}</div>
-                  </div>
-                `;
-            }
+            const isSelected = venue.id === selectedVenue?.id;
+            const emoji = getVenuePinEmoji(venue);
+            const isCozy = cozyWeatherActive && (
+                venue.tags?.includes('Fireplace') ||
+                venue.tags?.includes('Heaters') ||
+                venue.heating
+            );
+            el.style.cssText = `
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: ${isSelected ? '48px' : '38px'};
+                height: ${isSelected ? '48px' : '38px'};
+                border-radius: 50%;
+                background: ${isSelected ? '#fff' : 'rgba(255,255,255,0.95)'};
+                box-shadow: ${isSelected
+                    ? '0 4px 20px rgba(0,0,0,0.22), 0 0 0 3px #F59E0B'
+                    : isCozy
+                        ? '0 2px 12px rgba(0,0,0,0.14), 0 0 0 2px rgba(251,146,60,0.6)'
+                        : '0 2px 8px rgba(0,0,0,0.12), 0 0 0 1.5px rgba(0,0,0,0.06)'};
+                font-size: ${isSelected ? '22px' : '18px'};
+                cursor: pointer;
+                transition: all 0.18s ease;
+                transform: ${isSelected ? 'translateY(-4px) scale(1.08)' : 'translateY(0) scale(1)'};
+                will-change: transform;
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+            `;
+            el.textContent = emoji;
 
             let startTouches = 0;
             el.addEventListener('touchstart', (e) => { startTouches = e.touches.length; });
@@ -831,121 +828,26 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
 
 
-            {/* Floating Layer Controls */}
-            {mapLoaded && !mapError && (
-                <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
-
-                    <button
-                        onClick={() => toggleLayer('comfort')}
-                        className={`map-glass-btn ${comfortMode ? 'map-glass-btn--active' : ''}`}
-                        id="comfort-map-toggle"
-                    >
-                        <span>{comfortMode ? '🌡️' : '🗺️'}</span>
-                        <span>{comfortMode ? 'Comfort Map' : 'Show Comfort'}</span>
-                    </button>
-
-                    <button
-                        onClick={() => toggleLayer('uv')}
-                        className={`map-glass-btn ${uvMode ? 'map-glass-btn--active' : ''}`}
-                        id="uv-map-toggle"
-                    >
-                        <span>{uvMode ? '🧴' : '☀️'}</span>
-                        <span>{uvMode ? 'UV Active' : 'Show UV'}</span>
-                    </button>
-
-                    <button
-                        onClick={() => toggleLayer('radar')}
-                        className={`map-glass-btn ${radarMode ? 'map-glass-btn--active' : ''}`}
-                        id="radar-map-toggle"
-                    >
-                        <span>{radarMode ? '🌧️' : '⛈️'}</span>
-                        <span>{radarMode ? 'Radar Active' : 'Rain Radar'}</span>
-                    </button>
-
-                    <AnimatePresence>
-                        {radarMode && (
-                            <motion.div
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -10 }}
-                                className="radar-legend-card"
-                            >
-                                <div className="radar-legend-title">Rain Intensity</div>
-                                <div className="radar-legend-label">
-                                    <span>Light</span>
-                                    <span>Storm</span>
-                                </div>
-                                <div className="radar-legend-scale">
-                                    <div className="radar-step-light" />
-                                    <div className="radar-step-mod" />
-                                    <div className="radar-step-heavy" />
-                                    <div className="radar-step-storm" />
-                                </div>
-                                <div className="text-[9px] text-gray-400 mt-1 font-medium">BOM Style Radar • Moving North-East</div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <AnimatePresence>
-                        {uvMode && (
-                            <motion.div
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -10 }}
-                                className="uv-legend-card"
-                            >
-                                <div className="uv-legend-title">UV Index Scale</div>
-                                <div className="uv-legend-label">
-                                    <span>Low</span>
-                                    <span>Extreme</span>
-                                </div>
-                                <div className="uv-legend-scale">
-                                    <div className="uv-scale-step uv-step-low" />
-                                    <div className="uv-scale-step uv-step-mod" />
-                                    <div className="uv-scale-step uv-step-high" />
-                                    <div className="uv-scale-step uv-step-vh" />
-                                    <div className="uv-scale-step uv-step-ext" />
-                                </div>
-                                <div className="text-[9px] text-gray-400 mt-1 font-medium">Real-time OpenWeather data</div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <AnimatePresence>
-                        {comfortMode && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                                className="comfort-time-slider"
-                            >
-                                <div className="comfort-slider-header">
-                                    <span className="comfort-slider-label">Time: {fmtHour(comfortHour)}</span>
-                                    <span className="comfort-slider-hint">Drag to explore</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="6"
-                                    max="23"
-                                    value={comfortHour}
-                                    onChange={(e) => setComfortHour(parseInt(e.target.value))}
-                                    className="comfort-slider-input w-full h-[44px]"
-                                    id="comfort-hour-slider"
-                                    style={{ touchAction: 'none' }}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onPointerMove={(e) => e.stopPropagation()}
-                                    onTouchStart={(e) => e.stopPropagation()}
-                                    onTouchMove={(e) => e.stopPropagation()}
-                                />
-                                <div className="comfort-slider-times">
-                                    <span>6am</span>
-                                    <span>12pm</span>
-                                    <span>6pm</span>
-                                    <span>11pm</span>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+            {showControls && (
+                <div className="absolute bottom-[72px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-2">
+                    {[
+                        { key: 'comfort', icon: '🌡️', label: 'Comfort' },
+                        { key: 'uv',      icon: '☀️', label: 'UV Index' },
+                        { key: 'radar',   icon: '🌧️', label: 'Radar' },
+                    ].map(({ key, icon, label }) => (
+                        <button
+                            key={key}
+                            onClick={() => toggleLayer(key)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold shadow-md transition-all backdrop-blur-sm border ${
+                                activeLayer === key
+                                    ? 'bg-gray-900 text-white border-gray-900 shadow-lg scale-105'
+                                    : 'bg-white/90 text-gray-700 border-white/60 hover:bg-white'
+                            }`}
+                        >
+                            <span className="text-[13px]">{icon}</span>
+                            <span>{label}</span>
+                        </button>
+                    ))}
                 </div>
             )}
 
