@@ -245,7 +245,6 @@ function formatSunHour(h) {
 export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
   const [graphExpanded, setGraphExpanded] = useState(false);
-  const [vibeExpanded, setVibeExpanded] = useState(false);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [4, -4]), { stiffness: 200, damping: 25 });
@@ -497,43 +496,76 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </motion.div>
             )}
 
-            {/* ── Vibe Section ── */}
+            {/* ── Vibe Section — always visible, mobile-first CTA ── */}
             <motion.div
               className="rounded-2xl overflow-hidden"
-              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
+              style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.22)' }}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
             >
-              <div className="flex items-center justify-between px-3 py-2 cursor-pointer" onClick={() => setVibeExpanded(v => !v)}>
-                {/* Fix 2: header visibility — was text-white/40, now text-white/90 font-extrabold */}
-                <span className="text-white/90 text-xs font-extrabold uppercase tracking-[0.15em] mb-0 ml-1 drop-shadow-sm">How's the Vibe Now?</span>
-                <motion.div animate={{ rotate: vibeExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}><ChevronDown size={13} className="text-white/25" /></motion.div>
-              </div>
-              <AnimatePresence>
-                {vibeExpanded && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="px-3 pb-3 flex flex-col gap-3">
-                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                      {(tags?.length ? tags : vibe ? (Array.isArray(vibe) ? vibe : [vibe]) : ['Chill']).map((t, i) => (
-                        <span key={i} className="flex-shrink-0 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-white/70 whitespace-nowrap shadow-sm">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                    <label
-                      className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 cursor-pointer"
-                      style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}
+              <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
+
+                {/* Header + live verdict */}
+                <div className="flex flex-col gap-1">
+                  <span
+                    className="font-black uppercase tracking-widest"
+                    style={{ fontSize: '14px', color: '#FCD34D', textShadow: '0 0 14px rgba(245,158,11,0.55)' }}
+                  >
+                    How's the Vibe? ✨
+                  </span>
+                  <span className="font-semibold" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
+                    {verdict.icon} {verdict.text}
+                  </span>
+                </div>
+
+                {/* Vibe tags */}
+                <div className="flex gap-2 flex-wrap">
+                  {(tags?.length ? tags : vibe ? (Array.isArray(vibe) ? vibe : [vibe]) : ['Chill']).map((t, i) => (
+                    <span
+                      key={i}
+                      className="font-bold whitespace-nowrap"
+                      style={{
+                        fontSize: '12px',
+                        padding: '6px 14px',
+                        borderRadius: '999px',
+                        background: 'rgba(255,255,255,0.07)',
+                        border: '1px solid rgba(255,255,255,0.13)',
+                        color: 'rgba(255,255,255,0.8)',
+                      }}
                     >
-                      <span className="text-amber-400 text-sm font-black">📸 Capture the Vibe</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={() => {}}
-                      />
-                    </label>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+
+                {/* 📸 Capture the Vibe — big thumb-friendly CTA */}
+                <motion.label
+                  className="flex items-center justify-center gap-2 w-full rounded-2xl cursor-pointer"
+                  style={{
+                    minHeight: '54px',
+                    background: 'linear-gradient(135deg, rgba(245,158,11,0.22) 0%, rgba(239,68,68,0.14) 100%)',
+                    border: '1px solid rgba(245,158,11,0.42)',
+                    boxShadow: '0 0 22px rgba(245,158,11,0.14)',
+                  }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <motion.span
+                    className="font-black"
+                    style={{ fontSize: '15px', color: '#FCD34D' }}
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+                  >
+                    📸 Capture the Vibe
+                  </motion.span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={() => {}}
+                  />
+                </motion.label>
+
+              </div>
             </motion.div>
 
             <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} />
@@ -574,7 +606,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             {sunData && (
               <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
                 <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest block mb-2">Sun Position Today</span>
-                {/* Fix 3: Dynamic sun context from real sunData — NOT hardcoded */}
                 {typeof sunData.startHour === 'number' && typeof sunData.endHour === 'number' && (
                   <div className="text-amber-400 font-medium text-sm mb-2 ml-1">
                     ✨ Best sun {formatSunHour(sunData.startHour)} – {formatSunHour(sunData.endHour)}
