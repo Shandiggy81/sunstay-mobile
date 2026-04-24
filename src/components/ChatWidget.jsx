@@ -56,21 +56,21 @@ const matchIntent = (text) => {
 const buildQuickReplies = (weather) => {
   const code = weather?.current?.weatherCode ?? 0;
   const isRain = code >= 500 && code < 600;
-  const uv = weather?.current?.uvIndex ?? 0;
+  const uv = weather?.current?.uvIndex ?? 'moderate';
   const wind = weather?.current?.windSpeed ?? 0;
 
   const all = [
-    { intent: 'sunny',      text: '☀️ Sunny outdoor spots',          response: "Love it! Hunting down the sunniest outdoor spots near you right now... ☀️",         action: 'onSurpriseMe' },
-    { intent: 'cloudy',     text: '🌥️ Covered & cosy venues',        response: "Great call! Filtering to venues with the best overhead cover... 🌥️",               action: 'onFindFamily' },
-    { intent: 'wind',       text: '💨 Wind-sheltered areas',          response: "Smart thinking! Finding the most wind-protected outdoor spots... 💨",               action: 'onFindBusiness' },
-    { intent: 'indoor',     text: '🌧️ Rainy day indoor picks',        response: "Staying dry! Loading the best indoor venues for you now... 🌧️",                    action: 'onFindWheelchair' },
-    { intent: 'rooftop',    text: '🔥 Rooftop bars right now',        response: "Rooftops incoming! Finding the best elevated venues near you... 🔥",               action: 'onFindDogFriendly' },
-    { intent: 'dog',        text: '🐶 Dog-friendly spots',            response: "Bring the pup! Filtering to dog-friendly venues now... 🐾",                        action: 'onFindDogFriendly' },
-    { intent: 'family',     text: '👨‍👩‍👧 Family-friendly venues',        response: "Family outing! Finding the best family-friendly spots near you... 👨‍👩‍👧",            action: 'onFindFamily' },
-    { intent: 'business',   text: '💼 Good spots to work from',       response: "Work mode! Finding venues with great vibes for getting things done... 💼",         action: 'onFindBusiness' },
-    { intent: 'accessible', text: '♿ Wheelchair accessible',         response: "On it! Filtering to fully accessible venues near you... ♿",                       action: 'onFindWheelchair' },
-    { intent: 'smoking',    text: '🚬 Smoking-friendly areas',        response: "Got it! Showing venues with designated outdoor smoking areas... 🚬",               action: 'onFindSmoking' },
-    { intent: 'surprise',   text: '🎲 Surprise me!',                  response: "Ooh, adventurous! Picking the best weather-matched venue for you right now... 🎲", action: 'onSurpriseMe' },
+    { intent: 'sunny',      text: '☀️ Sunny outdoor spots',          response: `Ripper! UV's at ${uv} right now — showing venues with the best sun exposure. ☀️`,          action: 'onFindSunny' },
+    { intent: 'cloudy',     text: '🌥️ Covered & cosy venues',        response: `Smart move — filtering to shaded and covered spots near you right now. 🌥️`,                action: 'onFindIndoor' },
+    { intent: 'wind',       text: '💨 Wind-sheltered areas',          response: `Yeah it's blowy out there! Pulling up the most protected outdoor spots. 💨`,                action: 'onFindWindSheltered' },
+    { intent: 'indoor',     text: '🌧️ Rainy day indoor picks',        response: `Staying dry — good call! Loading covered and shaded venues near you now. 🌧️`,              action: 'onFindIndoor' },
+    { intent: 'rooftop',    text: '🔥 Rooftop bars right now',        response: `Rooftops incoming! The Emerson and Good Heavens are looking quality right now. 🔥`,         action: 'onFindRooftop' },
+    { intent: 'dog',        text: '🐶 Dog-friendly spots',            response: "Bring the pup! Filtering to dog-friendly venues now... 🐾",                                action: 'onFindDogFriendly' },
+    { intent: 'family',     text: '👨‍👩‍👧 Family-friendly venues',        response: "Family outing! Finding the best family-friendly spots near you... 👨‍👩‍👧",                    action: 'onFindFamily' },
+    { intent: 'business',   text: '💼 Good spots to work from',       response: "Work mode! Finding venues with great vibes for getting things done... 💼",                 action: 'onFindBusiness' },
+    { intent: 'accessible', text: '♿ Wheelchair accessible',         response: "On it! Filtering to fully accessible venues near you... ♿",                               action: 'onFindWheelchair' },
+    { intent: 'smoking',    text: '🚬 Smoking-friendly areas',        response: "Got it! Showing venues with designated outdoor smoking areas... 🚬",                       action: 'onFindSmoking' },
+    { intent: 'surprise',   text: '🎲 Surprise me!',                  response: "Ooh, adventurous! Picking the best weather-matched venue for you right now... 🎲",         action: 'onSurpriseMe' },
   ];
 
   // Surface weather-contextual suggestions first
@@ -116,15 +116,30 @@ const TypingIndicator = () => (
 const ChatWidget = ({
   isOpen,
   onClose,
+  weather = null,
   onFindWheelchair,
   onFindDogFriendly,
   onFindSmoking,
   onSurpriseMe,
   onFindFamily,
   onFindBusiness,
-  weather = null,
+  onFindSunny,
+  onFindRooftop,
+  onFindIndoor,
+  onFindWindSheltered,
 }) => {
-  const actionMap = { onFindWheelchair, onFindDogFriendly, onFindSmoking, onSurpriseMe, onFindFamily, onFindBusiness };
+  const actionMap = {
+    onFindWheelchair,
+    onFindDogFriendly,
+    onFindSmoking,
+    onSurpriseMe,
+    onFindFamily,
+    onFindBusiness,
+    onFindSunny,
+    onFindRooftop,
+    onFindIndoor,
+    onFindWindSheltered,
+  };
   const mood = getWeatherMood(weather);
   const quickReplies = buildQuickReplies(weather);
 

@@ -429,6 +429,30 @@ const AppContent = () => {
         setTimeout(() => setIsChatOpen(false), 1500);
     }, []);
 
+    const handleFindSunny = useCallback(() => {
+        setActiveFilters(['full-sun']);
+        setSelectedVenue(null);
+        setTimeout(() => setIsChatOpen(false), 1500);
+    }, []);
+
+    const handleFindRooftop = useCallback(() => {
+        setActiveFilters(['rooftop']);
+        setSelectedVenue(null);
+        setTimeout(() => setIsChatOpen(false), 1500);
+    }, []);
+
+    const handleFindIndoor = useCallback(() => {
+        setActiveFilters(['shade']);
+        setSelectedVenue(null);
+        setTimeout(() => setIsChatOpen(false), 1500);
+    }, []);
+
+    const handleFindWindSheltered = useCallback(() => {
+        setActiveFilters(['shade']);
+        setSelectedVenue(null);
+        setTimeout(() => setIsChatOpen(false), 1500);
+    }, []);
+
     const handleRecenter = useCallback(() => {
         if (mapRef.current && mapRef.current.flyTo) {
             mapRef.current.flyTo({
@@ -716,12 +740,17 @@ const AppContent = () => {
                     <ChatWidget
                         isOpen={isChatOpen}
                         onClose={closeChat}
+                        weather={weather}
                         onFindWheelchair={handleFindWheelchair}
                         onFindDogFriendly={handleFindDogFriendly}
                         onFindSmoking={handleFindSmoking}
                         onSurpriseMe={handleSurpriseMe}
                         onFindFamily={handleFindFamily}
                         onFindBusiness={handleFindBusiness}
+                        onFindSunny={handleFindSunny}
+                        onFindRooftop={handleFindRooftop}
+                        onFindIndoor={handleFindIndoor}
+                        onFindWindSheltered={handleFindWindSheltered}
                     />
 
                     {/* FIX: Single SunnyMascot FAB – hidden when venue card is open */}
