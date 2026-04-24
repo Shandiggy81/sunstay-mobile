@@ -24,7 +24,6 @@ const fmtHour = (h) => {
 };
 
 const getUVIndex = (hour, cloudCover) => {
-    // Simulate UV index based on time of day and cloud cover
     const solarPeak = [0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 11, 10, 8, 6, 4, 2, 1, 0, 0, 0, 0, 0];
     const baseUV = solarPeak[hour] || 0;
     const cloudFactor = cloudCover === 'clear' ? 1.0 : cloudCover === 'clouds' ? 0.6 : 0.3;
@@ -46,6 +45,29 @@ const getWeatherEmoji = (condition) => {
     if (c.includes('rain') || c.includes('drizzle')) return '🌧️';
     if (c.includes('storm') || c.includes('thunder')) return '⛈️';
     return '🌤️';
+};
+
+// ── Promo definitions ─────────────────────────────────────────────
+
+const PROMOS = {
+    windy: {
+        emoji: '🌬️',
+        label: 'Windy day special — 20% off indoor tables',
+        title: 'Windy Day Special',
+        desc: (venueName) => `20% off indoor tables — today only at ${venueName}`,
+    },
+    sunny: {
+        emoji: '☀️',
+        label: 'Sunny session — free welcome drink with outdoor booking',
+        title: 'Sunny Session',
+        desc: (venueName) => `Free welcome drink with outdoor booking — today only at ${venueName}`,
+    },
+    rain: {
+        emoji: '🌧️',
+        label: 'Rainy day escape — 15% off all cozy corners',
+        title: 'Rainy Day Escape',
+        desc: (venueName) => `15% off all cozy corners — today only at ${venueName}`,
+    },
 };
 
 // ── Sub-components ───────────────────────────────────────────────
@@ -114,12 +136,11 @@ const LiveWeatherCard = ({ weather, venue, forecast }) => {
     );
 };
 
-const MiniForecasT = ({ forecast }) => {
-    // Next 3 hours
+// FIX 1: Renamed from MiniForecasT → MiniForecast
+const MiniForecast = ({ forecast }) => {
     const next3 = forecast.slice(1, 4);
     const current = forecast[0];
 
-    // Trend analysis
     const tempTrend = next3[2]?.temp - current.temp;
     const windTrend = next3[2]?.wind - current.wind;
 
@@ -130,7 +151,6 @@ const MiniForecasT = ({ forecast }) => {
     if (windTrend >= 5) trends.push({ icon: <ArrowUpRight size={12} />, text: 'Wind increasing', color: 'text-amber-500' });
     else if (windTrend <= -5) trends.push({ icon: <ArrowDownRight size={12} />, text: 'Wind easing', color: 'text-green-500' });
 
-    // Sun/cloud transition detection
     const currentComfort = current.comfort.level;
     const futureComfort = next3[2]?.comfort?.level;
     if ((currentComfort === 'cool' || currentComfort === 'cold') && (futureComfort === 'mild' || futureComfort === 'warm')) {
@@ -170,7 +190,6 @@ const AlertBadges = ({ weather, venue, forecast }) => {
     const alerts = [];
     const hour = new Date().getHours();
 
-    // Wind warning
     const windWarning = getWindWarning(weather.wind?.speed, venue);
     if (windWarning.level === 'orange' || windWarning.level === 'red') {
         alerts.push({
@@ -183,7 +202,6 @@ const AlertBadges = ({ weather, venue, forecast }) => {
         });
     }
 
-    // UV alert
     const cloudType = (weather.weather?.[0]?.main || '').toLowerCase();
     const uvIndex = getUVIndex(hour, cloudType);
     if (uvIndex >= 8) {
@@ -197,7 +215,6 @@ const AlertBadges = ({ weather, venue, forecast }) => {
         });
     }
 
-    // Rain approaching (check next 3 hours)
     const next3 = forecast.slice(1, 4);
     const currentTemp = forecast[0]?.temp || 20;
     const futureTemps = next3.map(h => h.temp);
@@ -250,14 +267,12 @@ const EngagementAnalytics = ({ photos, weather, venue }) => {
     const total = photos.length;
     const thisWeek = photos.filter(p => new Date(p.timestamp) >= weekAgo).length;
 
-    // Weather impact analysis
     const sunnyPhotos = photos.filter(p => {
         const s = (p.weather?.sunshineStatus || '').toLowerCase();
         return s.includes('sunny') || s.includes('clear');
     }).length;
     const sunnyPct = total > 0 ? Math.round((sunnyPhotos / total) * 100) : 0;
 
-    // Peak hours analysis (from photo timestamps)
     const hourBuckets = new Array(24).fill(0);
     photos.forEach(p => {
         const h = new Date(p.timestamp).getHours();
@@ -266,7 +281,6 @@ const EngagementAnalytics = ({ photos, weather, venue }) => {
     const peakHour = hourBuckets.indexOf(Math.max(...hourBuckets));
     const peakLabel = total > 0 ? fmtHour(peakHour) : 'N/A';
 
-    // Most tagged weather
     const weatherCounts = {};
     photos.forEach(p => {
         const s = p.weather?.sunshineStatus || 'Unknown';
@@ -281,7 +295,6 @@ const EngagementAnalytics = ({ photos, weather, venue }) => {
                 <span>Guest Engagement</span>
             </div>
 
-            {/* Photo counter card */}
             <div className="od-engagement-hero">
                 <div className="od-engagement-count">
                     <motion.span
@@ -302,7 +315,6 @@ const EngagementAnalytics = ({ photos, weather, venue }) => {
                 </div>
             </div>
 
-            {/* Weather impact */}
             <div className="od-engagement-grid">
                 <div className="od-engage-card">
                     <div className="od-engage-card-icon">☀️</div>
@@ -331,7 +343,6 @@ const EngagementAnalytics = ({ photos, weather, venue }) => {
                 </div>
             </div>
 
-            {/* Weather comparison insight */}
             {total > 2 && sunnyPct > 0 && (
                 <div className="od-insight-card">
                     <Sparkles size={13} className="text-amber-500 flex-shrink-0" />
@@ -358,7 +369,6 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
         const comfort = getComfortZone(feelsLike);
         const optimalWindow = getOptimalBookingTime(forecast);
 
-        // Wind-based
         if (windWarning.level === 'orange' || windWarning.level === 'red') {
             suggestions.push({
                 priority: 'high',
@@ -369,7 +379,6 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
             });
         }
 
-        // UV-based
         if (uvIndex >= 8) {
             suggestions.push({
                 priority: 'high',
@@ -388,7 +397,6 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
             });
         }
 
-        // Weekend sunny forecast
         const dayOfWeek = new Date().getDay();
         if ((dayOfWeek === 4 || dayOfWeek === 5) && cloudType.includes('clear')) {
             suggestions.push({
@@ -400,7 +408,6 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
             });
         }
 
-        // Cold comfort
         if (comfort.level === 'cold' || comfort.level === 'cool') {
             suggestions.push({
                 priority: 'medium',
@@ -411,7 +418,6 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
             });
         }
 
-        // Optimal booking window
         if (optimalWindow) {
             suggestions.push({
                 priority: 'low',
@@ -422,7 +428,6 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
             });
         }
 
-        // Rain
         if (cloudType.includes('rain') || cloudType.includes('drizzle')) {
             suggestions.push({
                 priority: 'high',
@@ -433,7 +438,6 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
             });
         }
 
-        // Hot weather
         if (comfort.level === 'hot' || comfort.level === 'extreme') {
             suggestions.push({
                 priority: 'high',
@@ -444,7 +448,6 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
             });
         }
 
-        // Low engagement prompt
         if (suggestions.length === 0) {
             suggestions.push({
                 priority: 'low',
@@ -504,21 +507,23 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
 };
 
 const ResponseTools = ({ venue, weather }) => {
-    const [outdoorOpen, setOutdoorOpen] = useState(true);
-    const [showPromo, setShowPromo] = useState(false);
+    const [outdoorOpen, setOutdoorOpen] = useState(venue.outdoorOpen ?? true);
+    // FIX 3: track which promo was selected instead of a boolean
+    const [activePromo, setActivePromo] = useState(null);
     const [promoSent, setPromoSent] = useState(false);
     const [likedPhotos, setLikedPhotos] = useState(new Set());
 
     const windWarning = getWindWarning(weather.wind?.speed, venue);
     const isWindy = windWarning.level === 'orange' || windWarning.level === 'red';
 
-    const handleToggleOutdoor = () => {
-        setOutdoorOpen(!outdoorOpen);
-    };
+    const handleToggleOutdoor = () => setOutdoorOpen(prev => !prev);
 
     const handleSendPromo = () => {
         setPromoSent(true);
-        setTimeout(() => setPromoSent(false), 3000);
+        setTimeout(() => {
+            setPromoSent(false);
+            setActivePromo(null);
+        }, 3000);
     };
 
     const handleLikePhoto = (photoId) => {
@@ -530,12 +535,13 @@ const ResponseTools = ({ venue, weather }) => {
         });
     };
 
-    // Get recent guest photos
     const recentPhotos = useMemo(() => {
         return getPhotosForVenue(venue.id)
             .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
             .slice(0, 4);
     }, [venue.id]);
+
+    const selectedPromo = activePromo ? PROMOS[activePromo] : null;
 
     return (
         <div className="od-tools-section">
@@ -613,32 +619,19 @@ const ResponseTools = ({ venue, weather }) => {
                     <span className="od-tool-title">Promote a Deal</span>
                 </div>
 
-                {!showPromo ? (
+                {!activePromo ? (
                     <div className="od-promo-suggestions">
-                        <button
-                            onClick={() => setShowPromo(true)}
-                            className="od-promo-btn"
-                            id="promo-windy-day"
-                        >
-                            <span>🌬️</span>
-                            <span>Windy day special — 20% off indoor tables</span>
-                        </button>
-                        <button
-                            onClick={() => setShowPromo(true)}
-                            className="od-promo-btn"
-                            id="promo-sunny-day"
-                        >
-                            <span>☀️</span>
-                            <span>Sunny session — free welcome drink with outdoor booking</span>
-                        </button>
-                        <button
-                            onClick={() => setShowPromo(true)}
-                            className="od-promo-btn"
-                            id="promo-rain-day"
-                        >
-                            <span>🌧️</span>
-                            <span>Rainy day escape — 15% off all cozy corners</span>
-                        </button>
+                        {Object.entries(PROMOS).map(([key, promo]) => (
+                            <button
+                                key={key}
+                                onClick={() => setActivePromo(key)}
+                                className="od-promo-btn"
+                                id={`promo-${key}`}
+                            >
+                                <span>{promo.emoji}</span>
+                                <span>{promo.label}</span>
+                            </button>
+                        ))}
                     </div>
                 ) : (
                     <motion.div
@@ -652,16 +645,16 @@ const ResponseTools = ({ venue, weather }) => {
                                 <span>Deal Ready to Send</span>
                             </div>
                             <div className="od-promo-preview-body">
-                                <span className="od-promo-emoji">🌬️</span>
+                                <span className="od-promo-emoji">{selectedPromo.emoji}</span>
                                 <div>
-                                    <p className="od-promo-preview-title">Windy Day Special</p>
-                                    <p className="od-promo-preview-desc">20% off indoor tables — today only at {venue.venueName}</p>
+                                    <p className="od-promo-preview-title">{selectedPromo.title}</p>
+                                    <p className="od-promo-preview-desc">{selectedPromo.desc(venue.venueName)}</p>
                                 </div>
                             </div>
                         </div>
                         <div className="od-promo-actions">
                             <button
-                                onClick={() => { setShowPromo(false); }}
+                                onClick={() => setActivePromo(null)}
                                 className="od-promo-cancel"
                             >
                                 Cancel
@@ -704,7 +697,50 @@ const VenueOwnerDashboard = ({ venue, onClose }) => {
         return venue ? getPhotosForVenue(venue.id) : [];
     }, [venue]);
 
-    if (!weather || !venue) return null;
+    // FIX 2: Loading state instead of silent null return
+    if (!weather || !venue) {
+        return (
+            <>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={onClose}
+                    className="fixed inset-0 bg-black/50 z-[70]"
+                />
+                <motion.div
+                    initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 50, scale: 0.95 }}
+                    transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                    className="fixed inset-x-3 top-[3%] bottom-[3%] z-[71] mx-auto max-w-lg overflow-hidden"
+                >
+                    <div className="od-panel">
+                        <div className="od-header">
+                            <div className="od-header-left">
+                                <div className="od-header-icon">
+                                    <ShieldCheck size={20} className="text-blue-500" />
+                                </div>
+                                <div>
+                                    <h2 className="od-header-title">Owner Dashboard</h2>
+                                    <p className="od-header-subtitle">Loading weather data…</p>
+                                </div>
+                            </div>
+                            <button onClick={onClose} className="od-close-btn" id="od-close">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="od-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                            <div style={{ textAlign: 'center', color: 'var(--color-text-muted, #888)', padding: '2rem' }}>
+                                <div className="od-live-dot" style={{ margin: '0 auto 0.75rem', width: 10, height: 10 }} />
+                                <p>Fetching live weather…</p>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            </>
+        );
+    }
 
     return (
         <>
@@ -733,8 +769,8 @@ const VenueOwnerDashboard = ({ venue, onClose }) => {
                                 <ShieldCheck size={20} className="text-blue-500" />
                             </div>
                             <div>
-                                <h2 className="od-header-title">Venue Dashboard</h2>
-                                <p className="od-header-subtitle">{venue.venueName}</p>
+                                <h2 className="od-header-title">{venue.venueName}</h2>
+                                <p className="od-header-subtitle">Owner Dashboard · Live weather</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="od-close-btn" id="od-close">
@@ -744,24 +780,12 @@ const VenueOwnerDashboard = ({ venue, onClose }) => {
 
                     {/* Scrollable Content */}
                     <div className="od-content">
-                        {/* Real-Time Weather Monitor */}
                         <LiveWeatherCard weather={weather} venue={venue} forecast={forecast} />
-
-                        {/* 3-Hour Mini Forecast */}
-                        <MiniForecasT forecast={forecast} />
-
-                        {/* Alert Badges */}
+                        <MiniForecast forecast={forecast} />
                         <AlertBadges weather={weather} venue={venue} forecast={forecast} />
-
-                        {/* Engagement Analytics */}
                         <EngagementAnalytics photos={photos} weather={weather} venue={venue} />
-
-                        {/* AI Recommendations */}
                         <AIRecommendations weather={weather} venue={venue} forecast={forecast} />
-
-                        {/* Response Tools */}
                         <ResponseTools venue={venue} weather={weather} />
-
                         <div className="h-6" />
                     </div>
                 </div>
