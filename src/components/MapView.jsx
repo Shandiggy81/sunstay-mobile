@@ -831,7 +831,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 <div className="absolute bottom-[72px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-2">
                     {[
                         { key: 'comfort', icon: '🌡️', label: 'Comfort' },
-                        { key: 'uv',      icon: '☀️', label: 'UV Index' },
+                        { key: 'uv',      icon: '🔆', label: 'UV Index' },
                         { key: 'radar',   icon: '🌧️', label: 'Radar' },
                     ].map(({ key, icon, label }) => (
                         <button
