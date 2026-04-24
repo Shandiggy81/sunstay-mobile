@@ -654,12 +654,12 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
             const emoji = getVenuePinEmoji(venue);
             const isSelected = venue.id === selectedVenue?.id;
-            const emoji = getVenuePinEmoji(venue);
             const isCozy = cozyWeatherActive && (
                 venue.tags?.includes('Fireplace') ||
                 venue.tags?.includes('Heaters') ||
                 venue.heating
             );
+            const el = document.createElement('div');
             el.style.cssText = `
                 display: flex;
                 align-items: center;
