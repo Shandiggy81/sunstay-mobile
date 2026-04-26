@@ -155,16 +155,107 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         map.current.resize();
     }, []);
 
-    // â”€â”€ Render venue markers directly from data (DEPRECATED for individual pins, kept for legacy if needed) â”€â”€
-    const createAllMarkers = useCallback(() => {
-        // Individual markers are now handled by Mapbox 'unclustered-point' layer for better performance and zoom stability.
-        // This function can be kept empty or removed if no other logic depends on it.
-        if (!map.current) return;
-        markersRef.current.forEach(m => m.remove());
-        markersRef.current = [];
-    }, []);
-
     const [selectedMarkerId, setSelectedMarkerId] = useState(null);
+
+    // â”€â”€ Cluster-Aware HTML Marker Sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    const updateDOMMarkers = useCallback(() => {
+        if (!map.current || !mapLoaded) return;
+
+        // 1. Get IDs of features that are currently unclustered in the viewport
+        const features = map.current.queryRenderedFeatures({ layers: ['unclustered-point'] });
+        const currentFeatureIds = new Set(features.map(f => f.properties.id));
+
+        // 2. Remove markers that are no longer unclustered or are off-screen
+        markersRef.current = markersRef.current.filter(m => {
+            if (!currentFeatureIds.has(m._venueId)) {
+                m.remove();
+                return false;
+            }
+            return true;
+        });
+
+        // 3. Add markers for new unclustered features
+        const existingIds = new Set(markersRef.current.map(m => m._venueId));
+        
+        features.forEach((feature) => {
+            const venueId = feature.properties.id;
+            if (existingIds.has(venueId)) return;
+
+            const venue = demoVenues.find(v => v.id === venueId);
+            if (!venue) return;
+
+            const el = document.createElement('div');
+            const emoji = getVenuePinEmoji(venue);
+            const isSelected = venue.id === selectedVenue?.id;
+            const isCozy = cozyWeatherActive && (
+                venue.tags?.includes('Fireplace') ||
+                venue.tags?.includes('Heaters') ||
+                venue.heating
+            );
+            el.style.cssText = `
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: ${isSelected ? '48px' : '38px'};
+                height: ${isSelected ? '48px' : '38px'};
+                border-radius: 50%;
+                background: ${isSelected ? '#fff' : 'rgba(255,255,255,0.95)'};
+                box-shadow: ${isSelected
+                    ? '0 4px 20px rgba(0,0,0,0.22), 0 0 0 3px #F59E0B'
+                    : isCozy
+                        ? '0 2px 12px rgba(0,0,0,0.14), 0 0 0 2px rgba(251,146,60,0.6)'
+                        : '0 2px 8px rgba(0,0,0,0.12), 0 0 0 1.5px rgba(0,0,0,0.06)'};
+                font-size: ${isSelected ? '22px' : '18px'};
+                cursor: pointer;
+                transition: all 0.18s ease;
+                transform: ${isSelected ? 'translateY(-4px) scale(1.08)' : 'translateY(0) scale(1)'};
+                will-change: transform;
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+            `;
+            el.textContent = emoji;
+
+            let startTouches = 0;
+            el.addEventListener('touchstart', (e) => { startTouches = e.touches.length; });
+            el.addEventListener('click', () => {
+              if (startTouches > 1) return;
+              onVenueSelectRef.current?.(venue, isMobileViewport());
+            });
+
+            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+                .setLngLat([venue.lng, venue.lat])
+                .addTo(map.current);
+
+            marker._venueId = venueId;
+            marker._element = el; // Store element for easy updates
+            markersRef.current.push(marker);
+        });
+
+        // 4. Update styles of existing markers to reflect current selection/cozy state
+        markersRef.current.forEach(marker => {
+            const venue = demoVenues.find(v => v.id === marker._venueId);
+            if (!venue || !marker._element) return;
+
+            const isSelected = venue.id === selectedVenue?.id;
+            const isCozy = cozyWeatherActive && (
+                venue.tags?.includes('Fireplace') ||
+                venue.tags?.includes('Heaters') ||
+                venue.heating
+            );
+
+            // Only update if properties changed to minimize DOM thrashing
+            marker._element.style.width = isSelected ? '48px' : '38px';
+            marker._element.style.height = isSelected ? '48px' : '38px';
+            marker._element.style.background = isSelected ? '#fff' : 'rgba(255,255,255,0.95)';
+            marker._element.style.boxShadow = isSelected
+                ? '0 4px 20px rgba(0,0,0,0.22), 0 0 0 3px #F59E0B'
+                : isCozy
+                    ? '0 2px 12px rgba(0,0,0,0.14), 0 0 0 2px rgba(251,146,60,0.6)'
+                    : '0 2px 8px rgba(0,0,0,0.12), 0 0 0 1.5px rgba(0,0,0,0.06)';
+            marker._element.style.fontSize = isSelected ? '22px' : '18px';
+            marker._element.style.transform = isSelected ? 'translateY(-4px) scale(1.08)' : 'translateY(0) scale(1)';
+        });
+    }, [mapLoaded, selectedVenue, cozyWeatherActive, liveVenueFeatures, getVenuePinEmoji]);
 
     // â”€â”€ Setup GeoJSON cluster source + layers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const setupClusterSource = useCallback(() => {
@@ -634,105 +725,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         setTimeout(() => setIsUpdating(false), 200);
     }, [filteredVenueIds, mapLoaded, weather]);
 
-    // â”€â”€ Cluster-Aware HTML Marker Sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const updateDOMMarkers = useCallback(() => {
-        if (!map.current || !mapLoaded) return;
-
-        // 1. Get IDs of features that are currently unclustered in the viewport
-        const features = map.current.queryRenderedFeatures({ layers: ['unclustered-point'] });
-        const currentFeatureIds = new Set(features.map(f => f.properties.id));
-
-        // 2. Remove markers that are no longer unclustered or are off-screen
-        markersRef.current = markersRef.current.filter(m => {
-            if (!currentFeatureIds.has(m._venueId)) {
-                m.remove();
-                return false;
-            }
-            return true;
-        });
-
-        // 3. Add markers for new unclustered features
-        const existingIds = new Set(markersRef.current.map(m => m._venueId));
-        
-        features.forEach((feature) => {
-            const venueId = feature.properties.id;
-            if (existingIds.has(venueId)) return;
-
-            const venue = demoVenues.find(v => v.id === venueId);
-            if (!venue) return;
-
-            const el = document.createElement('div');
-            const emoji = getVenuePinEmoji(venue);
-            const isSelected = venue.id === selectedVenue?.id;
-            const isCozy = cozyWeatherActive && (
-                venue.tags?.includes('Fireplace') ||
-                venue.tags?.includes('Heaters') ||
-                venue.heating
-            );
-            el.style.cssText = `
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: ${isSelected ? '48px' : '38px'};
-                height: ${isSelected ? '48px' : '38px'};
-                border-radius: 50%;
-                background: ${isSelected ? '#fff' : 'rgba(255,255,255,0.95)'};
-                box-shadow: ${isSelected
-                    ? '0 4px 20px rgba(0,0,0,0.22), 0 0 0 3px #F59E0B'
-                    : isCozy
-                        ? '0 2px 12px rgba(0,0,0,0.14), 0 0 0 2px rgba(251,146,60,0.6)'
-                        : '0 2px 8px rgba(0,0,0,0.12), 0 0 0 1.5px rgba(0,0,0,0.06)'};
-                font-size: ${isSelected ? '22px' : '18px'};
-                cursor: pointer;
-                transition: all 0.18s ease;
-                transform: ${isSelected ? 'translateY(-4px) scale(1.08)' : 'translateY(0) scale(1)'};
-                will-change: transform;
-                backdrop-filter: blur(4px);
-                -webkit-backdrop-filter: blur(4px);
-            `;
-            el.textContent = emoji;
-
-            let startTouches = 0;
-            el.addEventListener('touchstart', (e) => { startTouches = e.touches.length; });
-            el.addEventListener('click', () => {
-              if (startTouches > 1) return;
-              onVenueSelectRef.current?.(venue, isMobileViewport());
-            });
-
-            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-                .setLngLat([venue.lng, venue.lat])
-                .addTo(map.current);
-
-            marker._venueId = venueId;
-            marker._element = el; // Store element for easy updates
-            markersRef.current.push(marker);
-        });
-
-        // 4. Update styles of existing markers to reflect current selection/cozy state
-        markersRef.current.forEach(marker => {
-            const venue = demoVenues.find(v => v.id === marker._venueId);
-            if (!venue || !marker._element) return;
-
-            const isSelected = venue.id === selectedVenue?.id;
-            const isCozy = cozyWeatherActive && (
-                venue.tags?.includes('Fireplace') ||
-                venue.tags?.includes('Heaters') ||
-                venue.heating
-            );
-
-            // Only update if properties changed to minimize DOM thrashing
-            marker._element.style.width = isSelected ? '48px' : '38px';
-            marker._element.style.height = isSelected ? '48px' : '38px';
-            marker._element.style.background = isSelected ? '#fff' : 'rgba(255,255,255,0.95)';
-            marker._element.style.boxShadow = isSelected
-                ? '0 4px 20px rgba(0,0,0,0.22), 0 0 0 3px #F59E0B'
-                : isCozy
-                    ? '0 2px 12px rgba(0,0,0,0.14), 0 0 0 2px rgba(251,146,60,0.6)'
-                    : '0 2px 8px rgba(0,0,0,0.12), 0 0 0 1.5px rgba(0,0,0,0.06)';
-            marker._element.style.fontSize = isSelected ? '22px' : '18px';
-            marker._element.style.transform = isSelected ? 'translateY(-4px) scale(1.08)' : 'translateY(0) scale(1)';
-        });
-    }, [mapLoaded, selectedVenue, cozyWeatherActive, liveVenueFeatures, getVenuePinEmoji]);
 
     // â”€â”€ Efficient Marker Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     useEffect(() => {
@@ -840,6 +832,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         if (h === 12) return '12pm';
         return h > 12 ? `${h - 12}pm` : `${h}am`;
     };
+
 
     return (
         <div className={`ss-mapview-root ${(isTokenMissing || mapError) ? 'ssr-map-fallback-active' : ''}`}>
