@@ -1,10 +1,12 @@
-// Mapbox Configuration with obfuscated demo fallback to bypass security scans
-const P1 = 'pk.eyJ1Ijoic2hhbmRpZ2d5ODEiLCJhIjo';
-const P2 = 'iY21sdWQ5eWlwMDlubjNrcHU3bGZyOGF3biJ9';
-const P3 = '.l5NmEReeSzKFx-z1hfufAw';
-const DEMO_TOKEN = P1 + P2 + P3;
+// Mapbox token must be set via VITE_MAPBOX_TOKEN environment variable.
+// In Netlify: Site Settings → Environment Variables → VITE_MAPBOX_TOKEN
+// Never hardcode tokens here — they ship in the JS bundle and trigger security blocks.
+export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
-export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || DEMO_TOKEN;
+if (!import.meta.env.VITE_MAPBOX_TOKEN) {
+    console.warn('[Sunstay] VITE_MAPBOX_TOKEN is not set. Map will not load. Add it to your .env or Netlify environment variables.');
+}
+
 export const MAP_STYLE = 'mapbox://styles/mapbox/light-v11';
 
 export const INITIAL_VIEW_STATE = {
