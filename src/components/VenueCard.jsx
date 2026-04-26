@@ -48,8 +48,8 @@ const ScoreOrb = ({ score }) => {
   const r = 38;
   const circ = r * 2 * Math.PI;
   const offset = circ - (Math.max(0, Math.min(100, score)) / 100) * circ;
-  const color = score > 75 ? '#F59E0B' : score >= 50 ? '#38BDF8' : '#94A3B8';
-  const glowColor = score > 75 ? 'rgba(245,158,11,0.35)' : score >= 50 ? 'rgba(56,189,248,0.35)' : 'rgba(148,163,184,0.2)';
+  const color = score > 75 ? '#F59E0B' : score >= 50 ? '#0EA5E9' : '#94A3B8';
+  const glowColor = score > 75 ? 'rgba(245,158,11,0.30)' : score >= 50 ? 'rgba(14,165,233,0.30)' : 'rgba(148,163,184,0.15)';
   return (
     <Float range={5} duration={5} delay={0.3}>
       <motion.div
@@ -60,7 +60,7 @@ const ScoreOrb = ({ score }) => {
       >
         <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)` }} />
         <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={6} />
+          <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth={6} />
           <defs>
             <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#F59E0B" />
@@ -79,7 +79,7 @@ const ScoreOrb = ({ score }) => {
           />
         </svg>
         <div className="flex flex-col items-center justify-center text-center z-10">
-          <span className="text-white font-black text-[1.5rem] leading-none">{Math.round(score)}</span>
+          <span className="font-black text-[1.5rem] leading-none" style={{ color: '#1E293B' }}>{Math.round(score)}</span>
           <span className="text-[9px] uppercase tracking-widest font-bold mt-0.5" style={{ color }}>Vibe</span>
         </div>
       </motion.div>
@@ -91,13 +91,13 @@ const StatChip = ({ icon, label, value, delay = 0, className = 'flex-1 min-w-0' 
   <Float delay={delay} range={4} duration={4.5} className={className}>
     <motion.div
       className="flex flex-col items-center justify-center rounded-2xl"
-      style={{ padding: '8px 4px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)' }}
-      whileHover={{ scale: 1.06, background: 'rgba(255,255,255,0.07)' }}
+      style={{ padding: '8px 4px', background: 'rgba(14,165,233,0.07)', border: '1px solid rgba(14,165,233,0.15)', boxShadow: '0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)' }}
+      whileHover={{ scale: 1.06, background: 'rgba(14,165,233,0.11)' }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
       <span className="text-lg mb-0.5">{icon}</span>
-      <span className="text-white leading-none" style={{ fontSize: "13px", fontWeight: 700 }}>{value}</span>
-      <span className="uppercase tracking-widest font-bold mt-0.5" style={{ fontSize: "9px", color: "rgba(255,255,255,0.35)" }}>{label}</span>
+      <span className="leading-none" style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{value}</span>
+      <span className="uppercase tracking-widest font-bold mt-0.5" style={{ fontSize: '9px', color: '#64748B' }}>{label}</span>
     </motion.div>
   </Float>
 );
@@ -116,35 +116,35 @@ const GoldenWindowBar = ({ sunData }) => {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-amber-400 text-[0.7rem] font-black uppercase tracking-widest flex items-center gap-1.5">
+        <span className="text-amber-500 text-[0.7rem] font-black uppercase tracking-widest flex items-center gap-1.5">
           <motion.span animate={{ scale: [1, 1.3, 1], rotate: [0, 10, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} style={{ display: 'inline-block' }}>☀️</motion.span>
           Golden Window
         </span>
-        <motion.span className="text-amber-300 text-[11px] font-black" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>{hours}h direct sun today</motion.span>
+        <motion.span className="text-amber-600 text-[11px] font-black" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>{hours}h direct sun today</motion.span>
       </div>
-      <div className="relative h-[24px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+      <div className="relative h-[24px] rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.06)' }}>
         <motion.div
           className="absolute h-full rounded-full"
-          style={{ left: `${left}%`, background: 'linear-gradient(90deg, #F59E0B, #FDE68A, #F97316)', boxShadow: '0 0 16px rgba(245,158,11,0.6), 0 0 40px rgba(245,158,11,0.2)' }}
+          style={{ left: `${left}%`, background: 'linear-gradient(90deg, #F59E0B, #FDE68A, #F97316)', boxShadow: '0 0 16px rgba(245,158,11,0.5), 0 0 40px rgba(245,158,11,0.15)' }}
           initial={{ width: 0, opacity: 0 }}
           animate={{ width: `${width}%`, opacity: 1 }}
           transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
         />
         <motion.div
           className="absolute top-0 h-full w-12 rounded-full"
-          style={{ left: `${left}%`, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)' }}
+          style={{ left: `${left}%`, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}
           animate={{ x: ['0%', `${width * 4}px`, '0%'] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
         />
         <motion.div
           className="absolute top-0 h-full w-0.5 rounded-full"
-          style={{ left: `${nowPct}%`, background: 'rgba(255,255,255,0.7)' }}
-          animate={{ opacity: [0.5, 1, 0.5] }}
+          style={{ left: `${nowPct}%`, background: 'rgba(30,41,59,0.5)' }}
+          animate={{ opacity: [0.4, 0.9, 0.4] }}
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
       <div className="flex justify-between px-0.5">
-        {labels.map(h => <span key={h} style={{ fontSize: '10px', color: 'rgba(148,163,184,0.7)', fontWeight: 500 }}>{h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`}</span>)}
+        {labels.map(h => <span key={h} style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 500 }}>{h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`}</span>)}
       </div>
     </div>
   );
@@ -153,13 +153,13 @@ const GoldenWindowBar = ({ sunData }) => {
 const ShieldBar = ({ label, value, color, delay = 0 }) => (
   <div className="flex flex-col gap-1.5">
     <div className="flex justify-between">
-      <span className="text-white/40 text-[9px] font-black uppercase tracking-widest">{label}</span>
-      <span className="text-white/60 text-[9px] font-black">{Math.round(value * 100)}%</span>
+      <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>{label}</span>
+      <span className="text-[9px] font-black" style={{ color: '#64748B' }}>{Math.round(value * 100)}%</span>
     </div>
-    <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+    <div className="h-1.5 rounded-full" style={{ background: 'rgba(0,0,0,0.07)' }}>
       <motion.div
         className="h-full rounded-full"
-        style={{ background: color, boxShadow: `0 0 6px ${color.includes('38BDF8') ? 'rgba(56,189,248,0.4)' : 'rgba(245,158,11,0.4)'}` }}
+        style={{ background: color, boxShadow: `0 0 6px ${color.includes('0EA5E9') ? 'rgba(14,165,233,0.35)' : 'rgba(245,158,11,0.35)'}` }}
         initial={{ width: 0 }}
         animate={{ width: `${value * 100}%` }}
         transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay }}
@@ -177,14 +177,14 @@ const SparkLine = ({ data, color, label, unit }) => {
   const fillPts = `0,${H} ${pts} ${W},${H}`;
   return (
     <div className="flex flex-col gap-1 flex-1 min-w-0">
-      <span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{label}</span>
+      <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>{label}</span>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="w-full h-auto overflow-visible">
-        <polyline points={fillPts} fill={color} fillOpacity="0.08" stroke="none" />
-        <motion.polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 0.9 }} transition={{ duration: 1.2, ease: 'easeOut' }} />
+        <polyline points={fillPts} fill={color} fillOpacity="0.12" stroke="none" />
+        <motion.polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.2, ease: 'easeOut' }} />
       </svg>
       <div className="flex justify-between">
-        <span className="text-white/40 text-[8px] font-black">{Math.round(min)}{unit}</span>
-        <span className="text-white/70 text-[8px] font-black">{Math.round(max)}{unit}</span>
+        <span className="text-[8px] font-black" style={{ color: '#94A3B8' }}>{Math.round(min)}{unit}</span>
+        <span className="text-[8px] font-black" style={{ color: '#64748B' }}>{Math.round(max)}{unit}</span>
       </div>
     </div>
   );
@@ -199,13 +199,13 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
     roomIntelligence.balcony && { icon: '🪟', label: 'Private Balcony' },
   ].filter(Boolean);
   return (
-    <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-      <span className="text-sky-400 text-[0.7rem] font-black uppercase tracking-widest block mb-2">🛎 Room Intelligence</span>
+    <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(14,165,233,0.06)', border: '1px solid rgba(14,165,233,0.18)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+      <span className="text-sky-600 text-[0.7rem] font-black uppercase tracking-widest block mb-2">🛎 Room Intelligence</span>
       <div className="grid grid-cols-2 gap-2">
         {items.map((item, i) => (
           <div key={i} className="flex items-center gap-2">
             <span>{item.icon}</span>
-            <span className="text-white/60 text-[11px] font-semibold">{item.label}</span>
+            <span className="text-[11px] font-semibold" style={{ color: '#475569' }}>{item.label}</span>
           </div>
         ))}
       </div>
@@ -221,12 +221,12 @@ const LiveSkyCondition = ({ cloudcover, windGusts }) => {
     ? { label: 'Partly Cloudy', emoji: '⛅' }
     : { label: 'Overcast', emoji: '☁️' };
   return (
-    <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '14px 16px' }}>
-      <span style={{ color: '#fff', fontSize: '15px', fontWeight: 700 }}>
+    <div style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.14)', borderRadius: '16px', padding: '14px 16px' }}>
+      <span style={{ color: '#1E293B', fontSize: '15px', fontWeight: 700 }}>
         {sky.emoji} {sky.label}
       </span>
       {windGusts > 0 && (
-        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginTop: '6px' }}>
+        <p style={{ color: '#64748B', fontSize: '11px', marginTop: '6px' }}>
           Wind gusts peaking at {Math.round(windGusts)} km/h
         </p>
       )}
@@ -332,10 +332,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const roomIntelligence = venue.roomIntelligence || fullVenueData?.roomIntelligence;
 
   const verdict = useMemo(() => {
-    if (precipProb > 60) return { icon: '🌧️', text: 'Wet Conditions — Check Cover', color: '#38BDF8' };
+    if (precipProb > 60) return { icon: '🌧️', text: 'Wet Conditions — Check Cover', color: '#0EA5E9' };
     if (wind > 30)       return { icon: '🌬️', text: 'High Wind — Sit Indoors',      color: '#94A3B8' };
     if (score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions',    color: '#F59E0B' };
-    if (score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#34D399' };
+    if (score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#0EA5E9' };
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today',    color: '#64748B' };
   }, [precipProb, wind, score]);
 
@@ -359,18 +359,18 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     return '--';
   }, [venue.sunset, weather?.sys?.sunset]);
 
-  const blobA = isRain ? 'rgba(56,189,248,0.2)' : 'rgba(245,158,11,0.2)';
-  const blobB = isRain ? 'rgba(99,102,241,0.12)' : 'rgba(239,68,68,0.1)';
+  // Coastal Breeze blobs — lighter, cool-toned
+  const blobA = isRain ? 'rgba(14,165,233,0.12)' : 'rgba(245,158,11,0.10)';
+  const blobB = isRain ? 'rgba(99,102,241,0.07)' : 'rgba(14,165,233,0.08)';
 
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
         className="fixed inset-0 z-[9999] w-full h-full flex flex-col"
-        style={{ top: '72px', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+        style={{ top: '72px', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(6px)' }}
         onClick={onClose}
       >
-
         <motion.div
           onClick={e => e.stopPropagation()}
           drag="y" dragControls={dragControls} dragListener={false}
@@ -378,7 +378,13 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
           onDragEnd={(_, i) => { if (i.offset.y > 100 || i.velocity.y > 400) onClose(); }}
           initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 30, stiffness: 280 }}
-          style={{ rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200, maxHeight: '70vh', borderRadius: '28px 28px 0 0', background: 'linear-gradient(160deg, #0D1B2A 0%, #0F172A 55%, #080D1A 100%)', boxShadow: '0 -8px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{
+            rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200,
+            maxHeight: '70vh', borderRadius: '28px 28px 0 0',
+            background: 'linear-gradient(160deg, #FFFFFF 0%, #F0F4F8 55%, #E8EEF4 100%)',
+            boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
+            border: '1px solid rgba(14,165,233,0.12)'
+          }}
           className="pointer-events-auto mt-auto w-full overflow-y-auto select-none"
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
@@ -388,39 +394,40 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
           </div>
 
           <div className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2">
+            {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-0 md:hidden" onPointerDown={e => dragControls.start(e)} style={{ touchAction: 'none' }}>
-              <motion.div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(245,158,11,0.5)' }} animate={{ scaleX: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
+              <motion.div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(14,165,233,0.35)' }} animate={{ scaleX: [1, 1.2, 1], opacity: [0.4, 0.7, 0.4] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
             </div>
 
+            {/* Sticky header */}
             <motion.div
               className="flex items-center gap-3"
-              style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(12px)', background: 'rgba(13,27,42,0.85)', borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '12px 16px', margin: '0 -16px 0', borderRadius: '28px 28px 0 0' }}
+              style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(12px)', background: 'rgba(240,244,248,0.92)', borderBottom: '1px solid rgba(14,165,233,0.10)', padding: '12px 16px', margin: '0 -16px 0', borderRadius: '28px 28px 0 0' }}
               initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, type: 'spring', stiffness: 280, damping: 28 }}
             >
               <motion.button
                 onClick={onClose}
                 className="flex items-center justify-center flex-shrink-0"
-                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
-                whileHover={{ scale: 1.08, background: 'rgba(255,255,255,0.12)' }}
+                style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)' }}
+                whileHover={{ scale: 1.08, background: 'rgba(14,165,233,0.14)' }}
                 whileTap={{ scale: 0.92 }}
               >
-                <ArrowLeft size={18} color="#F1F5F9" />
+                <ArrowLeft size={18} color="#1E293B" />
               </motion.button>
               <div className="flex-1 min-w-0">
-                <h1 className="text-white font-bold truncate" style={{ fontSize: '18px' }}>
+                <h1 className="font-bold truncate" style={{ fontSize: '18px', color: '#1E293B' }}>
                   {displayName}
                 </h1>
-                <span className="text-white/40" style={{ fontSize: '0.7rem' }}>{vibe && vibe.length ? `${Array.isArray(vibe) ? vibe.join(', ') : vibe} · ${suburb}` : suburb}</span>
+                <span style={{ fontSize: '0.7rem', color: '#64748B' }}>{vibe && vibe.length ? `${Array.isArray(vibe) ? vibe.join(', ') : vibe} · ${suburb}` : suburb}</span>
               </div>
             </motion.div>
 
-            {/* ── Score Row: Orb + Context + Stat Chips ── */}
+            {/* Score Row */}
             <motion.div className="flex items-start gap-3" style={{ overflow: 'visible' }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
               <ScoreOrb score={score} />
-              {/* Score context block */}
               <div className="flex flex-col justify-center ml-1 mr-2 flex-shrink-0" style={{ paddingTop: '6px' }}>
-                <span className="text-white font-bold text-lg leading-tight tracking-wide">{scoreLabel}</span>
-                <span className="text-white/60 text-[11px] uppercase tracking-wider mt-0.5">For Current Weather</span>
+                <span className="font-bold text-lg leading-tight tracking-wide" style={{ color: '#1E293B' }}>{scoreLabel}</span>
+                <span className="text-[11px] uppercase tracking-wider mt-0.5" style={{ color: '#64748B' }}>For Current Weather</span>
               </div>
               <div className="flex-1 grid grid-cols-6 gap-1.5">
                 <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
@@ -434,20 +441,20 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
 
-
+            {/* Live Sun Exposure */}
             {hourlyData && (
-            <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+            <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(14,165,233,0.04)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(14,165,233,0.12)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Live Sun Exposure</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: getWeatherDisplay.label === 'Brilliant Sun' || getWeatherDisplay.label === 'Mostly Sunny' ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)', color: getWeatherDisplay.label === 'Brilliant Sun' || getWeatherDisplay.label === 'Mostly Sunny' ? '#10B981' : '#94A3B8', border: '1px solid rgba(255,255,255,0.1)' }}>{getWeatherDisplay.emoji} {getWeatherDisplay.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#64748B' }}>Live Sun Exposure</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: getWeatherDisplay.label === 'Brilliant Sun' || getWeatherDisplay.label === 'Mostly Sunny' ? 'rgba(16,185,129,0.12)' : 'rgba(148,163,184,0.12)', color: getWeatherDisplay.label === 'Brilliant Sun' || getWeatherDisplay.label === 'Mostly Sunny' ? '#059669' : '#64748B', border: '1px solid rgba(0,0,0,0.06)' }}>{getWeatherDisplay.emoji} {getWeatherDisplay.label}</span>
               </div>
               <div style={{ height: 96 }}>
-                <SparkLine data={buildSpark('direct_normal_irradiance', 24)} color="#FDE68A" label="Solar Intensity" unit=" W/m²" />
+                <SparkLine data={buildSpark('direct_normal_irradiance', 24)} color="#F59E0B" label="Solar Intensity" unit=" W/m²" />
               </div>
-              <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
                 <div className="flex items-center justify-between cursor-pointer" onClick={() => setGraphExpanded(g => !g)}>
-                  <span className="text-white/30 text-[10px] font-bold uppercase tracking-widest">Temp / Cloud / Wind</span>
-                  <motion.div animate={{ rotate: graphExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}><ChevronDown size={13} className="text-white/25" /></motion.div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#94A3B8' }}>Temp / Cloud / Wind</span>
+                  <motion.div animate={{ rotate: graphExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}><ChevronDown size={13} color="#94A3B8" /></motion.div>
                 </div>
                 <AnimatePresence>
                   {graphExpanded && (
@@ -457,7 +464,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                         <SparkLine data={buildSpark('cloud_cover') || buildSpark('cloudcover')} color="#94A3B8" label="Cloud" unit="%" />
                       </div>
                       <div className="flex gap-4">
-                        <SparkLine data={buildSpark('wind_speed_10m') || buildSpark('windspeed_10m')} color="#38BDF8" label="Wind" unit=" km" />
+                        <SparkLine data={buildSpark('wind_speed_10m') || buildSpark('windspeed_10m')} color="#0EA5E9" label="Wind" unit=" km" />
                       </div>
                     </motion.div>
                   )}
@@ -465,59 +472,54 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
             )}
+
+            {/* Golden Window */}
             {hourlyData && (
-            <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.14)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
+            <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.18)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
               <div className="flex items-center gap-2 flex-wrap">
                 <GoldenWindowBar sunData={sunData} />
                 {burnTimeMins !== null && burnTimeMins < 60 && (
-                  <span className="text-red-400/90 font-medium text-[11px] ml-1 tracking-wide">
+                  <span className="font-medium text-[11px] ml-1 tracking-wide" style={{ color: '#EF4444' }}>
                     ⚠️ Burn time: {burnTimeMins} mins
                   </span>
                 )}
               </div>
-              <div className="flex gap-5 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunrise</span><span className="text-amber-300 font-black text-sm">{displaySunrise}</span></div>
-                <div className="flex flex-col"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunset</span><span className="text-orange-300 font-black text-sm">{displaySunset}</span></div>
-                <div className="flex flex-col ml-auto items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.outdoor}</span><span className="text-white font-black text-sm">{sunHours.outdoor}</span></div>
-                <div className="flex flex-col items-end"><span className="text-white/30 text-[8px] uppercase tracking-widest font-black">{sunHours.labels.covered}</span><span className="text-white font-black text-sm">{sunHours.covered}</span></div>
+              <div className="flex gap-5 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                <div className="flex flex-col"><span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Sunrise</span><span className="font-black text-sm text-amber-500">{displaySunrise}</span></div>
+                <div className="flex flex-col"><span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Sunset</span><span className="font-black text-sm text-orange-500">{displaySunset}</span></div>
+                <div className="flex flex-col ml-auto items-end"><span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>{sunHours.labels.outdoor}</span><span className="font-black text-sm" style={{ color: '#1E293B' }}>{sunHours.outdoor}</span></div>
+                <div className="flex flex-col items-end"><span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>{sunHours.labels.covered}</span><span className="font-black text-sm" style={{ color: '#1E293B' }}>{sunHours.covered}</span></div>
                 {sunshineMins !== null && (
                   <div className="flex flex-col">
-                    <span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Sunshine</span>
-                    <span className="text-amber-300 font-black text-sm">{sunshineMins}m</span>
+                    <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Sunshine</span>
+                    <span className="font-black text-sm text-amber-500">{sunshineMins}m</span>
                   </div>
                 )}
                 {daylightHours !== null && (
                   <div className="flex flex-col items-end">
-                    <span className="text-white/30 text-[8px] uppercase tracking-widest font-black">Daylight</span>
-                    <span className="text-white font-black text-sm">{daylightHours}h</span>
+                    <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Daylight</span>
+                    <span className="font-black text-sm" style={{ color: '#1E293B' }}>{daylightHours}h</span>
                   </div>
                 )}
               </div>
             </motion.div>
             )}
 
-            {/* ── Vibe Section — always visible, mobile-first CTA ── */}
+            {/* Vibe Section */}
             <motion.div
               className="rounded-2xl overflow-hidden"
-              style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.22)' }}
+              style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.20)' }}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
             >
               <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
-
-                {/* Header + live verdict */}
                 <div className="flex flex-col gap-1">
-                  <span
-                    className="font-black uppercase tracking-widest"
-                    style={{ fontSize: '14px', color: '#FCD34D', textShadow: '0 0 14px rgba(245,158,11,0.55)' }}
-                  >
+                  <span className="font-black uppercase tracking-widest" style={{ fontSize: '14px', color: '#D97706' }}>
                     How's the Vibe? ✨
                   </span>
-                  <span className="font-semibold" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
+                  <span className="font-semibold" style={{ fontSize: '12px', color: '#64748B' }}>
                     {verdict.icon} {verdict.text}
                   </span>
                 </div>
-
-                {/* Vibe tags */}
                 <div className="flex gap-2 flex-wrap">
                   {(tags?.length ? tags : vibe ? (Array.isArray(vibe) ? vibe : [vibe]) : ['Chill']).map((t, i) => (
                     <span
@@ -527,87 +529,82 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                         fontSize: '12px',
                         padding: '6px 14px',
                         borderRadius: '999px',
-                        background: 'rgba(255,255,255,0.07)',
-                        border: '1px solid rgba(255,255,255,0.13)',
-                        color: 'rgba(255,255,255,0.8)',
+                        background: 'rgba(14,165,233,0.08)',
+                        border: '1px solid rgba(14,165,233,0.18)',
+                        color: '#0369A1',
                       }}
                     >
                       {t}
                     </span>
                   ))}
                 </div>
-
-                {/* 📸 Capture the Vibe — big thumb-friendly CTA */}
+                {/* Capture the Vibe CTA */}
                 <motion.label
                   className="flex items-center justify-center gap-2 w-full rounded-2xl cursor-pointer"
                   style={{
                     minHeight: '54px',
-                    background: 'linear-gradient(135deg, rgba(245,158,11,0.22) 0%, rgba(239,68,68,0.14) 100%)',
-                    border: '1px solid rgba(245,158,11,0.42)',
-                    boxShadow: '0 0 22px rgba(245,158,11,0.14)',
+                    background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
+                    border: '1px solid rgba(14,165,233,0.3)',
+                    boxShadow: '0 4px 20px rgba(14,165,233,0.25)',
                   }}
                   whileTap={{ scale: 0.97 }}
                 >
                   <motion.span
                     className="font-black"
-                    style={{ fontSize: '15px', color: '#FCD34D' }}
+                    style={{ fontSize: '15px', color: '#FFFFFF' }}
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
                   >
                     📸 Capture the Vibe
                   </motion.span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={() => {}}
-                  />
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={() => {}} />
                 </motion.label>
-
               </div>
             </motion.div>
 
             <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} />
 
-
-
             {setShowOwnerDashboard && (
               <motion.button
                 onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
                 className="w-full flex items-center justify-center rounded-xl"
-                style={{ padding: '8px 0', fontSize: '0.75rem', fontWeight: 700, background: '#0d9488', transition: 'transform 150ms ease, background-color 150ms ease', color: '#fff' }}
+                style={{ padding: '8px 0', fontSize: '0.75rem', fontWeight: 700, background: '#0d9488', color: '#fff' }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.95, background: '#0f766e' }}
                 transition={{ type: 'spring', stiffness: 320, damping: 22 }}
               >Manage This Venue →</motion.button>
             )}
 
-            <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 24 }} className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${verdict.color}28`, boxShadow: `0 0 32px ${verdict.color}12, inset 0 1px 0 rgba(255,255,255,0.04)` }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 24 }}
+              className="flex items-center gap-2 rounded-2xl px-3 py-2"
+              style={{ background: `${verdict.color}0f`, border: `1px solid ${verdict.color}30`, boxShadow: `0 0 24px ${verdict.color}12` }}
+            >
               <Float range={3} duration={3} delay={0}><span className="text-xl">{verdict.icon}</span></Float>
               <span className="font-black text-[0.75rem]" style={{ color: verdict.color }}>{verdict.text}</span>
             </motion.div>
 
             {isRainStartingSoon && minutesUntilRain > 0 && (
-              <div className="w-full bg-amber-500/15 border border-amber-500/40 rounded-full py-2 px-4 mb-4 flex items-center justify-center shadow-lg">
-                <span className="text-amber-400 font-semibold text-sm drop-shadow-md">
+              <div className="w-full rounded-full py-2 px-4 mb-4 flex items-center justify-center shadow-lg" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.30)' }}>
+                <span className="font-semibold text-sm" style={{ color: '#D97706' }}>
                   ⚠️ Rain expected in {minutesUntilRain} mins
                 </span>
               </div>
             )}
 
             {lat && lng && (
-              <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
-                <div className="px-3 pt-2 pb-1"><span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest">12-Hour Forecast</span></div>
+              <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
+                <div className="px-3 pt-2 pb-1"><span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>12-Hour Forecast</span></div>
                 <HourlyForecastStrip lat={lat} lng={lng} dark />
               </motion.div>
             )}
 
             {sunData && (
-              <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
-                <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest block mb-2">Sun Position Today</span>
+              <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
+                <span className="text-[0.7rem] font-black uppercase tracking-widest block mb-2" style={{ color: '#94A3B8' }}>Sun Position Today</span>
                 {typeof sunData.startHour === 'number' && typeof sunData.endHour === 'number' && (
-                  <div className="text-amber-400 font-medium text-sm mb-2 ml-1">
+                  <div className="font-medium text-sm mb-2 ml-1 text-amber-500">
                     ✨ Best sun {formatSunHour(sunData.startHour)} – {formatSunHour(sunData.endHour)}
                   </div>
                 )}
@@ -616,9 +613,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             )}
 
             {shielding && (
-              <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
-                <span className="text-white/30 text-[0.7rem] font-black uppercase tracking-widest">Venue Shielding</span>
-                {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#38BDF8" delay={0.1} />}
+              <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
+                <span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>Venue Shielding</span>
+                {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#0EA5E9" delay={0.1} />}
                 {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
                 {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={Math.min(100, shielding.shade)}    color="#F59E0B" delay={0.3} />}
               </motion.div>
@@ -626,9 +623,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             {balconyData && (
               <Float range={3} duration={5.5} delay={0.5}>
-                <div className="rounded-2xl p-3 flex justify-between items-center" style={{ background: 'rgba(56,189,248,0.05)', border: '1px solid rgba(56,189,248,0.13)' }}>
-                  <div><span className="text-sky-400 text-[0.7rem] font-black uppercase tracking-widest block mb-1">🪟 Balcony</span><span className="text-white font-black text-lg">{balconyData.hours}h Sun</span></div>
-                  <div className="text-right"><span className="text-white/35 text-[10px] font-bold block">{balconyData.direction}</span><span className="text-white/60 text-sm font-semibold">{balconyData.views}</span></div>
+                <div className="rounded-2xl p-3 flex justify-between items-center" style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.14)' }}>
+                  <div><span className="text-sky-500 text-[0.7rem] font-black uppercase tracking-widest block mb-1">🪟 Balcony</span><span className="font-black text-lg" style={{ color: '#1E293B' }}>{balconyData.hours}h Sun</span></div>
+                  <div className="text-right"><span className="text-[10px] font-bold block" style={{ color: '#94A3B8' }}>{balconyData.direction}</span><span className="text-sm font-semibold" style={{ color: '#475569' }}>{balconyData.views}</span></div>
                 </div>
               </Float>
             )}
@@ -640,14 +637,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center gap-2 rounded-2xl px-3 py-2"
-                style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', boxShadow: '0 0 24px rgba(239,68,68,0.2)' }}
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', boxShadow: '0 0 24px rgba(239,68,68,0.10)' }}
               >
-                <motion.span
-                  className="text-xl"
-                  animate={{ scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] }}
-                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                >🔥</motion.span>
-                <span className="font-black text-sm" style={{ color: '#fca5a5' }}>
+                <motion.span className="text-xl" animate={{ scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}>🔥</motion.span>
+                <span className="font-black text-sm" style={{ color: '#DC2626' }}>
                   {liveVenueFeatures?.[venue?.id]?.hasFireplace ? 'Fireplace Active — On Now' : 'Outdoor Heaters — On Now'}
                 </span>
               </motion.div>
@@ -655,19 +648,19 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             {heating && !['no heating','indoor only','heated outdoor'].includes(heating) && (
               <Float range={4} duration={4} delay={0.1}>
-                <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
                   <motion.span className="text-xl" animate={{ scale: [1, 1.15, 0.95, 1.1, 1], rotate: [-3, 3, -2, 2, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}>🔥</motion.span>
-                  <span className="text-amber-300 text-sm font-black">{heating === 'electric-fireplace' ? 'Premium Electric Fireplace' : heating === 'traditional-fireplace' ? 'Traditional Gas Fireplace' : 'Fireplace Active'}</span>
+                  <span className="text-sm font-black" style={{ color: '#D97706' }}>{heating === 'electric-fireplace' ? 'Premium Electric Fireplace' : heating === 'traditional-fireplace' ? 'Traditional Gas Fireplace' : 'Fireplace Active'}</span>
                 </div>
               </Float>
             )}
 
             {actualHappyHour && (
               <Float range={3} duration={6} delay={0.4}>
-                <div className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.18)' }}>
+                <div className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.18)' }}>
                   <div>
-                    <span className="text-orange-400 text-[0.7rem] font-black uppercase tracking-widest block mb-0.5">🍻 Happy Hour · {actualHappyHour.start} – {actualHappyHour.end}</span>
-                    <span className="text-white font-black text-[15px]">{actualHappyHour.deal}</span>
+                    <span className="text-orange-500 text-[0.7rem] font-black uppercase tracking-widest block mb-0.5">🍻 Happy Hour · {actualHappyHour.start} – {actualHappyHour.end}</span>
+                    <span className="font-black text-[15px]" style={{ color: '#1E293B' }}>{actualHappyHour.deal}</span>
                   </div>
                   {isHappyHourNow(actualHappyHour) && (
                     <motion.span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ml-3 flex-shrink-0" style={{ background: '#F97316', color: '#fff' }} animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>LIVE</motion.span>
@@ -677,11 +670,11 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             )}
 
             {liveVenueFeatures?.[venue.id] && Object.values(liveVenueFeatures[venue.id]).some(Boolean) && (
-              <div className="flex flex-wrap gap-2 rounded-2xl p-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="flex flex-wrap gap-2 rounded-2xl p-3" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }}>
                 {Object.entries(liveVenueFeatures[venue.id]).map(([key, active], i) =>
                   active && FEATURE_BADGES[key] ? (
                     <Float key={key} range={2} duration={4 + i * 0.3} delay={i * 0.05}>
-                      <span className="text-[10px] font-black px-3 py-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.08)' }}>{FEATURE_BADGES[key]}</span>
+                      <span className="text-[10px] font-black px-3 py-1.5 rounded-full" style={{ background: 'rgba(14,165,233,0.08)', color: '#0369A1', border: '1px solid rgba(14,165,233,0.18)' }}>{FEATURE_BADGES[key]}</span>
                     </Float>
                   ) : null
                 )}
@@ -689,14 +682,13 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             )}
 
             {cozyWeatherActive && (
-              <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.18)' }}>
+              <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.16)' }}>
                 <Float range={4} duration={4}><span>☕</span></Float>
-                <span className="text-indigo-300 text-sm font-black">Cozy Indoor · Heaters · Shelter</span>
+                <span className="text-sm font-black" style={{ color: '#6366F1' }}>Cozy Indoor · Heaters · Shelter</span>
               </div>
             )}
 
             <div style={{ height: 72 }} />
-
           </div>
         </motion.div>
       </motion.div>
