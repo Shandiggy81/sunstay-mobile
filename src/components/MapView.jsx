@@ -220,6 +220,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             el.addEventListener('click', () => {
               if (startTouches > 1) return;
               onVenueSelectRef.current?.(venue, isMobileViewport());
+              // Use direct venue object to avoid stale state/null crash during async update
+              if (map.current) {
+                map.current.flyTo({
+                  center: [venue.lng, venue.lat],
+                  zoom: 15,
+                  duration: 1200,
+                  essential: true
+                });
+              }
             });
 
             const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
@@ -357,7 +366,16 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             if (!features.length) return;
             const venueId = features[0].properties.id;
             const fullVenue = demoVenues.find(v => v.id === venueId);
-            if (fullVenue) onVenueSelect(fullVenue);
+            if (fullVenue) {
+                onVenueSelect(fullVenue);
+                // Use local object immediately to avoid stale state ReferenceError
+                map.current.flyTo({
+                    center: [fullVenue.lng, fullVenue.lat],
+                    zoom: 15,
+                    duration: 1200,
+                    essential: true
+                });
+            }
         });
 
         // â”€â”€ Hover effects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -694,15 +712,23 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         };
     }, [mapLoaded, isExpanded, safeResize]);
 
-    // Fly to venue when selected
+    // Fly to venue when selected from external sources (Search, Recenter, etc.)
     useEffect(() => {
+        // If the map isn't currently moving to this venue, trigger a flyTo
+        // This handles selection from outside the MapView (like the Sidebar or Search)
         if (selectedVenue && map.current) {
-            map.current.flyTo({
-                center: [selectedVenue.lng, selectedVenue.lat],
-                zoom: 15,
-                duration: 1200,
-                essential: true,
-            });
+            const center = map.current.getCenter();
+            const isAtVenue = Math.abs(center.lng - selectedVenue.lng) < 0.0001 && 
+                             Math.abs(center.lat - selectedVenue.lat) < 0.0001;
+            
+            if (!isAtVenue) {
+                map.current.flyTo({
+                    center: [selectedVenue.lng, selectedVenue.lat],
+                    zoom: 15,
+                    duration: 1200,
+                    essential: true,
+                });
+            }
         }
     }, [selectedVenue]);
 
@@ -949,6 +975,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         onVenueSelect(venue);
+                                                        // Direct flyTo for fallback UI interaction safety
+                                                        if (map.current) {
+                                                            map.current.flyTo({
+                                                                center: [venue.lng, venue.lat],
+                                                                zoom: 15,
+                                                                duration: 1200,
+                                                                essential: true
+                                                            });
+                                                        }
                                                     }}
                                                 >
                                                     <div className={`ss-marker-pill ss-marker-${weather && weatherColorFn ? weatherColorFn(weather, venue) : 'sunny'} shadow-xl border-2 border-white/30 ${(venue.hasCozy && cozyWeatherActive && cozyFilterActive) ? 'ss-marker-cozy-glow' : ''}`}>
