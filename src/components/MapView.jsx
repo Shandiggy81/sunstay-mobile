@@ -407,7 +407,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
     // â”€â”€ Effects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     useEffect(() => {
-        if (map.current) return;
+        if (map.current) {
+            // Safety: If the ref exists but the DOM container changed (e.g., during HMR), re-initialize
+            if (mapContainer.current && map.current.getContainer() !== mapContainer.current) {
+                map.current.remove();
+                map.current = null;
+            } else {
+                return;
+            }
+        }
 
         const isTokenValid = MAPBOX_TOKEN && MAPBOX_TOKEN.startsWith('pk.');
         if (!isTokenValid) {
@@ -547,6 +555,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 clearInterval(map.current._sunLightInterval);
             }
             markersRef.current.forEach(m => m.remove());
+            comfortEls.current.forEach(m => m.remove());
             if (map.current) {
                 map.current.remove();
                 map.current = null;
@@ -556,14 +565,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
 
 
-    // Cleanup sky interval on unmount
-    useEffect(() => {
-        return () => {
-            if (map.current?._sunSkyInterval) {
-                clearInterval(map.current._sunSkyInterval);
-            }
-        };
-    }, []);
 
 
 
@@ -833,9 +834,6 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
     // â”€â”€ Custom Layer Markers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
-    useEffect(() => {
-        updateLayerMarkers();
-    }, [updateLayerMarkers]);
 
     const fmtHour = (h) => {
         if (h === 0 || h === 24) return '12am';
