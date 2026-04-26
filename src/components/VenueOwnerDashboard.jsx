@@ -5,7 +5,7 @@ import {
     Camera, Clock,
     Zap, Heart, MessageCircle, Tag, ToggleLeft, ToggleRight,
     Bell, Shield, Sparkles, Megaphone, ShieldCheck,
-    ArrowUpRight, ArrowDownRight,
+    ArrowUpRight, ArrowDownRight, Check,
 } from 'lucide-react';
 import { useWeather } from '../context/WeatherContext';
 import {
@@ -69,6 +69,39 @@ const PROMOS = {
         desc: (venueName) => `15% off all cozy corners — today only at ${venueName}`,
     },
 };
+
+// ── Vibe tags (max 8 selectable) ─────────────────────────────────
+
+const ALL_VIBE_TAGS = [
+    { key: 'sunny-terrace', label: '☀️ Sunny Terrace' },
+    { key: 'cozy-inside', label: '🔥 Cozy Inside' },
+    { key: 'dog-friendly', label: '🐶 Dog Friendly' },
+    { key: 'live-music', label: '🎸 Live Music' },
+    { key: 'harbour-views', label: '⚓ Harbour Views' },
+    { key: 'rooftop', label: '🏙️ Rooftop' },
+    { key: 'waterfront', label: '🌊 Waterfront' },
+    { key: 'shaded-patio', label: '⛱️ Shaded Patio' },
+    { key: 'late-night', label: '🌙 Late Night' },
+    { key: 'great-coffee', label: '☕ Great Coffee' },
+    { key: 'cocktails', label: '🍹 Cocktails' },
+    { key: 'family-friendly', label: '👨‍👩‍👧 Family Friendly' },
+];
+
+const MAX_TAGS = 8;
+
+// ── Business hours helpers ────────────────────────────────────────
+
+const DEFAULT_HOURS = [
+    { day: 'Monday', open: '08:00', close: '22:00', closed: false },
+    { day: 'Tuesday', open: '08:00', close: '22:00', closed: false },
+    { day: 'Wednesday', open: '08:00', close: '22:00', closed: false },
+    { day: 'Thursday', open: '08:00', close: '23:00', closed: false },
+    { day: 'Friday', open: '10:00', close: '00:00', closed: false },
+    { day: 'Saturday', open: '10:00', close: '00:00', closed: false },
+    { day: 'Sunday', open: '10:00', close: '22:00', closed: false },
+];
+
+const WEEKEND_DAYS = new Set(['Saturday', 'Sunday', 'Friday']);
 
 // ── Sub-components ───────────────────────────────────────────────
 
@@ -136,7 +169,6 @@ const LiveWeatherCard = ({ weather, venue, forecast }) => {
     );
 };
 
-// FIX 1: Renamed from MiniForecasT → MiniForecast
 const MiniForecast = ({ forecast }) => {
     const next3 = forecast.slice(1, 4);
     const current = forecast[0];
@@ -506,9 +538,264 @@ const AIRecommendations = ({ weather, venue, forecast }) => {
     );
 };
 
+// ── Vibe Tags Section ─────────────────────────────────────────────
+
+const VibeTags = ({ venueId }) => {
+    const storageKey = `vibe-tags-${venueId}`;
+    const [selected, setSelected] = useState(() => {
+        try {
+            const raw = window._vibeTagsStore?.[storageKey];
+            return raw ? new Set(raw) : new Set(['sunny-terrace', 'dog-friendly']);
+        } catch { return new Set(['sunny-terrace', 'dog-friendly']); }
+    });
+    const [saved, setSaved] = useState(false);
+
+    const toggle = (key) => {
+        setSelected(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) {
+                next.delete(key);
+            } else if (next.size < MAX_TAGS) {
+                next.add(key);
+            }
+            return next;
+        });
+        setSaved(false);
+    };
+
+    const handleSave = () => {
+        if (!window._vibeTagsStore) window._vibeTagsStore = {};
+        window._vibeTagsStore[storageKey] = [...selected];
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+    };
+
+    const remaining = MAX_TAGS - selected.size;
+
+    return (
+        <div className="od-tool-card">
+            <div className="od-tool-title-row" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Sparkles size={13} className="text-violet-500" />
+                    <span className="od-tool-title">Vibe Tags</span>
+                </div>
+                {/* ── FIX: remaining slots counter, not selected/max ── */}
+                <span style={{
+                    fontSize: 10, fontWeight: 700,
+                    color: remaining === 0 ? '#ef4444' : '#9ca3af',
+                    background: remaining === 0 ? '#fef2f2' : '#f3f4f6',
+                    padding: '2px 8px', borderRadius: 8,
+                }}>
+                    {remaining === 0 ? 'Full' : `${remaining} left`}
+                </span>
+            </div>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 10, fontWeight: 500 }}>
+                Pick up to {MAX_TAGS} tags that describe your venue
+            </p>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                {ALL_VIBE_TAGS.map(({ key, label }) => {
+                    const isOn = selected.has(key);
+                    const disabled = !isOn && selected.size >= MAX_TAGS;
+                    return (
+                        <button
+                            key={key}
+                            onClick={() => !disabled && toggle(key)}
+                            style={{
+                                padding: '5px 12px',
+                                borderRadius: 20,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: disabled ? 'not-allowed' : 'pointer',
+                                opacity: disabled ? 0.35 : 1,
+                                border: isOn ? '2px solid #7c3aed' : '1.5px solid #e5e7eb',
+                                background: isOn
+                                    ? 'linear-gradient(135deg, #ede9fe, #ddd6fe)'
+                                    : '#f9fafb',
+                                color: isOn ? '#5b21b6' : '#6b7280',
+                                transition: 'all 0.15s ease',
+                            }}
+                        >
+                            {label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            <button
+                onClick={handleSave}
+                style={{
+                    width: '100%',
+                    padding: '9px 0',
+                    borderRadius: 12,
+                    border: 'none',
+                    fontWeight: 800,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    background: saved
+                        ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                        : 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+                    color: 'white',
+                    transition: 'background 0.3s ease',
+                    boxShadow: saved
+                        ? '0 2px 8px rgba(34,197,94,0.3)'
+                        : '0 2px 8px rgba(124,58,237,0.25)',
+                }}
+            >
+                {saved ? <><Check size={14} /> Saved!</> : 'Save Vibe Tags'}
+            </button>
+        </div>
+    );
+};
+
+// ── Business Hours Section ────────────────────────────────────────
+
+const BusinessHours = ({ venueId }) => {
+    const [hours, setHours] = useState(DEFAULT_HOURS);
+    const [saved, setSaved] = useState(false);
+
+    const update = (idx, field, value) => {
+        setSaved(false);
+        setHours(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+    };
+
+    const handleSave = () => {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+    };
+
+    return (
+        <div className="od-tool-card">
+            <div className="od-tool-title-row" style={{ marginBottom: 10 }}>
+                <Clock size={13} className="text-blue-500" />
+                <span className="od-tool-title">Business Hours</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {hours.map((row, idx) => {
+                    const isWeekend = WEEKEND_DAYS.has(row.day);
+                    return (
+                        <div
+                            key={row.day}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '7px 10px',
+                                borderRadius: 10,
+                                /* ── FIX: amber tint for Fri/Sat/Sun ── */
+                                background: row.closed
+                                    ? '#fafafa'
+                                    : isWeekend
+                                        ? 'linear-gradient(90deg, #fffbeb, #fef9f0)'
+                                        : '#f9fafb',
+                                border: isWeekend && !row.closed
+                                    ? '1px solid #fde68a'
+                                    : '1px solid transparent',
+                                opacity: row.closed ? 0.6 : 1,
+                            }}
+                        >
+                            {/* Day label */}
+                            <span style={{
+                                width: 80, fontSize: 12, fontWeight: 700,
+                                color: isWeekend ? '#92400e' : '#374151',
+                                flexShrink: 0,
+                            }}>
+                                {row.day.slice(0, 3)}
+                                {isWeekend && <span style={{ marginLeft: 4, fontSize: 9, color: '#f59e0b' }}>★</span>}
+                            </span>
+
+                            {row.closed ? (
+                                <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: '#9ca3af' }}>Closed</span>
+                            ) : (
+                                <>
+                                    <input
+                                        type="time"
+                                        value={row.open}
+                                        onChange={e => update(idx, 'open', e.target.value)}
+                                        style={{
+                                            flex: 1, padding: '3px 6px', borderRadius: 8,
+                                            border: '1px solid #e5e7eb', fontSize: 12,
+                                            fontWeight: 600, color: '#374151',
+                                            background: 'white',
+                                        }}
+                                    />
+                                    <span style={{ fontSize: 10, color: '#9ca3af', flexShrink: 0 }}>–</span>
+                                    <input
+                                        type="time"
+                                        value={row.close}
+                                        onChange={e => update(idx, 'close', e.target.value)}
+                                        style={{
+                                            flex: 1, padding: '3px 6px', borderRadius: 8,
+                                            border: '1px solid #e5e7eb', fontSize: 12,
+                                            fontWeight: 600, color: '#374151',
+                                            background: 'white',
+                                        }}
+                                    />
+                                </>
+                            )}
+
+                            {/* Closed toggle */}
+                            <button
+                                onClick={() => update(idx, 'closed', !row.closed)}
+                                style={{
+                                    padding: '3px 8px', borderRadius: 8,
+                                    border: '1px solid',
+                                    borderColor: row.closed ? '#fca5a5' : '#e5e7eb',
+                                    background: row.closed ? '#fef2f2' : '#f9fafb',
+                                    fontSize: 10, fontWeight: 700,
+                                    color: row.closed ? '#ef4444' : '#9ca3af',
+                                    cursor: 'pointer', flexShrink: 0,
+                                    transition: 'all 0.15s ease',
+                                }}
+                            >
+                                {row.closed ? 'Closed' : 'Open'}
+                            </button>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* ── FIX: Save with confirmation ── */}
+            <button
+                onClick={handleSave}
+                style={{
+                    marginTop: 12,
+                    width: '100%',
+                    padding: '9px 0',
+                    borderRadius: 12,
+                    border: 'none',
+                    fontWeight: 800,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    background: saved
+                        ? 'linear-gradient(135deg, #22c55e, #16a34a)'
+                        : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                    color: 'white',
+                    transition: 'background 0.3s ease',
+                    boxShadow: saved
+                        ? '0 2px 8px rgba(34,197,94,0.3)'
+                        : '0 2px 8px rgba(59,130,246,0.25)',
+                }}
+            >
+                {saved ? <><Check size={14} /> Saved!</> : 'Save Hours'}
+            </button>
+        </div>
+    );
+};
+
+// ── Response Tools ────────────────────────────────────────────────
+
 const ResponseTools = ({ venue, weather }) => {
     const [outdoorOpen, setOutdoorOpen] = useState(venue.outdoorOpen ?? true);
-    // FIX 3: track which promo was selected instead of a boolean
     const [activePromo, setActivePromo] = useState(null);
     const [promoSent, setPromoSent] = useState(false);
     const [likedPhotos, setLikedPhotos] = useState(new Set());
@@ -578,6 +865,12 @@ const ResponseTools = ({ venue, weather }) => {
                     </motion.div>
                 )}
             </div>
+
+            {/* Business Hours */}
+            <BusinessHours venueId={venue.id} />
+
+            {/* Vibe Tags */}
+            <VibeTags venueId={venue.id} />
 
             {/* Guest Photo Interactions */}
             {recentPhotos.length > 0 && (
@@ -697,7 +990,6 @@ const VenueOwnerDashboard = ({ venue, onClose }) => {
         return venue ? getPhotosForVenue(venue.id) : [];
     }, [venue]);
 
-    // FIX 2: Loading state instead of silent null return
     if (!weather || !venue) {
         return (
             <>
@@ -731,7 +1023,7 @@ const VenueOwnerDashboard = ({ venue, onClose }) => {
                             </button>
                         </div>
                         <div className="od-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-                            <div style={{ textAlign: 'center', color: 'var(--color-text-muted, #888)', padding: '2rem' }}>
+                            <div style={{ textAlign: 'center', color: '#9ca3af', padding: '2rem' }}>
                                 <div className="od-live-dot" style={{ margin: '0 auto 0.75rem', width: 10, height: 10 }} />
                                 <p>Fetching live weather…</p>
                             </div>
