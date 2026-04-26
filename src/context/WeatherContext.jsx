@@ -346,7 +346,7 @@ export const WeatherProvider = ({ children }) => {
         const desc = weather.weather?.[0]?.description || '';
         const temp = Math.round(weather.main?.temp || 0);
         const cleanDesc = desc ? desc.charAt(0).toUpperCase() + desc.slice(1) : 'Conditions unavailable';
-        return `${temp}° • ${cleanDesc}`;
+        return `${temp}Â° â€¢ ${cleanDesc}`;
     };
 
     const getCardBackground = () => {
@@ -383,7 +383,7 @@ export const WeatherProvider = ({ children }) => {
             cloudCover: weather.cloudCoverPct ?? weather.clouds?.all ?? 0,
             windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
             isDay: weather.isDay ?? 1,
-        }) : { score: 75, label: 'Great Conditions 🌤️', color: '#34D399' },
+        }) : { score: 75, label: 'Great Conditions ðŸŒ¤ï¸', color: '#34D399' },
     };
 
     return (
