@@ -13,12 +13,12 @@ import {
 import { getSunPositionForMap, toMapboxSkyValues, getMapboxLightPreset } from '../util/sunPosition';
 import SunCalc from 'suncalc';
 
-// â”€â”€ Build a venue lookup for click handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Build a venue lookup for click handlers ──────────────────────
 const venueById = Object.fromEntries(demoVenues.map(v => [v.id, v]));
 
 // venue pin emoji logic moved inside MapView for prop access
 
-// â”€â”€ Convert venues to GeoJSON FeatureCollection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Convert venues to GeoJSON FeatureCollection ──────────────────
 function buildGeoJSON(venues, weatherData) {
     return {
         type: 'FeatureCollection',
@@ -36,35 +36,35 @@ function buildGeoJSON(venues, weatherData) {
 }
 
 const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, liveVenueFeatures, mapRef, weatherColorFn, cozyWeatherActive, cozyFilterActive, isExpanded }, ref) => {
-    // â”€â”€ Dynamic venue emoji logic: Dashboard-reactive â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Dynamic venue emoji logic: Dashboard-reactive ─────────
     const getVenuePinEmoji = useCallback((venue) => {
         const liveState = liveVenueFeatures?.[venue.id] || {};
         
         // Dashboard overrides: if heaters, fireplace, or roof closed are active -> FIRE!
         if (liveState.hasFireplace || liveState.hasHeaters || liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed) {
-            return 'ðŸ”¥';
+            return '🔥';
         }
 
         // Current temperature fallback if not provided
         const currentTemp = venue.currentTemp ?? 20;
 
-        // Default Fire pin (static data): venue has fireplace or heated outdoor AND current temp is under 18Â°C
+        // Default Fire pin (static data): venue has fireplace or heated outdoor AND current temp is under 18°C
         if ((venue.heating === 'fireplace' || venue.heating === 'heated outdoor') && currentTemp < 18) {
-            return 'ðŸ”¥';
+            return '🔥';
         }
 
         // Weather-driven: use current weather condition for the venue
         const condition = (venue.weatherCondition || venue.condition || '').toLowerCase();
         
         if (condition.includes('cloud') || condition.includes('overcast')) {
-            return 'â›…';
+            return '⛅';
         }
         if (condition.includes('rain')) {
-            return 'ðŸŒ§ï¸';
+            return '🌧️';
         }
         
         // Default: sunny
-        return 'â˜€ï¸';
+        return '☀️';
     }, [liveVenueFeatures]);
     const mapContainer = useRef(null);
     const map = useRef(null);
@@ -145,9 +145,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         }
     }));
 
-    // â”€â”€ Callbacks and Memoized Functions (Must be defined before use in effects) â”€â”€â”€â”€
+    // ── Callbacks and Memoized Functions (Must be defined before use in effects) ────
 
-    // â”€â”€ Safe Resize helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Safe Resize helper ──────────────────────────────────────────
     const safeResize = useCallback(() => {
         if (!map.current || !mapContainer.current) return;
         const { clientWidth, clientHeight } = mapContainer.current;
@@ -157,7 +157,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
     const [selectedMarkerId, setSelectedMarkerId] = useState(null);
 
-    // â”€â”€ Cluster-Aware HTML Marker Sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Cluster-Aware HTML Marker Sync ───────────────────────────
     const updateDOMMarkers = useCallback(() => {
         if (!map.current || !mapLoaded) return;
 
@@ -266,7 +266,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         });
     }, [mapLoaded, selectedVenue, cozyWeatherActive, liveVenueFeatures, getVenuePinEmoji]);
 
-    // â”€â”€ Setup GeoJSON cluster source + layers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Setup GeoJSON cluster source + layers ──────────────────────
     const setupClusterSource = useCallback(() => {
         if (!map.current) return;
 
@@ -287,7 +287,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             clusterMaxZoom: 14, // Zoom level where clustering stops
         });
 
-        // â”€â”€ Clusters circle layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Clusters circle layer ──────────────────────────────
         map.current.addLayer({
             id: 'clusters',
             type: 'circle',
@@ -297,9 +297,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 'circle-color': [
                     'step',
                     ['get', 'point_count'],
-                    '#FBBF24',   // amber â€” small clusters
-                    10, '#F97316', // orange â€” medium clusters
-                    30, '#EF4444'  // red â€” large clusters
+                    '#FBBF24',   // amber — small clusters
+                    10, '#F97316', // orange — medium clusters
+                    30, '#EF4444'  // red — large clusters
                 ],
                 'circle-radius': [
                     'step',
@@ -315,7 +315,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             }
         });
 
-        // â”€â”€ CLUSTER NUMBERS fix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── CLUSTER NUMBERS fix ────────────────────────────────
         map.current.addLayer({
             id: 'cluster-count',
             type: 'symbol',
@@ -329,7 +329,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             paint: { 'text-color': '#ffffff' }
         });
 
-        // â”€â”€ Unclustered points layer (for hit testing and sync) â”€â”€
+        // ── Unclustered points layer (for hit testing and sync) ──
         map.current.addLayer({
             id: 'unclustered-point',
             type: 'circle',
@@ -341,9 +341,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             }
         });
 
-        // â”€â”€ Unclustered points (Emoji Pins) moved to useEffect for performance â”€â”€
+        // ── Unclustered points (Emoji Pins) moved to useEffect for performance ──
 
-        // â”€â”€ Click on cluster â†’ zoom in â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Click on cluster → zoom in ───────────────────────────
         map.current.on('click', 'clusters', (e) => {
             if (!map.current || !map.current.isSourceLoaded('venues')) return;
             const features = map.current.queryRenderedFeatures(e.point, { layers: ['clusters'] });
@@ -359,7 +359,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             });
         });
 
-        // â”€â”€ Click on individual pin â†’ open card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Click on individual pin → open card ────────────────────
         map.current.on('click', 'unclustered-point', (e) => {
             if (!map.current || !map.current.isSourceLoaded('venues')) return;
             const features = map.current.queryRenderedFeatures(e.point, { layers: ['unclustered-point'] });
@@ -378,7 +378,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             }
         });
 
-        // â”€â”€ Hover effects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Hover effects ──────────────────────────────────────────
         map.current.on('mouseenter', 'clusters', () => {
             if (!map.current || !map.current.isSourceLoaded('venues')) return;
             map.current.getCanvas().style.cursor = 'pointer';
@@ -410,7 +410,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         });
     }, [onVenueSelect, updateDOMMarkers]);
 
-    // â”€â”€ Apply SunCalc-driven sky layer to the map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Apply SunCalc-driven sky layer to the map ─────────────────
     const applySunSkyLayer = useCallback(() => {
         if (!map.current) return;
 
@@ -448,7 +448,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                     intensity: lightPreset.intensity,
                 });
             } catch (e) {
-                // Sky layer is cosmetic â€” don't break the map if it fails
+                // Sky layer is cosmetic — don't break the map if it fails
                 console.warn('[MapView] Sky layer update failed (non-fatal):', e.message);
             }
         };
@@ -462,7 +462,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         map.current._sunSkyInterval = skyInterval;
     }, []);
 
-    // â”€â”€ Custom Layer Markers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Custom Layer Markers ─────────────────────────────────
     const updateLayerMarkers = useCallback(() => {
         comfortEls.current.forEach(m => m.remove());
         comfortEls.current = [];
@@ -489,7 +489,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
                 el.innerHTML = `
                     <div class="comfort-map-pill" style="background:${bgColor}; pointer-events: none;">
-                        <span class="comfort-map-temp" style="pointer-events: none;">${hourData.feelsLike}Â°</span>
+                        <span class="comfort-map-temp" style="pointer-events: none;">${hourData.feelsLike}°</span>
                         <span class="comfort-map-icon" style="pointer-events: none;">${hourData.comfort.icon}</span>
                     </div>
                 `;
@@ -514,7 +514,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         });
     }, [activeLayer, comfortHour, weather, uvIndex, onVenueSelect]);
 
-    // â”€â”€ Effects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Effects ─────────────────────────────────────────────────────────
     useEffect(() => {
         if (map.current) {
             // Safety: If the ref exists but the DOM container changed (e.g., during HMR), re-initialize
@@ -650,7 +650,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             setMapError(true);
         }
 
-        // ResizeObserver â€” automatically resize Mapbox canvas when container dimensions change
+        // ResizeObserver — automatically resize Mapbox canvas when container dimensions change
         const containerEl = mapContainer.current;
         const ro = new ResizeObserver(() => {
             if (map.current) map.current.resize();
@@ -679,10 +679,10 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
 
 
 
-    // â”€â”€ Safe Resize helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Safe Resize helper ──────────────────────────────────────────
 
 
-    // â”€â”€ Map Resize Handling (ResizeObserver) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Map Resize Handling (ResizeObserver) ─────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded || !mapContainer.current) return;
         let t1, t2, t3;
@@ -732,7 +732,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         }
     }, [selectedVenue]);
 
-    // â”€â”€ Update GeoJSON source when filter changes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Update GeoJSON source when filter changes ─────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         const source = map.current.getSource('venues');
@@ -752,7 +752,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
     }, [filteredVenueIds, mapLoaded, weather]);
 
 
-    // â”€â”€ Efficient Marker Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Efficient Marker Management ─────────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
@@ -791,7 +791,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         }
     }, [cozyFilterActive, cozyWeatherActive]);
 
-    // â”€â”€ Interaction sync (simplified) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Interaction sync (simplified) ──────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         const resizeMap = () => {
@@ -803,7 +803,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         };
     }, [mapLoaded]);
 
-    // â”€â”€ RainViewer Radar Sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── RainViewer Radar Sync ──────────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         if (activeLayer === 'radar') {
@@ -849,7 +849,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         }
     }, [activeLayer, mapLoaded]);
 
-    // â”€â”€ Custom Layer Markers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Custom Layer Markers ─────────────────────────────────
 
 
 
@@ -881,9 +881,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             {showControls && (
                 <div className="absolute bottom-[72px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-2">
                     {[
-                        { key: 'comfort', icon: 'ðŸŒ¡ï¸', label: 'Comfort' },
-                        { key: 'uv',      icon: 'â˜€ï¸', label: 'UV Index' },
-                        { key: 'radar',   icon: 'ðŸŒ§ï¸', label: 'Radar' },
+                        { key: 'comfort', icon: '🌡️', label: 'Comfort' },
+                        { key: 'uv',      icon: '☀️', label: 'UV Index' },
+                        { key: 'radar',   icon: '🌧️', label: 'Radar' },
                     ].map(({ key, icon, label }) => (
                         <button
                             key={key}
@@ -924,8 +924,8 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner">
                         {comfortMode
-                            ? `ðŸŒ¡ï¸ Feels-like temperature at ${fmtHour(comfortHour)}`
-                            : 'ðŸ“ Tap a pin to see venue details'
+                            ? `🌡️ Feels-like temperature at ${fmtHour(comfortHour)}`
+                            : '📍 Tap a pin to see venue details'
                         }
                     </div>
                 </div>
@@ -936,7 +936,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                 <div className="absolute inset-0 z-[40] flex items-center justify-center">
                     {!mapLoaded && !mapError && !isTokenMissing ? (
                         <div className="absolute inset-0 bg-blue-50 animate-pulse flex flex-col items-center justify-center">
-                            <div className="text-4xl mb-4">â˜€ï¸</div>
+                            <div className="text-4xl mb-4">☀️</div>
                             <h2 className="text-xl font-bold text-blue-900">Loading Live Map...</h2>
                         </div>
                     ) : (
@@ -1027,7 +1027,7 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
                                 </div>
                             ) : (
                                 <div className="space-y-4 flex flex-col items-center justify-center h-full">
-                                    <div className="animate-spin-slow text-6xl mb-4">â˜€ï¸</div>
+                                    <div className="animate-spin-slow text-6xl mb-4">☀️</div>
                                     <p className="text-gray-400 font-semibold italic">Waking up the map...</p>
                                 </div>
                             )}
