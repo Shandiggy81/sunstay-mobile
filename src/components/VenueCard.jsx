@@ -34,6 +34,22 @@ function calcOutdoorSun(venue, hourlyData) {
   return { balcony: b, pool: p };
 }
 
+const ACCOMMODATION_VIBES = [
+  'hotel', 'airbnb', 'apartment', 'loft', 'penthouse',
+  'suite', 'villa', 'resort', 'motel', 'hostel', 'bnb',
+  'bed and breakfast', 'serviced', 'boutique hotel', 'accommodation',
+  'stay', 'lodge', 'inn', 'townhouse', 'studio', 'warehouse loft',
+];
+
+function checkIsAccommodation(venue) {
+  if (!venue) return false;
+  const typeStr = (venue.type || '').toLowerCase();
+  const vibeStr = (Array.isArray(venue.vibe) ? venue.vibe.join(' ') : (venue.vibe || '')).toLowerCase();
+  // Any explicit type field = it's a stay (bars/pubs never have a type field in our data)
+  if (typeStr.length > 0) return true;
+  return ACCOMMODATION_VIBES.some(kw => vibeStr.includes(kw) || typeStr.includes(kw));
+}
+
 const Float = ({ children, delay = 0, range = 6, duration = 4, className = '' }) => (
   <motion.div
     className={className}
@@ -257,7 +273,6 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 24 }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <motion.span
@@ -288,7 +303,6 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
           )}
         </div>
 
-        {/* Orientation & view */}
         <div className="flex items-center justify-between text-[11px]" style={{ color: '#64748B' }}>
           {balconyData.direction && (
             <span className="font-semibold">📍 {balconyData.direction} facing</span>
@@ -298,7 +312,6 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
           )}
         </div>
 
-        {/* Live alerts */}
         {rainSoon && (
           <motion.div
             className="flex items-center gap-2 rounded-xl px-3 py-2"
@@ -336,6 +349,171 @@ function formatSunHour(h) {
   return `${rounded - 12}pm`;
 }
 
+const EliteSunArc = ({ sunData, venueId }) => {
+  if (!sunData) return null;
+  const now = new Date();
+  const sunrise = sunData.sunriseDate ?? new Date(now.toDateString() + ' ' + (sunData.sunrise || '06:00'));
+  const sunset  = sunData.sunsetDate  ?? new Date(now.toDateString() + ' ' + (sunData.sunset  || '20:00'));
+  const totalMs = sunset - sunrise;
+  if (totalMs <= 0) return null;
+  const elapsedMs = Math.max(0, Math.min(now - sunrise, totalMs));
+  const progress = elapsedMs / totalMs;
+  const isDay = now >= sunrise && now <= sunset;
+
+  const W = 300, H = 80;
+  const cx = W / 2, cy = H + 20;
+  const r = H + 20;
+  // Arc path: semicircle from left to right at bottom
+  const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+  const arcLen = Math.PI * r;
+  const progressLen = progress * arcLen;
+
+  // Sun dot position
+  const sunAngle = Math.PI - progress * Math.PI;
+  const sunX = cx + r * Math.cos(sunAngle);
+  const sunY = cy + r * Math.sin(sunAngle);
+
+  const fmt = d => {
+    if (!(d instanceof Date) || isNaN(d)) return '--';
+    return d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  const peakTime = new Date((sunrise.getTime() + sunset.getTime()) / 2);
+
+  return (
+    <motion.div
+      style={{
+        padding: '14px 16px 8px',
+        background: 'linear-gradient(180deg, rgba(255,184,0,0.07) 0%, transparent 100%)',
+        borderRadius: '16px',
+        border: '1px solid rgba(245,158,11,0.18)',
+      }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+    >
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.09em', color: 'rgba(180,130,0,0.75)', textTransform: 'uppercase', marginBottom: 8 }}>
+        ☀️ Sun Position Today
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        style={{ width: '100%', height: 'auto', overflow: 'visible', display: 'block' }}
+      >
+        <defs>
+          <linearGradient id={`arc-fill-${venueId}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#FF6B35" stopOpacity="0.25" />
+            <stop offset="45%" stopColor="#FFD700" stopOpacity="1" />
+            <stop offset="100%" stopColor="#FF8C00" stopOpacity="0.25" />
+          </linearGradient>
+          <filter id={`glow-${venueId}`} x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <filter id={`glow-soft-${venueId}`} x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+
+        {/* Track arc */}
+        <path
+          d={arcPath}
+          fill="none"
+          stroke="rgba(200,160,0,0.12)"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+
+        {/* Progress arc */}
+        <path
+          d={arcPath}
+          fill="none"
+          stroke={`url(#arc-fill-${venueId})`}
+          strokeWidth="3.5"
+          strokeLinecap="round"
+          strokeDasharray={`${progressLen} ${arcLen}`}
+        />
+
+        {/* Sun glow halo */}
+        {isDay && (
+          <circle
+            cx={sunX}
+            cy={sunY}
+            r="14"
+            fill="rgba(255,210,0,0.18)"
+            filter={`url(#glow-soft-${venueId})`}
+          />
+        )}
+
+        {/* Sun dot */}
+        {isDay && (
+          <motion.circle
+            cx={sunX}
+            cy={sunY}
+            r="7"
+            fill="#FFD700"
+            filter={`url(#glow-${venueId})`}
+            animate={{ r: [7, 8.5, 7] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
+
+        {/* Sunrise label */}
+        <text
+          x={cx - r + 2}
+          y={H - 4}
+          fontSize="9"
+          fill="rgba(120,90,0,0.6)"
+          fontFamily="system-ui, sans-serif"
+          fontWeight="600"
+        >
+          {fmt(sunrise)}
+        </text>
+
+        {/* Sunset label */}
+        <text
+          x={cx + r - 2}
+          y={H - 4}
+          fontSize="9"
+          fill="rgba(120,90,0,0.6)"
+          fontFamily="system-ui, sans-serif"
+          fontWeight="600"
+          textAnchor="end"
+        >
+          {fmt(sunset)}
+        </text>
+
+        {/* Peak noon label */}
+        <text
+          x={cx}
+          y={12}
+          fontSize="9"
+          fill="rgba(180,130,0,0.55)"
+          fontFamily="system-ui, sans-serif"
+          fontWeight="700"
+          textAnchor="middle"
+        >
+          {fmt(peakTime)}
+        </text>
+      </svg>
+
+      {/* Best sun label */}
+      <div style={{
+        textAlign: 'center',
+        fontSize: 12,
+        fontWeight: 700,
+        color: isDay ? '#B45309' : 'rgba(120,90,0,0.45)',
+        marginTop: -2,
+        letterSpacing: '0.01em',
+      }}>
+        {isDay
+          ? `✨ Best sun ${fmt(sunrise)} – ${fmt(sunset)}`
+          : 'Sun has set for today'}
+      </div>
+    </motion.div>
+  );
+};
+
 export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
   const [graphExpanded, setGraphExpanded] = useState(false);
@@ -359,7 +537,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     venue?.businessName ||
     venue?.label ||
     'Unknown Venue';
-  const isHotelOrStay = ['hotel','airbnb','accommodation','stay','apartment'].some(t => (type || '').toLowerCase().includes(t));
+
+  const isHotelOrStay = checkIsAccommodation(venue);
+
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
   const wind       = weather?.rawWeather?.wind ?? weather?.wind?.speed ?? 0;
@@ -452,7 +632,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     return '--';
   }, [venue.sunset, weather?.sys?.sunset]);
 
-  // Coastal Breeze blobs — lighter, cool-toned
   const blobA = isRain ? 'rgba(14,165,233,0.12)' : 'rgba(245,158,11,0.10)';
   const blobB = isRain ? 'rgba(99,102,241,0.07)' : 'rgba(14,165,233,0.08)';
 
@@ -693,16 +872,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </motion.div>
             )}
 
+            {/* Elite Sun Arc — replaces flat SunTimeline bar */}
             {sunData && (
-              <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.36 }}>
-                <span className="text-[0.7rem] font-black uppercase tracking-widest block mb-2" style={{ color: '#94A3B8' }}>Sun Position Today</span>
-                {typeof sunData.startHour === 'number' && typeof sunData.endHour === 'number' && (
-                  <div className="font-medium text-sm mb-2 ml-1 text-amber-500">
-                    ✨ Best sun {formatSunHour(sunData.startHour)} – {formatSunHour(sunData.endHour)}
-                  </div>
-                )}
-                <SunTimeline sunData={sunData} weatherCode={weather?.rawWeather?.weatherCode ?? 0} dark />
-              </motion.div>
+              <EliteSunArc sunData={sunData} venueId={venue?.id ?? 'v'} />
             )}
 
             {shielding && (
@@ -749,6 +921,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </Float>
             )}
 
+            {/* Happy Hour — only shown for bars/pubs, never for accommodation */}
             {actualHappyHour && !isHotelOrStay && (
               <Float range={3} duration={6} delay={0.4}>
                 <div className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.18)' }}>
