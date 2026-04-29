@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import WeatherGuaranteeToggle from './WeatherGuaranteeToggle';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
 import BookingWindowTimeline from './BookingWindowTimeline';
+import OperatorWeatherPanel from './OperatorWeatherPanel';
 import {
     ArrowLeft,
     CloudRain,
@@ -512,6 +513,16 @@ const VenueDetail = ({ venue, onClose, weather }) => {
             </div>
 
             <div className="sticky bottom-0 z-20 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] bg-gradient-to-t from-[#1a1c23] via-[#1a1c23]/96 to-[#1a1c23]/0">
+                <OperatorWeatherPanel
+                  venue={venue}
+                  quote={getWeatherGuaranteeQuote({
+                    bookingValue: venue?.bookingPrice || 120,
+                    rainProbability: weather?.precipProbability ?? tomorrowRain?.probability ?? 0,
+                    expectedRainMm: weather?.rainMm ?? tomorrowRain?.mm ?? 0,
+                    cloudCover: weather?.cloudCover ?? 0,
+                    isOutdoor: !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony),
+                  })}
+                />
                 <WeatherGuaranteeToggle
                   enabled={weatherGuarantee}
                   onToggle={setWeatherGuarantee}
