@@ -11,6 +11,7 @@ import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
 import { useOpenUV } from '../hooks/useOpenUV';
+import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
 
 function isHappyHourNow(happyHour) {
   if (!happyHour) return false;
@@ -691,6 +692,39 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   {displayName}
                 </h1>
                 <span style={{ fontSize: '0.7rem', color: '#64748B' }}>{vibe && vibe.length ? `${Array.isArray(vibe) ? vibe.join(', ') : vibe} · ${suburb}` : suburb}</span>
+                {(() => {
+                  const isOutdoor = !isHotelOrStay && !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
+                  if (!isOutdoor) return null;
+                  const quote = getWeatherGuaranteeQuote({
+                    bookingValue: venue?.bookingPrice || 120,
+                    rainProbability: venue?._weather?.precipProbability ?? 0,
+                    expectedRainMm: venue?._weather?.rainMm ?? 0,
+                    cloudCover: venue?._weather?.cloudCover ?? 0,
+                    isOutdoor,
+                  });
+                  if (!quote) return null;
+                  return (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      marginTop: 6,
+                      marginBottom: 2,
+                      padding: '3px 9px',
+                      borderRadius: 999,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: `1px solid ${quote.riskColor}44`,
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: quote.riskColor, display: 'inline-block' }} />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: quote.riskColor, letterSpacing: '0.06em' }}>
+                        {quote.riskBand} Rain Risk
+                      </span>
+                      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)', marginLeft: 2 }}>
+                        · Rain Guarantee available
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             </motion.div>
 
