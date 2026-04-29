@@ -201,6 +201,14 @@ const VenueDetail = ({ venue, onClose, weather }) => {
     const { calculateSunstayScore, getTemperature, weather: liveWeather } = useWeather();
     const { airQuality, loading: airQualityLoading } = useAirQuality(venue?.lat, venue?.lng);
 
+    const weatherQuote = getWeatherGuaranteeQuote({
+      bookingValue: venue?.bookingPrice || 120,
+      rainProbability: weather?.precipProbability ?? 18,
+      expectedRainMm: weather?.rainMm ?? 0,
+      cloudCover: weather?.cloudCover ?? 40,
+      isOutdoor: !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.vibe?.toLowerCase().includes('garden') || venue?.vibe?.toLowerCase().includes('rooftop')),
+    });
+
     if (!venue) return null;
 
     const isAccommodation = checkIsAccommodation(venue);
@@ -431,16 +439,19 @@ const VenueDetail = ({ venue, onClose, weather }) => {
 
                 <BookingWindowTimeline
                   venue={venue}
-                  weatherHours={(typeof hourlyForecast !== 'undefined' ? hourlyForecast : null) ?? hourlyScores?.map((h, i) => ({
-                    time: new Date(Date.now() + i * 3600000).toISOString(),
-                    precipProbability: weather?.precipProbability ?? 0,
-                    cloudCover: weather?.cloudCover ?? 0,
-                    sunshineScore: h.score,
-                    uvIndex: (typeof uvData !== 'undefined' ? uvData?.uv : null) ?? null,
-                    windspeed: weather?.windSpeed ?? null,
-                  }))}
+                  weatherHours={typeof hourlyForecast !== 'undefined' ? hourlyForecast : null}
                   bookingStart={null}
                   bookingEnd={null}
+                />
+                <OperatorWeatherPanel
+                  venue={venue}
+                  quote={weatherQuote}
+                />
+                <WeatherGuaranteeToggle
+                  venue={venue}
+                  quote={weatherQuote}
+                  enabled={weatherGuarantee}
+                  onToggle={setWeatherGuarantee}
                 />
 
                 {!isAccommodation && (hhStatus.isActive || hhStatus.isUpcoming) && (
@@ -513,27 +524,6 @@ const VenueDetail = ({ venue, onClose, weather }) => {
             </div>
 
             <div className="sticky bottom-0 z-20 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] bg-gradient-to-t from-[#1a1c23] via-[#1a1c23]/96 to-[#1a1c23]/0">
-                <OperatorWeatherPanel
-                  venue={venue}
-                  quote={getWeatherGuaranteeQuote({
-                    bookingValue: venue?.bookingPrice || 120,
-                    rainProbability: weather?.precipProbability ?? tomorrowRain?.probability ?? 0,
-                    expectedRainMm: weather?.rainMm ?? tomorrowRain?.mm ?? 0,
-                    cloudCover: weather?.cloudCover ?? 0,
-                    isOutdoor: !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony),
-                  })}
-                />
-                <WeatherGuaranteeToggle
-                  enabled={weatherGuarantee}
-                  onToggle={setWeatherGuarantee}
-                  quote={getWeatherGuaranteeQuote({
-                    bookingValue: venue?.bookingPrice || 120,
-                    rainProbability: weather?.precipProbability ?? tomorrowRain?.probability ?? 0,
-                    expectedRainMm: weather?.rainMm ?? tomorrowRain?.mm ?? 0,
-                    cloudCover: weather?.cloudCover ?? 0,
-                    isOutdoor: !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony),
-                  })}
-                />
                 <button
                     onClick={handlePrimaryCta}
                     className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold py-3.5 shadow-[0_8px_30px_rgba(245,158,11,0.35)] hover:shadow-[0_10px_35px_rgba(245,158,11,0.45)] transition-shadow"

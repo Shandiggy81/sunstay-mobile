@@ -372,7 +372,7 @@ const EliteSunArc = ({ sunData, venueId }) => {
   // Sun dot position
   const sunAngle = Math.PI - progress * Math.PI;
   const sunX = cx + r * Math.cos(sunAngle);
-  const sunY = cy + r * Math.sin(sunAngle);
+  const sunY = Math.min(cy + r * Math.sin(sunAngle), H - 12);
 
   const fmt = d => {
     if (!(d instanceof Date) || isNaN(d)) return '--';
@@ -398,7 +398,7 @@ const EliteSunArc = ({ sunData, venueId }) => {
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        style={{ width: '100%', height: 'auto', overflow: 'visible', display: 'block' }}
+        style={{ width: '100%', height: 'auto', overflow: 'hidden', display: 'block' }}
       >
         <defs>
           <linearGradient id={`arc-fill-${venueId}`} x1="0%" y1="0%" x2="100%" y2="0%">
