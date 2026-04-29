@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import WeatherGuaranteeToggle from './WeatherGuaranteeToggle';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
+import BookingWindowTimeline from './BookingWindowTimeline';
 import {
     ArrowLeft,
     CloudRain,
@@ -426,6 +427,20 @@ const VenueDetail = ({ venue, onClose, weather }) => {
                         </div>
                     </div>
                 </div>
+
+                <BookingWindowTimeline
+                  venue={venue}
+                  weatherHours={(typeof hourlyForecast !== 'undefined' ? hourlyForecast : null) ?? hourlyScores?.map((h, i) => ({
+                    time: new Date(Date.now() + i * 3600000).toISOString(),
+                    precipProbability: weather?.precipProbability ?? 0,
+                    cloudCover: weather?.cloudCover ?? 0,
+                    sunshineScore: h.score,
+                    uvIndex: (typeof uvData !== 'undefined' ? uvData?.uv : null) ?? null,
+                    windspeed: weather?.windSpeed ?? null,
+                  }))}
+                  bookingStart={null}
+                  bookingEnd={null}
+                />
 
                 {!isAccommodation && (hhStatus.isActive || hhStatus.isUpcoming) && (
                     <div className={`mt-3 rounded-2xl border p-4 ${
