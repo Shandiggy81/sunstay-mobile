@@ -1,5 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import WeatherGuaranteeToggle from './WeatherGuaranteeToggle';
+import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
 import {
     ArrowLeft,
     CloudRain,
@@ -192,6 +194,8 @@ const LiveExposureBars = ({ bars }) => (
 );
 
 const VenueDetail = ({ venue, onClose, weather }) => {
+    const [weatherGuarantee, setWeatherGuarantee] = useState(false);
+    const tomorrowRain = weather?.tomorrowRain || null;
     const { calculateSunstayScore, getTemperature, weather: liveWeather } = useWeather();
     const { airQuality, loading: airQualityLoading } = useAirQuality(venue?.lat, venue?.lng);
 
@@ -493,6 +497,17 @@ const VenueDetail = ({ venue, onClose, weather }) => {
             </div>
 
             <div className="sticky bottom-0 z-20 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] bg-gradient-to-t from-[#1a1c23] via-[#1a1c23]/96 to-[#1a1c23]/0">
+                <WeatherGuaranteeToggle
+                  enabled={weatherGuarantee}
+                  onToggle={setWeatherGuarantee}
+                  quote={getWeatherGuaranteeQuote({
+                    bookingValue: venue?.bookingPrice || 120,
+                    rainProbability: weather?.precipProbability ?? tomorrowRain?.probability ?? 0,
+                    expectedRainMm: weather?.rainMm ?? tomorrowRain?.mm ?? 0,
+                    cloudCover: weather?.cloudCover ?? 0,
+                    isOutdoor: !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony),
+                  })}
+                />
                 <button
                     onClick={handlePrimaryCta}
                     className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold py-3.5 shadow-[0_8px_30px_rgba(245,158,11,0.35)] hover:shadow-[0_10px_35px_rgba(245,158,11,0.45)] transition-shadow"
