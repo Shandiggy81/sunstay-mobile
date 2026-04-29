@@ -1,6 +1,6 @@
 import React from 'react';
 import { Shield, CloudRain } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const WeatherGuaranteeToggle = ({ enabled, onToggle, quote }) => {
   if (!quote) return null;
@@ -37,7 +37,13 @@ const WeatherGuaranteeToggle = ({ enabled, onToggle, quote }) => {
               </span>
             </div>
             <p className="text-[11px] text-white/60 mt-1 leading-relaxed">
-              <strong className={enabled ? 'text-sky-200' : 'text-white'}>+${quote.price} to your booking.</strong> {quote.trigger}
+              <span className="text-[15px] font-black text-white">
+                +${quote.price}
+                <span className="text-[10px] font-normal text-white/40 ml-1">
+                  ({Math.round(quote.pct * 100)}% · {quote.riskBand} risk)
+                </span>
+              </span>
+              {!enabled && ` to your booking. ${quote.trigger}`}
             </p>
           </div>
         </div>
@@ -55,6 +61,41 @@ const WeatherGuaranteeToggle = ({ enabled, onToggle, quote }) => {
           />
         </button>
       </div>
+
+      <AnimatePresence>
+        {enabled && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div
+              className="mt-3 rounded-xl px-3 py-2.5"
+              style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)' }}
+            >
+              <p className="text-[11px] font-bold text-white/90 mb-1.5">✓ How it works</p>
+              <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                {quote.trigger}
+              </p>
+              <div className="mt-2.5 flex items-center gap-3">
+                <div className="flex-1 rounded-lg px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <p className="text-[9px] uppercase tracking-wider text-white/40">Payout method</p>
+                  <p className="text-[11px] font-bold text-white/80 mt-0.5">Automatic · No claim needed</p>
+                </div>
+                <div className="flex-1 rounded-lg px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <p className="text-[9px] uppercase tracking-wider text-white/40">Data source</p>
+                  <p className="text-[11px] font-bold text-white/80 mt-0.5">Sunstay Weather Intel</p>
+                </div>
+              </div>
+              <p className="text-[10px] mt-2 font-semibold" style={{ color: '#38BDF8' }}>
+                Powered by Sunstay Weather Intelligence · {quote.riskBand} risk today
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
