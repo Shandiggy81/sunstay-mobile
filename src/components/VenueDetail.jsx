@@ -97,6 +97,21 @@ const buildExposureBars = ({ startHour, endHour, sunstayScore, weather }) => {
     });
 };
 
+const ACCOMMODATION_VIBES = [
+    'hotel', 'airbnb', 'apartment', 'loft', 'penthouse',
+    'suite', 'villa', 'resort', 'motel', 'hostel', 'bnb',
+    'bed and breakfast', 'serviced', 'boutique hotel', 'accommodation',
+    'stay', 'lodge', 'inn', 'townhouse', 'studio', 'warehouse loft',
+];
+
+function checkIsAccommodation(venue) {
+    if (!venue) return false;
+    const typeStr = (venue.type || venue.typeCategory || '').toLowerCase();
+    const vibeStr = (Array.isArray(venue.vibe) ? venue.vibe.join(' ') : (venue.vibe || '')).toLowerCase();
+    if (typeStr.length > 0) return true;
+    return ACCOMMODATION_VIBES.some(kw => vibeStr.includes(kw) || typeStr.includes(kw));
+}
+
 const StatChip = ({ icon, label, value, accent = false }) => (
     <div className="min-w-[94px] rounded-xl bg-white/5 backdrop-blur-md border border-white/10 px-3 py-2.5">
         <div className={`flex items-center gap-1 text-[11px] ${accent ? 'text-amber-300' : 'text-white/60'}`}>
@@ -182,6 +197,7 @@ const VenueDetail = ({ venue, onClose, weather }) => {
 
     if (!venue) return null;
 
+    const isAccommodation = checkIsAccommodation(venue);
     const sunstayScore = calculateSunstayScore(venue);
 
     // Build hourly Sunstay Scores from real Open-Meteo hourly arrays
@@ -407,7 +423,7 @@ const VenueDetail = ({ venue, onClose, weather }) => {
                     </div>
                 </div>
 
-                {(hhStatus.isActive || hhStatus.isUpcoming) && (
+                {!isAccommodation && (hhStatus.isActive || hhStatus.isUpcoming) && (
                     <div className={`mt-3 rounded-2xl border p-4 ${
                         hhStatus.isActive
                             ? 'bg-amber-500/15 border-amber-400/30'
@@ -489,4 +505,3 @@ const VenueDetail = ({ venue, onClose, weather }) => {
 };
 
 export default VenueDetail;
-
