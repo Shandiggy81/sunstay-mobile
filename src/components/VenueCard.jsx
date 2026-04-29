@@ -234,6 +234,100 @@ const LiveSkyCondition = ({ cloudcover, windGusts }) => {
   );
 };
 
+const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, minutesUntilRain, cloudcover }) => {
+  if (!balconyData) return null;
+  const sunHoursNum = outdoorSun?.balcony ?? balconyData?.hours ?? 0;
+  const cloudPct = Array.isArray(cloudcover)
+    ? cloudcover[new Date().getHours()] ?? cloudcover[0] ?? 0
+    : typeof cloudcover === 'number' ? cloudcover : 0;
+  const isSunNow = sunHoursNum > 0 && cloudPct < 70;
+  const rainSoon = isRainStartingSoon && minutesUntilRain > 0 && minutesUntilRain <= 60;
+  const cloudSoon = cloudPct >= 50 && cloudPct < 80;
+
+  return (
+    <Float range={3} duration={5.5} delay={0.5}>
+      <motion.div
+        className="rounded-2xl p-4 flex flex-col gap-3"
+        style={{
+          background: isSunNow ? 'rgba(245,158,11,0.08)' : 'rgba(14,165,233,0.05)',
+          border: `1px solid ${isSunNow ? 'rgba(245,158,11,0.30)' : 'rgba(14,165,233,0.14)'}`,
+          boxShadow: isSunNow ? '0 0 24px rgba(245,158,11,0.12)' : 'none',
+        }}
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 24 }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <motion.span
+              className="text-xl"
+              animate={isSunNow ? { scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] } : {}}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              {isSunNow ? '☀️' : '🪟'}
+            </motion.span>
+            <div>
+              <span className="text-[0.7rem] font-black uppercase tracking-widest block" style={{ color: isSunNow ? '#D97706' : '#64748B' }}>
+                {balconyData.type === 'pool' ? 'Pool & Outdoor Area' : 'Balcony'}
+              </span>
+              <span className="font-black text-lg leading-tight" style={{ color: '#1E293B' }}>
+                {sunHoursNum}h Sun Today
+              </span>
+            </div>
+          </div>
+          {isSunNow && (
+            <motion.span
+              className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex-shrink-0"
+              style={{ background: '#F59E0B', color: '#fff' }}
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
+              SUN NOW
+            </motion.span>
+          )}
+        </div>
+
+        {/* Orientation & view */}
+        <div className="flex items-center justify-between text-[11px]" style={{ color: '#64748B' }}>
+          {balconyData.direction && (
+            <span className="font-semibold">📍 {balconyData.direction} facing</span>
+          )}
+          {balconyData.views && (
+            <span className="font-medium">{balconyData.views}</span>
+          )}
+        </div>
+
+        {/* Live alerts */}
+        {rainSoon && (
+          <motion.div
+            className="flex items-center gap-2 rounded-xl px-3 py-2"
+            style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.22)' }}
+            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+          >
+            <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1.4, repeat: Infinity }}>🌧️</motion.span>
+            <span className="font-bold text-[12px]" style={{ color: '#0369A1' }}>
+              Rain approaching in {minutesUntilRain} mins — grab a spot now
+            </span>
+          </motion.div>
+        )}
+        {!rainSoon && cloudSoon && (
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.20)' }}>
+            <span>⛅</span>
+            <span className="font-semibold text-[12px]" style={{ color: '#64748B' }}>Clouds building — {cloudPct}% cover right now</span>
+          </div>
+        )}
+        {isSunNow && !rainSoon && !cloudSoon && (
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
+            <span>✨</span>
+            <span className="font-semibold text-[12px]" style={{ color: '#92400E' }}>Direct sunshine on the {balconyData.type === 'pool' ? 'pool deck' : 'balcony'} right now</span>
+          </div>
+        )}
+      </motion.div>
+    </Float>
+  );
+};
+
 function formatSunHour(h) {
   if (typeof h !== 'number') return '–';
   const rounded = Math.round(h);
@@ -265,7 +359,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     venue?.businessName ||
     venue?.label ||
     'Unknown Venue';
-  console.log('VENUE DEBUG:', JSON.stringify(venue, null, 2));
   const isHotelOrStay = ['hotel','airbnb','accommodation','stay','apartment'].some(t => (type || '').toLowerCase().includes(t));
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
@@ -621,13 +714,14 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </motion.div>
             )}
 
-            {balconyData && (
-              <Float range={3} duration={5.5} delay={0.5}>
-                <div className="rounded-2xl p-3 flex justify-between items-center" style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.14)' }}>
-                  <div><span className="text-sky-500 text-[0.7rem] font-black uppercase tracking-widest block mb-1">🪟 Balcony</span><span className="font-black text-lg" style={{ color: '#1E293B' }}>{balconyData.hours}h Sun</span></div>
-                  <div className="text-right"><span className="text-[10px] font-bold block" style={{ color: '#94A3B8' }}>{balconyData.direction}</span><span className="text-sm font-semibold" style={{ color: '#475569' }}>{balconyData.views}</span></div>
-                </div>
-              </Float>
+            {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
+              <BalconySunshineBlock
+                balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
+                outdoorSun={outdoorSun}
+                isRainStartingSoon={isRainStartingSoon}
+                minutesUntilRain={minutesUntilRain}
+                cloudcover={cloudcover}
+              />
             )}
 
             {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
@@ -655,7 +749,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </Float>
             )}
 
-            {actualHappyHour && (
+            {actualHappyHour && !isHotelOrStay && (
               <Float range={3} duration={6} delay={0.4}>
                 <div className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.18)' }}>
                   <div>
