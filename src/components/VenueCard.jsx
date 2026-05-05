@@ -361,7 +361,7 @@ const EliteSunArc = ({ sunData, venueId }) => {
   const progress = elapsedMs / totalMs;
   const isDay = now >= sunrise && now <= sunset;
 
-  const W = 300, H = 80;
+  const W = 300, H = 100;
   const cx = W / 2, cy = H + 20;
   const r = H + 20;
   // Arc path: semicircle from left to right at bottom
@@ -398,7 +398,7 @@ const EliteSunArc = ({ sunData, venueId }) => {
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        style={{ width: '100%', height: 'auto', overflow: 'hidden', display: 'block' }}
+        style={{ width: '100%', height: 'auto', overflow: 'visible', display: 'block' }}
       >
         <defs>
           <linearGradient id={`arc-fill-${venueId}`} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -606,12 +606,18 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const roomIntelligence = venue.roomIntelligence || fullVenueData?.roomIntelligence;
 
   const verdict = useMemo(() => {
+    const cloudNow = Array.isArray(cloudcover)
+      ? (cloudcover[new Date().getHours()] ?? cloudcover[0] ?? 0)
+      : (typeof cloudcover === 'number' ? cloudcover : 50);
+
     if (precipProb > 60) return { icon: '🌧️', text: 'Wet Conditions — Check Cover', color: '#0EA5E9' };
-    if (wind > 30)       return { icon: '🌬️', text: 'High Wind — Sit Indoors',      color: '#94A3B8' };
-    if (score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions',    color: '#F59E0B' };
+    if (wind > 30)       return { icon: '🌬️', text: 'High Wind — Sit Indoors', color: '#94A3B8' };
+    if (cloudNow > 70)   return { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
+    if (cloudNow > 40)   return { icon: '⛅',  text: 'Partly Cloudy — Some Sun Breaks', color: '#94A3B8' };
+    if (score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions', color: '#F59E0B' };
     if (score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#0EA5E9' };
-    return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today',    color: '#64748B' };
-  }, [precipProb, wind, score]);
+    return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
+  }, [precipProb, wind, score, cloudcover]);
 
   const scoreLabel = useMemo(() => {
     if (score > 75) return 'Perfect Now';

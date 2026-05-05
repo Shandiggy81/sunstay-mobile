@@ -24,7 +24,7 @@ export default function HourlyForecastStrip({ lat, lng }) {
     const params = new URLSearchParams({
       latitude: String(lat),
       longitude: String(lng),
-      hourly: 'temperature_2m,apparent_temperature,weather_code,weathercode,precipitation_probability,cloud_cover,cloudcover,wind_gusts_10m,windgusts_10m,precipitation,visibility,sunshine_duration,shortwave_radiation',
+      hourly: 'temperature_2m,apparent_temperature,weather_code,weathercode,precipitation_probability,cloud_cover,cloudcover,wind_gusts_10m,windgusts_10m,precipitation,visibility,sunshine_duration,shortwave_radiation,direct_normal_irradiance',
       timezone: 'auto',
       forecast_days: '1',
     });
@@ -51,10 +51,15 @@ export default function HourlyForecastStrip({ lat, lng }) {
           .slice(0, 12);
         setHourly(rows);
 
-        const totalSunshineMins = data.hourly.sunshine_duration
-          ?.slice(0, 24)
-          .reduce((a, b) => a + (b ?? 0), 0) / 60 ?? 0;
-        setSunshineMinsToday(Math.round(totalSunshineMins));
+        let directSunHours = 0;
+        for (let i = 0; i < 24; i++) {
+          const dni = data.hourly.direct_normal_irradiance?.[i] ?? 0;
+          const cloud = data.hourly.cloud_cover?.[i] ?? data.hourly.cloudcover?.[i] ?? 0;
+          if (dni > 200 && cloud < 60) {
+            directSunHours += 1;
+          }
+        }
+        setSunshineMinsToday(directSunHours * 60);
       })
       .catch(() => setHourly([]))
       .finally(() => setLoading(false));

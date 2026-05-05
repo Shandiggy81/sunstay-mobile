@@ -739,6 +739,9 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
         if (!source) return;
 
         setIsUpdating(true);
+        const loadingTimeout = setTimeout(() => {
+            setIsUpdating(false);
+        }, 8000);
 
         const weatherData = {
             min_temp: weather?.rawWeather?.minTemp,
@@ -746,9 +749,15 @@ const MapView = forwardRef(({ onVenueSelect, selectedVenue, filteredVenueIds, li
             cloud_cover: weather?.clouds?.all
         };
 
-        source.setData(buildGeoJSON(filteredVenues, weatherData));
+        try {
+            source.setData(buildGeoJSON(filteredVenues, weatherData));
+        } catch (error) {
+            console.error('Map source update failed:', error);
+        }
 
         setTimeout(() => setIsUpdating(false), 200);
+        
+        return () => clearTimeout(loadingTimeout);
     }, [filteredVenueIds, mapLoaded, weather]);
 
 
