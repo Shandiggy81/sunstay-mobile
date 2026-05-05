@@ -38,5 +38,7 @@ export function getSunData(lat, lng) {
     startHour,
     endHour,
     text: `Sun from ${formatTime(startTime)} to ${formatTime(endTime)}`,
+    sunriseDate: startTime,
+    sunsetDate: endTime,
   };
 }

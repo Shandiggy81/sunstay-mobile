@@ -110,8 +110,9 @@ const ACCOMMODATION_VIBES = [
 
 function checkIsAccommodation(venue) {
     if (!venue) return false;
-    const typeStr = (venue.type || venue.typeCategory || '').toLowerCase();
+    const typeStr = (venue.type || '').toLowerCase();
     const vibeStr = (Array.isArray(venue.vibe) ? venue.vibe.join(' ') : (venue.vibe || '')).toLowerCase();
+    // Any explicit type field = it's a stay (bars/pubs never have a type field in our data)
     if (typeStr.length > 0) return true;
     return ACCOMMODATION_VIBES.some(kw => vibeStr.includes(kw) || typeStr.includes(kw));
 }
@@ -258,8 +259,8 @@ const VenueDetail = ({ venue, onClose, weather }) => {
     const airPmValue = airQuality?.pm25 != null ? `${Math.round(airQuality.pm25)}` : '--';
     const airIsPoor = (airQuality?.pm25 ?? 0) > 35;
 
-    const typeLabel = venue.typeCategory === 'Hotel' || venue.typeCategory === 'ShortStay'
-        ? venue.typeLabel
+    const typeLabel = isAccommodation
+        ? venue.type || venue.typeLabel || 'Accommodation'
         : venue.vibe || 'Venue';
 
     const dynamicSun = useMemo(() => {
