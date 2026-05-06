@@ -51,6 +51,15 @@ function checkIsAccommodation(venue) {
   return ACCOMMODATION_VIBES.some(kw => vibeStr.includes(kw) || typeStr.includes(kw));
 }
 
+const getDeterministicSunHours = (id) => {
+  const idString = String(id || 'default-id');
+  let hash = 0;
+  for (let i = 0; i < idString.length; i++) {
+    hash = idString.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return 6 + (Math.abs(hash) % 4);
+};
+
 const Float = ({ children, delay = 0, range = 6, duration = 4, className = '' }) => (
   <motion.div
     className={className}
@@ -476,7 +485,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     ?? (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null)
     ?? (Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover : null);
 
-  // FIX: extract current-hour value from array before multiplying by 3.6
   const _currentHour = new Date().getHours();
   const windGusts = weather?.windGusts
     ?? (Array.isArray(hourlyData?.wind_gusts_10m)
@@ -498,8 +506,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const sunHours = useMemo(() => {
     if (isHotelOrStay && (outdoorSun.balcony > 0 || outdoorSun.pool > 0))
       return { outdoor: `${outdoorSun.balcony}h`, covered: `${outdoorSun.pool}h`, labels: { outdoor: 'Balcony', covered: 'Pool' } };
-    return { outdoor: `${Math.floor(6 + Math.random() * 4)}h`, covered: `${Math.floor(4 + Math.random() * 4)}h`, labels: { outdoor: 'Outdoor', covered: 'Covered' } };
-  }, [isHotelOrStay, outdoorSun]);
+    const sunHoursFallback = getDeterministicSunHours(venue.id);
+    return { outdoor: `${sunHoursFallback}h`, covered: `${Math.max(4, sunHoursFallback - 2)}h`, labels: { outdoor: 'Outdoor', covered: 'Covered' } };
+  }, [isHotelOrStay, outdoorSun, venue.id]);
 
   const weatherCondition = useMemo(() => {
     if (weather?.weather?.[0]?.main) return weather.weather[0].main.toLowerCase();
@@ -602,12 +611,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
           </div>
 
           <div className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2">
-            {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-0 md:hidden" onPointerDown={e => dragControls.start(e)} style={{ touchAction: 'none' }}>
               <motion.div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(14,165,233,0.35)' }} animate={{ scaleX: [1, 1.2, 1], opacity: [0.4, 0.7, 0.4] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
             </div>
 
-            {/* Sticky header */}
             <motion.div
               className="flex items-center gap-3"
               style={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(12px)', background: 'rgba(240,244,248,0.92)', borderBottom: '1px solid rgba(14,165,233,0.10)', padding: '12px 16px', margin: '0 -16px 0', borderRadius: '28px 28px 0 0' }}
@@ -663,7 +670,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
 
-            {/* Score Row */}
             <motion.div className="flex items-start gap-3" style={{ overflow: 'visible' }} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}>
               <ScoreOrb score={score} />
               <div className="flex flex-col justify-center ml-1 mr-2 flex-shrink-0" style={{ paddingTop: '6px' }}>
@@ -682,7 +688,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
 
-            {/* Live Sun Exposure */}
             {hourlyData && (
             <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(14,165,233,0.04)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(14,165,233,0.12)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
               <div className="flex items-center justify-between mb-3">
@@ -714,7 +719,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </motion.div>
             )}
 
-            {/* Golden Window */}
             {hourlyData && (
             <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.18)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}>
               <div className="flex items-center gap-2 flex-wrap">
@@ -746,7 +750,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </motion.div>
             )}
 
-            {/* Vibe Section */}
             <motion.div
               className="rounded-2xl overflow-hidden"
               style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.20)' }}
