@@ -47,7 +47,6 @@ function checkIsAccommodation(venue) {
   if (!venue) return false;
   const typeStr = (venue.type || '').toLowerCase();
   const vibeStr = (Array.isArray(venue.vibe) ? venue.vibe.join(' ') : (venue.vibe || '')).toLowerCase();
-  // Any explicit type field = it's a stay (bars/pubs never have a type field in our data)
   if (typeStr.length > 0) return true;
   return ACCOMMODATION_VIBES.some(kw => vibeStr.includes(kw) || typeStr.includes(kw));
 }
@@ -213,7 +212,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
   const items = [
     roomIntelligence.sunriseView && { icon: '🌅', label: 'Sunrise View' },
     roomIntelligence.floorLevel && { icon: '🏢', label: `Floor ${roomIntelligence.floorLevel}` },
-    roomIntelligence.poolAccess && { icon: '🏊', label: 'Pool Access' },
+    roomIntelligence.poolAccess && { icon: '🏔', label: 'Pool Access' },
     roomIntelligence.balcony && { icon: '🪟', label: 'Private Balcony' },
   ].filter(Boolean);
   return (
@@ -365,12 +364,10 @@ const EliteSunArc = ({ sunData, venueId }) => {
   const W = 300, H = 100;
   const cx = W / 2, cy = H + 20;
   const r = H + 20;
-  // Arc path: semicircle from left to right at bottom
   const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
   const arcLen = Math.PI * r;
   const progressLen = progress * arcLen;
 
-  // Sun dot position
   const sunAngle = Math.PI - progress * Math.PI;
   const sunX = cx + r * Math.cos(sunAngle);
   const sunY = Math.min(cy + r * Math.sin(sunAngle), H - 12);
@@ -417,100 +414,23 @@ const EliteSunArc = ({ sunData, venueId }) => {
           </filter>
         </defs>
 
-        {/* Track arc */}
-        <path
-          d={arcPath}
-          fill="none"
-          stroke="rgba(200,160,0,0.12)"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
+        <path d={arcPath} fill="none" stroke="rgba(200,160,0,0.12)" strokeWidth="3" strokeLinecap="round" />
+        <path d={arcPath} fill="none" stroke={`url(#arc-fill-${venueId})`} strokeWidth="3.5" strokeLinecap="round" strokeDasharray={`${progressLen} ${arcLen}`} />
 
-        {/* Progress arc */}
-        <path
-          d={arcPath}
-          fill="none"
-          stroke={`url(#arc-fill-${venueId})`}
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          strokeDasharray={`${progressLen} ${arcLen}`}
-        />
-
-        {/* Sun glow halo */}
         {isDay && (
-          <circle
-            cx={sunX}
-            cy={sunY}
-            r="14"
-            fill="rgba(255,210,0,0.18)"
-            filter={`url(#glow-soft-${venueId})`}
-          />
+          <circle cx={sunX} cy={sunY} r="14" fill="rgba(255,210,0,0.18)" filter={`url(#glow-soft-${venueId})`} />
+        )}
+        {isDay && (
+          <motion.circle cx={sunX} cy={sunY} r="7" fill="#FFD700" filter={`url(#glow-${venueId})`} animate={{ r: [7, 8.5, 7] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }} />
         )}
 
-        {/* Sun dot */}
-        {isDay && (
-          <motion.circle
-            cx={sunX}
-            cy={sunY}
-            r="7"
-            fill="#FFD700"
-            filter={`url(#glow-${venueId})`}
-            animate={{ r: [7, 8.5, 7] }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        )}
-
-        {/* Sunrise label */}
-        <text
-          x={cx - r + 2}
-          y={H - 4}
-          fontSize="9"
-          fill="rgba(120,90,0,0.6)"
-          fontFamily="system-ui, sans-serif"
-          fontWeight="600"
-        >
-          {fmt(sunrise)}
-        </text>
-
-        {/* Sunset label */}
-        <text
-          x={cx + r - 2}
-          y={H - 4}
-          fontSize="9"
-          fill="rgba(120,90,0,0.6)"
-          fontFamily="system-ui, sans-serif"
-          fontWeight="600"
-          textAnchor="end"
-        >
-          {fmt(sunset)}
-        </text>
-
-        {/* Peak noon label */}
-        <text
-          x={cx}
-          y={12}
-          fontSize="9"
-          fill="rgba(180,130,0,0.55)"
-          fontFamily="system-ui, sans-serif"
-          fontWeight="700"
-          textAnchor="middle"
-        >
-          {fmt(peakTime)}
-        </text>
+        <text x={cx - r + 2} y={H - 4} fontSize="9" fill="rgba(120,90,0,0.6)" fontFamily="system-ui, sans-serif" fontWeight="600">{fmt(sunrise)}</text>
+        <text x={cx + r - 2} y={H - 4} fontSize="9" fill="rgba(120,90,0,0.6)" fontFamily="system-ui, sans-serif" fontWeight="600" textAnchor="end">{fmt(sunset)}</text>
+        <text x={cx} y={12} fontSize="9" fill="rgba(180,130,0,0.55)" fontFamily="system-ui, sans-serif" fontWeight="700" textAnchor="middle">{fmt(peakTime)}</text>
       </svg>
 
-      {/* Best sun label */}
-      <div style={{
-        textAlign: 'center',
-        fontSize: 12,
-        fontWeight: 700,
-        color: isDay ? '#B45309' : 'rgba(120,90,0,0.45)',
-        marginTop: -2,
-        letterSpacing: '0.01em',
-      }}>
-        {isDay
-          ? `✨ Best sun ${fmt(sunrise)} – ${fmt(sunset)}`
-          : 'Sun has set for today'}
+      <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: isDay ? '#B45309' : 'rgba(120,90,0,0.45)', marginTop: -2, letterSpacing: '0.01em' }}>
+        {isDay ? `✨ Best sun ${fmt(sunrise)} – ${fmt(sunset)}` : 'Sun has set for today'}
       </div>
     </motion.div>
   );
@@ -555,9 +475,17 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const cloudcover = weather?.cloudCover
     ?? (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null)
     ?? (Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover : null);
+
+  // FIX: extract current-hour value from array before multiplying by 3.6
+  const _currentHour = new Date().getHours();
   const windGusts = weather?.windGusts
-    ?? (Array.isArray(hourlyData?.wind_gusts_10m) ? hourlyData.wind_gusts_10m * 3.6 : null)
-    ?? (Array.isArray(hourlyData?.windgusts_10m) ? hourlyData.windgusts_10m : null);
+    ?? (Array.isArray(hourlyData?.wind_gusts_10m)
+        ? (hourlyData.wind_gusts_10m[_currentHour] ?? hourlyData.wind_gusts_10m[0] ?? 0) * 3.6
+        : null)
+    ?? (Array.isArray(hourlyData?.windgusts_10m)
+        ? (hourlyData.windgusts_10m[_currentHour] ?? hourlyData.windgusts_10m[0] ?? 0)
+        : null);
+
   const precipProbability = weather?.precipProbability ?? precipProb ?? 0;
   const sunshineMins = weather?.sunshineDuration ? Math.round(weather.sunshineDuration / 60) : null;
   const daylightHours = weather?.daylightDuration ? Math.round(weather.daylightDuration / 3600) : null;
@@ -851,7 +779,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                     </span>
                   ))}
                 </div>
-                {/* Capture the Vibe CTA */}
                 <motion.label
                   className="flex items-center justify-center gap-2 w-full rounded-2xl cursor-pointer"
                   style={{
@@ -913,7 +840,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </motion.div>
             )}
 
-            {/* Elite Sun Arc — replaces flat SunTimeline bar */}
             {sunData && (
               <EliteSunArc sunData={sunData} venueId={venue?.id ?? 'v'} />
             )}
@@ -962,7 +888,6 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </Float>
             )}
 
-            {/* Happy Hour — only shown for bars/pubs, never for accommodation */}
             {actualHappyHour && !isHotelOrStay && (
               <Float range={3} duration={6} delay={0.4}>
                 <div className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.18)' }}>
