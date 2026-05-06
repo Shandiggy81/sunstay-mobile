@@ -144,7 +144,8 @@ export const WeatherProvider = ({ children }) => {
     const [theme, setTheme] = useState('sunny');
     const [overrideType, setOverrideType] = useState(null);
 
-    const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_KEY || '').trim();
+    // FIXED: was VITE_OPENWEATHER_KEY — Netlify has VITE_OPENWEATHER_API_KEY
+    const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_API_KEY || '').trim();
 
     const OVERRIDES = {
         perfect: {
@@ -223,14 +224,40 @@ export const WeatherProvider = ({ children }) => {
                 );
                 const weatherData = { ...response.data, source: 'openweather' };
 
-                try {
-                    const uvResponse = await axios.get(
-                        `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
-                    );
-                    weatherData.uvi = uvResponse.data.value;
-                } catch {
-                    const main = String(weatherData?.weather?.[0]?.main || '').toLowerCase();
-                    weatherData.uvi = main.includes('clear') ? 8 : 2;
+                // Try OpenUV for accurate UV index, fall back to estimate
+                const OPENUV_KEY = (import.meta.env.VITE_OPENUV_API_KEY || '').trim();
+                if (OPENUV_KEY) {
+                    try {
+                        const uvRes = await fetch(
+                            `https://api.openuv.io/api/v1/uv?lat=${MELBOURNE_COORDS.lat}&lng=${MELBOURNE_COORDS.lon}`,
+                            { headers: { 'x-access-token': OPENUV_KEY } }
+                        );
+                        const uvData = await uvRes.json();
+                        if (uvData?.result?.uv != null) {
+                            weatherData.uvi = uvData.result.uv;
+                        }
+                    } catch {
+                        // OpenUV failed — fall through to OWM UVI endpoint
+                        try {
+                            const uvResponse = await axios.get(
+                                `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
+                            );
+                            weatherData.uvi = uvResponse.data.value;
+                        } catch {
+                            const main = String(weatherData?.weather?.[0]?.main || '').toLowerCase();
+                            weatherData.uvi = main.includes('clear') ? 8 : 2;
+                        }
+                    }
+                } else {
+                    try {
+                        const uvResponse = await axios.get(
+                            `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
+                        );
+                        weatherData.uvi = uvResponse.data.value;
+                    } catch {
+                        const main = String(weatherData?.weather?.[0]?.main || '').toLowerCase();
+                        weatherData.uvi = main.includes('clear') ? 8 : 2;
+                    }
                 }
 
                 liveWeather = normalizeCachedWeather(weatherData);
@@ -239,7 +266,7 @@ export const WeatherProvider = ({ children }) => {
             }
         }
 
-        // Keep the demo live even without paid API keys.
+        // Open-Meteo: free, unlimited, no key — always has uv_index built in
         if (!liveWeather) {
             try {
                 liveWeather = await fetchOpenMeteoWeather(MELBOURNE_COORDS.lat, MELBOURNE_COORDS.lon);
@@ -318,6 +345,7 @@ export const WeatherProvider = ({ children }) => {
             cloudCover: weather.cloudCoverPct ?? weather.clouds?.all ?? 0,
             windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
             isDay: weather.isDay ?? 1,
+            uvIndex: weather.uvi ?? null, // FIXED: now wired into score
         };
         const { score } = calculateLiveSunScore(liveWeatherInput);
         const cozyMode = getCozyModeMeta();
@@ -341,12 +369,13 @@ export const WeatherProvider = ({ children }) => {
     const getTemperature = () => (weather ? Math.round(weather.main?.temp ?? 0) : null);
     const getUVIndex = () => weather?.uvi ?? 0;
 
+    // FIXED: removed broken UTF-8 encoded degree/bullet characters
     const getWeatherDescription = () => {
         if (!weather) return 'Loading...';
         const desc = weather.weather?.[0]?.description || '';
         const temp = Math.round(weather.main?.temp || 0);
         const cleanDesc = desc ? desc.charAt(0).toUpperCase() + desc.slice(1) : 'Conditions unavailable';
-        return `${temp}Â° â€¢ ${cleanDesc}`;
+        return `${temp}\u00B0 \u2022 ${cleanDesc}`;
     };
 
     const getCardBackground = () => {
@@ -383,7 +412,8 @@ export const WeatherProvider = ({ children }) => {
             cloudCover: weather.cloudCoverPct ?? weather.clouds?.all ?? 0,
             windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
             isDay: weather.isDay ?? 1,
-        }) : { score: 75, label: 'Great Conditions ðŸŒ¤ï¸', color: '#34D399' },
+            uvIndex: weather.uvi ?? null, // FIXED: UV now included in live score
+        }) : { score: 75, label: 'Great Conditions 🌤️', color: '#34D399' },
     };
 
     return (
