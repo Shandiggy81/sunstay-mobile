@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X } from 'lucide-react';
+import { Search, X, Sun, Cloud, Wind } from 'lucide-react';
+import { CloudRain } from 'lucide-react';
 
 const BANNER_GRADIENT = 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)';
 
@@ -35,11 +36,13 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
         : cloudiness < 60 ? 'Mid'
         : 'High';
 
-    const rainChance = Math.min(100, Math.round(humidity * 0.3 + (condition.includes('rain') ? 40 : 0)));
+    // Use real precipProbability if available, otherwise fallback estimate
+    const rainChance = weather?.precipProbability
+        ?? Math.min(100, Math.round(humidity * 0.3 + (condition.includes('rain') ? 40 : 0)));
 
     const descFormatted = description
         ? description.charAt(0).toUpperCase() + description.slice(1)
-        : 'Loading…';
+        : 'Loading\u2026';
 
     return (
         <motion.div
@@ -86,7 +89,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                     )}
                     <div className="flex flex-col items-center gap-1">
                         <span className="text-white/70 text-[11px] font-medium italic">
-                            {weather ? descFormatted : 'Loading…'}
+                            {weather ? descFormatted : 'Loading\u2026'}
                         </span>
                         {comfort && comfort.label !== 'Loading' && (
                             <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full shadow-sm border border-white/10 font-medium tracking-wide">
@@ -108,7 +111,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                                 💨 {windSpeed} km/h
                             </span>
                             <span className="text-white text-[12px] leading-tight">
-                                🌧 {rainChance}%
+                                🌧 {Math.round(rainChance)}%
                             </span>
                             {cloudLabel && (
                                 <span className="text-white text-[12px] leading-tight">
@@ -135,7 +138,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                             <input
                                 autoFocus
                                 type="text"
-                                placeholder="Search venues, suburbs…"
+                                placeholder="Search venues, suburbs\u2026"
                                 value={searchQuery}
                                 onChange={e => onSearchChange(e.target.value)}
                                 className="flex-1 bg-transparent text-gray-800 placeholder-gray-400 text-[13px] outline-none font-medium"
