@@ -7,9 +7,6 @@ import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
 import TopBar from './components/TopBar';
 import FilterSheet from './components/FilterSheet';
-import NotificationCenter from './components/NotificationCenter';
-import WeatherWidget from './components/WeatherWidget';
-import SunArcWidget from './components/SunArcWidget';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
