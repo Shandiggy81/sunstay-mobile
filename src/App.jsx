@@ -1,7 +1,7 @@
-import React, { useState, Component, useRef, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import WeatherBackground from './components/WeatherBackground';
-import MapView from './components/MapView';
+const MapView = React.lazy(() => import('./components/MapView'));
 import VenueCard from './components/VenueCard';
 import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
@@ -583,17 +583,19 @@ const AppContent = () => {
                             {/* Map container */}
                             <div className="ss-map-container">
                                 <MapErrorBoundary>
-                                    <MapView
-                                        onVenueSelect={handleVenueSelect}
-                                        selectedVenue={selectedVenue}
-                                        filteredVenueIds={filteredVenues.map(v => v.id)}
-                                        liveVenueFeatures={debouncedLiveFeatures}
-                                        mapRef={mapRef}
-                                        weatherColorFn={getMarkerWeatherColor}
-                                        cozyWeatherActive={cozyWeatherActive}
-                                        cozyFilterActive={activeFilter === 'Cozy'}
-                                        isExpanded={mobileMapExpanded}
-                                    />
+                                    <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
+                                        <MapView
+                                            onVenueSelect={handleVenueSelect}
+                                            selectedVenue={selectedVenue}
+                                            filteredVenueIds={filteredVenues.map(v => v.id)}
+                                            liveVenueFeatures={debouncedLiveFeatures}
+                                            mapRef={mapRef}
+                                            weatherColorFn={getMarkerWeatherColor}
+                                            cozyWeatherActive={cozyWeatherActive}
+                                            cozyFilterActive={activeFilter === 'Cozy'}
+                                            isExpanded={mobileMapExpanded}
+                                        />
+                                    </Suspense>
                                 </MapErrorBoundary>
                             </div>
 
