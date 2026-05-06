@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { storage } from '../utils/platform';
-import { calculateLiveSunScore } from '../util/sunScore';
-import { getMelbourneWeather } from '../util/weatherService';
+import { calculateLiveSunScore } from '../utils/sunScore';
+import { getMelbourneWeather } from '../utils/weatherService';
 
 const WeatherContext = createContext(null);
 
@@ -144,7 +144,6 @@ export const WeatherProvider = ({ children }) => {
     const [theme, setTheme] = useState('sunny');
     const [overrideType, setOverrideType] = useState(null);
 
-    // FIXED: was VITE_OPENWEATHER_KEY — Netlify has VITE_OPENWEATHER_API_KEY
     const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_API_KEY || '').trim();
 
     const OVERRIDES = {
@@ -224,7 +223,6 @@ export const WeatherProvider = ({ children }) => {
                 );
                 const weatherData = { ...response.data, source: 'openweather' };
 
-                // Try OpenUV for accurate UV index, fall back to estimate
                 const OPENUV_KEY = (import.meta.env.VITE_OPENUV_API_KEY || '').trim();
                 if (OPENUV_KEY) {
                     try {
@@ -233,11 +231,8 @@ export const WeatherProvider = ({ children }) => {
                             { headers: { 'x-access-token': OPENUV_KEY } }
                         );
                         const uvData = await uvRes.json();
-                        if (uvData?.result?.uv != null) {
-                            weatherData.uvi = uvData.result.uv;
-                        }
+                        if (uvData?.result?.uv != null) weatherData.uvi = uvData.result.uv;
                     } catch {
-                        // OpenUV failed — fall through to OWM UVI endpoint
                         try {
                             const uvResponse = await axios.get(
                                 `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
@@ -266,7 +261,6 @@ export const WeatherProvider = ({ children }) => {
             }
         }
 
-        // Open-Meteo: free, unlimited, no key — always has uv_index built in
         if (!liveWeather) {
             try {
                 liveWeather = await fetchOpenMeteoWeather(MELBOURNE_COORDS.lat, MELBOURNE_COORDS.lon);
@@ -327,9 +321,7 @@ export const WeatherProvider = ({ children }) => {
                     ? 'Sheltered spots are trending now'
                     : 'Outdoor conditions are favourable';
         return {
-            isActive,
-            reason,
-            headline,
+            isActive, reason, headline,
             apparentTemp: Math.round(apparentTemp),
             rainProb,
             gustKmh: Math.round(gustKmh),
@@ -345,7 +337,7 @@ export const WeatherProvider = ({ children }) => {
             cloudCover: weather.cloudCoverPct ?? weather.clouds?.all ?? 0,
             windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
             isDay: weather.isDay ?? 1,
-            uvIndex: weather.uvi ?? null, // FIXED: now wired into score
+            uvIndex: weather.uvi ?? null,
         };
         const { score } = calculateLiveSunScore(liveWeatherInput);
         const cozyMode = getCozyModeMeta();
@@ -369,7 +361,6 @@ export const WeatherProvider = ({ children }) => {
     const getTemperature = () => (weather ? Math.round(weather.main?.temp ?? 0) : null);
     const getUVIndex = () => weather?.uvi ?? 0;
 
-    // FIXED: removed broken UTF-8 encoded degree/bullet characters
     const getWeatherDescription = () => {
         if (!weather) return 'Loading...';
         const desc = weather.weather?.[0]?.description || '';
@@ -391,9 +382,7 @@ export const WeatherProvider = ({ children }) => {
     };
 
     const value = {
-        weather,
-        loading,
-        theme,
+        weather, loading, theme,
         cozyMode: getCozyModeMeta(),
         overrideType,
         updateOverride,
@@ -412,8 +401,8 @@ export const WeatherProvider = ({ children }) => {
             cloudCover: weather.cloudCoverPct ?? weather.clouds?.all ?? 0,
             windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
             isDay: weather.isDay ?? 1,
-            uvIndex: weather.uvi ?? null, // FIXED: UV now included in live score
-        }) : { score: 75, label: 'Great Conditions 🌤️', color: '#34D399' },
+            uvIndex: weather.uvi ?? null,
+        }) : { score: 75, label: 'Great Conditions \uD83C\uDF24\uFE0F', color: '#34D399' },
     };
 
     return (
