@@ -38,7 +38,7 @@ const LoadingScreen = () => (
     </div>
 );
 
-// ── Weather badge for venue list cards ────────────────────────────
+// ── Weather badge for venue list cards ─────────────────────────────────
 const getWeatherBadge = (weather, venue) => {
     if (!weather) return { emoji: '🌤️', label: 'Fair', color: '#9ca3af' };
     const condition = (weather.weather?.[0]?.main || '').toLowerCase();
@@ -71,7 +71,7 @@ const getMarkerWeatherColor = (weather, venue) => {
 };
 
 
-// ── Venue List Card (sidebar) ────────────────────────────────────
+// ── Venue List Card (sidebar) ──────────────────────────────────────────
 const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
     const badge = getWeatherBadge(weather, venue);
     const profile = getWindProfile(venue);
@@ -237,12 +237,14 @@ const AppContent = () => {
     const listRef = useRef(null);
 
     // Calculate cozy weather conditions
+    // FIX: guard against default values — only evaluate once real weather data has loaded
     const cozyWeatherActive = useMemo(() => {
         if (!weather) return false;
-        const minTemp = weather.minTemp || 20;
-        const precip = weather.precipitation || 0;
+        if (weather.minTemp == null || weather.precipitation == null) return false;
+        const minTemp = weather.minTemp;
+        const precip = weather.precipitation;
         const wind = weather.windSpeed || 0;
-        return minTemp < 8 || (precip > 0.5 || wind > 15);
+        return minTemp < 8 || precip > 0.5 || wind > 15;
     }, [weather]);
 
     // Calculate filtered venue IDs based on active filters (Types + Intents + Tags)
@@ -507,7 +509,7 @@ const AppContent = () => {
                 <>
                     {/* ═══ MAIN SPLIT LAYOUT ═══ */}
                     <main className="ss-main flex h-full w-full overflow-hidden">
-                        {/* ── LEFT: Venue List (desktop) ────────────────── */}
+                        {/* ── LEFT: Venue List (desktop) ──────────────────────── */}
                         <aside className="ss-sidebar w-full md:w-96 h-full overflow-y-auto flex flex-col bg-white border-r border-gray-200">
                             {/* Search bar */}
                             <div className="ss-search-wrap">
@@ -561,7 +563,7 @@ const AppContent = () => {
                             </div>
                         </aside>
 
-                        {/* ── RIGHT: Map ────────────────────────────────── */}
+                        {/* ── RIGHT: Map ────────────────────────────────────────────── */}
                         <section className={`ss-map-area flex-1 h-full relative ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
 
                             {/* Filters FAB (mobile only) */}
