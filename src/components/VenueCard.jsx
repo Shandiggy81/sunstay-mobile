@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { MapPin, ArrowLeft, ChevronDown } from 'lucide-react';
-import { getSunPositionForMap } from '../util/sunPosition';
+import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import { FEATURE_BADGES } from '../config/features';
 import WeatherWidget from './WeatherWidget';
 import HourlyForecastStrip from './HourlyForecastStrip';
 import SunTimeline from './SunTimeline';
+import SunTimelineSlider from './SunTimelineSlider';
 import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
@@ -806,6 +807,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
             </motion.div>
 
             <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} />
+
+            <SunTimelineSlider />
 
             {setShowOwnerDashboard && (
               <motion.button
