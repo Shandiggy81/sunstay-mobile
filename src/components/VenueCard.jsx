@@ -28,9 +28,10 @@ function calcOutdoorSun(venue, hourlyData) {
   if (!hourlyData?.time) return { balcony: 0, pool: 0 };
   let b = 0, p = 0;
   for (let i = 0; i < hourlyData.time.length; i++) {
-    const irrad = hourlyData.direct_normal_irradiance[i];
+    const irrad = hourlyData.direct_normal_irradiance?.[i] || 0;
+    const cc = (hourlyData.cloud_cover?.[i] ?? hourlyData.cloudcover?.[i]) || 0;
     const { altitude } = getSunPositionForMap(venue.lat, venue.lng, new Date(hourlyData.time[i]));
-    if (irrad > 120) { if (altitude > 15) b++; if (altitude > 20) p++; }
+    if (irrad > 200 && cc < 60) { if (altitude > 15) b++; if (altitude > 20) p++; }
   }
   return { balcony: b, pool: p };
 }
