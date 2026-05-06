@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 
-function getWeatherEmoji(code) {
-  if (code === 0) return '☀️';
-  if (code === 1) return '🌤️';
-  if (code === 2) return '⛅';
+import { getSunData } from '../utils/getSunData';
+
+function getWeatherEmoji(code, isNight) {
+  if (code === 0) return isNight ? '🌙' : '☀️';
+  if (code === 1) return isNight ? '🌙' : '🌤️';
+  if (code === 2) return isNight ? '☁️' : '⛅';
   if (code === 3) return '☁️';
   if (code === 45 || code === 48) return '🌫️';
-  if (code >= 51 && code <= 57) return '🌦️';
+  if (code >= 51 && code <= 57) return isNight ? '🌧️' : '🌦️';
   if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return '🌧️';
   if (code >= 71 && code <= 77) return '❄️';
   if (code >= 95) return '⛈️';
-  return '🌤️';
+  return isNight ? '🌙' : '🌤️';
 }
 
 export default function HourlyForecastStrip({ lat, lng }) {
@@ -91,6 +93,12 @@ export default function HourlyForecastStrip({ lat, lng }) {
       )}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-3 pt-1">
         {hourly.map((hour, i) => {
+          const sunData = getSunData(lat, lng);
+          const startHour = sunData ? sunData.startHour : 6;
+          const endHour = sunData ? sunData.endHour : 18;
+          const currentH = hour.time.getHours() + hour.time.getMinutes() / 60;
+          const isNight = currentH < startHour || currentH > endHour;
+
           const isGolden = hour.solarW > 400 && hour.precip < 20;
           const isWarm = hour.feelsLike >= 18 && hour.feelsLike < 28 && !isGolden;
           const isWet = hour.precip >= 60;
@@ -107,7 +115,7 @@ export default function HourlyForecastStrip({ lat, lng }) {
               <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>
                 {hour.time.toLocaleTimeString([], { hour: 'numeric', hour12: true }).replace(' ', '').toLowerCase()}
               </p>
-              <span className="text-base">{getWeatherEmoji(hour.code)}</span>
+              <span className="text-base">{getWeatherEmoji(hour.code, isNight)}</span>
               <p style={{ fontSize: '13px', color: '#fff', fontWeight: 800 }}>{hour.temp}°</p>
               <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>
                 {hour.precip > 0 ? `${hour.precip}%🌧️` : hour.solarW > 0 ? `${hour.solarW}W` : ''}

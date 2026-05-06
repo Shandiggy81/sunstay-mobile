@@ -240,13 +240,19 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
   );
 };
 
-const LiveSkyCondition = ({ cloudcover, windGusts }) => {
+const LiveSkyCondition = ({ cloudcover, windGusts, precipProbability = 0 }) => {
   if (cloudcover === undefined || cloudcover === null) return null;
-  const sky = cloudcover < 30
+  let sky = cloudcover < 30
     ? { label: 'Clear Skies & Direct Sun', emoji: '☀️' }
     : cloudcover <= 70
     ? { label: 'Partly Cloudy', emoji: '⛅' }
     : { label: 'Overcast', emoji: '☁️' };
+
+  if (precipProbability > 85) {
+    sky = { label: 'Heavy Rain', emoji: '⛈️' };
+  } else if (precipProbability >= 50) {
+    sky = { label: 'Steady Rain', emoji: '🌧️' };
+  }
   return (
     <div style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.14)', borderRadius: '16px', padding: '14px 16px' }}>
       <span style={{ color: '#1E293B', fontSize: '15px', fontWeight: 700 }}>
@@ -549,7 +555,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
       ? (cloudcover[new Date().getHours()] ?? cloudcover[0] ?? 0)
       : (typeof cloudcover === 'number' ? cloudcover : 50);
 
-    if (precipProb > 60) return { icon: '🌧️', text: 'Wet Conditions — Check Cover', color: '#0EA5E9' };
+    if (precipProb > 85) return { icon: '⛈️', text: 'Heavy Rain — Check Cover', color: '#0EA5E9' };
+    if (precipProb >= 50) return { icon: '🌧️', text: 'Steady Rain — Check Cover', color: '#0EA5E9' };
+    if (precipProb > 30) return { icon: '🌧️', text: 'Wet Conditions — Check Cover', color: '#0EA5E9' };
+    
     if (wind > 30)       return { icon: '🌬️', text: 'High Wind — Sit Indoors', color: '#94A3B8' };
     if (cloudNow > 70)   return { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
     if (cloudNow > 40)   return { icon: '⛅',  text: 'Partly Cloudy — Some Sun Breaks', color: '#94A3B8' };
@@ -806,7 +815,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </div>
             </motion.div>
 
-            <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} />
+            <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
 
             <SunTimelineSlider />
 
