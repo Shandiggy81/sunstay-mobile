@@ -17,9 +17,9 @@ import {
 import { useWeather } from '../context/WeatherContext';
 import { useAirQuality } from '../hooks/useAirQuality';
 import { calculateApparentTemp } from '../data/windIntelligence';
-import { calculateDynamicToday } from '../util/sunCalcLogic';
-import { calculateLiveSunScore } from '../util/sunScore';
-import { getHappyHourStatus } from '../util/happyHour';
+import { calculateDynamicToday } from '../utils/sunCalcLogic';
+import { calculateLiveSunScore } from '../utils/sunScore';
+import { getHappyHourStatus } from '../utils/happyHour';
 
 const TRACK_START_HOUR = 6;
 const TRACK_END_HOUR = 21;
@@ -112,7 +112,6 @@ function checkIsAccommodation(venue) {
     if (!venue) return false;
     const typeStr = (venue.type || '').toLowerCase();
     const vibeStr = (Array.isArray(venue.vibe) ? venue.vibe.join(' ') : (venue.vibe || '')).toLowerCase();
-    // Any explicit type field = it's a stay (bars/pubs never have a type field in our data)
     if (typeStr.length > 0) return true;
     return ACCOMMODATION_VIBES.some(kw => vibeStr.includes(kw) || typeStr.includes(kw));
 }
@@ -215,13 +214,11 @@ const VenueDetail = ({ venue, onClose, weather }) => {
     const isAccommodation = checkIsAccommodation(venue);
     const sunstayScore = calculateSunstayScore(venue);
 
-    // Build hourly Sunstay Scores from real Open-Meteo hourly arrays
     const hourlyScores = useMemo(() => {
         const radiation = liveWeather?.hourly?.shortwave_radiation || [];
         const precip    = liveWeather?.hourly?.precipitation_probability || [];
         const cloudArr  = liveWeather?.hourly?.cloud_cover || [];
         const nowHour   = new Date().getHours();
-        // Show 8 hours starting from current hour
         return Array.from({ length: 8 }, (_, i) => {
             const hour = (nowHour + i) % 24;
             const score = calculateLiveSunScore({

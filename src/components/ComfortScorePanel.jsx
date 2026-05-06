@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Activity, ShieldCheck, Thermometer, Wind, Droplets, Info } from 'lucide-react';
-import { getSunScoreLabel } from '../util/sunScore';
+import { getSunScoreLabel } from '../utils/sunScore';
 
 const ComfortScorePanel = ({ venue, sunstayScore, weather }) => {
     const scoreInfo = getSunScoreLabel(sunstayScore);
@@ -9,7 +9,6 @@ const ComfortScorePanel = ({ venue, sunstayScore, weather }) => {
     const humidity = weather?.main?.humidity || 50;
     const windSpeed = weather?.wind?.speed || 5;
 
-    // Categorized factors for the "Breakdown"
     const factors = [
         { label: 'Thermal Comfort', value: temp > 18 && temp < 26 ? 100 : 70, icon: Thermometer, color: 'text-orange-500' },
         { label: 'Wind Protection', value: windSpeed < 10 ? 95 : 60, icon: Wind, color: 'text-blue-500' },
@@ -24,7 +23,6 @@ const ComfortScorePanel = ({ venue, sunstayScore, weather }) => {
                 <h3 className="text-lg font-black uppercase tracking-tight">Intelligence Breakdown</h3>
             </div>
 
-            {/* Hero Score visualization */}
             <div className="relative h-48 w-full rounded-[40px] bg-gradient-to-br from-gray-900 to-gray-800 overflow-hidden flex items-center justify-center border border-white/10 shadow-2xl">
                 <div className="absolute inset-0 opacity-20">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-emerald-500/30 rounded-full animate-ping" style={{ animationDuration: '3s' }} />
@@ -56,7 +54,6 @@ const ComfortScorePanel = ({ venue, sunstayScore, weather }) => {
                 </div>
             </div>
 
-            {/* Factors list */}
             <div className="space-y-4">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Proprietary Factors</p>
                 <div className="grid grid-cols-1 gap-3">
@@ -92,7 +89,6 @@ const ComfortScorePanel = ({ venue, sunstayScore, weather }) => {
                 </div>
             </div>
 
-            {/* Note about logic */}
             <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
                 <Info size={14} className="text-gray-400 flex-shrink-0 mt-0.5" />
                 <p className="text-[10px] text-gray-500 font-medium leading-relaxed italic">
