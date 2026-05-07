@@ -48,7 +48,7 @@ const VENUE_CIRCLE_PAINT = {
     'circle-color': ['get', 'pinColor'],
     'circle-opacity': 0.94,
     'circle-stroke-width': 2.8,
-    'circle-stroke-color': '#ffffff',
+    'circle-stroke-color': ['get', 'strokeColor'],
     'circle-stroke-opacity': 1,
     'circle-blur': 0,
 };
@@ -57,14 +57,21 @@ const VENUE_CIRCLE_PAINT = {
 // ── Weather-Reactive Pin Logic ──────────────────────────────────────
 
 /**
- * Returns { emoji, pinColor, pinGlow } based on live weather + venue heating state.
+ * Returns { emoji, pinColor, strokeColor, pinGlow } based on live weather + venue heating state.
+ *
+ * Pin colour palette — all 5 states visually distinct:
+ *  🔥  #ff6b35  orange-red    (heater/fireplace on)
+ *  😎  #fbbf24  gold          (warm + clear + low rain)
+ *  🌦️  #1e40af  deep navy     (rain or precip ≥ 40%)
+ *  🥶  #e0f2fe  frost white   (apparent temp ≤ 11°C)
+ *  🌤️  #60a5fa  sky blue      (default / cloudy / mixed)
  *
  * Priority order:
- *  1. 🔥  Heater / fireplace ON  (venue owner dashboard override)
- *  2. 🌦️  Raining now or high rain probability
- *  3. 🥶  Cold (apparent temp ≤ 11°C)
- *  4. 😎  Warm + mostly clear + low rain
- *  5. 🌤️  Default / cloudy / mixed fallback
+ *  1. 🔥 Heater / fireplace ON  (venue owner dashboard override)
+ *  2. 🌦️ Raining now or high rain probability
+ *  3. 🥶 Cold (apparent temp ≤ 11°C)
+ *  4. 😎 Warm + mostly clear + low rain
+ *  5. 🌤️ Default / cloudy / mixed fallback
  */
 function getPinState(venue, weather, liveVenueFeatures = {}) {
     const live = liveVenueFeatures?.[venue.id] || {};
@@ -94,23 +101,24 @@ function getPinState(venue, weather, liveVenueFeatures = {}) {
         !!venue.fireplaceOn;
 
     if (heatersOn) {
-        return { emoji: '🔥', pinColor: '#ff6b35', pinGlow: '#ff4500' };
+        return { emoji: '🔥', pinColor: '#ff6b35', strokeColor: '#c2410c', pinGlow: '#ff4500' };
     }
 
     if (condition.includes('rain') || condition.includes('drizzle') || precipProb >= 40) {
-        return { emoji: '🌦️', pinColor: '#4f8cff', pinGlow: '#2f6df6' };
+        return { emoji: '🌦️', pinColor: '#1e40af', strokeColor: '#1e3a8a', pinGlow: '#2f6df6' };
     }
 
     if (apparentTemp <= 11) {
-        return { emoji: '🥶', pinColor: '#7dd3fc', pinGlow: '#38bdf8' };
+        // Frosty white — clearly different from the blue cloudy state
+        return { emoji: '🥶', pinColor: '#e0f2fe', strokeColor: '#7dd3fc', pinGlow: '#bae6fd' };
     }
 
     if (apparentTemp >= 18 && cloudCover <= 35 && precipProb < 20) {
-        return { emoji: '😎', pinColor: '#fbbf24', pinGlow: '#f59e0b' };
+        return { emoji: '😎', pinColor: '#fbbf24', strokeColor: '#d97706', pinGlow: '#f59e0b' };
     }
 
     // Default — cloudy / mixed
-    return { emoji: '🌤️', pinColor: '#93c5fd', pinGlow: '#60a5fa' };
+    return { emoji: '🌤️', pinColor: '#60a5fa', strokeColor: '#3b82f6', pinGlow: '#60a5fa' };
 }
 
 
@@ -170,6 +178,7 @@ const VenueMap = forwardRef(({
                         id: v.id,
                         emoji: pin.emoji,
                         pinColor: pin.pinColor,
+                        strokeColor: pin.strokeColor,
                         pinGlow: pin.pinGlow,
                         name: v.venueName || v.name || '',
                         // Keep haloColor for any legacy consumers
