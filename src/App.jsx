@@ -17,7 +17,7 @@ import { venues } from './data/venues';
 import OwnerDashboard from './components/OwnerDashboard';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
-import { getComfortLevel } from './util/weatherService';
+import { getComfortLevel } from './utils/weatherService';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';

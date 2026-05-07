@@ -3,7 +3,7 @@ import { X, ChevronUp, SlidersHorizontal, Map, List } from 'lucide-react';
 import VenueListCard from './VenueListCard';
 import VenueDetail from '../VenueDetail';
 import FiltersPanel from '../FiltersPanel';
-import { calculateLiveSunScore } from '../../util/sunScore';
+import { calculateLiveSunScore } from '../../utils/sunScore';
 
 const QUICK_FILTERS = [
     { id: 'full-sun', label: 'Sunny', icon: '☀️' },

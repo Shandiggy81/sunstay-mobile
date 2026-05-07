@@ -22,7 +22,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
-import { calculateLiveSunScore, getComfortTier } from '../../util/sunScore';
+import { calculateLiveSunScore, getComfortTier } from '../../utils/sunScore';
 
 // ── Constants ───────────────────────────────────────────────────────
 

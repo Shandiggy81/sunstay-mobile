@@ -2,8 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Flame, MapPin } from 'lucide-react';
 import { useWeather } from '../../context/WeatherContext';
-import { calculateLiveSunScore, getComfortTier } from '../../util/sunScore';
-import { getHappyHourBadge } from '../../util/happyHour';
+import { calculateLiveSunScore, getComfortTier } from '../../utils/sunScore';
+import { getHappyHourBadge } from '../../utils/happyHour';
 
 const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
     const { cozyMode } = useWeather();
