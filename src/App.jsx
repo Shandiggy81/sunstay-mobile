@@ -585,6 +585,7 @@ const AppContent = () => {
                                 <MapErrorBoundary>
                                     <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
                                         <VenueMap
+                                            venues={filteredVenues}
                                             onVenueSelect={handleVenueSelect}
                                             selectedVenue={selectedVenue}
                                             filteredVenueIds={filteredVenues.map(v => v.id)}
