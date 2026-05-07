@@ -7,7 +7,7 @@ if (!import.meta.env.VITE_MAPBOX_TOKEN) {
     console.warn('[Sunstay] VITE_MAPBOX_TOKEN is not set. Map will not load. Add it to your .env or Netlify environment variables.');
 }
 
-export const MAP_STYLE = 'mapbox://styles/mapbox/satellite-streets-v12';
+export const MAP_STYLE = 'mapbox://styles/mapbox/dark-v11';
 
 export const INITIAL_VIEW_STATE = {
     longitude: 144.9631,
