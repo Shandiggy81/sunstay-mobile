@@ -1,7 +1,8 @@
 /**
  * VenueMap — Optimized Cross-Platform Map Component
  * ──────────────────────────────────────────────────
- * GL-native rendering with bold circle-backed emoji pins
+ * GL-native rendering with weather-reactive emoji pins
+ * States: 😎 sunny | 🌤️ cloudy | 🌦️ rain | 🥶 cold | 🔥 heater override
  * @module components/Map/VenueMap
  */
 
@@ -26,7 +27,7 @@ const SUNSHINE_LAYER_ID = 'sunshine-overlay';
 // Larger emoji pins — clearly visible on light map
 const VENUE_SYMBOL_LAYOUT = {
     'text-field': ['get', 'emoji'],
-    'text-size': 22,
+    'text-size': 20,
     'text-allow-overlap': true,
     'text-ignore-placement': true,
     'icon-allow-overlap': true,
@@ -36,21 +37,81 @@ const VENUE_SYMBOL_LAYOUT = {
 
 const VENUE_SYMBOL_PAINT = {
     'text-color': '#ffffff',
-    'text-halo-color': 'rgba(0,0,0,0.15)',
-    'text-halo-width': 1,
-    'text-halo-blur': 0,
+    'text-halo-color': 'rgba(0,0,0,0.18)',
+    'text-halo-width': 1.2,
+    'text-halo-blur': 0.2,
 };
 
-// Circle background layer — makes pins pop on any map style
+// Circle background — colour driven by per-feature pinColor property
 const VENUE_CIRCLE_PAINT = {
     'circle-radius': 20,
-    'circle-color': ['get', 'haloColor'],
-    'circle-opacity': 0.92,
-    'circle-stroke-width': 2.5,
+    'circle-color': ['get', 'pinColor'],
+    'circle-opacity': 0.94,
+    'circle-stroke-width': 2.8,
     'circle-stroke-color': '#ffffff',
     'circle-stroke-opacity': 1,
     'circle-blur': 0,
 };
+
+
+// ── Weather-Reactive Pin Logic ──────────────────────────────────────
+
+/**
+ * Returns { emoji, pinColor, pinGlow } based on live weather + venue heating state.
+ *
+ * Priority order:
+ *  1. 🔥  Heater / fireplace ON  (venue owner dashboard override)
+ *  2. 🌦️  Raining now or high rain probability
+ *  3. 🥶  Cold (apparent temp ≤ 11°C)
+ *  4. 😎  Warm + mostly clear + low rain
+ *  5. 🌤️  Default / cloudy / mixed fallback
+ */
+function getPinState(venue, weather, liveVenueFeatures = {}) {
+    const live = liveVenueFeatures?.[venue.id] || {};
+
+    const apparentTemp =
+        weather?.apparentTemp ??
+        weather?.main?.feels_like ??
+        weather?.main?.temp ??
+        20;
+
+    const precipProb =
+        weather?.precipProbability ?? 0;
+
+    const cloudCover =
+        weather?.cloudCoverPct ??
+        weather?.clouds?.all ??
+        0;
+
+    const condition =
+        (weather?.weather?.[0]?.main || '').toLowerCase();
+
+    // Heater / fireplace override — set by venue owner in dashboard
+    const heatersOn =
+        !!live.heatersOn ||
+        !!live.fireplaceOn ||
+        !!venue.heatersOn ||
+        !!venue.fireplaceOn;
+
+    if (heatersOn) {
+        return { emoji: '🔥', pinColor: '#ff6b35', pinGlow: '#ff4500' };
+    }
+
+    if (condition.includes('rain') || condition.includes('drizzle') || precipProb >= 40) {
+        return { emoji: '🌦️', pinColor: '#4f8cff', pinGlow: '#2f6df6' };
+    }
+
+    if (apparentTemp <= 11) {
+        return { emoji: '🥶', pinColor: '#7dd3fc', pinGlow: '#38bdf8' };
+    }
+
+    if (apparentTemp >= 18 && cloudCover <= 35 && precipProb < 20) {
+        return { emoji: '😎', pinColor: '#fbbf24', pinGlow: '#f59e0b' };
+    }
+
+    // Default — cloudy / mixed
+    return { emoji: '🌤️', pinColor: '#93c5fd', pinGlow: '#60a5fa' };
+}
 
 
 // ── Sunshine Overlay (memoized) ─────────────────────────────────────
@@ -88,6 +149,7 @@ const VenueMap = forwardRef(({
     filteredVenueIds,
     onVenueSelect,
     weatherColorFn,
+    liveVenueFeatures = {},
 }, ref) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
@@ -97,62 +159,38 @@ const VenueMap = forwardRef(({
 
     // ── GeoJSON FeatureCollection (memoized) ──────────────────────
     const venueGeoJSON = useMemo(() => {
-        const getHaloColor = (venue) => {
-            const liveInput = {
-                shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
-                apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
-                precipProbability: weather?.precipProbability ?? 0,
-                cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
-                windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
-                isDay: weather?.isDay ?? 1,
-            };
-            const cozyBonus = (liveInput.apparentTemp < 14 || liveInput.precipProbability > 60)
-                && (venue.tags?.includes('Fireplace') || venue.heating || venue.fireplace) ? 15 : 0;
-            const { score } = calculateLiveSunScore(liveInput);
-            const tier = getComfortTier(Math.min(100, score + cozyBonus));
-            return {
-                prime:    '#f59e0b',  // amber
-                good:     '#10b981',  // emerald
-                moderate: '#6366f1',  // indigo
-                cosy:     '#f97316',  // orange
-            }[tier] || '#f59e0b';
-        };
-
-        function getPinEmoji(venue, weather) {
-            const hasHeat = venue.heater || venue.fireplace;
-            if (hasHeat && (weather?.apparentTemp ?? 20) < 14) return '🔥';
-            if ((weather?.precipProbability ?? 0) > 60) return '🌧️';
-            if ((weather?.cloudCover ?? 0) > 70) return '☁️';
-            if ((weather?.isDay ?? 1) === 0) return '🌙';
-            return '☀️';
-        }
-
         return {
             type: 'FeatureCollection',
-            features: venues.map(v => ({
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
-                properties: {
-                    id: v.id,
-                    emoji: getPinEmoji(v, weather),
-                    name: v.venueName || v.name || '',
-                    haloColor: getHaloColor(v),
-                    visible: filteredVenueIds === null || filteredVenueIds.includes(v.id),
-                    score: (() => {
-                        const liveInput = {
-                            shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
-                            apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
-                            precipProbability: weather?.precipProbability ?? 0,
-                            cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
-                            windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
-                            isDay: weather?.isDay ?? 1,
-                        };
-                        return calculateLiveSunScore(liveInput).score;
-                    })(),
-                },
-            })),
+            features: venues.map(v => {
+                const pin = getPinState(v, weather, liveVenueFeatures);
+                return {
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
+                    properties: {
+                        id: v.id,
+                        emoji: pin.emoji,
+                        pinColor: pin.pinColor,
+                        pinGlow: pin.pinGlow,
+                        name: v.venueName || v.name || '',
+                        // Keep haloColor for any legacy consumers
+                        haloColor: pin.pinColor,
+                        visible: filteredVenueIds === null || filteredVenueIds.includes(v.id),
+                        score: (() => {
+                            const liveInput = {
+                                shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
+                                apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
+                                precipProbability: weather?.precipProbability ?? 0,
+                                cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
+                                windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
+                                isDay: weather?.isDay ?? 1,
+                            };
+                            return calculateLiveSunScore(liveInput).score;
+                        })(),
+                    },
+                };
+            }),
         };
-    }, [venues, weather, weatherColorFn, filteredVenueIds]);
+    }, [venues, weather, liveVenueFeatures, filteredVenueIds]);
 
     // ── Sunshine overlay (memoized) ───────────────────────────────
     const sunshineGeoJSON = useMemo(
@@ -346,7 +384,7 @@ const VenueMap = forwardRef(({
                             </p>
                             <div style={overlayStyles.badge}>
                                 <div style={overlayStyles.pulseDot} />
-                                <span>VenueMap GL • Optimized Symbol Layer</span>
+                                <span>VenueMap GL • Weather-Reactive Pins</span>
                             </div>
                         </div>
                     ) : (
@@ -361,7 +399,7 @@ const VenueMap = forwardRef(({
             {mapLoaded && !mapError && (
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner">
-                        📍 GL Symbol Layer • {venues.length} venues rendered
+                        📍 Live Weather Pins • {venues.length} venues
                     </div>
                 </div>
             )}
