@@ -1,155 +1,74 @@
 /**
- * VenueMap — Optimized Cross-Platform Map Component
- * ──────────────────────────────────────────────────
- * GL-native rendering with weather-reactive emoji pins
+ * VenueMap — HTML Marker-based emoji pins (Mapbox GL symbol layers can't render emoji on desktop)
  * States: 😎 sunny | 🌤️ cloudy | 🌦️ rain | 🥶 cold | 🔥 heater override
  * @module components/Map/VenueMap
  */
 
 import React, {
-    useEffect, useRef, useState, useCallback,
+    useEffect, useRef, useState,
     useMemo, forwardRef, useImperativeHandle, memo,
 } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
-import { calculateLiveSunScore, getComfortTier } from '../../utils/sunScore';
+import { calculateLiveSunScore } from '../../utils/sunScore';
 
-// ── Constants ───────────────────────────────────────────────────────
-
-const VENUE_SOURCE_ID = 'venue-source';
-const VENUE_LAYER_ID = 'venue-symbols';
-const VENUE_BG_LAYER_ID = 'venue-circles';
-const SUNSHINE_SOURCE_ID = 'sunshine-source';
-const SUNSHINE_LAYER_ID = 'sunshine-overlay';
-
-// Larger emoji pins — clearly visible on light map
-const VENUE_SYMBOL_LAYOUT = {
-    'text-field': ['get', 'emoji'],
-    'text-size': 20,
-    'text-allow-overlap': true,
-    'text-ignore-placement': true,
-    'icon-allow-overlap': true,
-    'text-anchor': 'center',
-    'text-offset': [0, 0],
+// ── Pin colour palette — 5 visually distinct states ────────────
+const PIN_STATES = {
+    heater:  { emoji: '🔥', bg: '#ff6b35', border: '#c2410c' },
+    rain:    { emoji: '🌦️', bg: '#1e40af', border: '#1e3a8a' },
+    cold:    { emoji: '🥶', bg: '#e0f2fe', border: '#7dd3fc' },
+    sunny:   { emoji: '😎', bg: '#fbbf24', border: '#d97706' },
+    default: { emoji: '🌤️', bg: '#60a5fa', border: '#3b82f6' },
 };
-
-const VENUE_SYMBOL_PAINT = {
-    'text-color': '#ffffff',
-    'text-halo-color': 'rgba(0,0,0,0.18)',
-    'text-halo-width': 1.2,
-    'text-halo-blur': 0.2,
-};
-
-// Circle background — colour driven by per-feature pinColor property
-const VENUE_CIRCLE_PAINT = {
-    'circle-radius': 20,
-    'circle-color': ['get', 'pinColor'],
-    'circle-opacity': 0.94,
-    'circle-stroke-width': 2.8,
-    'circle-stroke-color': ['get', 'strokeColor'],
-    'circle-stroke-opacity': 1,
-    'circle-blur': 0,
-};
-
-
-// ── Weather-Reactive Pin Logic ──────────────────────────────────────
 
 /**
- * Returns { emoji, pinColor, strokeColor, pinGlow } based on live weather + venue heating state.
- *
- * Pin colour palette — all 5 states visually distinct:
- *  🔥  #ff6b35  orange-red    (heater/fireplace on)
- *  😎  #fbbf24  gold          (warm + clear + low rain)
- *  🌦️  #1e40af  deep navy     (rain or precip ≥ 40%)
- *  🥶  #e0f2fe  frost white   (apparent temp ≤ 11°C)
- *  🌤️  #60a5fa  sky blue      (default / cloudy / mixed)
- *
- * Priority order:
- *  1. 🔥 Heater / fireplace ON  (venue owner dashboard override)
- *  2. 🌦️ Raining now or high rain probability
- *  3. 🥶 Cold (apparent temp ≤ 11°C)
- *  4. 😎 Warm + mostly clear + low rain
- *  5. 🌤️ Default / cloudy / mixed fallback
+ * Returns pin state key based on live weather + venue heating state.
+ * Priority: heater > rain > cold > sunny > default
  */
-function getPinState(venue, weather, liveVenueFeatures = {}) {
+function getPinStateKey(venue, weather, liveVenueFeatures = {}) {
     const live = liveVenueFeatures?.[venue.id] || {};
 
-    const apparentTemp =
-        weather?.apparentTemp ??
-        weather?.main?.feels_like ??
-        weather?.main?.temp ??
-        20;
+    const apparentTemp = weather?.apparentTemp ?? weather?.main?.feels_like ?? weather?.main?.temp ?? 20;
+    const precipProb   = weather?.precipProbability ?? 0;
+    const cloudCover   = weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0;
+    const condition    = (weather?.weather?.[0]?.main || '').toLowerCase();
 
-    const precipProb =
-        weather?.precipProbability ?? 0;
-
-    const cloudCover =
-        weather?.cloudCoverPct ??
-        weather?.clouds?.all ??
-        0;
-
-    const condition =
-        (weather?.weather?.[0]?.main || '').toLowerCase();
-
-    // Heater / fireplace override — set by venue owner in dashboard
+    // Heater override — key names aligned: heatersOn / fireplaceOn
     const heatersOn =
-        !!live.heatersOn ||
-        !!live.fireplaceOn ||
-        !!venue.heatersOn ||
-        !!venue.fireplaceOn;
+        !!live.heatersOn || !!live.fireplaceOn ||
+        !!venue.heatersOn || !!venue.fireplaceOn;
 
-    if (heatersOn) {
-        return { emoji: '🔥', pinColor: '#ff6b35', strokeColor: '#c2410c', pinGlow: '#ff4500' };
-    }
+    if (heatersOn) return 'heater';
+    if (condition.includes('rain') || condition.includes('drizzle') || precipProb >= 40) return 'rain';
+    if (apparentTemp <= 11) return 'cold';
+    if (apparentTemp >= 18 && cloudCover <= 35 && precipProb < 20) return 'sunny';
+    return 'default';
+}
 
-    if (condition.includes('rain') || condition.includes('drizzle') || precipProb >= 40) {
-        return { emoji: '🌦️', pinColor: '#1e40af', strokeColor: '#1e3a8a', pinGlow: '#2f6df6' };
-    }
-
-    if (apparentTemp <= 11) {
-        // Frosty white — clearly different from the blue cloudy state
-        return { emoji: '🥶', pinColor: '#e0f2fe', strokeColor: '#7dd3fc', pinGlow: '#bae6fd' };
-    }
-
-    if (apparentTemp >= 18 && cloudCover <= 35 && precipProb < 20) {
-        return { emoji: '😎', pinColor: '#fbbf24', strokeColor: '#d97706', pinGlow: '#f59e0b' };
-    }
-
-    // Default — cloudy / mixed
-    return { emoji: '🌤️', pinColor: '#60a5fa', strokeColor: '#3b82f6', pinGlow: '#60a5fa' };
+// ── Create a single HTML marker element ─────────────────────────
+function createMarkerEl(pinKey) {
+    const { emoji, bg, border } = PIN_STATES[pinKey];
+    const el = document.createElement('div');
+    el.style.cssText = [
+        'width:40px', 'height:40px', 'border-radius:50%',
+        `background:${bg}`, `border:3px solid ${border}`,
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'font-size:20px', 'cursor:pointer',
+        'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
+        'transition:transform 150ms ease',
+        'user-select:none',
+        'line-height:1',
+    ].join(';');
+    el.textContent = emoji;
+    el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.15)'; });
+    el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
+    return el;
 }
 
 
-// ── Sunshine Overlay (memoized) ─────────────────────────────────────
-
-const buildSunshineGeoJSON = (venues, weather) => {
-    if (!weather || !venues?.length) {
-        return { type: 'FeatureCollection', features: [] };
-    }
-
-    const temp = weather.main?.temp ?? 20;
-    const isSunny = weather.weather?.[0]?.main === 'Clear';
-
-    return {
-        type: 'FeatureCollection',
-        features: venues.map(v => {
-            const tags = v.tags || [];
-            const hasSunTag = tags.includes('Sunny') || tags.includes('Afternoon Sun');
-            const intensity = isSunny && hasSunTag ? 0.8 : isSunny ? 0.4 : 0.15;
-
-            return {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
-                properties: { intensity, temp: Math.round(temp) },
-            };
-        }),
-    };
-};
-
-
-// ── VenueMap Component ──────────────────────────────────────────────
+// ── VenueMap Component ──────────────────────────────────────────
 
 const VenueMap = forwardRef(({
     venues = [],
@@ -161,79 +80,28 @@ const VenueMap = forwardRef(({
 }, ref) => {
     const mapContainer = useRef(null);
     const map = useRef(null);
+    const markersRef = useRef({});  // { venueId: { marker, el, pinKey } }
     const [mapLoaded, setMapLoaded] = useState(false);
     const [mapError, setMapError] = useState(false);
     const { weather } = useWeather();
 
-    // ── GeoJSON FeatureCollection (memoized) ──────────────────────
-    const venueGeoJSON = useMemo(() => {
-        return {
-            type: 'FeatureCollection',
-            features: venues.map(v => {
-                const pin = getPinState(v, weather, liveVenueFeatures);
-                return {
-                    type: 'Feature',
-                    geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
-                    properties: {
-                        id: v.id,
-                        emoji: pin.emoji,
-                        pinColor: pin.pinColor,
-                        strokeColor: pin.strokeColor,
-                        pinGlow: pin.pinGlow,
-                        name: v.venueName || v.name || '',
-                        // Keep haloColor for any legacy consumers
-                        haloColor: pin.pinColor,
-                        visible: filteredVenueIds === null || filteredVenueIds.includes(v.id),
-                        score: (() => {
-                            const liveInput = {
-                                shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
-                                apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
-                                precipProbability: weather?.precipProbability ?? 0,
-                                cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
-                                windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
-                                isDay: weather?.isDay ?? 1,
-                            };
-                            return calculateLiveSunScore(liveInput).score;
-                        })(),
-                    },
-                };
-            }),
-        };
-    }, [venues, weather, liveVenueFeatures, filteredVenueIds]);
-
-    // ── Sunshine overlay (memoized) ───────────────────────────────
-    const sunshineGeoJSON = useMemo(
-        () => buildSunshineGeoJSON(venues, weather),
-        [venues, weather]
-    );
-
-    // ── Expose flyTo via ref ──────────────────────────────────────
+    // ── Expose flyTo via ref ──────────────────────────────────
     useImperativeHandle(ref, () => ({
         flyTo: (options) => { if (map.current) map.current.flyTo(options); },
         getMap: () => map.current,
     }));
 
-    // ── Initialize Map ────────────────────────────────────────────
+    // ── Initialize Map ────────────────────────────────────────
     useEffect(() => {
         if (map.current) return;
 
         const isTokenValid = MAPBOX_TOKEN && MAPBOX_TOKEN.startsWith('pk.');
-        if (!isTokenValid) {
-            console.warn('[VenueMap] Mapbox token missing or invalid.');
-            setMapError(true);
-            return;
-        }
-
+        if (!isTokenValid) { setMapError(true); return; }
         if (!mapContainer.current) return;
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
 
-        const loadTimeout = setTimeout(() => {
-            if (!map.current || !mapLoaded) {
-                console.warn('[VenueMap] Map loading timed out.');
-                setMapError(true);
-            }
-        }, 12000);
+        const loadTimeout = setTimeout(() => setMapError(true), 12000);
 
         try {
             map.current = new mapboxgl.Map({
@@ -249,83 +117,11 @@ const VenueMap = forwardRef(({
                 clearTimeout(loadTimeout);
                 setMapLoaded(true);
                 setMapError(false);
-
-                // ── Venue GeoJSON Source ──────────────────────────────
-                map.current.addSource(VENUE_SOURCE_ID, {
-                    type: 'geojson',
-                    data: venueGeoJSON,
-                    cluster: false,
-                });
-
-                // ── Sunshine Overlay ──────────────────────────────────
-                map.current.addSource(SUNSHINE_SOURCE_ID, {
-                    type: 'geojson',
-                    data: sunshineGeoJSON,
-                });
-
-                map.current.addLayer({
-                    id: SUNSHINE_LAYER_ID,
-                    type: 'circle',
-                    source: SUNSHINE_SOURCE_ID,
-                    paint: {
-                        'circle-radius': 40,
-                        'circle-color': '#fbbf24',
-                        'circle-opacity': ['get', 'intensity'],
-                        'circle-blur': 1,
-                    },
-                });
-
-                // ── Circle background (renders below emoji) ───────────
-                map.current.addLayer({
-                    id: VENUE_BG_LAYER_ID,
-                    type: 'circle',
-                    source: VENUE_SOURCE_ID,
-                    paint: VENUE_CIRCLE_PAINT,
-                    filter: ['==', ['get', 'visible'], true],
-                });
-
-                // ── Emoji symbol on top ───────────────────────────────
-                map.current.addLayer({
-                    id: VENUE_LAYER_ID,
-                    type: 'symbol',
-                    source: VENUE_SOURCE_ID,
-                    layout: {
-                        ...VENUE_SYMBOL_LAYOUT,
-                        'visibility': 'visible',
-                    },
-                    paint: VENUE_SYMBOL_PAINT,
-                    filter: ['==', ['get', 'visible'], true],
-                });
-
-                // ── Click Handler ─────────────────────────────────────
-                const handleClick = (e) => {
-                    if (!e.features?.length) return;
-                    const venueId = e.features[0].properties.id;
-                    const venue = venues.find(v => v.id === venueId);
-                    if (venue) onVenueSelect(venue);
-                };
-
-                map.current.on('click', VENUE_LAYER_ID, handleClick);
-                map.current.on('click', VENUE_BG_LAYER_ID, handleClick);
-
-                map.current.on('mouseenter', VENUE_LAYER_ID, () => {
-                    map.current.getCanvas().style.cursor = 'pointer';
-                });
-                map.current.on('mouseleave', VENUE_LAYER_ID, () => {
-                    map.current.getCanvas().style.cursor = '';
-                });
-                map.current.on('mouseenter', VENUE_BG_LAYER_ID, () => {
-                    map.current.getCanvas().style.cursor = 'pointer';
-                });
-                map.current.on('mouseleave', VENUE_BG_LAYER_ID, () => {
-                    map.current.getCanvas().style.cursor = '';
-                });
             });
 
             map.current.on('error', (e) => {
-                console.error('[VenueMap] Mapbox error:', e.error);
-                const errMsg = e.error?.message || '';
-                if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('access token')) {
+                const msg = e.error?.message || '';
+                if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
                     setMapError(true);
                 }
@@ -333,48 +129,82 @@ const VenueMap = forwardRef(({
 
             map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
 
-        } catch (error) {
-            console.error('[VenueMap] Init error:', error);
+        } catch (err) {
             clearTimeout(loadTimeout);
             setMapError(true);
         }
 
         return () => {
             clearTimeout(loadTimeout);
-            if (map.current) {
-                map.current.remove();
-                map.current = null;
-            }
+            Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
+            markersRef.current = {};
+            if (map.current) { map.current.remove(); map.current = null; }
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // ── Update GeoJSON when data changes ──────────────────────────
+    // ── Sync HTML markers when map/venues/weather/filters change ─
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-        const source = map.current.getSource(VENUE_SOURCE_ID);
-        if (source) source.setData(venueGeoJSON);
-    }, [venueGeoJSON, mapLoaded]);
 
-    // ── Update Sunshine overlay ───────────────────────────────────
-    useEffect(() => {
-        if (!map.current || !mapLoaded) return;
-        const source = map.current.getSource(SUNSHINE_SOURCE_ID);
-        if (source) source.setData(sunshineGeoJSON);
-    }, [sunshineGeoJSON, mapLoaded]);
+        const visible = new Set(
+            filteredVenueIds === null ? venues.map(v => v.id) : filteredVenueIds
+        );
 
-    // ── Fly to selected venue ─────────────────────────────────────
+        venues.forEach(venue => {
+            const pinKey = getPinStateKey(venue, weather, liveVenueFeatures);
+            const existing = markersRef.current[venue.id];
+
+            if (!visible.has(venue.id)) {
+                // Hide marker
+                if (existing) {
+                    existing.marker.getElement().style.display = 'none';
+                }
+                return;
+            }
+
+            if (existing) {
+                // Show it
+                existing.marker.getElement().style.display = 'flex';
+                // Update colours/emoji if state changed
+                if (existing.pinKey !== pinKey) {
+                    const { emoji, bg, border } = PIN_STATES[pinKey];
+                    existing.el.textContent = emoji;
+                    existing.el.style.background = bg;
+                    existing.el.style.borderColor = border;
+                    existing.pinKey = pinKey;
+                }
+            } else {
+                // Create new marker
+                const el = createMarkerEl(pinKey);
+                el.addEventListener('click', () => onVenueSelect(venue));
+                const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                    .setLngLat([venue.lng, venue.lat])
+                    .addTo(map.current);
+                markersRef.current[venue.id] = { marker, el, pinKey };
+            }
+        });
+
+        // Remove markers for venues no longer in list
+        Object.keys(markersRef.current).forEach(id => {
+            if (!venues.find(v => String(v.id) === String(id))) {
+                markersRef.current[id].marker.remove();
+                delete markersRef.current[id];
+            }
+        });
+
+    }, [venues, weather, liveVenueFeatures, filteredVenueIds, mapLoaded, onVenueSelect]);
+
+    // ── Fly to selected venue ─────────────────────────────────
     useEffect(() => {
         if (selectedVenue && map.current) {
             map.current.flyTo({
                 center: [selectedVenue.lng, selectedVenue.lat],
-                zoom: 15,
-                duration: 1200,
-                essential: true,
+                zoom: 15, duration: 1200, essential: true,
             });
         }
     }, [selectedVenue]);
 
-    // ── Render ────────────────────────────────────────────────────
+    // ── Render ────────────────────────────────────────────────
     const isTokenMissing = !MAPBOX_TOKEN || !MAPBOX_TOKEN.startsWith('pk.');
 
     return (
@@ -387,9 +217,7 @@ const VenueMap = forwardRef(({
                         <div style={overlayStyles.errorContent}>
                             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🗺️</div>
                             <p style={overlayStyles.errorText}>
-                                {isTokenMissing
-                                    ? 'Mapbox token required for map rendering'
-                                    : 'Map failed to load — using fallback mode'}
+                                {isTokenMissing ? 'Mapbox token required for map rendering' : 'Map failed to load — using fallback mode'}
                             </p>
                             <div style={overlayStyles.badge}>
                                 <div style={overlayStyles.pulseDot} />
@@ -419,29 +247,13 @@ const VenueMap = forwardRef(({
 VenueMap.displayName = 'VenueMap';
 
 const overlayStyles = {
-    container: {
-        position: 'absolute', inset: 0, display: 'flex',
-        alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(15, 15, 30, 0.95)', zIndex: 10,
-    },
+    container: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,15,30,0.95)', zIndex: 10 },
     errorContent: { textAlign: 'center', padding: '24px' },
     errorText: { color: 'rgba(255,255,255,0.6)', fontSize: '14px', fontWeight: '600' },
-    badge: {
-        display: 'inline-flex', alignItems: 'center', gap: '8px',
-        background: 'rgba(0,0,0,0.4)', padding: '8px 16px',
-        borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)',
-        marginTop: '16px', fontSize: '10px', fontWeight: '700',
-        color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '1px',
-    },
-    pulseDot: {
-        width: '8px', height: '8px', borderRadius: '50%',
-        background: '#fbbf24', animation: 'pulse 2s infinite',
-    },
+    badge: { display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', marginTop: '16px', fontSize: '10px', fontWeight: '700', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '1px' },
+    pulseDot: { width: '8px', height: '8px', borderRadius: '50%', background: '#fbbf24', animation: 'pulse 2s infinite' },
     loadingContent: { textAlign: 'center' },
-    loadingText: {
-        color: 'rgba(255,255,255,0.5)', fontWeight: '600',
-        fontStyle: 'italic', marginTop: '12px',
-    },
+    loadingText: { color: 'rgba(255,255,255,0.5)', fontWeight: '600', fontStyle: 'italic', marginTop: '12px' },
 };
 
 export default memo(VenueMap);

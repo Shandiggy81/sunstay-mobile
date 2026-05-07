@@ -79,6 +79,16 @@ const PRESET_TAGS = [
   'Firepit', 'BYO', 'Cocktails', 'Family Friendly',
 ];
 
+// ── Heating fields — keys MUST match DB columns AND VenueMap getPinStateKey ──
+// Map reads: heatersOn, fireplaceOn
+// DB columns: heatersOn, fireplaceOn, hasUmbrellas, hasWindProtection
+const HEATING_FIELDS = [
+  { key: 'heatersOn',       label: 'Outdoor Heaters', icon: '🔆' },
+  { key: 'fireplaceOn',     label: 'Fireplace / Fire Pit', icon: '🔥' },
+  { key: 'hasUmbrellas',    label: 'Shade Umbrellas', icon: '⛱️' },
+  { key: 'hasWindProtection', label: 'Wind Protection', icon: '🌬️' },
+];
+
 // ═════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════
@@ -93,17 +103,11 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
   const [hoursSaving, setHoursSaving] = useState(false);
   const [hoursStatus, setHoursStatus] = useState({ text: '', type: '' });
 
-  // ── Heating Toggles State ───────────────────────────────────
-  const heatingFields = [
-    { key: 'hasHeaters', label: 'Outdoor Heaters', icon: '🔆' },
-    { key: 'hasFireplace', label: 'Fireplace', icon: '🔥' },
-    { key: 'hasUmbrellas', label: 'Shade Umbrellas', icon: '⛱️' },
-    { key: 'hasWindProtection', label: 'Wind Protection', icon: '🌬️' },
-  ];
+  // ── Heating Toggles State — keyed by DB/map column name ─────
   const [heatingState, setHeatingState] = useState({
-    hasHeaters: !!venue?.hasHeaters,
-    hasFireplace: !!venue?.hasFireplace,
-    hasUmbrellas: !!venue?.hasUmbrellas,
+    heatersOn:        !!venue?.heatersOn || !!venue?.hasHeaters,
+    fireplaceOn:      !!venue?.fireplaceOn || !!venue?.hasFireplace,
+    hasUmbrellas:     !!venue?.hasUmbrellas,
     hasWindProtection: !!venue?.hasWindProtection,
   });
   const [heatingSaving, setHeatingSaving] = useState({});
@@ -136,19 +140,16 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
     }
   };
 
-  // ── Heating Toggle Handler (auto-save) ──────────────────────
+  // ── Heating Toggle Handler (auto-save + immediate map update) ─
   const handleHeatingToggle = useCallback(async (key, value) => {
     setHeatingState(prev => ({ ...prev, [key]: value }));
     setHeatingSaving(prev => ({ ...prev, [key]: true }));
 
-    // Propagate immediately to App state so VenueCard + map update live
+    // Propagate immediately to App state so map pin updates live
     if (setLiveVenueFeatures && venue?.id) {
       setLiveVenueFeatures(prev => ({
         ...prev,
-        [venue.id]: {
-          ...(prev?.[venue.id] || {}),
-          [key]: value,
-        }
+        [venue.id]: { ...(prev?.[venue.id] || {}), [key]: value },
       }));
     }
 
@@ -162,6 +163,8 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
       setTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
     } catch (e) {
       console.error('Heating save error:', e.message);
+      // Revert optimistic update on failure
+      setHeatingState(prev => ({ ...prev, [key]: !value }));
     } finally {
       setHeatingSaving(prev => ({ ...prev, [key]: false }));
     }
@@ -171,12 +174,18 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
   const handleSaveVibe = async () => {
     setVibeSaving(true);
     try {
-      const { error } = await supabase.from('venues').update({ tags: activeTags }).eq('id', venue.id);
-      if (error) throw error;
+      const { error } = await supabase
+        .from('venues')
+        .update({ tags: activeTags })
+        .eq('id', venue.id);
+      if (error) throw new Error(error.message || JSON.stringify(error));
       flashStatus(setVibeStatus, '✅ Saved');
       onVenueUpdate?.({ ...venue, tags: activeTags });
     } catch (err) {
-      flashStatus(setVibeStatus, err.message || 'Save failed', 'error', 3000);
+      // Show the real Supabase error message so we can debug it
+      const msg = err.message || 'Save failed';
+      console.error('[OwnerDashboard] Save Vibe error:', msg);
+      flashStatus(setVibeStatus, msg.slice(0, 60), 'error', 5000);
     } finally {
       setVibeSaving(false);
     }
@@ -235,8 +244,6 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
       {/* Scrollable Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 16, WebkitOverflowScrolling: 'touch' }}>
 
-        {/* Removed Venue Photo Section */}
-
         {/* ═══ 2. OPERATING HOURS ═══ */}
         <section>
           <SectionHeading>🕐 Operating Hours</SectionHeading>
@@ -246,7 +253,6 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
               return (
                 <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ width: 32, fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{DAY_LABELS[day]}</span>
-                  {/* Open/Closed toggle */}
                   <button
                     onClick={() => setHours(h => ({ ...h, [day]: { ...h[day], closed: !h[day].closed } }))}
                     style={{
@@ -264,19 +270,9 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
                     <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Closed</span>
                   ) : (
                     <>
-                      <input
-                        type="time"
-                        value={d.open}
-                        onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], open: e.target.value } }))}
-                        style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }}
-                      />
+                      <input type="time" value={d.open} onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], open: e.target.value } }))} style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }} />
                       <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}>–</span>
-                      <input
-                        type="time"
-                        value={d.close}
-                        onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], close: e.target.value } }))}
-                        style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }}
-                      />
+                      <input type="time" value={d.close} onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], close: e.target.value } }))} style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }} />
                     </>
                   )}
                 </div>
@@ -284,15 +280,9 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
             })}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', marginTop: 12 }}>
-            <button
-              onClick={handleSaveHours}
-              disabled={hoursSaving}
-              style={{
-                padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff',
-                fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer',
-                opacity: hoursSaving ? 0.6 : 1,
-              }}
-            >{hoursSaving ? 'Saving...' : 'Save Hours'}</button>
+            <button onClick={handleSaveHours} disabled={hoursSaving} style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: hoursSaving ? 0.6 : 1 }}>
+              {hoursSaving ? 'Saving...' : 'Save Hours'}
+            </button>
             <InlineStatus text={hoursStatus.text} type={hoursStatus.type} />
           </div>
         </section>
@@ -302,7 +292,10 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
         {/* ═══ 3. HEATING & COMFORT ═══ */}
         <section>
           <SectionHeading>🔥 Heating & Comfort</SectionHeading>
-          {heatingFields.map(({ key, label, icon }) => (
+          <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
+            Toggling Heaters or Fireplace ON changes your map pin to 🔥 instantly.
+          </p>
+          {HEATING_FIELDS.map(({ key, label, icon }) => (
             <DarkToggle
               key={key}
               label={label}
@@ -321,21 +314,11 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
         <section>
           <SectionHeading>✨ Your Venue Vibe</SectionHeading>
 
-          {/* Active Tags */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
             {activeTags.map(tag => (
-              <span
-                key={tag}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px',
-                  borderRadius: 999, background: '#14B8A6', color: '#fff', fontSize: '0.7rem', fontWeight: 700,
-                }}
-              >
+              <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 999, background: '#14B8A6', color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>
                 {tag}
-                <button
-                  onClick={() => removeTag(tag)}
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 0, fontSize: '0.8rem', lineHeight: 1 }}
-                >✕</button>
+                <button onClick={() => removeTag(tag)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 0, fontSize: '0.8rem', lineHeight: 1 }}>✕</button>
               </span>
             ))}
             {activeTags.length === 0 && (
@@ -343,68 +326,37 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
             )}
           </div>
 
-          {/* Tag Counter */}
           <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 8, fontWeight: 600 }}>{activeTags.length}/8 tags</p>
 
-          {/* Preset Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>
             {PRESET_TAGS.map(tag => {
               const active = activeTags.includes(tag);
               return (
-                <button
-                  key={tag}
-                  onClick={() => !active && addTag(tag)}
-                  disabled={active || activeTags.length >= 8}
-                  style={{
-                    padding: '6px 10px', borderRadius: 8, fontSize: '0.7rem', fontWeight: 600,
-                    border: '1px solid rgba(255,255,255,0.1)', cursor: active ? 'default' : 'pointer',
-                    background: active ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)',
-                    color: active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.7)',
-                    transition: 'all 150ms ease',
-                  }}
-                >{tag}</button>
+                <button key={tag} onClick={() => !active && addTag(tag)} disabled={active || activeTags.length >= 8}
+                  style={{ padding: '6px 10px', borderRadius: 8, fontSize: '0.7rem', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)', cursor: active ? 'default' : 'pointer', background: active ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', color: active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.7)', transition: 'all 150ms ease' }}>
+                  {tag}
+                </button>
               );
             })}
           </div>
 
-          {/* Custom Tag Input */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <input
-              type="text"
-              value={customTag}
-              onChange={e => setCustomTag(e.target.value.slice(0, 20))}
-              placeholder="Custom tag..."
-              maxLength={20}
-              onKeyDown={e => e.key === 'Enter' && handleAddCustomTag()}
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <button
-              onClick={handleAddCustomTag}
-              disabled={!customTag.trim() || activeTags.length >= 8}
-              style={{
-                padding: '8px 16px', borderRadius: 8, background: '#14B8A6', color: '#fff',
-                fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer',
-                opacity: (!customTag.trim() || activeTags.length >= 8) ? 0.4 : 1,
-              }}
-            >Add</button>
+            <input type="text" value={customTag} onChange={e => setCustomTag(e.target.value.slice(0, 20))} placeholder="Custom tag..." maxLength={20} onKeyDown={e => e.key === 'Enter' && handleAddCustomTag()} style={{ ...inputStyle, flex: 1 }} />
+            <button onClick={handleAddCustomTag} disabled={!customTag.trim() || activeTags.length >= 8}
+              style={{ padding: '8px 16px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: (!customTag.trim() || activeTags.length >= 8) ? 0.4 : 1 }}>
+              Add
+            </button>
           </div>
 
-          {/* Save Vibe */}
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <button
-              onClick={handleSaveVibe}
-              disabled={vibeSaving}
-              style={{
-                padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff',
-                fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer',
-                opacity: vibeSaving ? 0.6 : 1,
-              }}
-            >{vibeSaving ? 'Saving...' : 'Save Vibe'}</button>
+            <button onClick={handleSaveVibe} disabled={vibeSaving}
+              style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: vibeSaving ? 0.6 : 1 }}>
+              {vibeSaving ? 'Saving...' : 'Save Vibe'}
+            </button>
             <InlineStatus text={vibeStatus.text} type={vibeStatus.type} />
           </div>
         </section>
 
-        {/* Bottom padding for scroll */}
         <div style={{ height: 48 }} />
       </div>
     </motion.div>
