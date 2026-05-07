@@ -1,16 +1,7 @@
 /**
  * VenueMap — Optimized Cross-Platform Map Component
  * ──────────────────────────────────────────────────
- * Replaces DOM-based Mapbox markers with GL-native rendering:
- *   - Web:    GeoJSON source + symbol layer (mapbox-gl)
- *   - Mobile: @rnmapbox/maps SymbolLayer (same interface, future)
- *
- * Performance improvements:
- *   - Single GL layer instead of N DOM elements
- *   - Memoized GeoJSON & sunshine overlay
- *   - Click handling via GL events, not DOM listeners
- *   - Designed for 1000+ venues
- *
+ * GL-native rendering with bold circle-backed emoji pins
  * @module components/Map/VenueMap
  */
 
@@ -28,43 +19,42 @@ import { calculateLiveSunScore, getComfortTier } from '../../utils/sunScore';
 
 const VENUE_SOURCE_ID = 'venue-source';
 const VENUE_LAYER_ID = 'venue-symbols';
+const VENUE_BG_LAYER_ID = 'venue-circles';
 const SUNSHINE_SOURCE_ID = 'sunshine-source';
 const SUNSHINE_LAYER_ID = 'sunshine-overlay';
 
-// Emoji-to-image mapping for symbol layer (Mapbox GL requires images, not text)
-// We use a text-field approach instead for simplicity.
+// Larger emoji pins — clearly visible on light map
 const VENUE_SYMBOL_LAYOUT = {
     'text-field': ['get', 'emoji'],
-    'text-size': 24,
+    'text-size': 22,
     'text-allow-overlap': true,
     'text-ignore-placement': true,
     'icon-allow-overlap': true,
+    'text-anchor': 'center',
+    'text-offset': [0, 0],
 };
 
 const VENUE_SYMBOL_PAINT = {
     'text-color': '#ffffff',
-    'text-halo-color': ['get', 'haloColor'],
-    'text-halo-width': [
-        'interpolate', ['linear'], ['get', 'score'],
-        0,  1.5,
-        45, 2.5,
-        65, 3.5,
-        80, 5.0,
-    ],
-    'text-halo-blur': 1,
+    'text-halo-color': 'rgba(0,0,0,0.15)',
+    'text-halo-width': 1,
+    'text-halo-blur': 0,
+};
+
+// Circle background layer — makes pins pop on any map style
+const VENUE_CIRCLE_PAINT = {
+    'circle-radius': 20,
+    'circle-color': ['get', 'haloColor'],
+    'circle-opacity': 0.92,
+    'circle-stroke-width': 2.5,
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-opacity': 1,
+    'circle-blur': 0,
 };
 
 
 // ── Sunshine Overlay (memoized) ─────────────────────────────────────
 
-/**
- * Build GeoJSON for the sunshine indicator heatmap.
- * Memoized — only recomputes when weather data or venues change.
- *
- * @param {object[]} venues
- * @param {object | null} weather
- * @returns {object} GeoJSON FeatureCollection
- */
 const buildSunshineGeoJSON = (venues, weather) => {
     if (!weather || !venues?.length) {
         return { type: 'FeatureCollection', features: [] };
@@ -82,14 +72,8 @@ const buildSunshineGeoJSON = (venues, weather) => {
 
             return {
                 type: 'Feature',
-                geometry: {
-                    type: 'Point',
-                    coordinates: [v.lng, v.lat],
-                },
-                properties: {
-                    intensity,
-                    temp: Math.round(temp),
-                },
+                geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
+                properties: { intensity, temp: Math.round(temp) },
             };
         }),
     };
@@ -128,9 +112,9 @@ const VenueMap = forwardRef(({
             const tier = getComfortTier(Math.min(100, score + cozyBonus));
             return {
                 prime:    '#f59e0b',  // amber
-                good:     '#34d399',  // emerald
-                moderate: '#94a3b8',  // slate
-                cosy:     '#818cf8',  // indigo
+                good:     '#10b981',  // emerald
+                moderate: '#6366f1',  // indigo
+                cosy:     '#f97316',  // orange
             }[tier] || '#f59e0b';
         };
 
@@ -147,10 +131,7 @@ const VenueMap = forwardRef(({
             type: 'FeatureCollection',
             features: venues.map(v => ({
                 type: 'Feature',
-                geometry: {
-                    type: 'Point',
-                    coordinates: [v.lng, v.lat],
-                },
+                geometry: { type: 'Point', coordinates: [v.lng, v.lat] },
                 properties: {
                     id: v.id,
                     emoji: getPinEmoji(v, weather),
@@ -181,9 +162,7 @@ const VenueMap = forwardRef(({
 
     // ── Expose flyTo via ref ──────────────────────────────────────
     useImperativeHandle(ref, () => ({
-        flyTo: (options) => {
-            if (map.current) map.current.flyTo(options);
-        },
+        flyTo: (options) => { if (map.current) map.current.flyTo(options); },
         getMap: () => map.current,
     }));
 
@@ -224,28 +203,14 @@ const VenueMap = forwardRef(({
                 setMapLoaded(true);
                 setMapError(false);
 
-                // ── Add Venue Source + Symbol Layer ──────────────────
+                // ── Venue GeoJSON Source ──────────────────────────────
                 map.current.addSource(VENUE_SOURCE_ID, {
                     type: 'geojson',
                     data: venueGeoJSON,
-                    cluster: true,
-                    clusterMaxZoom: 14,
-                    clusterRadius: 50,
+                    cluster: false,
                 });
 
-                map.current.addLayer({
-                    id: VENUE_LAYER_ID,
-                    type: 'symbol',
-                    source: VENUE_SOURCE_ID,
-                    layout: {
-                        ...VENUE_SYMBOL_LAYOUT,
-                        'visibility': 'visible',
-                    },
-                    paint: VENUE_SYMBOL_PAINT,
-                    filter: ['==', ['get', 'visible'], true],
-                });
-
-                // ── Add Sunshine Overlay Source + Circle Layer ───────
+                // ── Sunshine Overlay ──────────────────────────────────
                 map.current.addSource(SUNSHINE_SOURCE_ID, {
                     type: 'geojson',
                     data: sunshineGeoJSON,
@@ -261,22 +226,51 @@ const VenueMap = forwardRef(({
                         'circle-opacity': ['get', 'intensity'],
                         'circle-blur': 1,
                     },
-                }, VENUE_LAYER_ID); // render below venue symbols
-
-                // ── Click Handler (GL event, not DOM) ───────────────
-                map.current.on('click', VENUE_LAYER_ID, (e) => {
-                    if (!e.features?.length) return;
-                    const feature = e.features[0];
-                    const venueId = feature.properties.id;
-                    const venue = venues.find(v => v.id === venueId);
-                    if (venue) onVenueSelect(venue);
                 });
 
-                // Pointer cursor on hover
+                // ── Circle background (renders below emoji) ───────────
+                map.current.addLayer({
+                    id: VENUE_BG_LAYER_ID,
+                    type: 'circle',
+                    source: VENUE_SOURCE_ID,
+                    paint: VENUE_CIRCLE_PAINT,
+                    filter: ['==', ['get', 'visible'], true],
+                });
+
+                // ── Emoji symbol on top ───────────────────────────────
+                map.current.addLayer({
+                    id: VENUE_LAYER_ID,
+                    type: 'symbol',
+                    source: VENUE_SOURCE_ID,
+                    layout: {
+                        ...VENUE_SYMBOL_LAYOUT,
+                        'visibility': 'visible',
+                    },
+                    paint: VENUE_SYMBOL_PAINT,
+                    filter: ['==', ['get', 'visible'], true],
+                });
+
+                // ── Click Handler ─────────────────────────────────────
+                const handleClick = (e) => {
+                    if (!e.features?.length) return;
+                    const venueId = e.features[0].properties.id;
+                    const venue = venues.find(v => v.id === venueId);
+                    if (venue) onVenueSelect(venue);
+                };
+
+                map.current.on('click', VENUE_LAYER_ID, handleClick);
+                map.current.on('click', VENUE_BG_LAYER_ID, handleClick);
+
                 map.current.on('mouseenter', VENUE_LAYER_ID, () => {
                     map.current.getCanvas().style.cursor = 'pointer';
                 });
                 map.current.on('mouseleave', VENUE_LAYER_ID, () => {
+                    map.current.getCanvas().style.cursor = '';
+                });
+                map.current.on('mouseenter', VENUE_BG_LAYER_ID, () => {
+                    map.current.getCanvas().style.cursor = 'pointer';
+                });
+                map.current.on('mouseleave', VENUE_BG_LAYER_ID, () => {
                     map.current.getCanvas().style.cursor = '';
                 });
             });
@@ -310,15 +304,13 @@ const VenueMap = forwardRef(({
     // ── Update GeoJSON when data changes ──────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-
         const source = map.current.getSource(VENUE_SOURCE_ID);
         if (source) source.setData(venueGeoJSON);
     }, [venueGeoJSON, mapLoaded]);
 
-    // ── Update Sunshine overlay when weather changes ──────────────
+    // ── Update Sunshine overlay ───────────────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-
         const source = map.current.getSource(SUNSHINE_SOURCE_ID);
         if (source) source.setData(sunshineGeoJSON);
     }, [sunshineGeoJSON, mapLoaded]);
@@ -342,7 +334,6 @@ const VenueMap = forwardRef(({
         <div className="ss-mapview-root" style={{ position: 'relative', width: '100%', height: '100%' }}>
             <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
-            {/* Error / Loading Overlay */}
             {(mapError || !mapLoaded) && (
                 <div style={overlayStyles.container}>
                     {(isTokenMissing || mapError) ? (
@@ -367,7 +358,6 @@ const VenueMap = forwardRef(({
                 </div>
             )}
 
-            {/* Caption */}
             {mapLoaded && !mapError && (
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner">
@@ -381,57 +371,29 @@ const VenueMap = forwardRef(({
 
 VenueMap.displayName = 'VenueMap';
 
-// ── Overlay Styles ──────────────────────────────────────────────────
-
 const overlayStyles = {
     container: {
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(15, 15, 30, 0.95)',
-        zIndex: 10,
+        position: 'absolute', inset: 0, display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(15, 15, 30, 0.95)', zIndex: 10,
     },
-    errorContent: {
-        textAlign: 'center',
-        padding: '24px',
-    },
-    errorText: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: '14px',
-        fontWeight: '600',
-    },
+    errorContent: { textAlign: 'center', padding: '24px' },
+    errorText: { color: 'rgba(255,255,255,0.6)', fontSize: '14px', fontWeight: '600' },
     badge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '8px',
-        background: 'rgba(0,0,0,0.4)',
-        padding: '8px 16px',
-        borderRadius: '20px',
-        border: '1px solid rgba(255,255,255,0.1)',
-        marginTop: '16px',
-        fontSize: '10px',
-        fontWeight: '700',
-        color: '#fbbf24',
-        textTransform: 'uppercase',
-        letterSpacing: '1px',
+        display: 'inline-flex', alignItems: 'center', gap: '8px',
+        background: 'rgba(0,0,0,0.4)', padding: '8px 16px',
+        borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)',
+        marginTop: '16px', fontSize: '10px', fontWeight: '700',
+        color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '1px',
     },
     pulseDot: {
-        width: '8px',
-        height: '8px',
-        borderRadius: '50%',
-        background: '#fbbf24',
-        animation: 'pulse 2s infinite',
+        width: '8px', height: '8px', borderRadius: '50%',
+        background: '#fbbf24', animation: 'pulse 2s infinite',
     },
-    loadingContent: {
-        textAlign: 'center',
-    },
+    loadingContent: { textAlign: 'center' },
     loadingText: {
-        color: 'rgba(255,255,255,0.5)',
-        fontWeight: '600',
-        fontStyle: 'italic',
-        marginTop: '12px',
+        color: 'rgba(255,255,255,0.5)', fontWeight: '600',
+        fontStyle: 'italic', marginTop: '12px',
     },
 };
 
