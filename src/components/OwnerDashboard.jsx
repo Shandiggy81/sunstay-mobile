@@ -92,11 +92,20 @@ const HEATING_FIELDS = [
 // ═════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════
-export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setLiveVenueFeatures, onVenueUpdate }) {
+export default function OwnerDashboard({
+  venue,
+  onClose = () => {},
+  liveVenueFeatures,
+  setLiveVenueFeatures,
+  onVenueUpdate,
+}) {
+  const safeVenue = venue || {};
+  const venueId = safeVenue.id;
+  const venueName = safeVenue.name || safeVenue.venueName || 'Venue';
   // ── Hours State ─────────────────────────────────────────────
   const defaultHours = {};
   DAYS.forEach(d => {
-    const existing = venue?.hours?.[d];
+    const existing = safeVenue?.hours?.[d];
     defaultHours[d] = existing || { open: '08:00', close: '22:00', closed: false };
   });
   const [hours, setHours] = useState(defaultHours);
@@ -105,34 +114,58 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
 
   // ── Heating Toggles State — keyed by DB/map column name ─────
   const [heatingState, setHeatingState] = useState({
-    heatersOn:        !!venue?.heatersOn || !!venue?.hasHeaters,
-    fireplaceOn:      !!venue?.fireplaceOn || !!venue?.hasFireplace,
-    hasUmbrellas:     !!venue?.hasUmbrellas,
-    hasWindProtection: !!venue?.hasWindProtection,
+    heatersOn:        !!safeVenue?.heatersOn || !!safeVenue?.hasHeaters,
+    fireplaceOn:      !!safeVenue?.fireplaceOn || !!safeVenue?.hasFireplace,
+    hasUmbrellas:     !!safeVenue?.hasUmbrellas,
+    hasWindProtection: !!safeVenue?.hasWindProtection,
   });
   const [heatingSaving, setHeatingSaving] = useState({});
   const [heatingSaved, setHeatingSaved] = useState({});
 
   // ── Vibe Tags State ─────────────────────────────────────────
-  const [activeTags, setActiveTags] = useState(venue?.tags || (venue?.vibe ? [venue.vibe] : []));
+  const [activeTags, setActiveTags] = useState(() => {
+    if (Array.isArray(safeVenue.tags)) return safeVenue.tags;
+    if (Array.isArray(safeVenue.vibe)) return safeVenue.vibe;
+    return safeVenue.vibe ? [safeVenue.vibe] : [];
+  });
   const [customTag, setCustomTag] = useState('');
   const [vibeSaving, setVibeSaving] = useState(false);
   const [vibeStatus, setVibeStatus] = useState({ text: '', type: '' });
+  const timeoutIdsRef = useRef(new Set());
+
+  const scheduleTimeout = useCallback((callback, delay) => {
+    const id = setTimeout(() => {
+      timeoutIdsRef.current.delete(id);
+      callback();
+    }, delay);
+    timeoutIdsRef.current.add(id);
+    return id;
+  }, []);
+
+  useEffect(() => () => {
+    timeoutIdsRef.current.forEach(clearTimeout);
+    timeoutIdsRef.current.clear();
+  }, []);
 
   // ── Helpers ─────────────────────────────────────────────────
   const flashStatus = useCallback((setter, text, type = 'success', duration = 2000) => {
     setter({ text, type });
-    setTimeout(() => setter({ text: '', type: '' }), duration);
-  }, []);
+    scheduleTimeout(() => setter({ text: '', type: '' }), duration);
+  }, [scheduleTimeout]);
 
   // ── Hours Save Handler ──────────────────────────────────────
   const handleSaveHours = async () => {
     setHoursSaving(true);
+    if (!venueId) {
+      flashStatus(setHoursStatus, 'No venue selected', 'error', 3000);
+      setHoursSaving(false);
+      return;
+    }
     try {
-      const { error } = await supabase.from('venues').update({ hours }).eq('id', venue.id);
+      const { error } = await supabase.from('venues').update({ hours }).eq('id', venueId);
       if (error) throw error;
       flashStatus(setHoursStatus, '✅ Saved');
-      onVenueUpdate?.({ ...venue, hours });
+      onVenueUpdate?.({ ...safeVenue, hours });
     } catch (err) {
       flashStatus(setHoursStatus, err.message || 'Save failed', 'error', 3000);
     } finally {
@@ -142,14 +175,15 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
 
   // ── Heating Toggle Handler (auto-save + immediate map update) ─
   const handleHeatingToggle = useCallback(async (key, value) => {
+    if (!venueId) return;
     setHeatingState(prev => ({ ...prev, [key]: value }));
     setHeatingSaving(prev => ({ ...prev, [key]: true }));
 
     // Propagate immediately to App state so map pin updates live
-    if (setLiveVenueFeatures && venue?.id) {
+    if (setLiveVenueFeatures) {
       setLiveVenueFeatures(prev => ({
         ...prev,
-        [venue.id]: { ...(prev?.[venue.id] || {}), [key]: value },
+        [venueId]: { ...(prev?.[venueId] || {}), [key]: value },
       }));
     }
 
@@ -157,10 +191,10 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
       const { error } = await supabase
         .from('venues')
         .update({ [key]: value })
-        .eq('id', venue.id);
+        .eq('id', venueId);
       if (error) throw error;
       setHeatingSaved(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
+      scheduleTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
     } catch (e) {
       console.error('Heating save error:', e.message);
       // Revert optimistic update on failure
@@ -168,19 +202,24 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
     } finally {
       setHeatingSaving(prev => ({ ...prev, [key]: false }));
     }
-  }, [venue?.id, setLiveVenueFeatures]);
+  }, [venueId, setLiveVenueFeatures, scheduleTimeout]);
 
   // ── Vibe Save Handler ──────────────────────────────────────
   const handleSaveVibe = async () => {
     setVibeSaving(true);
+    if (!venueId) {
+      flashStatus(setVibeStatus, 'No venue selected', 'error', 3000);
+      setVibeSaving(false);
+      return;
+    }
     try {
       const { error } = await supabase
         .from('venues')
         .update({ tags: activeTags })
-        .eq('id', venue.id);
+        .eq('id', venueId);
       if (error) throw new Error(error.message || JSON.stringify(error));
       flashStatus(setVibeStatus, '✅ Saved');
-      onVenueUpdate?.({ ...venue, tags: activeTags });
+      onVenueUpdate?.({ ...safeVenue, tags: activeTags });
     } catch (err) {
       // Show the real Supabase error message so we can debug it
       const msg = err.message || 'Save failed';
@@ -230,7 +269,7 @@ export default function OwnerDashboard({ venue, onClose, liveVenueFeatures, setL
       {/* Top Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
         <div>
-          <h2 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{venue?.name || 'Venue'}</h2>
+          <h2 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{venueName}</h2>
           <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>Owner Dashboard</span>
         </div>
         <button

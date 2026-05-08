@@ -3,8 +3,13 @@
 const CACHE_KEY = "sunstay_openmeteo_cache";
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 const memoryCache = { data: null, timestamp: 0 };
+const numberAt = (values, index, fallback = null) => {
+  if (!Array.isArray(values)) return fallback;
+  const value = Number(values[index]);
+  return Number.isFinite(value) ? value : fallback;
+};
 
-export async function getMelbourneWeather() {
+export async function getMelbourneWeather(options = {}) {
   const lat = -37.8136;
   const lng = 144.9631;
 
@@ -23,7 +28,7 @@ export async function getMelbourneWeather() {
   }
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: options.signal });
     if (!res.ok) throw new Error("Network response was not ok");
     const data = await res.json();
 
@@ -31,30 +36,30 @@ export async function getMelbourneWeather() {
     const currentHour = Math.min(23, now.getHours());
 
     const result = {
-      temperature: data.current.temperature_2m,
-      apparentTemp: data.current.apparent_temperature ?? null,
-      windSpeed: data.current.wind_speed_10m,
-      weatherCodeCurrent: data.current.weather_code,
-      uvIndex: data.current.uv_index,
-      isDay: data.current.is_day ?? 1,
-      sunrise: data.daily.sunrise[0],
-      sunset: data.daily.sunset[0],
-      minTemp: data.daily.temperature_2m_min[0],
-      maxTemp: data.daily.temperature_2m_max?.[0] ?? null,
-      uvIndexMax: data.daily.uv_index_max?.[0] ?? null,
-      daylightDuration: data.daily.daylight_duration?.[0] ?? null,
-      weatherCode: data.hourly.weather_code?.[currentHour] ?? null,
-      precipitation: data.hourly.precipitation?.[currentHour] ?? null,
-      precipProbability: data.hourly.precipitation_probability?.[currentHour] ?? null,
-      windGusts: data.hourly.wind_gusts_10m?.[currentHour] ?? null,
-      showerMm: data.hourly.showers?.[currentHour] ?? null,
-      cloudCover: data.hourly.cloud_cover?.[currentHour] ?? null,
-      cloudCoverLow: data.hourly.cloud_cover_low?.[currentHour] ?? null,
-      sunshineDuration: data.hourly.sunshine_duration?.[currentHour] ?? null,
-      shortwaveRadiation: data.hourly.shortwave_radiation?.[currentHour] ?? null,
-      directNormalIrradiance: data.hourly.direct_normal_irradiance?.[currentHour] ?? null,
-      sunScore: Math.min(100, Math.round((data.hourly.shortwave_radiation?.[currentHour] ?? 0) / 8)),
-      hourlyData: data.hourly,
+      temperature: Number(data.current?.temperature_2m) || 22,
+      apparentTemp: data.current?.apparent_temperature ?? null,
+      windSpeed: Number(data.current?.wind_speed_10m) || 0,
+      weatherCodeCurrent: data.current?.weather_code ?? 0,
+      uvIndex: data.current?.uv_index ?? 0,
+      isDay: data.current?.is_day ?? 1,
+      sunrise: data.daily?.sunrise?.[0] ?? new Date().toISOString(),
+      sunset: data.daily?.sunset?.[0] ?? new Date().toISOString(),
+      minTemp: numberAt(data.daily?.temperature_2m_min, 0, null),
+      maxTemp: numberAt(data.daily?.temperature_2m_max, 0, null),
+      uvIndexMax: numberAt(data.daily?.uv_index_max, 0, null),
+      daylightDuration: numberAt(data.daily?.daylight_duration, 0, null),
+      weatherCode: numberAt(data.hourly?.weather_code, currentHour, null),
+      precipitation: numberAt(data.hourly?.precipitation, currentHour, null),
+      precipProbability: numberAt(data.hourly?.precipitation_probability, currentHour, null),
+      windGusts: numberAt(data.hourly?.wind_gusts_10m, currentHour, null),
+      showerMm: numberAt(data.hourly?.showers, currentHour, null),
+      cloudCover: numberAt(data.hourly?.cloud_cover, currentHour, null),
+      cloudCoverLow: numberAt(data.hourly?.cloud_cover_low, currentHour, null),
+      sunshineDuration: numberAt(data.hourly?.sunshine_duration, currentHour, null),
+      shortwaveRadiation: numberAt(data.hourly?.shortwave_radiation, currentHour, null),
+      directNormalIrradiance: numberAt(data.hourly?.direct_normal_irradiance, currentHour, null),
+      sunScore: Math.min(100, Math.round((numberAt(data.hourly?.shortwave_radiation, currentHour, 0) || 0) / 8)),
+      hourlyData: data.hourly || {},
     };
 
     try {
@@ -66,6 +71,7 @@ export async function getMelbourneWeather() {
 
     return result;
   } catch (error) {
+    if (error?.name === 'AbortError') throw error;
     console.error("Failed to fetch weather data", error);
     return {
       temperature: 22, apparentTemp: 22, windSpeed: 10,

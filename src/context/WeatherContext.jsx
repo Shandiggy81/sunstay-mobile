@@ -9,6 +9,7 @@ const WeatherContext = createContext(null);
 const MELBOURNE_COORDS = { lat: -37.8136, lon: 144.9631 };
 const CACHE_EXPIRY = 900000;
 const CACHE_KEY = `sunstay_weather_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
+const isAbortError = (error) => error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
 
 const DEMO_WEATHER = {
     main: { temp: 22, feels_like: 21, humidity: 55 },
@@ -49,7 +50,7 @@ const getWeatherFromOpenMeteoCode = (code) => {
     return { main: 'Clouds', description: 'variable cloud', icon: '03d' };
 };
 
-const fetchOpenMeteoWeather = async (lat, lon) => {
+const fetchOpenMeteoWeather = async (lat, lon, signal) => {
     const params = new URLSearchParams({
         latitude: String(lat),
         longitude: String(lon),
@@ -70,7 +71,7 @@ const fetchOpenMeteoWeather = async (lat, lon) => {
         forecast_days: '1',
     });
 
-    const response = await axios.get(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
+    const response = await axios.get(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { signal });
     const current = response?.data?.current || {};
 
     if (current.temperature_2m == null) return null;
@@ -189,7 +190,7 @@ export const WeatherProvider = ({ children }) => {
         setTheme(getThemeFromCondition(condition));
     }, []);
 
-    const fetchWeather = useCallback(async () => {
+    const fetchWeather = useCallback(async (signal) => {
         setLoading(true);
 
         if (overrideType) {
@@ -219,7 +220,8 @@ export const WeatherProvider = ({ children }) => {
         if (WEATHER_API_KEY) {
             try {
                 const response = await axios.get(
-                    `https://api.openweathermap.org/data/2.5/weather?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}&units=metric`
+                    `https://api.openweathermap.org/data/2.5/weather?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}&units=metric`,
+                    { signal }
                 );
                 const weatherData = { ...response.data, source: 'openweather' };
 
@@ -228,14 +230,15 @@ export const WeatherProvider = ({ children }) => {
                     try {
                         const uvRes = await fetch(
                             `https://api.openuv.io/api/v1/uv?lat=${MELBOURNE_COORDS.lat}&lng=${MELBOURNE_COORDS.lon}`,
-                            { headers: { 'x-access-token': OPENUV_KEY } }
+                            { headers: { 'x-access-token': OPENUV_KEY }, signal }
                         );
                         const uvData = await uvRes.json();
                         if (uvData?.result?.uv != null) weatherData.uvi = uvData.result.uv;
                     } catch {
                         try {
                             const uvResponse = await axios.get(
-                                `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
+                                `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`,
+                                { signal }
                             );
                             weatherData.uvi = uvResponse.data.value;
                         } catch {
@@ -246,7 +249,8 @@ export const WeatherProvider = ({ children }) => {
                 } else {
                     try {
                         const uvResponse = await axios.get(
-                            `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`
+                            `https://api.openweathermap.org/data/2.5/uvi?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&appid=${WEATHER_API_KEY}`,
+                            { signal }
                         );
                         weatherData.uvi = uvResponse.data.value;
                     } catch {
@@ -256,19 +260,22 @@ export const WeatherProvider = ({ children }) => {
                 }
 
                 liveWeather = normalizeCachedWeather(weatherData);
-            } catch {
+            } catch (error) {
+                if (isAbortError(error)) return;
                 liveWeather = null;
             }
         }
 
         if (!liveWeather) {
             try {
-                liveWeather = await fetchOpenMeteoWeather(MELBOURNE_COORDS.lat, MELBOURNE_COORDS.lon);
-            } catch {
+                liveWeather = await fetchOpenMeteoWeather(MELBOURNE_COORDS.lat, MELBOURNE_COORDS.lon, signal);
+            } catch (error) {
+                if (isAbortError(error)) return;
                 liveWeather = null;
             }
         }
 
+        if (signal?.aborted) return;
         const nextWeather = liveWeather || DEMO_WEATHER;
         applyWeatherData(nextWeather);
         setLoading(false);
@@ -283,7 +290,9 @@ export const WeatherProvider = ({ children }) => {
     }, [WEATHER_API_KEY, overrideType, applyWeatherData]);
 
     useEffect(() => {
-        fetchWeather();
+        const controller = new AbortController();
+        fetchWeather(controller.signal);
+        return () => controller.abort();
     }, [fetchWeather]);
 
     const updateOverride = (type) => setOverrideType(type === overrideType ? null : type);

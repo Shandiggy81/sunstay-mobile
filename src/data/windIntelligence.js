@@ -50,9 +50,9 @@ const VENUE_WIND_NOTES = {
  * vibe, tags, and name.
  */
 export function detectWindExposure(venue) {
-    const vibe = (venue.vibe || '').toLowerCase();
-    const tags = (venue.tags || []).map(t => t.toLowerCase());
-    const name = (venue.venueName || '').toLowerCase();
+    const vibe = String(venue?.vibe || '').toLowerCase();
+    const tags = Array.isArray(venue?.tags) ? venue.tags.map(t => String(t).toLowerCase()) : [];
+    const name = String(venue?.venueName || venue?.name || '').toLowerCase();
 
     // Priority order: most exposed first
     if (tags.includes('rooftop') || vibe.includes('rooftop')) return 'rooftop';
@@ -78,7 +78,7 @@ export function detectWindExposure(venue) {
 export function getWindProfile(venue) {
     const type = detectWindExposure(venue);
     const profile = WIND_EXPOSURE_PROFILES[type] || WIND_EXPOSURE_PROFILES.beer_garden;
-    const note = VENUE_WIND_NOTES[venue.id] || null;
+    const note = venue?.id ? VENUE_WIND_NOTES[venue.id] || null : null;
 
     return {
         type,
@@ -301,6 +301,9 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
     const profile = getWindProfile(venue);
     const now = new Date();
     const currentHour = now.getHours();
+    const safeCurrentTemp = Number.isFinite(Number(currentTemp)) ? Number(currentTemp) : 20;
+    const safeCurrentWind = Number.isFinite(Number(currentWind)) ? Number(currentWind) : 0;
+    const safeHumidity = Number.isFinite(Number(humidity)) ? Number(humidity) : 50;
 
     // Melbourne diurnal wind multipliers (relative to current measurement)
     // Morning: 0.4x, midday: 0.8x, afternoon: 1.3x peak, evening: 0.6x
@@ -321,18 +324,18 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
 
     // Normalize wind multipliers relative to current hour
     const currentMultiplier = windMultipliers[currentHour] || 1;
-    const baseWind = currentWind / currentMultiplier;
+    const baseWind = safeCurrentWind / currentMultiplier;
 
     // Normalize temp offsets relative to current hour
     const currentTempOffset = tempOffsets[currentHour] || 0;
-    const baseTemp = currentTemp - currentTempOffset;
+    const baseTemp = safeCurrentTemp - currentTempOffset;
 
     const hours = [];
     for (let i = 0; i < 24; i++) {
         const h = (currentHour + i) % 24;
         const hourWind = baseWind * (windMultipliers[h] || 1);
         const hourTemp = baseTemp + (tempOffsets[h] || 0);
-        const feelsLike = calculateApparentTemp(hourTemp, hourWind, humidity, profile.shelterFactor);
+        const feelsLike = calculateApparentTemp(hourTemp, hourWind, safeHumidity, profile.shelterFactor);
         const comfort = getComfortZone(feelsLike);
         const windWarning = getWindWarning(hourWind, venue);
 
@@ -475,15 +478,17 @@ export function getWindImpactExplanation(tempC, windSpeedMs, apparentTemp, venue
  */
 export function getWindAlertMessage(windWarning, venueName, dayLabel) {
     const day = dayLabel || 'today';
+    const level = windWarning?.level || 'green';
+    const safeVenueName = venueName || 'this venue';
 
-    switch (windWarning.level) {
+    switch (level) {
         case 'red':
-            return `⚠️ Wind alert for ${venueName} ${day} — indoor backup strongly recommended`;
+            return `⚠️ Wind alert for ${safeVenueName} ${day} — indoor backup strongly recommended`;
         case 'orange':
-            return `💨 Windy conditions expected at ${venueName} ${day} — secure outdoor setup`;
+            return `💨 Windy conditions expected at ${safeVenueName} ${day} — secure outdoor setup`;
         case 'yellow':
-            return `🌿 Moderate breeze at ${venueName} ${day} — lightweight items may need securing`;
+            return `🌿 Moderate breeze at ${safeVenueName} ${day} — lightweight items may need securing`;
         default:
-            return `🍃 Calm conditions at ${venueName} ${day} — perfect for outdoor events`;
+            return `🍃 Calm conditions at ${safeVenueName} ${day} — perfect for outdoor events`;
     }
 }

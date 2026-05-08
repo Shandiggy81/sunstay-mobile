@@ -18,20 +18,26 @@ function isHappyHourNow(happyHour) {
   if (!happyHour) return false;
   const now = new Date();
   const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
-  if (!happyHour.days.includes(day)) return false;
-  const [sh, sm] = happyHour.start.split(':').map(Number);
-  const [eh, em] = happyHour.end.split(':').map(Number);
+  if (!Array.isArray(happyHour.days) || !happyHour.days.includes(day)) return false;
+  if (!happyHour.start || !happyHour.end) return false;
+  const [sh, sm] = String(happyHour.start).split(':').map(Number);
+  const [eh, em] = String(happyHour.end).split(':').map(Number);
+  if (![sh, sm, eh, em].every(Number.isFinite)) return false;
   const mins = now.getHours() * 60 + now.getMinutes();
   return mins >= sh * 60 + sm && mins < eh * 60 + em;
 }
 
 function calcOutdoorSun(venue, hourlyData) {
-  if (!hourlyData?.time) return { balcony: 0, pool: 0 };
+  if (!Array.isArray(hourlyData?.time) || !Number.isFinite(Number(venue?.lat)) || !Number.isFinite(Number(venue?.lng))) {
+    return { balcony: 0, pool: 0 };
+  }
   let b = 0, p = 0;
   for (let i = 0; i < hourlyData.time.length; i++) {
-    const irrad = hourlyData.direct_normal_irradiance?.[i] || 0;
-    const cc = (hourlyData.cloud_cover?.[i] ?? hourlyData.cloudcover?.[i]) || 0;
-    const { altitude } = getSunPositionForMap(venue.lat, venue.lng, new Date(hourlyData.time[i]));
+    const date = new Date(hourlyData.time[i]);
+    if (Number.isNaN(date.getTime())) continue;
+    const irrad = Number(hourlyData.direct_normal_irradiance?.[i]) || 0;
+    const cc = Number(hourlyData.cloud_cover?.[i] ?? hourlyData.cloudcover?.[i]) || 0;
+    const { altitude } = getSunPositionForMap(Number(venue.lat), Number(venue.lng), date);
     if (irrad > 200 && cc < 60) { if (altitude > 15) b++; if (altitude > 20) p++; }
   }
   return { balcony: b, pool: p };
@@ -467,7 +473,10 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   }
   function handlePointerLeave() { mouseX.set(0); mouseY.set(0); }
 
-  const { name, type, suburb, emoji, lat, lng, shielding, balconyData, heating, vibe = [], tags = [], photo } = venue || {};
+  const safeVenue = venue || {};
+  const { name, type, suburb, emoji, lat, lng, shielding, balconyData, heating, vibe = [], tags = [], photo } = safeVenue;
+  const safeTags = Array.isArray(tags) ? tags : [];
+  const safeVibes = Array.isArray(vibe) ? vibe : (vibe ? [vibe] : []);
   const displayName =
     venue?.name ||
     venue?.title ||
@@ -482,8 +491,8 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
   const wind       = weather?.rawWeather?.wind ?? weather?.wind?.speed ?? 0;
   const score      = weather?.score ?? weather?.rawWeather?.score ?? 70;
-  const uvIndex    = weather?.rawWeather?.uvIndex ?? venue.weatherNow?.uvIndex ?? 3;
-  const precipProb = weather?.rawWeather?.precipProb ?? venue.weatherNow?.precipProb ?? 0;
+  const uvIndex    = weather?.rawWeather?.uvIndex ?? venue?.weatherNow?.uvIndex ?? 3;
+  const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { windSpeed, rainMm, weatherCode, showerMm } = weather || {};
   const { aqLabel } = useOpenAQ(lat, lng);
@@ -513,9 +522,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
   const sunHours = useMemo(() => {
     if (isHotelOrStay && (outdoorSun.balcony > 0 || outdoorSun.pool > 0))
       return { outdoor: `${outdoorSun.balcony}h`, covered: `${outdoorSun.pool}h`, labels: { outdoor: 'Balcony', covered: 'Pool' } };
-    const sunHoursFallback = getDeterministicSunHours(venue.id);
+    const sunHoursFallback = getDeterministicSunHours(venue?.id);
     return { outdoor: `${sunHoursFallback}h`, covered: `${Math.max(4, sunHoursFallback - 2)}h`, labels: { outdoor: 'Outdoor', covered: 'Covered' } };
-  }, [isHotelOrStay, outdoorSun, venue.id]);
+  }, [isHotelOrStay, outdoorSun, venue?.id]);
 
   const weatherCondition = useMemo(() => {
     if (weather?.weather?.[0]?.main) return weather.weather[0].main.toLowerCase();
@@ -546,9 +555,15 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     return { emoji: '🌡️', label: 'Checking...' };
   }, [weather, weatherCode, weatherCondition]);
 
-  const fullVenueData = venues.find(v => (name || '').toLowerCase().includes((v.name || '').toLowerCase()) || (v.name || '').toLowerCase().includes((name || '').toLowerCase()));
+  const lookupName = String(displayName || name || '').toLowerCase();
+  const fullVenueData = lookupName
+    ? venues.find(v => {
+        const candidate = String(v.name || v.venueName || '').toLowerCase();
+        return candidate && (lookupName.includes(candidate) || candidate.includes(lookupName));
+      })
+    : null;
   const actualHappyHour  = fullVenueData?.happyHour;
-  const roomIntelligence = venue.roomIntelligence || fullVenueData?.roomIntelligence;
+  const roomIntelligence = venue?.roomIntelligence || fullVenueData?.roomIntelligence;
 
   const verdict = useMemo(() => {
     const cloudNow = Array.isArray(cloudcover)
@@ -573,22 +588,25 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     return 'Worth a Look';
   }, [score]);
 
-  const buildSpark = (key, slice = 14) => Array.isArray(hourlyData?.[key]) ? hourlyData[key].slice(0, slice).map(Number) : [];
+  const buildSpark = (key, slice = 14) => Array.isArray(hourlyData?.[key])
+    ? hourlyData[key].slice(0, slice).map(Number).filter(Number.isFinite)
+    : [];
 
   const displaySunrise = useMemo(() => {
-    if (venue.sunrise) return venue.sunrise;
+    if (venue?.sunrise) return venue.sunrise;
     if (weather?.sys?.sunrise) return new Date(weather.sys.sunrise * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return '--';
-  }, [venue.sunrise, weather?.sys?.sunrise]);
+  }, [venue?.sunrise, weather?.sys?.sunrise]);
 
   const displaySunset = useMemo(() => {
-    if (venue.sunset) return venue.sunset;
+    if (venue?.sunset) return venue.sunset;
     if (weather?.sys?.sunset) return new Date(weather.sys.sunset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return '--';
-  }, [venue.sunset, weather?.sys?.sunset]);
+  }, [venue?.sunset, weather?.sys?.sunset]);
 
   const blobA = isRain ? 'rgba(14,165,233,0.12)' : 'rgba(245,158,11,0.10)';
   const blobB = isRain ? 'rgba(99,102,241,0.07)' : 'rgba(14,165,233,0.08)';
+  const liveFeaturesForVenue = venue?.id ? liveVenueFeatures?.[venue.id] : null;
 
   return (
     <AnimatePresence>
@@ -643,7 +661,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                 <h1 className="font-bold truncate" style={{ fontSize: '18px', color: '#1E293B' }}>
                   {displayName}
                 </h1>
-                <span style={{ fontSize: '0.7rem', color: '#64748B' }}>{vibe && vibe.length ? `${Array.isArray(vibe) ? vibe.join(', ') : vibe} · ${suburb}` : suburb}</span>
+                <span style={{ fontSize: '0.7rem', color: '#64748B' }}>{safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}</span>
                 {(() => {
                   const isOutdoor = !isHotelOrStay && !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
                   if (!isOutdoor) return null;
@@ -775,7 +793,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
                   </span>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  {(tags?.length ? tags : vibe ? (Array.isArray(vibe) ? vibe : [vibe]) : ['Chill']).map((t, i) => (
+                  {(safeTags.length ? safeTags : safeVibes.length ? safeVibes : ['Chill']).map((t, i) => (
                     <span
                       key={i}
                       className="font-bold whitespace-nowrap"
@@ -917,9 +935,9 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               </Float>
             )}
 
-            {liveVenueFeatures?.[venue.id] && Object.values(liveVenueFeatures[venue.id]).some(Boolean) && (
+            {liveFeaturesForVenue && Object.values(liveFeaturesForVenue).some(Boolean) && (
               <div className="flex flex-wrap gap-2 rounded-2xl p-3" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }}>
-                {Object.entries(liveVenueFeatures[venue.id]).map(([key, active], i) =>
+                {Object.entries(liveFeaturesForVenue).map(([key, active], i) =>
                   active && FEATURE_BADGES[key] ? (
                     <Float key={key} range={2} duration={4 + i * 0.3} delay={i * 0.05}>
                       <span className="text-[10px] font-black px-3 py-1.5 rounded-full" style={{ background: 'rgba(14,165,233,0.08)', color: '#0369A1', border: '1px solid rgba(14,165,233,0.18)' }}>{FEATURE_BADGES[key]}</span>

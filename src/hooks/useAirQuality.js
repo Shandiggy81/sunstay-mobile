@@ -46,7 +46,7 @@ const extractPm25FromOpenAQ = (payload) => {
     return null;
 };
 
-const fetchFromOpenAQ = async (lat, lng) => {
+const fetchFromOpenAQ = async (lat, lng, signal) => {
     const apiKey = (import.meta.env.VITE_OPENAQ_API_KEY || '').trim();
     if (!apiKey) return null;
 
@@ -54,7 +54,7 @@ const fetchFromOpenAQ = async (lat, lng) => {
     const baseUrl = 'https://api.openaq.org/v3';
     const locationUrl = `${baseUrl}/locations?coordinates=${lat},${lng}&radius=10000&limit=1&order_by=distance&sort=asc`;
 
-    const locationResponse = await fetch(locationUrl, { headers });
+    const locationResponse = await fetch(locationUrl, { headers, signal });
     if (!locationResponse.ok) return null;
 
     const locationPayload = await locationResponse.json();
@@ -62,7 +62,7 @@ const fetchFromOpenAQ = async (lat, lng) => {
     if (!locationId) return null;
 
     const latestUrl = `${baseUrl}/locations/${locationId}/latest?limit=100`;
-    const latestResponse = await fetch(latestUrl, { headers });
+    const latestResponse = await fetch(latestUrl, { headers, signal });
     if (!latestResponse.ok) return null;
 
     const latestPayload = await latestResponse.json();
@@ -77,7 +77,7 @@ const fetchFromOpenAQ = async (lat, lng) => {
     };
 };
 
-const fetchFromOpenMeteo = async (lat, lng) => {
+const fetchFromOpenMeteo = async (lat, lng, signal) => {
     const params = new URLSearchParams({
         latitude: String(lat),
         longitude: String(lng),
@@ -85,7 +85,7 @@ const fetchFromOpenMeteo = async (lat, lng) => {
         timezone: 'auto',
     });
 
-    const response = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`);
+    const response = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`, { signal });
     if (!response.ok) return null;
 
     const payload = await response.json();
@@ -105,12 +105,15 @@ export const useAirQuality = (lat, lng) => {
     const [loading, setLoading] = useState(false);
 
     const cacheKey = useMemo(() => {
-        if (lat == null || lng == null) return null;
-        return `${CACHE_KEY_PREFIX}${Number(lat).toFixed(2)}_${Number(lng).toFixed(2)}`;
+        const latitude = Number(lat);
+        const longitude = Number(lng);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+        return `${CACHE_KEY_PREFIX}${latitude.toFixed(2)}_${longitude.toFixed(2)}`;
     }, [lat, lng]);
 
     useEffect(() => {
         let cancelled = false;
+        const controller = new AbortController();
 
         const load = async () => {
             if (!cacheKey) {
@@ -140,15 +143,17 @@ export const useAirQuality = (lat, lng) => {
             let liveData = null;
 
             try {
-                liveData = await fetchFromOpenAQ(lat, lng);
-            } catch {
+                liveData = await fetchFromOpenAQ(lat, lng, controller.signal);
+            } catch (error) {
+                if (error?.name === 'AbortError') return;
                 liveData = null;
             }
 
             if (!liveData) {
                 try {
-                    liveData = await fetchFromOpenMeteo(lat, lng);
-                } catch {
+                    liveData = await fetchFromOpenMeteo(lat, lng, controller.signal);
+                } catch (error) {
+                    if (error?.name === 'AbortError') return;
                     liveData = null;
                 }
             }
@@ -158,7 +163,7 @@ export const useAirQuality = (lat, lng) => {
                 setLoading(false);
             }
 
-            if (liveData) {
+            if (liveData && !cancelled) {
                 try {
                     await storage.setItem(cacheKey, JSON.stringify({ data: liveData, timestamp: Date.now() }));
                 } catch {
@@ -171,6 +176,7 @@ export const useAirQuality = (lat, lng) => {
 
         return () => {
             cancelled = true;
+            controller.abort();
         };
     }, [lat, lng, cacheKey]);
 

@@ -37,6 +37,39 @@ const LoadingScreen = () => (
 );
 
 // ── Weather badge helpers (pure functions, defined outside component) ──
+const readJsonArray = (key) => {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+};
+
+const writeJson = (key, value) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+        // Browser storage can be unavailable in private mode.
+    }
+};
+
+const hasSeenSplash = () => {
+    try {
+        return sessionStorage.getItem('splashShown') === 'true';
+    } catch {
+        return false;
+    }
+};
+
+const markSplashSeen = () => {
+    try {
+        sessionStorage.setItem('splashShown', 'true');
+    } catch {
+        // Non-fatal; the splash will simply show again next load.
+    }
+};
+
 const getWeatherBadge = (weather, venue) => {
     if (!weather) return { emoji: '🌤️', label: 'Fair', color: '#9ca3af' };
     const condition = (weather.weather?.[0]?.main || '').toLowerCase();
@@ -140,7 +173,7 @@ VenueChip.displayName = 'VenueChip';
 
 // ═════════════════════════════════════════════════════════════════
 const AppContent = () => {
-    const [splashDone, setSplashDone] = useState(() => sessionStorage.getItem('splashShown') === 'true');
+    const [splashDone, setSplashDone] = useState(hasSeenSplash);
     const { weather, getUVIndex } = useWeather();
 
     const comfort = useMemo(() => {
@@ -169,7 +202,7 @@ const AppContent = () => {
     }, [comfort.cozy]);
 
     const [customFilters, setCustomFilters] = useState(
-        () => JSON.parse(localStorage.getItem('sunstay-custom-filters') || '[]')
+        () => readJsonArray('sunstay-custom-filters')
     );
     const [newFilter, setNewFilter] = useState('');
 
@@ -177,7 +210,7 @@ const AppContent = () => {
         if (!newFilter.trim()) return;
         const updated = [...customFilters, newFilter.trim()];
         setCustomFilters(updated);
-        localStorage.setItem('sunstay-custom-filters', JSON.stringify(updated));
+        writeJson('sunstay-custom-filters', updated);
         setNewFilter('');
     }, [customFilters, newFilter]);
 
@@ -294,9 +327,12 @@ const AppContent = () => {
     );
 
     const handleVenueSelect = useCallback((venue) => {
+        if (!venue) return;
         setSelectedVenue(venue);
-        if (mapRef.current?.flyTo) {
-            mapRef.current.flyTo({ center: [venue.lng, venue.lat], zoom: 15, duration: 1200 });
+        const lng = Number(venue.lng);
+        const lat = Number(venue.lat);
+        if (mapRef.current?.flyTo && Number.isFinite(lng) && Number.isFinite(lat)) {
+            mapRef.current.flyTo({ center: [lng, lat], zoom: 15, duration: 1200 });
         }
     }, []);
 
@@ -352,7 +388,7 @@ const AppContent = () => {
         <>
             {!splashDone && (
                 <SplashScreen onComplete={() => {
-                    sessionStorage.setItem('splashShown', 'true');
+                    markSplashSeen();
                     setSplashDone(true);
                 }} />
             )}

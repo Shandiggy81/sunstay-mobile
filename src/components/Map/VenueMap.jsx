@@ -12,7 +12,7 @@
  */
 
 import React, {
-    useEffect, useRef, useState,
+    useEffect, useMemo, useRef, useState,
     forwardRef, useImperativeHandle, memo, useCallback,
 } from 'react';
 import mapboxgl from 'mapbox-gl';
@@ -43,6 +43,11 @@ function getPinStateKey(venue, weather, liveVenueFeatures) {
     if (apparentTemp >= 18 && cloudCover <= 35 && precipProb < 20) return 'sunny';
     return 'default';
 }
+
+const isFiniteCoord = (value) => Number.isFinite(Number(value));
+const isRenderableVenue = (venue) => (
+    venue?.id != null && isFiniteCoord(venue.lng) && isFiniteCoord(venue.lat)
+);
 
 // ── Create marker DOM element (called ONCE per venue) ──────────────
 function createMarkerEl(pinKey) {
@@ -89,6 +94,14 @@ const VenueMap = forwardRef(({
     const [mapLoaded, setMapLoaded]   = useState(false);
     const [mapError,  setMapError]    = useState(false);
     const { weather } = useWeather();
+    const safeVenues = useMemo(
+        () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
+        [venues]
+    );
+    const filteredIdSet = useMemo(() => {
+        if (!Array.isArray(filteredVenueIds)) return null;
+        return new Set(filteredVenueIds.map(id => String(id)));
+    }, [filteredVenueIds]);
 
     // FIX 1: store onVenueSelect in a ref so it never appears in marker effect deps.
     // Without this, every parent re-render (state change, resize, etc.) rebuilds
@@ -110,7 +123,10 @@ const VenueMap = forwardRef(({
         if (!mapContainer.current) return;
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
-        const loadTimeout = setTimeout(() => setMapError(true), 15000);
+        let disposed = false;
+        const loadTimeout = setTimeout(() => {
+            if (!disposed) setMapError(true);
+        }, 15000);
 
         try {
             map.current = new mapboxgl.Map({
@@ -129,6 +145,7 @@ const VenueMap = forwardRef(({
             });
 
             map.current.on('load', () => {
+                if (disposed || !map.current) return;
                 clearTimeout(loadTimeout);
                 // FIX 6: disable map rotation (pinch-rotate) — prevents accidental bearing changes
                 map.current.dragRotate.disable();
@@ -138,6 +155,7 @@ const VenueMap = forwardRef(({
             });
 
             map.current.on('error', (e) => {
+                if (disposed) return;
                 const msg = e.error?.message || '';
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
@@ -155,6 +173,7 @@ const VenueMap = forwardRef(({
         }
 
         return () => {
+            disposed = true;
             clearTimeout(loadTimeout);
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
@@ -167,17 +186,13 @@ const VenueMap = forwardRef(({
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
-        const visible = new Set(
-            filteredVenueIds === null
-                ? venues.map(v => v.id)
-                : (filteredVenueIds ?? [])
-        );
+        const visible = filteredIdSet;
 
         // Add / update markers
-        venues.forEach(venue => {
+        safeVenues.forEach(venue => {
             const pinKey   = getPinStateKey(venue, weather, liveVenueFeatures);
             const existing = markersRef.current[venue.id];
-            const show     = visible.has(venue.id);
+            const show     = !visible || visible.has(String(venue.id));
 
             if (existing) {
                 // Toggle visibility
@@ -191,16 +206,16 @@ const VenueMap = forwardRef(({
                 // Create marker for the first time
                 const el = createMarkerEl(pinKey);
                 // Use ref so clicking a pin never causes the effect to re-run
-                el.addEventListener('click', () => onVenueSelectRef.current(venue));
+                el.addEventListener('click', () => onVenueSelectRef.current?.(venue));
                 const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-                    .setLngLat([venue.lng, venue.lat])
+                    .setLngLat([Number(venue.lng), Number(venue.lat)])
                     .addTo(map.current);
                 markersRef.current[venue.id] = { marker, el, pinKey };
             }
         });
 
         // Remove stale markers
-        const venueIds = new Set(venues.map(v => String(v.id)));
+        const venueIds = new Set(safeVenues.map(v => String(v.id)));
         Object.keys(markersRef.current).forEach(id => {
             if (!venueIds.has(id)) {
                 markersRef.current[id].marker.remove();
@@ -209,13 +224,16 @@ const VenueMap = forwardRef(({
         });
 
     // ⚠️ onVenueSelect intentionally omitted — accessed via ref above
-    }, [venues, weather, liveVenueFeatures, filteredVenueIds, mapLoaded]);
+    }, [safeVenues, weather, liveVenueFeatures, filteredIdSet, mapLoaded]);
 
     // ── Fly to selected venue ─────────────────────────────────
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
+        const lng = Number(selectedVenue.lng);
+        const lat = Number(selectedVenue.lat);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
         map.current.flyTo({
-            center:   [selectedVenue.lng, selectedVenue.lat],
+            center:   [lng, lat],
             zoom:     15,
             duration: 900,
             essential: true,
