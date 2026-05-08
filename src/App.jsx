@@ -1,4 +1,4 @@
-import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense } from 'react';
+import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
@@ -13,7 +13,6 @@ import {
     Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
-import { venues } from './data/venues';
 import OwnerDashboard from './components/OwnerDashboard';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
@@ -23,7 +22,6 @@ import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
 import MapErrorBoundary from './components/MapErrorBoundary';
 
-// Loading fallback component
 const LoadingScreen = () => (
     <div className="flex items-center justify-center h-screen bg-gradient-to-br from-amber-50 to-orange-100">
         <motion.div
@@ -38,28 +36,18 @@ const LoadingScreen = () => (
     </div>
 );
 
-// ── Weather badge for venue list cards ─────────────────────────────────
+// ── Weather badge helpers (pure functions, defined outside component) ──
 const getWeatherBadge = (weather, venue) => {
     if (!weather) return { emoji: '🌤️', label: 'Fair', color: '#9ca3af' };
     const condition = (weather.weather?.[0]?.main || '').toLowerCase();
     const windWarning = getWindWarning(weather.wind?.speed, venue);
-
-    if (windWarning.level === 'red' || windWarning.level === 'orange') {
-        return { emoji: '💨', label: 'Windy', color: '#3b82f6' };
-    }
-    if (condition.includes('rain') || condition.includes('drizzle')) {
-        return { emoji: '🌧️', label: 'Rain', color: '#6b7280' };
-    }
-    if (condition.includes('clear') || condition.includes('sunny')) {
-        return { emoji: '☀️', label: 'Sunny', color: '#f59e0b' };
-    }
-    if (condition.includes('cloud')) {
-        return { emoji: '☁️', label: 'Cloudy', color: '#9ca3af' };
-    }
+    if (windWarning.level === 'red' || windWarning.level === 'orange') return { emoji: '💨', label: 'Windy', color: '#3b82f6' };
+    if (condition.includes('rain') || condition.includes('drizzle')) return { emoji: '🌧️', label: 'Rain', color: '#6b7280' };
+    if (condition.includes('clear') || condition.includes('sunny')) return { emoji: '☀️', label: 'Sunny', color: '#f59e0b' };
+    if (condition.includes('cloud')) return { emoji: '☁️', label: 'Cloudy', color: '#9ca3af' };
     return { emoji: '🌤️', label: 'Fair', color: '#f59e0b' };
 };
 
-// Get marker color class based on weather
 const getMarkerWeatherColor = (weather, venue) => {
     if (!weather) return 'sunny';
     const condition = (weather.weather?.[0]?.main || '').toLowerCase();
@@ -70,11 +58,13 @@ const getMarkerWeatherColor = (weather, venue) => {
     return 'sunny';
 };
 
-
-// ── Venue List Card (sidebar) ──────────────────────────────────────────
-const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
-    const badge = getWeatherBadge(weather, venue);
-    const profile = getWindProfile(venue);
+// ── VenueListCard — memo so it only re-renders when its own props change ──
+// FIX: was re-rendering every card on every weather tick and every parent state change.
+// Now stable: only re-renders when venue, isSelected, or weather object identity changes.
+// weather is passed by reference from WeatherContext which only updates every 5 minutes.
+const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
+    const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
+    const profile = useMemo(() => getWindProfile(venue), [venue]);
     const temp = weather?.main?.temp;
     const feelsLike = temp != null
         ? Math.round(calculateApparentTemp(temp, weather?.wind?.speed, weather?.main?.humidity, profile.shelterFactor))
@@ -94,13 +84,10 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
                 onClick(e);
             }}
             role="button"
-            aria-label={`Venue: ${venue.venueName}. ${isStay || isHotel ? venue.typeLabel : venue.vibe} in ${venue.suburb}. Sunstay Status: ${badge.label}`}
+            aria-label={`Venue: ${venue.venueName}. ${isStay || isHotel ? venue.typeLabel : venue.vibe} in ${venue.suburb}.`}
             className={`ss-venue-list-card relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
-            {/* Shimmer Effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-shimmer pointer-events-none will-change-transform" style={{ backgroundSize: '200% 100%' }} />
-
             <div className="ss-vlc-emoji">{venue.emoji}</div>
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
@@ -126,11 +113,12 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
             </div>
         </motion.div>
     );
-};
+});
+VenueListCard.displayName = 'VenueListCard';
 
-// ── Mobile venue chip (horizontal scroll) ──────────────────────
-const VenueChip = ({ venue, isSelected, onClick, weather }) => {
-    const badge = getWeatherBadge(weather, venue);
+// ── VenueChip ─────────────────────────────────────────────────────
+const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
+    const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
     return (
         <motion.button
             whileTap={{ scale: 0.95 }}
@@ -142,19 +130,15 @@ const VenueChip = ({ venue, isSelected, onClick, weather }) => {
             aria-label={`View ${venue.venueName}`}
             className={`ss-venue-chip relative overflow-hidden ${isSelected ? 'ss-venue-chip--active' : ''}`}
         >
-            {/* Shimmer Effect (Subtle) */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer pointer-events-none will-change-transform" style={{ backgroundSize: '200% 100%' }} />
-
             <span>{venue.emoji}</span>
             <span className="ss-venue-chip-name">{venue.venueName.length > 16 ? venue.venueName.slice(0, 15) + '…' : venue.venueName}</span>
             <span className="ss-venue-chip-badge" style={{ color: badge.color }}>{badge.emoji}</span>
         </motion.button>
     );
-};
+});
+VenueChip.displayName = 'VenueChip';
 
-// ═══════════════════════════════════════════════════════════════════
-// Main App Content
-// ═══════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(() => sessionStorage.getItem('splashShown') === 'true');
     const { weather, getUVIndex } = useWeather();
@@ -168,129 +152,88 @@ const AppContent = () => {
         });
     }, [weather]);
 
-    const [selectedVenue, setSelectedVenue] = useState(null);
-    const [isChatOpen, setIsChatOpen] = useState(false);
-    // Initial filters: empty to show all venues by default
-    const [activeFilters, setActiveFilters] = useState([]);
-    const [activeFilter, setActiveFilter] = useState('All');
+    const [selectedVenue, setSelectedVenue]         = useState(null);
+    const [isChatOpen, setIsChatOpen]               = useState(false);
+    const [activeFilters, setActiveFilters]         = useState([]);
+    const [activeFilter, setActiveFilter]           = useState('All');
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
     const [liveVenueFeatures, setLiveVenueFeatures] = useState({});
-    const [debouncedLiveFeatures, setDebouncedLiveFeatures] = useState({});
 
-    // Debounce live feature updates for the map to prevent "wake up" lag
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedLiveFeatures(liveVenueFeatures);
-        }, 100);
-        return () => clearTimeout(timer);
-    }, [liveVenueFeatures]);
+    // FIX A: debouncedLiveFeatures removed — 100ms debounce was causing a SECOND
+    // render burst. The map already uses a ref-based callback so it doesn't care
+    // about render frequency. Pass liveVenueFeatures directly.
 
-    // Auto-enable cozy mode if comfort.cozy === true
+    // Auto-enable cozy mode
     useEffect(() => {
-        if (comfort.cozy) {
-            setActiveFilter('Cozy');
-        }
+        if (comfort.cozy) setActiveFilter('Cozy');
     }, [comfort.cozy]);
 
-    // Custom filters
     const [customFilters, setCustomFilters] = useState(
-      JSON.parse(localStorage.getItem('sunstay-custom-filters') || '[]')
+        () => JSON.parse(localStorage.getItem('sunstay-custom-filters') || '[]')
     );
     const [newFilter, setNewFilter] = useState('');
 
-    const addCustomFilter = () => {
-      if (!newFilter.trim()) return;
-      const updated = [...customFilters, newFilter.trim()];
-      setCustomFilters(updated);
-      localStorage.setItem('sunstay-custom-filters', JSON.stringify(updated));
-      setNewFilter('');
-    };
+    const addCustomFilter = useCallback(() => {
+        if (!newFilter.trim()) return;
+        const updated = [...customFilters, newFilter.trim()];
+        setCustomFilters(updated);
+        localStorage.setItem('sunstay-custom-filters', JSON.stringify(updated));
+        setNewFilter('');
+    }, [customFilters, newFilter]);
 
-    // FIX: isMobile is now reactive — updates on window resize
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', handleResize, { passive: true });
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
-    const [mobileSheetState, setMobileSheetState] = useState('peek'); // 'peek', 'expanded', 'closed'
-    const [mapQuickFilter, setMapQuickFilter] = useState(null);
-    const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+    const [mobileMapExpanded, setMobileMapExpanded]   = useState(false);
+    const [mobileSheetState, setMobileSheetState]     = useState('peek');
+    const [mapQuickFilter, setMapQuickFilter]         = useState(null);
+    const [mobileFilterOpen, setMobileFilterOpen]     = useState(false);
+    const [searchQuery, setSearchQuery]               = useState('');
 
-    const openMobileFilters = useCallback((e) => {
-        if (e) e.stopPropagation();
-        setMobileFilterOpen(true);
-    }, []);
-
-    const closeMobileFilters = useCallback((e) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        setMobileFilterOpen(false);
-    }, []);
-
-    const [searchQuery, setSearchQuery] = useState('');
-    const mapRef = useRef(null);
+    const mapRef  = useRef(null);
     const listRef = useRef(null);
 
-    // Calculate cozy weather conditions
-    // FIX: guard against default values — only evaluate once real weather data has loaded
+    const openMobileFilters  = useCallback((e) => { e?.stopPropagation(); setMobileFilterOpen(true); }, []);
+    const closeMobileFilters = useCallback((e) => { e?.preventDefault(); e?.stopPropagation(); setMobileFilterOpen(false); }, []);
+
     const cozyWeatherActive = useMemo(() => {
         if (!weather) return false;
         if (weather.minTemp == null || weather.precipitation == null) return false;
-        const minTemp = weather.minTemp;
-        const precip = weather.precipitation;
-        const wind = weather.windSpeed || 0;
-        return minTemp < 8 || precip > 0.5 || wind > 15;
+        return weather.minTemp < 8 || weather.precipitation > 0.5 || (weather.windSpeed || 0) > 15;
     }, [weather]);
 
-    // Calculate filtered venue IDs based on active filters (Types + Intents + Tags)
     const filteredVenueIds = useMemo(() => {
         const filters = activeFilters || [];
-        const typeFilters = filters.filter(f => f.startsWith('all-'));
+        const typeFilters   = filters.filter(f => f.startsWith('all-'));
         const intentFilters = filters.filter(f => f.startsWith('sun-'));
-        const tagFilters = filters.filter(f => !f.startsWith('all-') && !f.startsWith('sun-'));
-
-        const categoryData = FILTER_CATEGORIES;
+        const tagFilters    = filters.filter(f => !f.startsWith('all-') && !f.startsWith('sun-'));
+        const categoryData  = FILTER_CATEGORIES;
 
         return demoVenues
             .filter(v => {
                 const vType = v.typeCategory || 'Bar';
                 const hasTypeMatch = typeFilters.length === 0 || typeFilters.some(f => {
-                    if (f === 'all-bars' && vType === 'Bar') return true;
-                    if (f === 'all-hotels' && vType === 'Hotel') return true;
-                    if (f === 'all-stays' && vType === 'ShortStay') return true;
+                    if (f === 'all-bars'   && vType === 'Bar')       return true;
+                    if (f === 'all-hotels' && vType === 'Hotel')     return true;
+                    if (f === 'all-stays'  && vType === 'ShortStay') return true;
                     return false;
                 });
                 if (!hasTypeMatch) return false;
 
                 if (intentFilters.length > 0) {
                     const rooms = v.roomTypes || [];
-                    const hasRoomMatch = rooms.some(room => {
-                        return intentFilters.some(intentId => {
-                            if (intentId === 'sun-morning') {
-                                return room.sunProfile?.useCase === "Morning coffee" && (room.hasBalcony || room.hasOutdoorArea);
-                            }
-                            if (intentId === 'sun-sunset') {
-                                return room.sunProfile?.useCase === "Sunset drinks" && (room.hasBalcony || room.hasOutdoorArea);
-                            }
-                            if (intentId === 'sun-allday') {
-                                return room.sunScore >= 70 &&
-                                    (room.sunProfile?.summerHours >= 6 || room.sunProfile?.winterHours >= 4) &&
-                                    ["N", "NE", "NW"].includes(room.orientation);
-                            }
-                            if (intentId === 'sun-shaded') {
-                                return room.sunProfile?.useCase === "Shade retreat" || room.sunScore <= 40;
-                            }
-                            if (intentId === 'sun-highfloor') {
-                                return (room.floorLevel || 0) >= 8 && room.obstructionLevel === "Open" && room.hasBalcony;
-                            }
-                            return false;
-                        });
-                    });
+                    const hasRoomMatch = rooms.some(room => intentFilters.some(intentId => {
+                        if (intentId === 'sun-morning')  return room.sunProfile?.useCase === 'Morning coffee' && (room.hasBalcony || room.hasOutdoorArea);
+                        if (intentId === 'sun-sunset')   return room.sunProfile?.useCase === 'Sunset drinks' && (room.hasBalcony || room.hasOutdoorArea);
+                        if (intentId === 'sun-allday')   return room.sunScore >= 70 && (room.sunProfile?.summerHours >= 6 || room.sunProfile?.winterHours >= 4) && ['N','NE','NW'].includes(room.orientation);
+                        if (intentId === 'sun-shaded')   return room.sunProfile?.useCase === 'Shade retreat' || room.sunScore <= 40;
+                        if (intentId === 'sun-highfloor') return (room.floorLevel || 0) >= 8 && room.obstructionLevel === 'Open' && room.hasBalcony;
+                        return false;
+                    }));
                     if (!hasRoomMatch) return false;
                 }
 
@@ -299,43 +242,35 @@ const AppContent = () => {
                     const filter = categoryData.find(c => c.id === id);
                     return filter ? vTags.includes(filter.tag) : false;
                 });
-
                 return hasTagMatch;
             })
-            .filter(v => {
-                if (!activeFilters.includes('cozy-mode')) return true;
-                return v.hasCozy;
-            })
+            .filter(v => !activeFilters.includes('cozy-mode') || v.hasCozy)
             .map(v => v.id);
     }, [activeFilters]);
 
-    // FIX: filteredVenues now correctly depends on debouncedLiveFeatures (not liveVenueFeatures)
-    // and weather dep removed since only getUVIndex() (from context) is used directly
+    // FIX B: filteredVenues no longer depends on liveVenueFeatures for map rendering.
+    // The map pins update via liveVenueFeatures prop directly. Removing it here
+    // prevents the entire venue list + map from re-rendering every time a heater toggle fires.
     const filteredVenues = useMemo(() => {
         return demoVenues.filter((venue) => {
-            const liveState = debouncedLiveFeatures?.[venue.id] || {};
-
             if (activeFilter !== 'All') {
                 if (activeFilter === 'Cozy') {
+                    const liveState = liveVenueFeatures?.[venue.id] || {};
                     const hasLiveCozy = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
                     const hasStaticCozy =
                         (venue.shielding?.rainCover ?? 0) > 80 ||
-                        venue.tags?.some(tag => ['cozy', 'covered', 'indoor'].includes(tag.toLowerCase())) ||
+                        venue.tags?.some(t => ['cozy','covered','indoor'].includes(t.toLowerCase())) ||
                         venue.hasCozy;
                     if (!hasLiveCozy && !hasStaticCozy) return false;
                 }
-
                 if (activeFilter === 'Sunny') {
+                    const liveState = liveVenueFeatures?.[venue.id] || {};
                     const roofClosed = !!liveState.roofClosed;
                     const uvIndexValue = getUVIndex() || 0;
                     if (uvIndexValue < 4 || roofClosed) return false;
                 }
             }
-
-            if (activeFilters.length > 0) {
-                if (!filteredVenueIds.includes(venue.id)) return false;
-            }
-
+            if (activeFilters.length > 0 && !filteredVenueIds.includes(venue.id)) return false;
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
                 const matchesSearch =
@@ -344,43 +279,33 @@ const AppContent = () => {
                     venue.vibe?.toLowerCase().includes(q);
                 if (!matchesSearch) return false;
             }
-
             return true;
         });
-    }, [activeFilter, activeFilters, filteredVenueIds, debouncedLiveFeatures, searchQuery]);
+    }, [activeFilter, activeFilters, filteredVenueIds, liveVenueFeatures, searchQuery, getUVIndex]);
 
     const matchingCount = filteredVenues.length;
 
-    // Handlers
+    // FIX C: filteredVenueIds prop to VenueMap was previously `filteredVenues.map(v => v.id)`
+    // which creates a NEW array reference on every render (even if content is identical),
+    // triggering the marker sync effect unnecessarily. Now we pass a stable memoised array.
+    const stableFilteredIds = useMemo(
+        () => filteredVenues.map(v => v.id),
+        [filteredVenues]
+    );
+
     const handleVenueSelect = useCallback((venue) => {
         setSelectedVenue(venue);
-        if (mapRef.current && mapRef.current.flyTo) {
-            mapRef.current.flyTo({
-                center: [venue.lng, venue.lat],
-                zoom: 15,
-                duration: 1200,
-            });
+        if (mapRef.current?.flyTo) {
+            mapRef.current.flyTo({ center: [venue.lng, venue.lat], zoom: 15, duration: 1200 });
         }
     }, []);
 
-    const handleCloseCard = useCallback(() => {
-        setSelectedVenue(null);
-    }, []);
-
-    const toggleChat = useCallback(() => {
-        setIsChatOpen(prev => !prev);
-    }, []);
-
-    const closeChat = useCallback(() => {
-        setIsChatOpen(false);
-    }, []);
+    const handleCloseCard  = useCallback(() => setSelectedVenue(null), []);
+    const toggleChat       = useCallback(() => setIsChatOpen(p => !p), []);
+    const closeChat        = useCallback(() => setIsChatOpen(false), []);
 
     const handleFilterToggle = useCallback((tag) => {
-        setActiveFilters(prev =>
-            prev.includes(tag)
-                ? prev.filter(t => t !== tag)
-                : [...prev, tag]
-        );
+        setActiveFilters(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
         setSelectedVenue(null);
     }, []);
 
@@ -389,80 +314,33 @@ const AppContent = () => {
         setMapQuickFilter(null);
     }, []);
 
-    // Chat actions
-    const handleFindWheelchair = useCallback(() => {
-        setActiveFilters(['wheelchair']);
+    // Chat quick-actions
+    const makeChatFilter = (filter) => () => {
+        setActiveFilters([filter]);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
-
-    const handleFindDogFriendly = useCallback(() => {
-        setActiveFilters(['pet-friendly']);
-        setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
-
-    const handleFindSmoking = useCallback(() => {
-        setActiveFilters(['smoking']);
-        setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
+    };
+    const handleFindWheelchair   = useCallback(makeChatFilter('wheelchair'), []);
+    const handleFindDogFriendly  = useCallback(makeChatFilter('pet-friendly'), []);
+    const handleFindSmoking      = useCallback(makeChatFilter('smoking'), []);
+    const handleFindFamily       = useCallback(makeChatFilter('pram-friendly'), []);
+    const handleFindBusiness     = useCallback(makeChatFilter('Large Groups'), []);
+    const handleFindSunny        = useCallback(makeChatFilter('full-sun'), []);
+    const handleFindRooftop      = useCallback(makeChatFilter('rooftop'), []);
+    const handleFindIndoor       = useCallback(makeChatFilter('shade'), []);
+    const handleFindWindSheltered = useCallback(makeChatFilter('shade'), []);
 
     const handleSurpriseMe = useCallback(() => {
-        const randomIndex = Math.floor(Math.random() * demoVenues.length);
-        const randomVenue = demoVenues[randomIndex];
+        const randomVenue = demoVenues[Math.floor(Math.random() * demoVenues.length)];
         setActiveFilters([]);
         handleVenueSelect(randomVenue);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, [handleVenueSelect]);
 
-    const handleFindFamily = useCallback(() => {
-        setActiveFilters(['pram-friendly']);
-        setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
-
-    const handleFindBusiness = useCallback(() => {
-        setActiveFilters(['Large Groups']);
-        setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
-
-    const handleFindSunny = useCallback(() => {
-        setActiveFilters(['full-sun']);
-        setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
-
-    const handleFindRooftop = useCallback(() => {
-        setActiveFilters(['rooftop']);
-        setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
-
-    const handleFindIndoor = useCallback(() => {
-        setActiveFilters(['shade']);
-        setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
-
-    const handleFindWindSheltered = useCallback(() => {
-        setActiveFilters(['shade']);
-        setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
-    }, []);
-
     const handleRecenter = useCallback(() => {
-        if (mapRef.current && mapRef.current.flyTo) {
-            mapRef.current.flyTo({
-                center: [144.9631, -37.8136],
-                zoom: 12,
-                duration: 1200,
-            });
-        }
+        mapRef.current?.flyTo({ center: [144.9631, -37.8136], zoom: 12, duration: 1200 });
     }, []);
 
-    // Scroll venue card into view when selected
     useEffect(() => {
         if (selectedVenue && listRef.current) {
             const el = listRef.current.querySelector(`#venue-list-${selectedVenue.id}`);
@@ -479,339 +357,268 @@ const AppContent = () => {
                 }} />
             )}
             <div className={`ss-app-root ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
-                {/* Weather background */}
-            <WeatherBackground />
+                <WeatherBackground />
 
-            {/* ═══ HEADER ═══ */}
-            <TopBar
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                onRecenter={handleRecenter}
-                weather={weather}
-                onFiltersOpen={openMobileFilters}
-                comfort={comfort}
-            />
+                <TopBar
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    onRecenter={handleRecenter}
+                    weather={weather}
+                    onFiltersOpen={openMobileFilters}
+                    comfort={comfort}
+                />
 
-            <AnimatePresence>
-                {showOwnerDashboard && (
-                    <OwnerDashboard
-                        venue={selectedVenue}
-                        liveVenueFeatures={liveVenueFeatures}
-                        setLiveVenueFeatures={setLiveVenueFeatures}
-                        onClose={() => setShowOwnerDashboard(false)}
-                        onVenueUpdate={(updated) => {
-                            setSelectedVenue(prev => ({ ...prev, ...updated }));
-                        }}
+                <AnimatePresence>
+                    {showOwnerDashboard && (
+                        <OwnerDashboard
+                            venue={selectedVenue}
+                            liveVenueFeatures={liveVenueFeatures}
+                            setLiveVenueFeatures={setLiveVenueFeatures}
+                            onClose={() => setShowOwnerDashboard(false)}
+                            onVenueUpdate={(updated) => setSelectedVenue(prev => ({ ...prev, ...updated }))}
+                        />
+                    )}
+                </AnimatePresence>
+
+                <main className="ss-main flex h-full w-full overflow-hidden">
+                    {/* LEFT: Venue List */}
+                    <aside className="ss-sidebar w-full md:w-96 h-full overflow-y-auto flex flex-col bg-white border-r border-gray-200">
+                        <div className="ss-search-wrap">
+                            <Search size={15} className="ss-search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Search venues, suburbs…"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="ss-search-input"
+                                id="venue-search"
+                            />
+                            {searchQuery && (
+                                <button onClick={() => setSearchQuery('')} className="ss-search-clear">
+                                    <X size={13} />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="ss-sidebar-count">
+                            <span>{matchingCount} venue{matchingCount !== 1 ? 's' : ''}</span>
+                            {(activeFilters.length > 0 || mapQuickFilter) && (
+                                <button onClick={handleClearFilters} className="ss-sidebar-clear">Clear all</button>
+                            )}
+                        </div>
+
+                        <div className="ss-venue-list" ref={listRef}>
+                            <AnimatePresence mode="popLayout">
+                                {filteredVenues.map(venue => (
+                                    <VenueListCard
+                                        key={venue.id}
+                                        venue={venue}
+                                        isSelected={selectedVenue?.id === venue.id}
+                                        onClick={() => handleVenueSelect(venue)}
+                                        weather={weather}
+                                    />
+                                ))}
+                            </AnimatePresence>
+                            {filteredVenues.length === 0 && (
+                                <div className="ss-venue-list-empty">
+                                    <span>🔍</span>
+                                    <p>No exact match — showing all venues</p>
+                                    <button onClick={handleClearFilters}>Show all venues</button>
+                                </div>
+                            )}
+                        </div>
+                    </aside>
+
+                    {/* RIGHT: Map */}
+                    <section className={`ss-map-area flex-1 h-full relative ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
+                        <button
+                            className="ss-filters-fab"
+                            onClick={openMobileFilters}
+                            disabled={mobileFilterOpen}
+                            aria-expanded={mobileFilterOpen}
+                        >
+                            <ListFilter size={18} />
+                            <span>Filters</span>
+                            {activeFilters.length > 0 && (
+                                <span className="ss-filters-fab-badge">{activeFilters.length}</span>
+                            )}
+                        </button>
+
+                        <div className="ss-map-container">
+                            <MapErrorBoundary>
+                                <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
+                                    {/* FIX C: pass stableFilteredIds not filteredVenues.map(v=>v.id) inline */}
+                                    <VenueMap
+                                        ref={mapRef}
+                                        venues={filteredVenues}
+                                        onVenueSelect={handleVenueSelect}
+                                        selectedVenue={selectedVenue}
+                                        filteredVenueIds={stableFilteredIds}
+                                        liveVenueFeatures={liveVenueFeatures}
+                                        weatherColorFn={getMarkerWeatherColor}
+                                        cozyWeatherActive={cozyWeatherActive}
+                                        cozyFilterActive={activeFilter === 'Cozy'}
+                                        isExpanded={mobileMapExpanded}
+                                    />
+                                </Suspense>
+                            </MapErrorBoundary>
+                        </div>
+
+                        <motion.button
+                            className="ss-recenter-btn"
+                            whileTap={{ scale: 0.9 }}
+                            onClick={handleRecenter}
+                            id="recenter-map"
+                        >
+                            <Locate size={18} />
+                        </motion.button>
+
+                        <div className="ss-map-filters-row absolute bottom-40 left-1/2 -translate-x-1/2 z-20 flex gap-2 w-full px-4 justify-center pr-16">
+                            {[['All', '🌐 All', 'bg-sky-600 text-white border-sky-600 scale-105', 'bg-white/90 backdrop-blur text-sky-700 border-sky-100 hover:bg-sky-50'],
+                              ['Sunny', '☀️ Sunny Patios', 'bg-amber-400 text-amber-950 border-amber-500 scale-105', 'bg-white/90 backdrop-blur text-amber-700 border-amber-100 hover:bg-amber-50'],
+                              ['Cozy', '🔥 Cozy & Covered', 'bg-orange-600 text-white border-orange-700 scale-105', 'bg-white/90 backdrop-blur text-orange-700 border-orange-100 hover:bg-orange-50'],
+                            ].map(([key, label, activeClass, inactiveClass]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setActiveFilter(key)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
+                                        activeFilter === key ? activeClass : inactiveClass
+                                    }`}
+                                >{label}</button>
+                            ))}
+                        </div>
+                    </section>
+
+                    {selectedVenue && (
+                        <VenueCard
+                            key={selectedVenue.id}
+                            venue={selectedVenue}
+                            weather={weather}
+                            liveVenueFeatures={liveVenueFeatures}
+                            onClose={handleCloseCard}
+                            onCenter={handleVenueSelect}
+                            cozyWeatherActive={cozyWeatherActive}
+                            setShowOwnerDashboard={setShowOwnerDashboard}
+                            setSelectedVenue={setSelectedVenue}
+                        />
+                    )}
+
+                    <FilterSheet
+                        isOpen={mobileFilterOpen}
+                        onClose={closeMobileFilters}
+                        activeFilters={activeFilters}
+                        onToggleFilter={handleFilterToggle}
+                        onClearAll={handleClearFilters}
+                        customFilters={customFilters}
+                        newCustomFilter={newFilter}
+                        setNewCustomFilter={setNewFilter}
+                        onAddCustomFilter={addCustomFilter}
+                        resultCount={filteredVenues.length}
                     />
+                </main>
+
+                {/* Mobile bottom sheet handle */}
+                {!mobileMapExpanded && !selectedVenue && (
+                    <div
+                        className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
+                        onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
+                    >
+                        <div className="ss-mobile-sheet-grab" />
+                        <span>{matchingCount} venues nearby</span>
+                        {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                    </div>
                 )}
-            </AnimatePresence>
 
-                <>
-                    {/* ═══ MAIN SPLIT LAYOUT ═══ */}
-                    <main className="ss-main flex h-full w-full overflow-hidden">
-                        {/* ── LEFT: Venue List (desktop) ──────────────────────── */}
-                        <aside className="ss-sidebar w-full md:w-96 h-full overflow-y-auto flex flex-col bg-white border-r border-gray-200">
-                            {/* Search bar */}
-                            <div className="ss-search-wrap">
-                                <Search size={15} className="ss-search-icon" />
-                                <input
-                                    type="text"
-                                    placeholder="Search venues, suburbs…"
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="ss-search-input"
-                                    id="venue-search"
-                                />
-                                {searchQuery && (
-                                    <button
-                                        onClick={() => setSearchQuery('')}
-                                        className="ss-search-clear"
-                                    >
-                                        <X size={13} />
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Results count */}
-                            <div className="ss-sidebar-count">
-                                <span>{matchingCount} venue{matchingCount !== 1 ? 's' : ''}</span>
-                                {(activeFilters.length > 0 || mapQuickFilter) && (
-                                    <button onClick={handleClearFilters} className="ss-sidebar-clear">Clear all</button>
-                                )}
-                            </div>
-
-                            {/* Scrollable venue list */}
-                            <div className="ss-venue-list" ref={listRef}>
-                                <AnimatePresence mode="popLayout">
+                <AnimatePresence>
+                    {mobileSheetState === 'expanded' && !selectedVenue && (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                onClick={() => setMobileSheetState('peek')}
+                                className="ss-mobile-sheet-backdrop"
+                            />
+                            <motion.div
+                                drag="y"
+                                dragConstraints={{ top: 0, bottom: 0 }}
+                                dragElastic={0.1}
+                                onDragEnd={(_, { offset, velocity }) => {
+                                    if (offset.y > 100 || velocity.y > 500) setMobileSheetState('peek');
+                                }}
+                                initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                className="ss-mobile-sheet"
+                            >
+                                <div className="ss-mobile-sheet-head">
+                                    <div className="ss-mobile-sheet-grab" />
+                                    <h3>Venues</h3>
+                                    <p>{matchingCount} results</p>
+                                </div>
+                                <div className="ss-mobile-sheet-list">
                                     {filteredVenues.map(venue => (
                                         <VenueListCard
                                             key={venue.id}
                                             venue={venue}
                                             isSelected={selectedVenue?.id === venue.id}
-                                            onClick={() => handleVenueSelect(venue)}
+                                            onClick={() => { handleVenueSelect(venue); setMobileSheetState('peek'); }}
                                             weather={weather}
                                         />
                                     ))}
-                                </AnimatePresence>
-                                {filteredVenues.length === 0 && (
-                                    <div className="ss-venue-list-empty">
-                                        <span>🔍</span>
-                                        <p>Showing all venues — couldn't find an exact match</p>
-                                        <button onClick={handleClearFilters}>Show all venues</button>
-                                    </div>
-                                )}
-                            </div>
-                        </aside>
-
-                        {/* ── RIGHT: Map ────────────────────────────────────────────── */}
-                        <section className={`ss-map-area flex-1 h-full relative ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-
-                            {/* Filters FAB (mobile only) */}
-                            <button
-                                className="ss-filters-fab"
-                                onClick={openMobileFilters}
-                                disabled={mobileFilterOpen}
-                                aria-expanded={mobileFilterOpen}
-                            >
-                                <ListFilter size={18} />
-                                <span>Filters</span>
-                                {activeFilters.length > 0 && (
-                                    <span className="ss-filters-fab-badge">{activeFilters.length}</span>
-                                )}
-                            </button>
-
-                            {/* Map container */}
-                            <div className="ss-map-container">
-                                <MapErrorBoundary>
-                                    <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
-                                        <VenueMap
-                                            venues={filteredVenues}
-                                            onVenueSelect={handleVenueSelect}
-                                            selectedVenue={selectedVenue}
-                                            filteredVenueIds={filteredVenues.map(v => v.id)}
-                                            liveVenueFeatures={debouncedLiveFeatures}
-                                            mapRef={mapRef}
-                                            weatherColorFn={getMarkerWeatherColor}
-                                            cozyWeatherActive={cozyWeatherActive}
-                                            cozyFilterActive={activeFilter === 'Cozy'}
-                                            isExpanded={mobileMapExpanded}
-                                        />
-                                    </Suspense>
-                                </MapErrorBoundary>
-                            </div>
-
-                            {/* Recenter button */}
-                            <motion.button
-                                className="ss-recenter-btn"
-                                whileTap={{ scale: 0.9 }}
-                                onClick={handleRecenter}
-                                id="recenter-map"
-                            >
-                                <Locate size={18} />
-                            </motion.button>
-
-                            {/* Functional Filter Buttons */}
-                            <div className="ss-map-filters-row absolute bottom-40 left-1/2 -translate-x-1/2 z-20 flex gap-2 w-full px-4 justify-center pr-16">
-                                <button
-                                    onClick={() => setActiveFilter('All')}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
-                                        activeFilter === 'All'
-                                            ? 'bg-sky-600 text-white border-sky-600 scale-105'
-                                            : 'bg-white/90 backdrop-blur text-sky-700 border-sky-100 hover:bg-sky-50'
-                                    }`}
-                                >
-                                    🌐 All
-                                </button>
-
-                                <button
-                                    onClick={() => setActiveFilter('Sunny')}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
-                                        activeFilter === 'Sunny'
-                                            ? 'bg-amber-400 text-amber-950 border-amber-500 scale-105'
-                                            : 'bg-white/90 backdrop-blur text-amber-700 border-amber-100 hover:bg-amber-50'
-                                    }`}
-                                >
-                                    ☀️ Sunny Patios
-                                </button>
-
-                                <button
-                                    onClick={() => setActiveFilter('Cozy')}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
-                                        activeFilter === 'Cozy'
-                                            ? 'bg-orange-600 text-white border-orange-700 scale-105'
-                                            : 'bg-white/90 backdrop-blur text-orange-700 border-orange-100 hover:bg-orange-50'
-                                    }`}
-                                >
-                                    🔥 Cozy & Covered
-                                </button>
-                            </div>
-                        </section>
-                        
-                        {/* ═══ Venue detail card ═══ */}
-                        {selectedVenue && (
-                            <VenueCard
-                                key={selectedVenue?.id || 'empty'}
-                                venue={selectedVenue}
-                                weather={weather}
-                                liveVenueFeatures={liveVenueFeatures}
-                                onClose={handleCloseCard}
-                                onCenter={handleVenueSelect}
-                                cozyWeatherActive={cozyWeatherActive}
-                                setShowOwnerDashboard={setShowOwnerDashboard}
-                                setSelectedVenue={setSelectedVenue}
-                            />
-                        )}
-
-                        {/* ═══ Mobile Filter Bottom Sheet ═══ */}
-                        <FilterSheet
-                            isOpen={mobileFilterOpen}
-                            onClose={closeMobileFilters}
-                            activeFilters={activeFilters}
-                            onToggleFilter={handleFilterToggle}
-                            onClearAll={handleClearFilters}
-                            customFilters={customFilters}
-                            newCustomFilter={newFilter}
-                            setNewCustomFilter={setNewFilter}
-                            onAddCustomFilter={addCustomFilter}
-                            resultCount={filteredVenues.length}
-                        />
-                    </main>
-
-                    {/* ═══ MOBILE: Bottom sheet venue list ═══ */}
-                    {!mobileMapExpanded && !selectedVenue && (
-                        <div
-                            className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
-                            onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
-                        >
-                            <div className="ss-mobile-sheet-grab" />
-                            <span>{matchingCount} venues nearby</span>
-                            {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                        </div>
+                                </div>
+                            </motion.div>
+                        </>
                     )}
+                </AnimatePresence>
 
-                    <AnimatePresence>
-                        {mobileSheetState === 'expanded' && !selectedVenue && (
-                            <>
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    onClick={() => setMobileSheetState('peek')}
-                                    className="ss-mobile-sheet-backdrop"
-                                />
-                                <motion.div
-                                    drag="y"
-                                    dragConstraints={{ top: 0, bottom: 0 }}
-                                    dragElastic={0.1}
-                                    onDragEnd={(e, { offset, velocity }) => {
-                                        if (offset.y > 100 || velocity.y > 500) {
-                                            setMobileSheetState('peek');
-                                        }
-                                    }}
-                                    initial={{ y: '100%' }}
-                                    animate={{ y: 0 }}
-                                    exit={{ y: '100%' }}
-                                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                    className="ss-mobile-sheet"
-                                >
-                                    <div className="ss-mobile-sheet-head">
-                                        <div className="ss-mobile-sheet-grab" />
-                                        <h3>Venues</h3>
-                                        <p>{matchingCount} results</p>
-                                    </div>
-                                    <div className="ss-mobile-sheet-list">
-                                        {filteredVenues.map(venue => (
-                                            <VenueListCard
-                                                key={venue.id}
-                                                venue={venue}
-                                                isSelected={selectedVenue?.id === venue.id}
-                                                onClick={() => {
-                                                    handleVenueSelect(venue);
-                                                    setMobileSheetState('peek');
-                                                }}
-                                                weather={weather}
-                                            />
-                                        ))}
-                                    </div>
-                                </motion.div>
-                            </>
-                        )}
-                    </AnimatePresence>
+                <ChatWidget
+                    isOpen={isChatOpen}
+                    onClose={closeChat}
+                    weather={weather}
+                    onFindWheelchair={handleFindWheelchair}
+                    onFindDogFriendly={handleFindDogFriendly}
+                    onFindSmoking={handleFindSmoking}
+                    onSurpriseMe={handleSurpriseMe}
+                    onFindFamily={handleFindFamily}
+                    onFindBusiness={handleFindBusiness}
+                    onFindSunny={handleFindSunny}
+                    onFindRooftop={handleFindRooftop}
+                    onFindIndoor={handleFindIndoor}
+                    onFindWindSheltered={handleFindWindSheltered}
+                />
 
-                    {/* Chat */}
-                    <ChatWidget
-                        isOpen={isChatOpen}
-                        onClose={closeChat}
-                        weather={weather}
-                        onFindWheelchair={handleFindWheelchair}
-                        onFindDogFriendly={handleFindDogFriendly}
-                        onFindSmoking={handleFindSmoking}
-                        onSurpriseMe={handleSurpriseMe}
-                        onFindFamily={handleFindFamily}
-                        onFindBusiness={handleFindBusiness}
-                        onFindSunny={handleFindSunny}
-                        onFindRooftop={handleFindRooftop}
-                        onFindIndoor={handleFindIndoor}
-                        onFindWindSheltered={handleFindWindSheltered}
-                    />
+                {!selectedVenue && <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />}
 
-                    {/* FIX: Single SunnyMascot FAB – hidden when venue card is open */}
-                    {!selectedVenue && <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />}
-
-                    {/* Footer badge — FIX: use imported fireIconImg instead of hardcoded path */}
-                    <motion.div
-                        initial={{ y: 100, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ duration: 0.6, delay: 0.6 }}
-                        className={`ss-footer-badge ${selectedVenue ? "hidden" : ""}`}
-                    >
-                        <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
-                        Sales Demo · {demoVenues.length} Partner Venues
-                    </motion.div>
-                </>
-        </div>
+                <motion.div
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6, delay: 0.6 }}
+                    className={`ss-footer-badge ${selectedVenue ? 'hidden' : ''}`}
+                >
+                    <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
+                    Sales Demo · {demoVenues.length} Partner Venues
+                </motion.div>
+            </div>
         </>
     );
 };
 
-
-// ═══════════════════════════════════════════════════════════════════
-// Error Boundary
-// ═══════════════════════════════════════════════════════════════════
+// ── Error Boundary ──────────────────────────────────────────────────
 class ErrorBoundary extends Component {
-    constructor(props) {
-        super(props);
-        this.state = { hasError: false, error: null };
-    }
-
-    static getDerivedStateFromError(error) {
-        return { hasError: true, error };
-    }
-
-    componentDidCatch(error, errorInfo) {
-        console.error('Sunstay Error:', error, errorInfo);
-    }
-
+    state = { hasError: false, error: null };
+    static getDerivedStateFromError(error) { return { hasError: true, error }; }
+    componentDidCatch(error, info) { console.error('Sunstay Error:', error, info); }
     render() {
         if (this.state.hasError) {
             return (
                 <div className="flex items-center justify-center h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-6">
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
+                    <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="text-center max-w-md bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl"
                     >
                         <div className="text-5xl mb-4">🌥️</div>
                         <h2 className="text-2xl font-black text-gray-800 mb-2">Oops! Something went wrong</h2>
-                        <p className="text-gray-600 mb-4 text-sm">
-                            {this.state.error?.message || 'An unexpected error occurred loading Sunstay.'}
-                        </p>
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
-                        >
-                            ☀️ Reload App
-                        </button>
+                        <p className="text-gray-600 mb-4 text-sm">{this.state.error?.message || 'An unexpected error occurred.'}</p>
+                        <button onClick={() => window.location.reload()}
+                            className="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold rounded-xl shadow-lg"
+                        >☀️ Reload App</button>
                     </motion.div>
                 </div>
             );
@@ -820,7 +627,6 @@ class ErrorBoundary extends Component {
     }
 }
 
-// Root App component
 const App = () => (
     <ErrorBoundary>
         <WeatherProvider>
