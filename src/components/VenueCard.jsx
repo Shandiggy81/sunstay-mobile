@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { memo, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { MapPin, ArrowLeft, ChevronDown } from 'lucide-react';
 import { getSunPositionForMap } from '../utils/sunPosition';
@@ -458,7 +458,7 @@ const EliteSunArc = ({ sunData, venueId }) => {
   );
 };
 
-export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
+function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
   const [graphExpanded, setGraphExpanded] = useState(false);
   const mouseX = useMotionValue(0);
@@ -898,7 +898,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
 
             {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
 
-            {(liveVenueFeatures?.[venue?.id]?.hasFireplace || liveVenueFeatures?.[venue?.id]?.hasHeaters) && (
+            {(liveFeaturesForVenue?.fireplaceOn || liveFeaturesForVenue?.heatersOn) && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -907,7 +907,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
               >
                 <motion.span className="text-xl" animate={{ scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}>🔥</motion.span>
                 <span className="font-black text-sm" style={{ color: '#DC2626' }}>
-                  {liveVenueFeatures?.[venue?.id]?.hasFireplace ? 'Fireplace Active — On Now' : 'Outdoor Heaters — On Now'}
+                  {liveFeaturesForVenue?.fireplaceOn ? 'Fireplace Active — On Now' : 'Outdoor Heaters — On Now'}
                 </span>
               </motion.div>
             )}
@@ -961,3 +961,7 @@ export default function VenueCard({ venue, weather, onClose, onCenter, cozyWeath
     </AnimatePresence>
   );
 }
+
+VenueCard.displayName = 'VenueCard';
+
+export default memo(VenueCard);

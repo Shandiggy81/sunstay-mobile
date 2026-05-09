@@ -137,7 +137,7 @@ const VenueMap = forwardRef(({
                 pitch:       0,        // FIX 2: pitch=0 on mobile; 3D tilt causes GL repaints on every frame during pan
                 bearing:     0,
                 // FIX 3: cooperative gestures — prevents the map swallowing page scroll on mobile
-                cooperativeGestures: false,
+                cooperativeGestures: true,
                 // FIX 4: disable fade-in animation on tiles — reduces visual jitter on slow connections
                 fadeDuration: 0,
                 // FIX 5: limit max tile cache to reduce memory pressure on mobile
@@ -247,7 +247,7 @@ const VenueMap = forwardRef(({
                 no event.preventDefault() conflicts that cause stutter */}
             <div
                 ref={mapContainer}
-                style={{ width: '100%', height: '100%', touchAction: 'pan-x pan-y' }}
+                style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
 
             {/* Loading / error overlay */}

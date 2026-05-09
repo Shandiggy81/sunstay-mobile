@@ -22,6 +22,8 @@ import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
 import MapErrorBoundary from './components/MapErrorBoundary';
 
+const EMPTY_LIVE_FEATURES = Object.freeze({});
+
 const LoadingScreen = () => (
     <div className="flex items-center justify-center h-screen bg-gradient-to-br from-amber-50 to-orange-100">
         <motion.div
@@ -339,6 +341,10 @@ const AppContent = () => {
     const handleCloseCard  = useCallback(() => setSelectedVenue(null), []);
     const toggleChat       = useCallback(() => setIsChatOpen(p => !p), []);
     const closeChat        = useCallback(() => setIsChatOpen(false), []);
+    const handleOwnerDashboardClose = useCallback(() => setShowOwnerDashboard(false), []);
+    const handleSelectedVenueUpdate = useCallback((updated) => {
+        setSelectedVenue(prev => prev ? { ...prev, ...updated } : updated);
+    }, []);
 
     const handleFilterToggle = useCallback((tag) => {
         setActiveFilters(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
@@ -384,6 +390,12 @@ const AppContent = () => {
         }
     }, [selectedVenue]);
 
+    const selectedLiveFeatureState = selectedVenue?.id ? liveVenueFeatures?.[selectedVenue.id] : null;
+    const selectedVenueLiveFeatures = useMemo(() => {
+        if (!selectedVenue?.id || !selectedLiveFeatureState) return EMPTY_LIVE_FEATURES;
+        return { [selectedVenue.id]: selectedLiveFeatureState };
+    }, [selectedVenue?.id, selectedLiveFeatureState]);
+
     return (
         <>
             {!splashDone && (
@@ -410,8 +422,8 @@ const AppContent = () => {
                             venue={selectedVenue}
                             liveVenueFeatures={liveVenueFeatures}
                             setLiveVenueFeatures={setLiveVenueFeatures}
-                            onClose={() => setShowOwnerDashboard(false)}
-                            onVenueUpdate={(updated) => setSelectedVenue(prev => ({ ...prev, ...updated }))}
+                            onClose={handleOwnerDashboardClose}
+                            onVenueUpdate={handleSelectedVenueUpdate}
                         />
                     )}
                 </AnimatePresence>
@@ -530,7 +542,7 @@ const AppContent = () => {
                             key={selectedVenue.id}
                             venue={selectedVenue}
                             weather={weather}
-                            liveVenueFeatures={liveVenueFeatures}
+                            liveVenueFeatures={selectedVenueLiveFeatures}
                             onClose={handleCloseCard}
                             onCenter={handleVenueSelect}
                             cozyWeatherActive={cozyWeatherActive}

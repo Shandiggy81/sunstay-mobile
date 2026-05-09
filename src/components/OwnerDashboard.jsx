@@ -92,6 +92,10 @@ const HEATING_FIELDS = [
 // ═════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════
+const booleanFromVenue = (currentValue, legacyFallback) => (
+  typeof currentValue === 'boolean' ? currentValue : !!legacyFallback
+);
+
 export default function OwnerDashboard({
   venue,
   onClose = () => {},
@@ -114,8 +118,8 @@ export default function OwnerDashboard({
 
   // ── Heating Toggles State — keyed by DB/map column name ─────
   const [heatingState, setHeatingState] = useState({
-    heatersOn:        !!safeVenue?.heatersOn || !!safeVenue?.hasHeaters,
-    fireplaceOn:      !!safeVenue?.fireplaceOn || !!safeVenue?.hasFireplace,
+    heatersOn:        booleanFromVenue(safeVenue?.heatersOn, safeVenue?.hasHeaters),
+    fireplaceOn:      booleanFromVenue(safeVenue?.fireplaceOn, safeVenue?.hasFireplace),
     hasUmbrellas:     !!safeVenue?.hasUmbrellas,
     hasWindProtection: !!safeVenue?.hasWindProtection,
   });
@@ -186,6 +190,7 @@ export default function OwnerDashboard({
         [venueId]: { ...(prev?.[venueId] || {}), [key]: value },
       }));
     }
+    onVenueUpdate?.({ [key]: value });
 
     try {
       const { error } = await supabase
@@ -196,13 +201,20 @@ export default function OwnerDashboard({
       setHeatingSaved(prev => ({ ...prev, [key]: true }));
       scheduleTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
     } catch (e) {
-      console.error('Heating save error:', e.message);
+      console.error('Heating save error:', e?.message || e);
       // Revert optimistic update on failure
       setHeatingState(prev => ({ ...prev, [key]: !value }));
+      if (setLiveVenueFeatures) {
+        setLiveVenueFeatures(prev => ({
+          ...prev,
+          [venueId]: { ...(prev?.[venueId] || {}), [key]: !value },
+        }));
+      }
+      onVenueUpdate?.({ [key]: !value });
     } finally {
       setHeatingSaving(prev => ({ ...prev, [key]: false }));
     }
-  }, [venueId, setLiveVenueFeatures, scheduleTimeout]);
+  }, [venueId, setLiveVenueFeatures, scheduleTimeout, onVenueUpdate]);
 
   // ── Vibe Save Handler ──────────────────────────────────────
   const handleSaveVibe = async () => {
