@@ -48,6 +48,12 @@ const isFiniteCoord = (value) => Number.isFinite(Number(value));
 const isRenderableVenue = (venue) => (
     venue?.id != null && isFiniteCoord(venue.lng) && isFiniteCoord(venue.lat)
 );
+const FLY_TO_PADDING = { top: 100, bottom: 300, left: 50, right: 50 };
+const withVenuePadding = (opts = {}) => (
+    Array.isArray(opts.center) && Number(opts.zoom) >= 14
+        ? { ...opts, padding: opts.padding ?? FLY_TO_PADDING }
+        : opts
+);
 
 // ── Create marker DOM element (called ONCE per venue) ──────────────
 function createMarkerEl(pinKey) {
@@ -112,7 +118,7 @@ const VenueMap = forwardRef(({
 
     // ── Expose imperative API ──────────────────────────────────────
     useImperativeHandle(ref, () => ({
-        flyTo:  (opts) => map.current?.flyTo(opts),
+        flyTo:  (opts) => map.current?.flyTo(withVenuePadding(opts)),
         getMap: ()    => map.current,
     }));
 
@@ -136,8 +142,8 @@ const VenueMap = forwardRef(({
                 zoom:        INITIAL_VIEW_STATE.zoom,
                 pitch:       0,        // FIX 2: pitch=0 on mobile; 3D tilt causes GL repaints on every frame during pan
                 bearing:     0,
-                // FIX 3: cooperative gestures — prevents the map swallowing page scroll on mobile
-                cooperativeGestures: true,
+                // One-finger pan is required for this mobile map view.
+                cooperativeGestures: false,
                 // FIX 4: disable fade-in animation on tiles — reduces visual jitter on slow connections
                 fadeDuration: 0,
                 // FIX 5: limit max tile cache to reduce memory pressure on mobile
@@ -237,14 +243,13 @@ const VenueMap = forwardRef(({
             zoom:     15,
             duration: 900,
             essential: true,
+            padding: FLY_TO_PADDING,
         });
     }, [selectedVenue]);
 
     // ── Render ────────────────────────────────────────────────
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            {/* FIX 7: touch-action:pan-x pan-y lets the browser handle panning natively,
-                no event.preventDefault() conflicts that cause stutter */}
             <div
                 ref={mapContainer}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}

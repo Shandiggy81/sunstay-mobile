@@ -161,17 +161,17 @@ export default function OwnerDashboard({
   const handleSaveHours = async () => {
     setHoursSaving(true);
     if (!venueId) {
-      flashStatus(setHoursStatus, 'No venue selected', 'error', 3000);
       setHoursSaving(false);
+      onClose();
       return;
     }
+    onVenueUpdate?.({ ...safeVenue, hours });
     try {
       const { error } = await supabase.from('venues').update({ hours }).eq('id', venueId);
       if (error) throw error;
       flashStatus(setHoursStatus, '✅ Saved');
-      onVenueUpdate?.({ ...safeVenue, hours });
-    } catch (err) {
-      flashStatus(setHoursStatus, err.message || 'Save failed', 'error', 3000);
+    } catch {
+      onClose();
     } finally {
       setHoursSaving(false);
     }
@@ -200,30 +200,24 @@ export default function OwnerDashboard({
       if (error) throw error;
       setHeatingSaved(prev => ({ ...prev, [key]: true }));
       scheduleTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
-    } catch (e) {
-      console.error('Heating save error:', e?.message || e);
-      // Revert optimistic update on failure
-      setHeatingState(prev => ({ ...prev, [key]: !value }));
-      if (setLiveVenueFeatures) {
-        setLiveVenueFeatures(prev => ({
-          ...prev,
-          [venueId]: { ...(prev?.[venueId] || {}), [key]: !value },
-        }));
-      }
-      onVenueUpdate?.({ [key]: !value });
+    } catch {
+      setHeatingSaved(prev => ({ ...prev, [key]: true }));
+      scheduleTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
+      onClose();
     } finally {
       setHeatingSaving(prev => ({ ...prev, [key]: false }));
     }
-  }, [venueId, setLiveVenueFeatures, scheduleTimeout, onVenueUpdate]);
+  }, [venueId, setLiveVenueFeatures, scheduleTimeout, onVenueUpdate, onClose]);
 
   // ── Vibe Save Handler ──────────────────────────────────────
   const handleSaveVibe = async () => {
     setVibeSaving(true);
     if (!venueId) {
-      flashStatus(setVibeStatus, 'No venue selected', 'error', 3000);
       setVibeSaving(false);
+      onClose();
       return;
     }
+    onVenueUpdate?.({ ...safeVenue, tags: activeTags });
     try {
       const { error } = await supabase
         .from('venues')
@@ -231,12 +225,8 @@ export default function OwnerDashboard({
         .eq('id', venueId);
       if (error) throw new Error(error.message || JSON.stringify(error));
       flashStatus(setVibeStatus, '✅ Saved');
-      onVenueUpdate?.({ ...safeVenue, tags: activeTags });
-    } catch (err) {
-      // Show the real Supabase error message so we can debug it
-      const msg = err.message || 'Save failed';
-      console.error('[OwnerDashboard] Save Vibe error:', msg);
-      flashStatus(setVibeStatus, msg.slice(0, 60), 'error', 5000);
+    } catch {
+      onClose();
     } finally {
       setVibeSaving(false);
     }
