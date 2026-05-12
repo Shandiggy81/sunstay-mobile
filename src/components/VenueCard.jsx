@@ -6,7 +6,6 @@ import { venues } from '../data/venues';
 import { FEATURE_BADGES } from '../config/features';
 import WeatherWidget from './WeatherWidget';
 import HourlyForecastStrip from './HourlyForecastStrip';
-import SunTimeline from './SunTimeline';
 import SunTimelineSlider from './SunTimelineSlider';
 import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
@@ -65,6 +64,15 @@ const getDeterministicSunHours = (id) => {
     hash = idString.charCodeAt(i) + ((hash << 5) - hash);
   }
   return 6 + (Math.abs(hash) % 4);
+};
+
+const formatHourLabel = (hour) => {
+  if (!Number.isFinite(hour)) return null;
+  const rounded = Math.round(hour);
+  if (rounded === 0 || rounded === 24) return '12am';
+  if (rounded < 12) return `${rounded}am`;
+  if (rounded === 12) return '12pm';
+  return `${rounded - 12}pm`;
 };
 
 const Float = ({ children, delay = 0, range = 6, duration = 4, className = '' }) => (
@@ -431,6 +439,12 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     const sunHoursFallback = getDeterministicSunHours(venue?.id);
     return { outdoor: `${sunHoursFallback}h`, covered: `${Math.max(4, sunHoursFallback - 2)}h`, labels: { outdoor: 'Outdoor', covered: 'Covered' } };
   }, [isHotelOrStay, outdoorSun, venue?.id]);
+  const directSunHours = Number.parseFloat(sunHours.outdoor) || 0;
+  const peakSunWindow = useMemo(() => {
+    const start = formatHourLabel(sunData?.startHour);
+    const end = formatHourLabel(sunData?.endHour);
+    return start && end ? `${start} – ${end}` : null;
+  }, [sunData]);
 
   const weatherCondition = useMemo(() => {
     if (weather?.weather?.[0]?.main) return weather.weather[0].main.toLowerCase();
@@ -472,9 +486,17 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const roomIntelligence = venue?.roomIntelligence || fullVenueData?.roomIntelligence;
 
   const verdict = useMemo(() => {
+    const currentHour = new Date().getHours();
+    const isNight = currentHour >= 20 || currentHour < 6;
     const cloudNow = Array.isArray(cloudcover)
-      ? (cloudcover[new Date().getHours()] ?? cloudcover[0] ?? 0)
+      ? (cloudcover[currentHour] ?? cloudcover[0] ?? 0)
       : (typeof cloudcover === 'number' ? cloudcover : 50);
+
+    if (isNight) {
+      if (precipProbability >= 30) return { icon: '🌧️', text: 'Rainy night', color: '#0EA5E9' };
+      if (cloudNow > 40) return { icon: '☁️', text: 'Cloudy night', color: '#64748B' };
+      return { icon: '🌙', text: 'Clear night', color: '#64748B' };
+    }
 
     if (precipProb > 85) return { icon: '⛈️', text: 'Heavy Rain — Check Cover', color: '#0EA5E9' };
     if (precipProb >= 50) return { icon: '🌧️', text: 'Steady Rain — Check Cover', color: '#0EA5E9' };
@@ -486,12 +508,17 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     if (score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions', color: '#F59E0B' };
     if (score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#0EA5E9' };
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
-  }, [precipProb, wind, score, cloudcover]);
+  }, [precipProb, precipProbability, wind, score, cloudcover]);
 
   const scoreLabel = useMemo(() => {
     if (score > 75) return 'Perfect Now';
     if (score >= 50) return 'Good Choice';
     return 'Worth a Look';
+  }, [score]);
+  const scoreMeaningLabel = useMemo(() => {
+    if (score >= 75) return 'Great conditions';
+    if (score >= 50) return 'Decent today';
+    return 'Not ideal';
   }, [score]);
 
   const buildSpark = (key, slice = 14) => Array.isArray(hourlyData?.[key])
@@ -567,6 +594,19 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 <h1 className="font-bold truncate" style={{ fontSize: '18px', color: '#1E293B' }}>
                   {displayName}
                 </h1>
+                <div className="flex flex-col gap-0.5" style={{ marginTop: 6, marginBottom: 4 }}>
+                  <span
+                    className="font-black leading-tight"
+                    style={{ fontSize: 24, color: '#f59e0b', letterSpacing: 0 }}
+                  >
+                    {directSunHours.toFixed(1)} hours direct sun today
+                  </span>
+                  {peakSunWindow && (
+                    <span className="font-bold" style={{ fontSize: 16, color: '#92400E' }}>
+                      ☀️ Peak sun: {peakSunWindow}
+                    </span>
+                  )}
+                </div>
                 <span style={{ fontSize: '0.7rem', color: '#64748B' }}>{safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}</span>
                 {(() => {
                   const isOutdoor = !isHotelOrStay && !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
@@ -609,6 +649,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               <div className="flex flex-col justify-center ml-1 mr-2 flex-shrink-0" style={{ paddingTop: '6px' }}>
                 <span className="font-bold text-lg leading-tight tracking-wide" style={{ color: '#1E293B' }}>{scoreLabel}</span>
                 <span className="text-[11px] uppercase tracking-wider mt-0.5" style={{ color: '#64748B' }}>For Current Weather</span>
+                <span className="text-[11px] font-semibold mt-1" style={{ color: '#94A3B8' }}>{scoreMeaningLabel}</span>
               </div>
               <div className="flex-1 grid grid-cols-6 gap-1.5">
                 <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
