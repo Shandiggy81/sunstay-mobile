@@ -1,15 +1,8 @@
 /**
  * VenueMap — HTML Marker emoji pins, performance-optimised
- * 
- * Key fixes vs previous version:
- * 1. onVenueSelect wrapped in ref — never causes marker useEffect to re-run
- * 2. marker sync effect depends only on [venues, weather, liveVenueFeatures, filteredVenueIds, mapLoaded]
- *    NOT onVenueSelect (was causing all 43 markers to rebuild on every parent re-render)
- * 3. Map init: cooperative gestures on mobile, no pitch (pitch causes jank on mobile GL)
- * 4. Marker DOM recycled in-place (textContent + style only) — no remove/recreate on update
- * 5. will-change:transform on marker el for GPU compositing layer
- * 6. CSS touch-action:none on map container to prevent scroll/pan conflict
- * 7. flyTo: essential:false + updated padding to prevent diagonal jumping when BottomSheet height shifts
+ *
+ * Fixes in this version:
+ * 1. FLY_TO_PADDING.bottom bumped to 520 — pin sits clearly above BottomSheet
  */
 
 import React, {
@@ -49,7 +42,11 @@ const isFiniteCoord = (value) => Number.isFinite(Number(value));
 const isRenderableVenue = (venue) => (
     venue?.id != null && isFiniteCoord(venue.lng) && isFiniteCoord(venue.lat)
 );
-const FLY_TO_PADDING = { top: 120, bottom: 400, left: 60, right: 60 };
+
+// FIX: bottom bumped from 400 → 520 so the active pin sits cleanly
+// in the top half of the screen, above the VenueCard BottomSheet.
+const FLY_TO_PADDING = { top: 120, bottom: 520, left: 60, right: 60 };
+
 const withVenuePadding = (opts = {}) => (
     Array.isArray(opts.center) && Number(opts.zoom) >= 14
         ? { ...opts, padding: opts.padding ?? FLY_TO_PADDING }
@@ -60,7 +57,6 @@ const withVenuePadding = (opts = {}) => (
 function createMarkerEl(pinKey) {
     const { emoji, bg, border } = PIN_STATES[pinKey];
     const el = document.createElement('div');
-    // will-change:transform puts each pin on its own GPU layer — no jank during map pan
     el.style.cssText = [
         'width:40px', 'height:40px', 'border-radius:50%',
         `background:${bg}`, `border:3px solid ${border}`,
@@ -69,11 +65,10 @@ function createMarkerEl(pinKey) {
         'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
         'transition:transform 120ms ease',
         'user-select:none', 'line-height:1',
-        'will-change:transform',          // ← GPU compositing layer
-        '-webkit-tap-highlight-color:transparent', // ← removes iOS flash on tap
+        'will-change:transform',
+        '-webkit-tap-highlight-color:transparent',
     ].join(';');
     el.textContent = emoji;
-    // Hover only on non-touch devices
     el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.2)'; });
     el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
     return el;
@@ -97,10 +92,11 @@ const VenueMap = forwardRef(({
 }, ref) => {
     const mapContainer = useRef(null);
     const map          = useRef(null);
-    const markersRef   = useRef({});   // { [venueId]: { marker, el, pinKey } }
-    const [mapLoaded, setMapLoaded]   = useState(false);
-    const [mapError,  setMapError]    = useState(false);
+    const markersRef   = useRef({});
+    const [mapLoaded, setMapLoaded] = useState(false);
+    const [mapError,  setMapError]  = useState(false);
     const { weather } = useWeather();
+
     const safeVenues = useMemo(
         () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
         [venues]
@@ -110,14 +106,9 @@ const VenueMap = forwardRef(({
         return new Set(filteredVenueIds.map(id => String(id)));
     }, [filteredVenueIds]);
 
-    // FIX 1: store onVenueSelect in a ref so it never appears in marker effect deps.
-    // Without this, every parent re-render (state change, resize, etc.) rebuilds
-    // the click handler reference and triggers the entire marker sync effect,
-    // causing all 43 markers to flash/jump.
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
 
-    // ── Expose imperative API ──────────────────────────────────────
     useImperativeHandle(ref, () => ({
         flyTo:  (opts) => map.current?.flyTo(withVenuePadding(opts)),
         getMap: ()    => map.current,
@@ -131,30 +122,24 @@ const VenueMap = forwardRef(({
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
         let disposed = false;
-        const loadTimeout = setTimeout(() => {
-            if (!disposed) setMapError(true);
-        }, 15000);
+        const loadTimeout = setTimeout(() => { if (!disposed) setMapError(true); }, 15000);
 
         try {
             map.current = new mapboxgl.Map({
-                container:   mapContainer.current,
-                style:       MAP_STYLE,
-                center:      [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
-                zoom:        INITIAL_VIEW_STATE.zoom,
-                pitch:       0,        // FIX 2: pitch=0 on mobile; 3D tilt causes GL repaints on every frame during pan
-                bearing:     0,
-                // One-finger pan is required for this mobile map view.
+                container:           mapContainer.current,
+                style:               MAP_STYLE,
+                center:              [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
+                zoom:                INITIAL_VIEW_STATE.zoom,
+                pitch:               0,
+                bearing:             0,
                 cooperativeGestures: false,
-                // FIX 4: disable fade-in animation on tiles — reduces visual jitter on slow connections
-                fadeDuration: 0,
-                // FIX 5: limit max tile cache to reduce memory pressure on mobile
-                maxTileCacheSize: 20,
+                fadeDuration:        0,
+                maxTileCacheSize:    20,
             });
 
             map.current.on('load', () => {
                 if (disposed || !map.current) return;
                 clearTimeout(loadTimeout);
-                // FIX 6: disable map rotation (pinch-rotate) — prevents accidental bearing changes
                 map.current.dragRotate.disable();
                 map.current.touchZoomRotate.disableRotation();
                 setMapLoaded(true);
@@ -187,32 +172,24 @@ const VenueMap = forwardRef(({
             map.current?.remove();
             map.current = null;
         };
-    }, []); // ← empty deps: runs once only
+    }, []);
 
-    // ── Sync markers (NO onVenueSelect in deps!) ────────────────────
+    // ── Sync markers ────────────────────────────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-
         const visible = filteredIdSet;
-
-        // Add / update markers
         safeVenues.forEach(venue => {
             const pinKey   = getPinStateKey(venue, weather, liveVenueFeatures);
             const existing = markersRef.current[venue.id];
             const show     = !visible || visible.has(String(venue.id));
-
             if (existing) {
-                // Toggle visibility
                 existing.el.style.display = show ? 'flex' : 'none';
-                // Update emoji/colour if state changed — NO marker remove/recreate
                 if (show && existing.pinKey !== pinKey) {
                     updateMarkerEl(existing.el, pinKey);
                     existing.pinKey = pinKey;
                 }
             } else if (show) {
-                // Create marker for the first time
                 const el = createMarkerEl(pinKey);
-                // Use ref so clicking a pin never causes the effect to re-run
                 el.addEventListener('click', () => onVenueSelectRef.current?.(venue));
                 const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
                     .setLngLat([Number(venue.lng), Number(venue.lat)])
@@ -220,8 +197,6 @@ const VenueMap = forwardRef(({
                 markersRef.current[venue.id] = { marker, el, pinKey };
             }
         });
-
-        // Remove stale markers
         const venueIds = new Set(safeVenues.map(v => String(v.id)));
         Object.keys(markersRef.current).forEach(id => {
             if (!venueIds.has(id)) {
@@ -229,34 +204,30 @@ const VenueMap = forwardRef(({
                 delete markersRef.current[id];
             }
         });
-
-    // ⚠️ onVenueSelect intentionally omitted — accessed via ref above
     }, [safeVenues, weather, liveVenueFeatures, filteredIdSet, mapLoaded]);
 
-    // ── Fly to selected venue ─────────────────────────────────
+    // ── Fly to selected venue ─────────────────────────────────────
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
         const lng = Number(selectedVenue.lng);
         const lat = Number(selectedVenue.lat);
         if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
         map.current.flyTo({
-            center:   [lng, lat],
-            zoom:     15,
-            duration: 900,
+            center:    [lng, lat],
+            zoom:      15,
+            duration:  900,
             essential: false,
-            padding: FLY_TO_PADDING,
+            padding:   FLY_TO_PADDING,
         });
     }, [selectedVenue]);
 
-    // ── Render ────────────────────────────────────────────────
+    // ── Render ────────────────────────────────────────────────────
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <div
                 ref={mapContainer}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
-
-            {/* Loading / error overlay */}
             {(!mapLoaded || mapError) && (
                 <div style={styles.overlay}>
                     {mapError ? (
@@ -272,8 +243,6 @@ const VenueMap = forwardRef(({
                     )}
                 </div>
             )}
-
-            {/* Caption bar */}
             {mapLoaded && !mapError && (
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner">

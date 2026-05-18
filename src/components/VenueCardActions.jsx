@@ -59,6 +59,7 @@ export default function VenueCardActions({
               <span key={i} className="font-bold whitespace-nowrap" style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)', color: '#0369A1' }}>{t}</span>
             ))}
           </div>
+          {/* PRIMARY CTA — Capture the Vibe */}
           <motion.label
             className="flex items-center justify-center gap-2 w-full rounded-2xl cursor-pointer"
             style={{ minHeight: '54px', background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)', border: '1px solid rgba(14,165,233,0.3)', boxShadow: '0 4px 20px rgba(14,165,233,0.25)' }}
@@ -70,13 +71,22 @@ export default function VenueCardActions({
         </div>
       </motion.div>
 
+      {/* SECONDARY CTA — Manage This Venue (ghost/outline, visually subordinate) */}
       {setShowOwnerDashboard && (
         <motion.button
           onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
           className="w-full flex items-center justify-center rounded-xl"
-          style={{ padding: '8px 0', fontSize: '0.75rem', fontWeight: 700, background: '#0d9488', color: '#fff' }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.95, background: '#0f766e' }}
+          style={{
+            padding: '7px 0',
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            background: 'transparent',
+            color: '#94A3B8',
+            border: '1px solid rgba(148,163,184,0.30)',
+            letterSpacing: '0.02em',
+          }}
+          whileHover={{ borderColor: 'rgba(148,163,184,0.55)', color: '#CBD5E1' }}
+          whileTap={{ scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 320, damping: 22 }}
         >Manage This Venue →</motion.button>
       )}

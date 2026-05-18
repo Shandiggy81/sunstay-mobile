@@ -1,130 +1,186 @@
 import React, { useState, useEffect } from 'react';
-
 import { getSunData } from '../utils/getSunData';
 
 function getWeatherEmoji(code, isNight) {
-  if (code === 0) return isNight ? '🌙' : '☀️';
-  if (code === 1) return isNight ? '🌙' : '🌤️';
-  if (code === 2) return isNight ? '☁️' : '⛅';
-  if (code === 3) return '☁️';
-  if (code === 45 || code === 48) return '🌫️';
-  if (code >= 51 && code <= 57) return isNight ? '🌧️' : '🌦️';
+  if (code === 0)                               return isNight ? '🌙' : '☀️';
+  if (code === 1)                               return isNight ? '🌙' : '🌤️';
+  if (code === 2)                               return isNight ? '☁️' : '⛅';
+  if (code === 3)                               return '☁️';
+  if (code === 45 || code === 48)               return '🌫️';
+  if (code >= 51 && code <= 57)                 return isNight ? '🌧️' : '🌦️';
   if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return '🌧️';
-  if (code >= 71 && code <= 77) return '❄️';
-  if (code >= 95) return '⛈️';
+  if (code >= 71 && code <= 77)                 return '❄️';
+  if (code >= 95)                               return '⛈️';
   return isNight ? '🌙' : '🌤️';
 }
 
+// Inline shimmer so the loading state looks polished regardless of
+// whether Tailwind's animate-pulse class is available in the bundle.
+const ShimmerCard = () => (
+  <div
+    style={{
+      flexShrink: 0,
+      width: 54,
+      height: 82,
+      borderRadius: 14,
+      background: 'rgba(245,158,11,0.10)',
+      border: '1px solid rgba(245,158,11,0.12)',
+      animation: 'ss-pulse 1.4s ease-in-out infinite',
+    }}
+  />
+);
+
+// Inject the keyframe once at module level (safe to call multiple times).
+if (typeof document !== 'undefined' && !document.getElementById('ss-pulse-kf')) {
+  const style = document.createElement('style');
+  style.id = 'ss-pulse-kf';
+  style.textContent = '@keyframes ss-pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }';
+  document.head.appendChild(style);
+}
+
 export default function HourlyForecastStrip({ lat, lng }) {
-  const [hourly, setHourly] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [hourly, setHourly]                   = useState([]);
+  const [loading, setLoading]                 = useState(true);
   const [sunshineMinsToday, setSunshineMinsToday] = useState(null);
 
+  // Normalise lat/lng — accept string, number, or null
+  const latNum = lat != null ? Number(lat) : NaN;
+  const lngNum = lng != null ? Number(lng) : NaN;
+  const hasCoords = Number.isFinite(latNum) && Number.isFinite(lngNum);
+
   useEffect(() => {
-    if (!lat || !lng) return;
+    if (!hasCoords) {
+      setLoading(false);
+      setHourly([]);
+      return;
+    }
+
+    let cancelled = false;
     setLoading(true);
+
     const params = new URLSearchParams({
-      latitude: String(lat),
-      longitude: String(lng),
-      hourly: 'temperature_2m,apparent_temperature,weather_code,weathercode,precipitation_probability,cloud_cover,cloudcover,wind_gusts_10m,windgusts_10m,precipitation,visibility,sunshine_duration,shortwave_radiation,direct_normal_irradiance',
-      timezone: 'auto',
+      latitude:      String(latNum),
+      longitude:     String(lngNum),
+      hourly:        'temperature_2m,apparent_temperature,weather_code,weathercode,precipitation_probability,cloud_cover,cloudcover,wind_gusts_10m,windgusts_10m,precipitation,visibility,sunshine_duration,shortwave_radiation,direct_normal_irradiance',
+      timezone:      'auto',
       forecast_days: '1',
     });
+
     fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
       .then(r => r.json())
       .then(data => {
-        if (!data?.hourly?.time) return;
-        const now = new Date();
+        if (cancelled) return;
+        if (!data?.hourly?.time) { setHourly([]); return; }
+
+        const now  = new Date();
         const rows = data.hourly.time
           .map((t, i) => ({
-            time: new Date(t),
-            temp: Math.round(data.hourly.temperature_2m[i]),
-            feelsLike: Math.round(data.hourly.apparent_temperature?.[i] ?? data.hourly.temperature_2m[i]),
-            code: data.hourly.weather_code?.[i] ?? data.hourly.weathercode?.[i] ?? 0,
-            precip: data.hourly.precipitation_probability[i] ?? 0,
-            clouds: data.hourly.cloud_cover?.[i] ?? data.hourly.cloudcover?.[i] ?? 0,
-            gusts: Math.round((data.hourly.wind_gusts_10m?.[i] ?? data.hourly.windgusts_10m?.[i] ?? 0) * 3.6),
-            rainMm: (data.hourly.precipitation[i] ?? 0).toFixed(1),
-            visibility: Math.round((data.hourly.visibility[i] ?? 10000) / 1000),
+            time:        new Date(t),
+            temp:        Math.round(data.hourly.temperature_2m[i]),
+            feelsLike:   Math.round(data.hourly.apparent_temperature?.[i] ?? data.hourly.temperature_2m[i]),
+            code:        data.hourly.weather_code?.[i] ?? data.hourly.weathercode?.[i] ?? 0,
+            precip:      data.hourly.precipitation_probability?.[i] ?? 0,
+            clouds:      data.hourly.cloud_cover?.[i] ?? data.hourly.cloudcover?.[i] ?? 0,
+            gusts:       Math.round(((data.hourly.wind_gusts_10m?.[i] ?? data.hourly.windgusts_10m?.[i] ?? 0)) * 3.6),
+            rainMm:      (data.hourly.precipitation?.[i] ?? 0).toFixed(1),
+            visibility:  Math.round((data.hourly.visibility?.[i] ?? 10000) / 1000),
             sunshineMins: Math.round((data.hourly.sunshine_duration?.[i] ?? 0) / 60),
-            solarW: Math.round(data.hourly.shortwave_radiation?.[i] ?? 0),
+            solarW:      Math.round(data.hourly.shortwave_radiation?.[i] ?? 0),
           }))
           .filter(r => r.time >= now)
           .slice(0, 12);
+
         setHourly(rows);
 
         let directSunHours = 0;
         for (let i = 0; i < 24; i++) {
-          const dni = data.hourly.direct_normal_irradiance?.[i] ?? 0;
+          const dni   = data.hourly.direct_normal_irradiance?.[i] ?? 0;
           const cloud = data.hourly.cloud_cover?.[i] ?? data.hourly.cloudcover?.[i] ?? 0;
-          if (dni > 200 && cloud < 60) {
-            directSunHours += 1;
-          }
+          if (dni > 200 && cloud < 60) directSunHours += 1;
         }
         setSunshineMinsToday(directSunHours * 60);
       })
-      .catch(() => setHourly([]))
-      .finally(() => setLoading(false));
-  }, [lat, lng]);
+      .catch(() => { if (!cancelled) setHourly([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
 
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latNum, lngNum]);
+
+  // ── Loading state ─────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex gap-2 overflow-x-auto pb-2 px-3 pt-1">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex-shrink-0 w-14 h-20 bg-amber-500/10 rounded-xl animate-pulse" />
-        ))}
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, paddingLeft: 12, paddingRight: 12, paddingTop: 4 }}>
+        {Array.from({ length: 6 }).map((_, i) => <ShimmerCard key={i} />)}
       </div>
     );
   }
 
-  if (!hourly.length) return null;
+  // ── No data / bad coords fallback ─────────────────────────────
+  if (!hourly.length) {
+    return (
+      <div style={{ padding: '12px 16px', textAlign: 'center' }}>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Forecast unavailable</span>
+      </div>
+    );
+  }
 
+  // ── Render strip ──────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {sunshineMinsToday !== null && (
-        <div className="flex items-center gap-2 px-3">
-          <span className="text-amber-400 text-[11px] font-black">☀️</span>
-          <span className="text-amber-300 text-[11px] font-black">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 12 }}>
+          <span style={{ color: '#FBBF24', fontSize: 11, fontWeight: 800 }}>☀️</span>
+          <span style={{ color: '#FCD34D', fontSize: 11, fontWeight: 800 }}>
             {sunshineMinsToday >= 60
               ? `${(sunshineMinsToday / 60).toFixed(1)} hrs direct sun today`
               : `${sunshineMinsToday} mins direct sun today`}
           </span>
         </div>
       )}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-3 pt-1">
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, paddingLeft: 12, paddingRight: 12, paddingTop: 4, scrollbarWidth: 'none' }}>
         {hourly.map((hour, i) => {
-          const sunData = getSunData(lat, lng);
-          const startHour = sunData ? sunData.startHour : 6;
-          const endHour = sunData ? sunData.endHour : 18;
-          const currentH = hour.time.getHours() + hour.time.getMinutes() / 60;
-          const isNight = currentH < startHour || currentH > endHour;
+          const sunData    = getSunData(latNum, lngNum);
+          const startHour  = sunData?.startHour ?? 6;
+          const endHour    = sunData?.endHour   ?? 18;
+          const currentH   = hour.time.getHours() + hour.time.getMinutes() / 60;
+          const isNight    = currentH < startHour || currentH > endHour;
+          const isGolden   = hour.solarW > 400 && hour.precip < 20;
+          const isWarm     = hour.feelsLike >= 18 && hour.feelsLike < 28 && !isGolden;
+          const isWet      = hour.precip >= 60;
 
-          const isGolden = hour.solarW > 400 && hour.precip < 20;
-          const isWarm = hour.feelsLike >= 18 && hour.feelsLike < 28 && !isGolden;
-          const isWet = hour.precip >= 60;
           return (
             <div
               key={i}
-              className="flex-shrink-0 flex flex-col items-center gap-1 px-2.5 py-2.5 rounded-2xl transition-all"
               style={{
-                background: isWet ? 'rgba(56,189,248,0.10)' : isGolden ? 'rgba(245,158,11,0.13)' : isWarm ? 'rgba(16,185,129,0.07)' : 'rgba(255,255,255,0.05)',
-                border: isWet ? '1px solid rgba(56,189,248,0.22)' : isGolden ? '1px solid rgba(245,158,11,0.28)' : isWarm ? '1px solid rgba(16,185,129,0.18)' : '1px solid rgba(255,255,255,0.08)',
-                minWidth: '54px'
+                flexShrink: 0,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                padding: '10px 10px',
+                borderRadius: 16,
+                minWidth: 54,
+                background: isWet    ? 'rgba(56,189,248,0.10)'
+                          : isGolden ? 'rgba(245,158,11,0.13)'
+                          : isWarm   ? 'rgba(16,185,129,0.07)'
+                          : 'rgba(255,255,255,0.05)',
+                border: isWet    ? '1px solid rgba(56,189,248,0.22)'
+                      : isGolden ? '1px solid rgba(245,158,11,0.28)'
+                      : isWarm   ? '1px solid rgba(16,185,129,0.18)'
+                      : '1px solid rgba(255,255,255,0.08)',
               }}
             >
-              <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', fontWeight: 700 }}>
+              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontWeight: 700, margin: 0 }}>
                 {hour.time.toLocaleTimeString([], { hour: 'numeric', hour12: true }).replace(' ', '').toLowerCase()}
               </p>
-              <span className="text-base">{getWeatherEmoji(hour.code, isNight)}</span>
-              <p style={{ fontSize: '13px', color: '#fff', fontWeight: 800 }}>{hour.temp}°</p>
-              <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>
+              <span style={{ fontSize: 16 }}>{getWeatherEmoji(hour.code, isNight)}</span>
+              <p style={{ fontSize: 13, color: '#fff', fontWeight: 800, margin: 0 }}>{hour.temp}°</p>
+              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 700, margin: 0 }}>
                 {hour.precip > 0 ? `${hour.precip}%🌧️` : hour.solarW > 0 ? `${hour.solarW}W` : ''}
               </p>
               {hour.gusts > 25 && (
-                <p style={{ fontSize: '9px', color: 'rgba(56,189,248,0.7)', fontWeight: 700 }}>💨{hour.gusts}</p>
+                <p style={{ fontSize: 9, color: 'rgba(56,189,248,0.7)', fontWeight: 700, margin: 0 }}>💨{hour.gusts}</p>
               )}
               {hour.feelsLike !== hour.temp && (
-                <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', fontWeight: 600 }}>f{hour.feelsLike}°</p>
+                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', fontWeight: 600, margin: 0 }}>f{hour.feelsLike}°</p>
               )}
             </div>
           );
