@@ -1,571 +1,304 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-    Bell, X, Settings, Heart, Star, ChevronRight,
-    Sun, Wind, Thermometer, MapPin, Clock, Volume2, VolumeX,
-    Check, Trash2, Filter, Zap, CloudRain
-} from 'lucide-react';
+/**
+ * NotificationCenter.jsx
+ * Priority 5 — Real-time in-app toast alerts for weather & sun shifts.
+ *
+ * Props
+ * ─────
+ * venue        current selected venue object (or null)
+ * weather      weather object from WeatherContext
+ * sunData      { startHour, endHour } from getSunData()
+ * score        numeric comfort score (0–100)
+ *
+ * The component fires up to ONE toast at a time.
+ * Toasts auto-dismiss after 8 s. setInterval is cleaned up on unmount.
+ */
+
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWeather } from '../context/WeatherContext';
-import { demoVenues } from '../data/demoVenues';
-import {
-    generateNotifications,
-    loadPreferences, savePreferences,
-    loadNotifications, saveNotifications,
-    loadDismissed, saveDismissed,
-    NOTIFICATION_CATEGORIES, FREQUENCY_OPTIONS, RADIUS_OPTIONS,
-    DEFAULT_PREFERENCES,
-} from '../data/notificationEngine';
 
+// ── constants ────────────────────────────────────────────────────
+const AUTO_DISMISS_MS  = 8_000;
+const POLL_INTERVAL_MS = 60_000;   // check rules every 60 s
+const COOLDOWN_MS      = 10 * 60_000; // same alert key won't re-fire for 10 min
 
-// ═══════════════════════════════════════════════════════════════════
-// Notification Center
-// ═══════════════════════════════════════════════════════════════════
-export default function NotificationCenter({ onVenueSelect }) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState('notifications'); // 'notifications' | 'settings'
-    const [prefs, setPrefs] = useState(() => loadPreferences());
-    const [notifications, setNotifications] = useState(() => loadNotifications());
-    const [dismissed, setDismissed] = useState(() => loadDismissed());
-    const [categoryFilter, setCategoryFilter] = useState(null);
-    const panelRef = useRef(null);
-    const { weather } = useWeather();
+// ── helpers ────────────────────────────────────────────────────
+function decimalNow() {
+  const n = new Date();
+  return n.getHours() + n.getMinutes() / 60;
+}
 
-    // Generate new notifications periodically (every 60s)
-    useEffect(() => {
-        const check = () => {
-            const newNotifs = generateNotifications(weather, demoVenues, prefs, dismissed);
-            if (newNotifs.length > 0) {
-                setNotifications(prev => {
-                    const merged = [...newNotifs, ...prev];
-                    // Deduplicate
-                    const seen = new Set();
-                    const deduped = merged.filter(n => {
-                        if (seen.has(n.dedupKey)) return false;
-                        seen.add(n.dedupKey);
-                        return true;
-                    });
-                    saveNotifications(deduped);
-                    return deduped;
-                });
-            }
-        };
+function getCloudAtHour(cloudcover, hour) {
+  if (Array.isArray(cloudcover)) return cloudcover[hour] ?? cloudcover[0] ?? 0;
+  return typeof cloudcover === 'number' ? cloudcover : 0;
+}
 
-        check(); // immediate
-        const interval = setInterval(check, 60000);
-        return () => clearInterval(interval);
-    }, [weather, prefs, dismissed]);
+function getNextHourRainProb(hourlyData) {
+  if (!hourlyData) return 0;
+  const nextHour = new Date().getHours() + 1;
+  const pp = hourlyData.precipitation_probability
+    ?? hourlyData.precip_probability
+    ?? hourlyData.precipProbability;
+  if (Array.isArray(pp)) return pp[nextHour] ?? pp[0] ?? 0;
+  return 0;
+}
 
-    // Close on outside click
-    useEffect(() => {
-        const handleClick = (e) => {
-            if (panelRef.current && !panelRef.current.contains(e.target)) {
-                setIsOpen(false);
-            }
-        };
-        if (isOpen) document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
-    }, [isOpen]);
+// ── alert rule engine ──────────────────────────────────────────────
+/**
+ * Returns the first matching alert rule, or null.
+ * @param {object} opts
+ * @returns {{ key: string, emoji: string, title: string, body: string, accent: string } | null}
+ */
+function evaluateRules({ nowH, peakStart, peakEnd, sunsetHour, score, hourlyData, cloudcover }) {
+  // 1 — Golden Alert: 10–15 mins before peak sun starts
+  if (peakStart != null) {
+    const minsUntilPeak = (peakStart - nowH) * 60;
+    if (minsUntilPeak >= 8 && minsUntilPeak <= 16) {
+      return {
+        key:    'golden',
+        emoji:  '\u2600\ufe0f',
+        title:  'Sun breaking through soon',
+        body:   'Direct sun in ~10 mins. Perfect time to grab a table outside.',
+        accent: '#F59E0B',
+      };
+    }
+  }
 
-    // Persist prefs on change
-    useEffect(() => { savePreferences(prefs); }, [prefs]);
-
-    // Computed
-    const unreadCount = useMemo(() =>
-        notifications.filter(n => !n.read).length, [notifications]);
-
-    const filteredNotifs = useMemo(() => {
-        if (!categoryFilter) return notifications;
-        return notifications.filter(n => n.category === categoryFilter);
-    }, [notifications, categoryFilter]);
-
-    // Handlers
-    const markRead = useCallback((id) => {
-        setNotifications(prev => {
-            const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
-            saveNotifications(updated);
-            return updated;
-        });
-    }, []);
-
-    const markAllRead = useCallback(() => {
-        setNotifications(prev => {
-            const updated = prev.map(n => ({ ...n, read: true }));
-            saveNotifications(updated);
-            return updated;
-        });
-    }, []);
-
-    const dismissNotif = useCallback((notif) => {
-        setDismissed(prev => {
-            const next = new Set(prev);
-            next.add(notif.dedupKey);
-            saveDismissed(next);
-            return next;
-        });
-        setNotifications(prev => {
-            const updated = prev.filter(n => n.id !== notif.id);
-            saveNotifications(updated);
-            return updated;
-        });
-    }, []);
-
-    const clearAll = useCallback(() => {
-        notifications.forEach(n => {
-            setDismissed(prev => {
-                const next = new Set(prev);
-                next.add(n.dedupKey);
-                saveDismissed(next);
-                return next;
-            });
-        });
-        setNotifications([]);
-        saveNotifications([]);
-    }, [notifications]);
-
-    const toggleFavorite = useCallback((venueId) => {
-        setPrefs(prev => {
-            const favs = prev.favoriteVenueIds.includes(venueId)
-                ? prev.favoriteVenueIds.filter(id => id !== venueId)
-                : [...prev.favoriteVenueIds, venueId];
-            return { ...prev, favoriteVenueIds: favs };
-        });
-    }, []);
-
-    const updateWeatherPref = useCallback((key, value) => {
-        setPrefs(prev => ({
-            ...prev,
-            weatherPrefs: { ...prev.weatherPrefs, [key]: value },
-        }));
-    }, []);
-
-    const toggleCategory = useCallback((cat) => {
-        setPrefs(prev => ({
-            ...prev,
-            enabledCategories: {
-                ...prev.enabledCategories,
-                [cat]: !prev.enabledCategories[cat],
-            },
-        }));
-    }, []);
-
-    const handleNotifAction = useCallback((notif) => {
-        markRead(notif.id);
-        if (notif.venueId && onVenueSelect) {
-            const venue = demoVenues.find(v => v.id === notif.venueId);
-            if (venue) onVenueSelect(venue);
-        }
-        setIsOpen(false);
-    }, [markRead, onVenueSelect]);
-
-    // Time formatting
-    const formatTime = (iso) => {
-        const d = new Date(iso);
-        const now = new Date();
-        const diffMin = Math.round((now - d) / 60000);
-        if (diffMin < 1) return 'Just now';
-        if (diffMin < 60) return `${diffMin}m ago`;
-        const diffHr = Math.round(diffMin / 60);
-        if (diffHr < 24) return `${diffHr}h ago`;
-        return d.toLocaleDateString('en-AU', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  // 2 — Rain Warning: next-hour rain prob > 40%
+  const nextRain = getNextHourRainProb(hourlyData);
+  if (nextRain > 40) {
+    return {
+      key:    'rain',
+      emoji:  '\ud83c\udf27\ufe0f',
+      title:  'Cloud rolling in soon',
+      body:   `${Math.round(nextRain)}% chance of rain next hour. Enjoy the sun while it lasts!`,
+      accent: '#0EA5E9',
     };
+  }
 
-    const categoryMeta = NOTIFICATION_CATEGORIES;
+  // 3 — Vibe Check: great conditions AND inside peak window right now
+  if (
+    score >= 75 &&
+    peakStart != null &&
+    peakEnd   != null &&
+    nowH >= peakStart &&
+    nowH <  peakEnd
+  ) {
+    return {
+      key:    'vibe',
+      emoji:  '\ud83c\udf7a',
+      title:  'Beer garden prime time!',
+      body:   "It's beautiful out there right now. Get amongst it.",
+      accent: '#F97316',
+    };
+  }
 
-    return (
-        <div className="ss-notif-root" ref={panelRef}>
-            {/* ── Bell Button ──────────────────────── */}
-            <motion.button
-                className="ss-notif-bell"
-                onClick={() => setIsOpen(!isOpen)}
-                whileTap={{ scale: 0.9 }}
-                id="notification-bell"
-            >
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                    <motion.span
-                        className="ss-notif-badge"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        key={unreadCount}
-                    >
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                    </motion.span>
-                )}
-            </motion.button>
-
-            {/* ── Panel ────────────────────────────── */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        className="ss-notif-panel"
-                        initial={{ opacity: 0, y: -10, scale: 0.96 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.96 }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-                    >
-                        {/* Header */}
-                        <div className="ss-notif-header">
-                            <div className="ss-notif-tabs">
-                                <button
-                                    className={`ss-notif-tab ${activeTab === 'notifications' ? 'ss-notif-tab--active' : ''}`}
-                                    onClick={() => setActiveTab('notifications')}
-                                >
-                                    <Bell size={14} />
-                                    <span>Notifications</span>
-                                    {unreadCount > 0 && <span className="ss-notif-tab-count">{unreadCount}</span>}
-                                </button>
-                                <button
-                                    className={`ss-notif-tab ${activeTab === 'settings' ? 'ss-notif-tab--active' : ''}`}
-                                    onClick={() => setActiveTab('settings')}
-                                >
-                                    <Settings size={14} />
-                                    <span>Settings</span>
-                                </button>
-                            </div>
-                            <button className="ss-notif-close" onClick={() => setIsOpen(false)}>
-                                <X size={16} />
-                            </button>
-                        </div>
-
-                        {/* Body */}
-                        <div className="ss-notif-body">
-                            <AnimatePresence mode="wait">
-                                {activeTab === 'notifications' ? (
-                                    <motion.div
-                                        key="notifs"
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: 10 }}
-                                        className="ss-notif-content"
-                                    >
-                                        <NotificationList
-                                            notifications={filteredNotifs}
-                                            categoryFilter={categoryFilter}
-                                            setCategoryFilter={setCategoryFilter}
-                                            markRead={markRead}
-                                            markAllRead={markAllRead}
-                                            dismissNotif={dismissNotif}
-                                            clearAll={clearAll}
-                                            handleAction={handleNotifAction}
-                                            formatTime={formatTime}
-                                            categoryMeta={categoryMeta}
-                                        />
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key="settings"
-                                        initial={{ opacity: 0, x: 10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: -10 }}
-                                        className="ss-notif-content"
-                                    >
-                                        <SettingsPanel
-                                            prefs={prefs}
-                                            setPrefs={setPrefs}
-                                            toggleFavorite={toggleFavorite}
-                                            updateWeatherPref={updateWeatherPref}
-                                            toggleCategory={toggleCategory}
-                                        />
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
+  return null;
 }
 
+// ── Toast UI ─────────────────────────────────────────────────────
+function SunToast({ toast, onDismiss }) {
+  const { emoji, title, body, accent } = toast;
+  return (
+    <motion.div
+      layout
+      initial={{ y: -80, opacity: 0, scale: 0.92 }}
+      animate={{ y: 0,   opacity: 1, scale: 1    }}
+      exit={{    y: -80, opacity: 0, scale: 0.92 }}
+      transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+      style={{
+        position:        'fixed',
+        top:             72,          // clears the TopBar
+        left:            '50%',
+        transform:       'translateX(-50%)',
+        zIndex:          99999,
+        width:           'min(calc(100vw - 24px), 420px)',
+        background:      'rgba(255,255,255,0.97)',
+        backdropFilter:  'blur(18px)',
+        borderRadius:    20,
+        border:          `1.5px solid ${accent}44`,
+        boxShadow:       `0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px ${accent}22, 0 2px 0 ${accent}33 inset`,
+        padding:         '14px 16px',
+        display:         'flex',
+        alignItems:      'flex-start',
+        gap:             12,
+        pointerEvents:   'auto',
+      }}
+      role="alert"
+      aria-live="assertive"
+    >
+      {/* Icon */}
+      <motion.div
+        animate={{ scale: [1, 1.25, 0.9, 1.15, 1], rotate: [-6, 6, -4, 4, 0] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ fontSize: 26, lineHeight: 1, flexShrink: 0, marginTop: 1 }}
+      >
+        {emoji}
+      </motion.div>
 
-// ═══════════════════════════════════════════════════════════════════
-// Notification List Sub-Component
-// ═══════════════════════════════════════════════════════════════════
-function NotificationList({
-    notifications, categoryFilter, setCategoryFilter,
-    markRead, markAllRead, dismissNotif, clearAll,
-    handleAction, formatTime, categoryMeta
-}) {
-    return (
-        <>
-            {/* Category filter chips */}
-            <div className="ss-notif-filters">
-                <button
-                    className={`ss-notif-filter-chip ${!categoryFilter ? 'ss-notif-filter-chip--active' : ''}`}
-                    onClick={() => setCategoryFilter(null)}
-                >All</button>
-                {Object.entries(categoryMeta).map(([key, meta]) => (
-                    <button
-                        key={key}
-                        className={`ss-notif-filter-chip ${categoryFilter === key ? 'ss-notif-filter-chip--active' : ''}`}
-                        onClick={() => setCategoryFilter(key)}
-                    >
-                        <span>{meta.icon}</span>
-                        <span>{meta.label.split(' ')[0]}</span>
-                    </button>
-                ))}
-            </div>
+      {/* Text */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          margin: 0,
+          fontSize: 13,
+          fontWeight: 800,
+          color: '#1E293B',
+          lineHeight: 1.25,
+        }}>{title}</p>
+        <p style={{
+          margin: '3px 0 0',
+          fontSize: 12,
+          fontWeight: 500,
+          color: '#475569',
+          lineHeight: 1.4,
+        }}>{body}</p>
+      </div>
 
-            {/* Actions bar */}
-            {notifications.length > 0 && (
-                <div className="ss-notif-actions">
-                    <button onClick={markAllRead} className="ss-notif-action-btn">
-                        <Check size={12} /> Mark all read
-                    </button>
-                    <button onClick={clearAll} className="ss-notif-action-btn ss-notif-action-btn--danger">
-                        <Trash2 size={12} /> Clear all
-                    </button>
-                </div>
-            )}
+      {/* Accent bar */}
+      <div style={{
+        position:     'absolute',
+        left:         0, top: 0, bottom: 0,
+        width:        4,
+        borderRadius: '20px 0 0 20px',
+        background:   accent,
+        opacity:      0.85,
+      }} />
 
-            {/* Notification items */}
-            <div className="ss-notif-items">
-                <AnimatePresence mode="popLayout">
-                    {notifications.map(notif => (
-                        <motion.div
-                            key={notif.id}
-                            layout
-                            initial={{ opacity: 0, y: -8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, x: -100 }}
-                            className={`ss-notif-item ${!notif.read ? 'ss-notif-item--unread' : ''}`}
-                        >
-                            <div className="ss-notif-item-icon" style={{ background: categoryMeta[notif.category]?.color + '18', color: categoryMeta[notif.category]?.color }}>
-                                {notif.icon}
-                            </div>
+      {/* Progress bar */}
+      <motion.div
+        initial={{ scaleX: 1 }}
+        animate={{ scaleX: 0 }}
+        transition={{ duration: AUTO_DISMISS_MS / 1000, ease: 'linear' }}
+        style={{
+          position:       'absolute',
+          bottom:         0, left: 0, right: 0,
+          height:         3,
+          borderRadius:   '0 0 20px 20px',
+          background:     accent,
+          opacity:        0.5,
+          transformOrigin:'left',
+        }}
+      />
 
-                            <div className="ss-notif-item-body" onClick={() => handleAction(notif)}>
-                                <div className="ss-notif-item-title">{notif.title}</div>
-                                <div className="ss-notif-item-text">{notif.body}</div>
-                                <div className="ss-notif-item-meta">
-                                    <span className="ss-notif-item-time">{formatTime(notif.time)}</span>
-                                    {notif.priority === 'high' && <span className="ss-notif-item-priority">⚡ Priority</span>}
-                                </div>
-                            </div>
-
-                            <div className="ss-notif-item-actions">
-                                {notif.actionLabel && (
-                                    <button
-                                        className="ss-notif-item-action"
-                                        onClick={() => handleAction(notif)}
-                                    >
-                                        {notif.actionLabel}
-                                        <ChevronRight size={12} />
-                                    </button>
-                                )}
-                                <button
-                                    className="ss-notif-item-dismiss"
-                                    onClick={() => dismissNotif(notif)}
-                                    title="Dismiss"
-                                >
-                                    <X size={12} />
-                                </button>
-                            </div>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
-
-                {notifications.length === 0 && (
-                    <div className="ss-notif-empty">
-                        <span>🔔</span>
-                        <p>No notifications yet</p>
-                        <p className="ss-notif-empty-sub">
-                            Save favorite venues and set your weather preferences to get smart alerts
-                        </p>
-                    </div>
-                )}
-            </div>
-        </>
-    );
+      {/* Dismiss button */}
+      <button
+        onClick={onDismiss}
+        aria-label="Dismiss notification"
+        style={{
+          flexShrink:   0,
+          background:   'none',
+          border:       'none',
+          cursor:       'pointer',
+          padding:      '2px 4px',
+          color:        '#94A3B8',
+          fontSize:     18,
+          lineHeight:   1,
+          borderRadius: 8,
+          marginTop:    -2,
+        }}
+      >
+        ×
+      </button>
+    </motion.div>
+  );
 }
 
+// ── Main component ──────────────────────────────────────────────────
 
-// ═══════════════════════════════════════════════════════════════════
-// Settings Panel Sub-Component
-// ═══════════════════════════════════════════════════════════════════
-function SettingsPanel({ prefs, setPrefs, toggleFavorite, updateWeatherPref, toggleCategory }) {
-    const wpref = prefs.weatherPrefs;
+export default function NotificationCenter({ venue, weather, sunData, score = 70 }) {
+  const [activeToast, setActiveToast] = useState(null);
+  // cooldown registry: { [alertKey]: timestampMs }
+  const cooldownRef  = useRef({});
+  const dismissTimer = useRef(null);
 
-    return (
-        <div className="ss-notif-settings">
-            {/* ── Weather Preferences ────────────── */}
-            <div className="ss-settings-section">
-                <h4 className="ss-settings-section-title">
-                    <Thermometer size={14} />
-                    Weather Preferences
-                </h4>
-                <div className="ss-settings-desc">Get notified when conditions match</div>
+  const clearDismissTimer = useCallback(() => {
+    if (dismissTimer.current) {
+      clearTimeout(dismissTimer.current);
+      dismissTimer.current = null;
+    }
+  }, []);
 
-                <div className="ss-settings-grid">
-                    <div className="ss-settings-field">
-                        <label>Min Temp</label>
-                        <div className="ss-settings-range-row">
-                            <input
-                                type="range"
-                                min="10"
-                                max="35"
-                                value={wpref.minTemp}
-                                onChange={e => updateWeatherPref('minTemp', parseInt(e.target.value))}
-                                className="ss-settings-slider"
-                            />
-                            <span className="ss-settings-value">{wpref.minTemp}°C</span>
-                        </div>
-                    </div>
+  const dismiss = useCallback(() => {
+    clearDismissTimer();
+    setActiveToast(null);
+  }, [clearDismissTimer]);
 
-                    <div className="ss-settings-field">
-                        <label>Max Temp</label>
-                        <div className="ss-settings-range-row">
-                            <input
-                                type="range"
-                                min="15"
-                                max="42"
-                                value={wpref.maxTemp}
-                                onChange={e => updateWeatherPref('maxTemp', parseInt(e.target.value))}
-                                className="ss-settings-slider"
-                            />
-                            <span className="ss-settings-value">{wpref.maxTemp}°C</span>
-                        </div>
-                    </div>
+  const fireToast = useCallback((alert) => {
+    clearDismissTimer();
+    setActiveToast({ ...alert, id: Date.now() });
+    dismissTimer.current = setTimeout(dismiss, AUTO_DISMISS_MS);
+    cooldownRef.current[alert.key] = Date.now();
+  }, [clearDismissTimer, dismiss]);
 
-                    <div className="ss-settings-field">
-                        <label>Max Wind</label>
-                        <div className="ss-settings-range-row">
-                            <input
-                                type="range"
-                                min="5"
-                                max="50"
-                                step="5"
-                                value={wpref.maxWind}
-                                onChange={e => updateWeatherPref('maxWind', parseInt(e.target.value))}
-                                className="ss-settings-slider"
-                            />
-                            <span className="ss-settings-value">{wpref.maxWind} km/h</span>
-                        </div>
-                    </div>
+  // Resolve sun window from sunData or sensible defaults
+  const peakStart = Number.isFinite(sunData?.startHour) ? sunData.startHour : null;
+  const peakEnd   = Number.isFinite(sunData?.endHour)   ? sunData.endHour   : null;
+  const sunsetHour = peakEnd ?? 17.5;
 
-                    <div className="ss-settings-field">
-                        <label>Prefer Sunny</label>
-                        <button
-                            className={`ss-settings-toggle ${wpref.preferSunny ? 'ss-settings-toggle--on' : ''}`}
-                            onClick={() => updateWeatherPref('preferSunny', !wpref.preferSunny)}
-                        >
-                            <Sun size={13} />
-                            <span>{wpref.preferSunny ? 'Sunny Only' : 'Any Weather'}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
+  // Pull cloud/rain data from weather prop
+  const hourlyData = useMemo(() =>
+    weather?.rawWeather?.hourly ??
+    (weather?.rawWeather?.time ? weather.rawWeather : null) ??
+    null,
+    [weather]
+  );
 
-            {/* ── Favorite Venues ─────────────────── */}
-            <div className="ss-settings-section">
-                <h4 className="ss-settings-section-title">
-                    <Heart size={14} />
-                    Favorite Venues
-                </h4>
-                <div className="ss-settings-desc">Get alerts when conditions are perfect here</div>
+  const cloudcover = useMemo(() =>
+    weather?.cloudCover ??
+    (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null) ??
+    (Array.isArray(hourlyData?.cloudcover)  ? hourlyData.cloudcover  : null),
+    [weather, hourlyData]
+  );
 
-                <div className="ss-fav-list">
-                    {demoVenues.slice(0, 10).map(venue => {
-                        const isFav = prefs.favoriteVenueIds.includes(venue.id);
-                        return (
-                            <button
-                                key={venue.id}
-                                className={`ss-fav-item ${isFav ? 'ss-fav-item--active' : ''}`}
-                                onClick={() => toggleFavorite(venue.id)}
-                            >
-                                <span className="ss-fav-emoji">{venue.emoji}</span>
-                                <span className="ss-fav-name">{venue.venueName}</span>
-                                <Star size={13} className={`ss-fav-star ${isFav ? 'ss-fav-star--fill' : ''}`} />
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+  // ── Poll engine ──────────────────────────────────────────────────
+  const runRules = useCallback(() => {
+    // Only fire alerts when a venue is open
+    if (!venue) return;
 
-            {/* ── Notification Frequency ──────────── */}
-            <div className="ss-settings-section">
-                <h4 className="ss-settings-section-title">
-                    <Volume2 size={14} />
-                    Frequency
-                </h4>
+    const nowH = decimalNow();
+    const alert = evaluateRules({
+      nowH,
+      peakStart,
+      peakEnd,
+      sunsetHour,
+      score,
+      hourlyData,
+      cloudcover,
+    });
+    if (!alert) return;
 
-                <div className="ss-freq-options">
-                    {FREQUENCY_OPTIONS.map(opt => (
-                        <button
-                            key={opt.value}
-                            className={`ss-freq-option ${prefs.frequency === opt.value ? 'ss-freq-option--active' : ''}`}
-                            onClick={() => setPrefs(prev => ({ ...prev, frequency: opt.value }))}
-                        >
-                            <div className="ss-freq-label">{opt.label}</div>
-                            <div className="ss-freq-desc">{opt.desc}</div>
-                        </button>
-                    ))}
-                </div>
-            </div>
+    // Respect per-key cooldown
+    const lastFired = cooldownRef.current[alert.key] ?? 0;
+    if (Date.now() - lastFired < COOLDOWN_MS) return;
 
-            {/* ── Notification Categories ─────────── */}
-            <div className="ss-settings-section">
-                <h4 className="ss-settings-section-title">
-                    <Filter size={14} />
-                    Categories
-                </h4>
+    // Don’t interrupt an identical active toast
+    if (activeToast?.key === alert.key) return;
 
-                <div className="ss-cat-toggles">
-                    {Object.entries(NOTIFICATION_CATEGORIES).map(([key, meta]) => {
-                        const catKey = {
-                            perfect: 'perfectConditions',
-                            urgency: 'bookingUrgency',
-                            weather: 'weatherChanges',
-                            digest: 'weeklyPlanning',
-                        }[key];
-                        const on = prefs.enabledCategories[catKey] !== false;
-                        return (
-                            <button
-                                key={key}
-                                className={`ss-cat-toggle ${on ? 'ss-cat-toggle--on' : ''}`}
-                                onClick={() => toggleCategory(catKey)}
-                            >
-                                <span>{meta.icon}</span>
-                                <span>{meta.label}</span>
-                                <span className="ss-cat-toggle-dot" />
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+    fireToast(alert);
+  }, [venue, peakStart, peakEnd, sunsetHour, score, hourlyData, cloudcover, activeToast, fireToast]);
 
-            {/* ── Alert Time ──────────────────────── */}
-            <div className="ss-settings-section">
-                <h4 className="ss-settings-section-title">
-                    <Clock size={14} />
-                    Morning Alert Time
-                </h4>
-                <input
-                    type="time"
-                    value={prefs.alertTime}
-                    onChange={e => setPrefs(prev => ({ ...prev, alertTime: e.target.value }))}
-                    className="ss-settings-time"
-                />
-            </div>
+  // Run once immediately when venue or weather changes, then poll every minute
+  useEffect(() => {
+    runRules();
+    const id = setInterval(runRules, POLL_INTERVAL_MS);
+    return () => {
+      clearInterval(id);
+      clearDismissTimer();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [venue?.id, weather, sunData, score]);
 
-            {/* ── Location Radius ─────────────────── */}
-            <div className="ss-settings-section">
-                <h4 className="ss-settings-section-title">
-                    <MapPin size={14} />
-                    Location Radius
-                </h4>
-                <div className="ss-radius-options">
-                    {RADIUS_OPTIONS.map(opt => (
-                        <button
-                            key={opt.value}
-                            className={`ss-radius-option ${prefs.radiusKm === opt.value ? 'ss-radius-option--active' : ''}`}
-                            onClick={() => setPrefs(prev => ({ ...prev, radiusKm: opt.value }))}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
+  // Cleanup dismiss timer on unmount
+  useEffect(() => () => clearDismissTimer(), [clearDismissTimer]);
+
+  return (
+    <AnimatePresence mode="wait">
+      {activeToast && (
+        <SunToast
+          key={activeToast.id}
+          toast={activeToast}
+          onDismiss={dismiss}
+        />
+      )}
+    </AnimatePresence>
+  );
 }

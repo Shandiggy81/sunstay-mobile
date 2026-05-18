@@ -7,6 +7,7 @@ import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
 import TopBar from './components/TopBar';
 import FilterSheet from './components/FilterSheet';
+import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
@@ -17,6 +18,7 @@ import OwnerDashboard from './components/OwnerDashboard';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
+import { getSunData } from './utils/getSunData';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
@@ -51,9 +53,7 @@ const readJsonArray = (key) => {
 const writeJson = (key, value) => {
     try {
         localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-        // Browser storage can be unavailable in private mode.
-    }
+    } catch {}
 };
 
 const hasSeenSplash = () => {
@@ -67,9 +67,7 @@ const hasSeenSplash = () => {
 const markSplashSeen = () => {
     try {
         sessionStorage.setItem('splashShown', 'true');
-    } catch {
-        // Non-fatal; the splash will simply show again next load.
-    }
+    } catch {}
 };
 
 const getWeatherBadge = (weather, venue) => {
@@ -93,10 +91,7 @@ const getMarkerWeatherColor = (weather, venue) => {
     return 'sunny';
 };
 
-// ── VenueListCard — memo so it only re-renders when its own props change ──
-// FIX: was re-rendering every card on every weather tick and every parent state change.
-// Now stable: only re-renders when venue, isSelected, or weather object identity changes.
-// weather is passed by reference from WeatherContext which only updates every 5 minutes.
+// ── VenueListCard ─────────────────────────────────────────────────────
 const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
     const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
     const profile = useMemo(() => getWindProfile(venue), [venue]);
@@ -151,7 +146,7 @@ const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
 });
 VenueListCard.displayName = 'VenueListCard';
 
-// ── VenueChip ─────────────────────────────────────────────────────
+// ── VenueChip ────────────────────────────────────────────────────────
 const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
     const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
     return (
@@ -194,11 +189,6 @@ const AppContent = () => {
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
     const [liveVenueFeatures, setLiveVenueFeatures] = useState({});
 
-    // FIX A: debouncedLiveFeatures removed — 100ms debounce was causing a SECOND
-    // render burst. The map already uses a ref-based callback so it doesn't care
-    // about render frequency. Pass liveVenueFeatures directly.
-
-    // Auto-enable cozy mode
     useEffect(() => {
         if (comfort.cozy) setActiveFilter('Cozy');
     }, [comfort.cozy]);
@@ -283,9 +273,6 @@ const AppContent = () => {
             .map(v => v.id);
     }, [activeFilters]);
 
-    // FIX B: filteredVenues no longer depends on liveVenueFeatures for map rendering.
-    // The map pins update via liveVenueFeatures prop directly. Removing it here
-    // prevents the entire venue list + map from re-rendering every time a heater toggle fires.
     const filteredVenues = useMemo(() => {
         return demoVenues.filter((venue) => {
             if (activeFilter !== 'All') {
@@ -320,9 +307,6 @@ const AppContent = () => {
 
     const matchingCount = filteredVenues.length;
 
-    // FIX C: filteredVenueIds prop to VenueMap was previously `filteredVenues.map(v => v.id)`
-    // which creates a NEW array reference on every render (even if content is identical),
-    // triggering the marker sync effect unnecessarily. Now we pass a stable memoised array.
     const stableFilteredIds = useMemo(
         () => filteredVenues.map(v => v.id),
         [filteredVenues]
@@ -356,20 +340,19 @@ const AppContent = () => {
         setMapQuickFilter(null);
     }, []);
 
-    // Chat quick-actions
     const makeChatFilter = (filter) => () => {
         setActiveFilters([filter]);
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     };
-    const handleFindWheelchair   = useCallback(makeChatFilter('wheelchair'), []);
-    const handleFindDogFriendly  = useCallback(makeChatFilter('pet-friendly'), []);
-    const handleFindSmoking      = useCallback(makeChatFilter('smoking'), []);
-    const handleFindFamily       = useCallback(makeChatFilter('pram-friendly'), []);
-    const handleFindBusiness     = useCallback(makeChatFilter('Large Groups'), []);
-    const handleFindSunny        = useCallback(makeChatFilter('full-sun'), []);
-    const handleFindRooftop      = useCallback(makeChatFilter('rooftop'), []);
-    const handleFindIndoor       = useCallback(makeChatFilter('shade'), []);
+    const handleFindWheelchair    = useCallback(makeChatFilter('wheelchair'), []);
+    const handleFindDogFriendly   = useCallback(makeChatFilter('pet-friendly'), []);
+    const handleFindSmoking       = useCallback(makeChatFilter('smoking'), []);
+    const handleFindFamily        = useCallback(makeChatFilter('pram-friendly'), []);
+    const handleFindBusiness      = useCallback(makeChatFilter('Large Groups'), []);
+    const handleFindSunny         = useCallback(makeChatFilter('full-sun'), []);
+    const handleFindRooftop       = useCallback(makeChatFilter('rooftop'), []);
+    const handleFindIndoor        = useCallback(makeChatFilter('shade'), []);
     const handleFindWindSheltered = useCallback(makeChatFilter('shade'), []);
 
     const handleSurpriseMe = useCallback(() => {
@@ -396,6 +379,17 @@ const AppContent = () => {
         return { [selectedVenue.id]: selectedLiveFeatureState };
     }, [selectedVenue?.id, selectedLiveFeatureState]);
 
+    // Sun data for the selected venue (used by NotificationCenter)
+    const selectedVenueSunData = useMemo(() =>
+        selectedVenue?.lat && selectedVenue?.lng
+            ? getSunData(selectedVenue.lat, selectedVenue.lng)
+            : null,
+        [selectedVenue?.lat, selectedVenue?.lng]
+    );
+
+    // Comfort score for the selected venue
+    const selectedVenueScore = weather?.score ?? weather?.rawWeather?.score ?? 70;
+
     return (
         <>
             {!splashDone && (
@@ -404,6 +398,15 @@ const AppContent = () => {
                     setSplashDone(true);
                 }} />
             )}
+
+            {/* ── Global notification layer (above map, below VenueCard) ── */}
+            <NotificationCenter
+                venue={selectedVenue}
+                weather={weather}
+                sunData={selectedVenueSunData}
+                score={selectedVenueScore}
+            />
+
             <div className={`ss-app-root ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
                 <WeatherBackground />
 
@@ -495,7 +498,6 @@ const AppContent = () => {
                         <div className="ss-map-container">
                             <MapErrorBoundary>
                                 <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
-                                    {/* FIX C: pass stableFilteredIds not filteredVenues.map(v=>v.id) inline */}
                                     <VenueMap
                                         ref={mapRef}
                                         venues={filteredVenues}
@@ -649,7 +651,7 @@ const AppContent = () => {
     );
 };
 
-// ── Error Boundary ──────────────────────────────────────────────────
+// ── Error Boundary ──────────────────────────────────────────────────────
 class ErrorBoundary extends Component {
     state = { hasError: false, error: null };
     static getDerivedStateFromError(error) { return { hasError: true, error }; }
