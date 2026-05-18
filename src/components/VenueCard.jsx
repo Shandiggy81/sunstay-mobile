@@ -4,7 +4,7 @@ import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import WeatherWidget from './WeatherWidget';
 import HourlyForecastStrip from './HourlyForecastStrip';
-import SunTimelineSlider from './SunTimelineSlider';
+import LiveSunTimeline from './LiveSunTimeline';
 import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
@@ -316,6 +316,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     return '--';
   }, [venue?.sunset, weather?.sys?.sunset]);
 
+  // Derive peak sun window as decimal hours for LiveSunTimeline
+  const peakStartDecimal = Number.isFinite(sunData?.startHour) ? sunData.startHour : null;
+  const peakEndDecimal   = Number.isFinite(sunData?.endHour)   ? sunData.endHour   : null;
+
   const blobA = isRain ? 'rgba(14,165,233,0.12)' : 'rgba(245,158,11,0.10)';
   const blobB = isRain ? 'rgba(99,102,241,0.07)' : 'rgba(14,165,233,0.08)';
   const liveFeaturesForVenue = venue?.id ? liveVenueFeatures?.[venue.id] : null;
@@ -384,9 +388,19 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               displaySunset={displaySunset}
               sunshineMins={sunshineMins}
               daylightHours={daylightHours}
+              venue={venue}
+            />
+            {/* ── LiveSunTimeline replaces SunTimelineSlider ── */}
+            <LiveSunTimeline
+              sunData={sunData}
+              hourlyData={hourlyData}
+              cloudcover={cloudcover}
+              displaySunrise={displaySunrise}
+              displaySunset={displaySunset}
+              peakStart={peakStartDecimal}
+              peakEnd={peakEndDecimal}
             />
             <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
-            <SunTimelineSlider />
             {lat && lng && (
               <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
                 <div className="px-3 pt-2 pb-1"><span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>12-Hour Forecast</span></div>
