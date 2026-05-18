@@ -1,36 +1,54 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { getSunData } from '../utils/getSunData';
+import BalconySunWidget from './BalconySunWidget';
 
-const Float = ({ children, delay = 0, range = 6, duration = 4, className = '' }) => (
-  <motion.div
-    className={className}
-    animate={{ y: [0, -range, 0] }}
-    transition={{ duration, delay, repeat: Infinity, ease: 'easeInOut' }}
-  >
-    {children}
-  </motion.div>
-);
+// ── Helpers used only within this file ──────────────────────────
+const ACCOMMODATION_KEYWORDS = [
+  'hotel', 'airbnb', 'apartment', 'loft', 'penthouse',
+  'suite', 'villa', 'resort', 'motel', 'hostel', 'bnb',
+  'bed and breakfast', 'serviced', 'boutique hotel',
+  'accommodation', 'stay', 'lodge', 'inn', 'townhouse',
+  'studio', 'warehouse loft',
+];
 
+function isAccommodation(venue) {
+  if (!venue) return false;
+  const typeStr = (venue.type || '').toLowerCase();
+  const vibeStr = (Array.isArray(venue.vibe) ? venue.vibe.join(' ') : (venue.vibe || '')).toLowerCase();
+  return (
+    typeStr.length > 0 ||
+    ACCOMMODATION_KEYWORDS.some(kw => vibeStr.includes(kw) || typeStr.includes(kw))
+  );
+}
+
+// ── Sub-components ─────────────────────────────────────────
 const GoldenWindowBar = ({ sunData }) => {
   if (!sunData || typeof sunData.startHour !== 'number') return null;
   const START = 6, END = 21, TOTAL = END - START;
   const clampedStart = Math.max(START, sunData.startHour);
-  const clampedEnd = Math.min(END, sunData.endHour);
-  const left = ((clampedStart - START) / TOTAL) * 100;
+  const clampedEnd   = Math.min(END,   sunData.endHour);
+  const left  = ((clampedStart - START) / TOTAL) * 100;
   const width = ((clampedEnd - clampedStart) / TOTAL) * 100;
   const hours = Math.round(clampedEnd - clampedStart);
-  const now = new Date();
+  const now   = new Date();
   const nowPct = Math.max(0, Math.min(100, ((now.getHours() + now.getMinutes() / 60) - START) / TOTAL * 100));
   const labels = [6, 9, 12, 15, 18, 21];
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-amber-500 text-[0.7rem] font-black uppercase tracking-widest flex items-center gap-1.5">
-          <motion.span animate={{ scale: [1, 1.3, 1], rotate: [0, 10, -5, 0] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} style={{ display: 'inline-block' }}>☀️</motion.span>
+          <motion.span
+            animate={{ scale: [1, 1.3, 1], rotate: [0, 10, -5, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ display: 'inline-block' }}
+          >☀️</motion.span>
           Golden Window
         </span>
-        <motion.span className="text-amber-600 text-[11px] font-black" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}>
+        <motion.span
+          className="text-amber-600 text-[11px] font-black"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }}
+        >
           {hours}h direct sun today
         </motion.span>
       </div>
@@ -66,6 +84,7 @@ const GoldenWindowBar = ({ sunData }) => {
   );
 };
 
+// ── Main export ──────────────────────────────────────────────
 export default function VenueCardSun({
   sunData,
   sunHours,
@@ -75,8 +94,18 @@ export default function VenueCardSun({
   displaySunset,
   sunshineMins,
   daylightHours,
+  // New props for balcony widget
+  venue,
 }) {
   if (!hourlyData) return null;
+
+  // Only show BalconySunWidget for hotel/apartment venues that have balcony_facing data
+  const showBalconyWidget =
+    isAccommodation(venue) &&
+    venue?.balcony_facing != null &&
+    Number.isFinite(Number(venue?.lat)) &&
+    Number.isFinite(Number(venue?.lng));
+
   return (
     <motion.div
       className="rounded-2xl p-3"
@@ -85,6 +114,7 @@ export default function VenueCardSun({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.28 }}
     >
+      {/* Golden Window bar */}
       <div className="flex items-center gap-2 flex-wrap">
         <GoldenWindowBar sunData={sunData} />
         {burnTimeMins !== null && burnTimeMins < 60 && (
@@ -93,6 +123,8 @@ export default function VenueCardSun({
           </span>
         )}
       </div>
+
+      {/* Sunrise / Sunset / Sun hours meta row */}
       <div className="flex gap-5 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
         <div className="flex flex-col">
           <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Sunrise</span>
@@ -123,6 +155,19 @@ export default function VenueCardSun({
           </div>
         )}
       </div>
+
+      {/* ─── BalconySunWidget — hotel/apartment only, requires balcony_facing ─── */}
+      {showBalconyWidget && (
+        <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(245,158,11,0.14)' }}>
+          <BalconySunWidget
+            lat={Number(venue.lat)}
+            lng={Number(venue.lng)}
+            balconyFacing={venue.balcony_facing}
+            date={new Date()}
+            venueName={venue.name}
+          />
+        </div>
+      )}
     </motion.div>
   );
 }

@@ -199,7 +199,7 @@ export const venues = [
         name: "Siglo",
         address: "161 Spring St",
         vibe: "Terrace",
-        emoji: "🏛️",
+        emoji: "🏗️",
         tags: ["Premium", "Cigars", "Rooftop", "Smoking Area"],
         lat: -37.8136,
         lng: 144.9734,
@@ -284,6 +284,7 @@ export const venues = [
         weatherNow: { windSpeed: 25, uvIndex: 7, precipProb: 22 },
         shielding: { windbreak: 55, rainCover: 45, shadeFactor: 58 }
     },
+    // --- Accommodation venues (hotel/apartment/airbnb) ---
     {
         id: 23,
         name: "St Kilda Beachfront Penthouse",
@@ -294,8 +295,11 @@ export const venues = [
         tags: ["Beachfront", "Pool", "Balcony", "Pet Friendly", "Wheelchair Accessible"],
         lat: -37.8674,
         lng: 144.9752,
+        // Faces NW — catches afternoon sun across Port Phillip Bay
+        balcony_facing: 'NW',
         weatherNow: { windSpeed: 14, uvIndex: 7, precipProb: 10 },
         shielding: { windbreak: 70, rainCover: 85, shadeFactor: 60 },
+        balconyData: { type: 'balcony', direction: 'NW facing', views: 'Bay & sunset views' },
         roomIntelligence: {
             naturalLight: "Premium (North Facing)",
             balconySun: "7:00 AM – 11:30 AM",
@@ -313,13 +317,60 @@ export const venues = [
         tags: ["Pool", "Spa", "City Views", "Wheelchair Accessible"],
         lat: -37.8142,
         lng: 144.9833,
+        // Faces E — sunrise views over Fitzroy Gardens, strong morning sun
+        balcony_facing: 'E',
         weatherNow: { windSpeed: 18, uvIndex: 6, precipProb: 15 },
         shielding: { windbreak: 80, rainCover: 90, shadeFactor: 65 },
+        balconyData: { type: 'balcony', direction: 'East facing', views: 'Fitzroy Gardens & city skyline' },
         roomIntelligence: {
             naturalLight: "East Facing City Views",
             balconySun: "6:30 AM – 10:00 AM",
             poolExposure: "Morning to Midday Sun",
             summary: "Sunrise from your suite every morning — the rooftop pool catches 4 hours of direct sun before noon."
+        }
+    },
+    {
+        id: 25,
+        name: "QT Melbourne",
+        address: "133 Russell St, Melbourne CBD",
+        vibe: "Boutique Hotel",
+        type: "Hotel",
+        emoji: "🏨",
+        tags: ["Design Hotel", "Rooftop Pool", "City Views", "Wheelchair Accessible"],
+        lat: -37.8142,
+        lng: 144.9694,
+        // Faces N — ideal for Melbourne's sun-from-north pattern
+        balcony_facing: 'N',
+        weatherNow: { windSpeed: 20, uvIndex: 7, precipProb: 12 },
+        shielding: { windbreak: 75, rainCover: 88, shadeFactor: 62 },
+        balconyData: { type: 'balcony', direction: 'North facing', views: 'CBD skyline' },
+        roomIntelligence: {
+            naturalLight: "Premium North Light all day",
+            balconySun: "9:00 AM – 3:00 PM",
+            poolExposure: "Midday peak sun",
+            summary: "North-facing rooms get the longest direct sun exposure of any orientation in Melbourne."
+        }
+    },
+    {
+        id: 26,
+        name: "The Olsen Art Series Hotel",
+        address: "637-641 Chapel St, South Yarra",
+        vibe: "Boutique Hotel",
+        type: "Hotel",
+        emoji: "🏨",
+        tags: ["Pool", "Art Hotel", "Chapel St", "Wheelchair Accessible"],
+        lat: -37.8406,
+        lng: 145.0011,
+        // Faces W — afternoon and evening sun over Chapel St corridor
+        balcony_facing: 'W',
+        weatherNow: { windSpeed: 16, uvIndex: 6, precipProb: 18 },
+        shielding: { windbreak: 78, rainCover: 85, shadeFactor: 60 },
+        balconyData: { type: 'balcony', direction: 'West facing', views: 'Chapel St & Dandenong Ranges' },
+        roomIntelligence: {
+            naturalLight: "Afternoon sun from 1pm",
+            balconySun: "1:00 PM – 6:00 PM",
+            poolExposure: "Afternoon direct sun 2–5pm",
+            summary: "West-facing suites are the best for golden hour — sun hits the pool deck from 2pm."
         }
     }
 ];
