@@ -6,11 +6,21 @@
  * ─────
  * venue        current selected venue object (or null)
  * weather      weather object from WeatherContext
- * sunData      { startHour, endHour } from getSunData()
+ * sunData      { startHour, endHour } from getSunData() — raw sunrise/sunset
  * score        numeric comfort score (0–100)
  *
- * The component fires up to ONE toast at a time.
- * Toasts auto-dismiss after 8 s. setInterval is cleaned up on unmount.
+ * Peak Window definition
+ * ──────────────────────
+ * Raw sunrise/sunset from getSunData() spans the whole day (e.g. 6 am – 8 pm).
+ * We clamp this to a true "prime sun" window by shrinking 2.5 h from each end,
+ * then hard-clamping between 11:00 and 15:00 so toasts never fire at dawn/dusk.
+ *
+ * Toast lifecycle fix
+ * ───────────────────
+ * The poll useEffect intentionally uses a stable dep array [venue?.id, score]
+ * so that background weather/sunData prop changes don't re-run the effect and
+ * cancel the dismissTimer mid-countdown. Weather/sunData are accessed via refs
+ * inside runRules() instead, keeping the closure fresh without the effect re-firing.
  */
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
@@ -18,18 +28,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // ── constants ────────────────────────────────────────────────────
 const AUTO_DISMISS_MS  = 8_000;
-const POLL_INTERVAL_MS = 60_000;   // check rules every 60 s
-const COOLDOWN_MS      = 10 * 60_000; // same alert key won't re-fire for 10 min
+const POLL_INTERVAL_MS = 60_000;
+const COOLDOWN_MS      = 10 * 60_000;
+
+// Peak window hard bounds — toasts never fire outside 11:00–15:00 local
+const PEAK_HARD_MIN = 11.0;
+const PEAK_HARD_MAX = 15.0;
+// How many hours to shave off each end of the raw sunrise/sunset window
+const PEAK_SHRINK_HRS = 2.5;
+
+/**
+ * Derive a true peak sun window from raw sunrise/sunset decimal hours.
+ * Falls back to the hard bounds if sunData is missing or invalid.
+ */
+function derivePeakWindow(sunData) {
+  const rawStart = Number.isFinite(sunData?.startHour) ? sunData.startHour : null;
+  const rawEnd   = Number.isFinite(sunData?.endHour)   ? sunData.endHour   : null;
+
+  const start = rawStart != null
+    ? Math.max(PEAK_HARD_MIN, rawStart + PEAK_SHRINK_HRS)
+    : PEAK_HARD_MIN;
+
+  const end = rawEnd != null
+    ? Math.min(PEAK_HARD_MAX, rawEnd - PEAK_SHRINK_HRS)
+    : PEAK_HARD_MAX;
+
+  // Sanity: if the shrunk window is inverted (very short days), collapse to midday
+  return start < end ? { peakStart: start, peakEnd: end } : { peakStart: 11.5, peakEnd: 14.5 };
+}
 
 // ── helpers ────────────────────────────────────────────────────
 function decimalNow() {
   const n = new Date();
   return n.getHours() + n.getMinutes() / 60;
-}
-
-function getCloudAtHour(cloudcover, hour) {
-  if (Array.isArray(cloudcover)) return cloudcover[hour] ?? cloudcover[0] ?? 0;
-  return typeof cloudcover === 'number' ? cloudcover : 0;
 }
 
 function getNextHourRainProb(hourlyData) {
@@ -43,12 +74,7 @@ function getNextHourRainProb(hourlyData) {
 }
 
 // ── alert rule engine ──────────────────────────────────────────────
-/**
- * Returns the first matching alert rule, or null.
- * @param {object} opts
- * @returns {{ key: string, emoji: string, title: string, body: string, accent: string } | null}
- */
-function evaluateRules({ nowH, peakStart, peakEnd, sunsetHour, score, hourlyData, cloudcover }) {
+function evaluateRules({ nowH, peakStart, peakEnd, score, hourlyData }) {
   // 1 — Golden Alert: 10–15 mins before peak sun starts
   if (peakStart != null) {
     const minsUntilPeak = (peakStart - nowH) * 60;
@@ -107,7 +133,7 @@ function SunToast({ toast, onDismiss }) {
       transition={{ type: 'spring', stiffness: 340, damping: 28 }}
       style={{
         position:        'fixed',
-        top:             72,          // clears the TopBar
+        top:             72,
         left:            '50%',
         transform:       'translateX(-50%)',
         zIndex:          99999,
@@ -126,7 +152,6 @@ function SunToast({ toast, onDismiss }) {
       role="alert"
       aria-live="assertive"
     >
-      {/* Icon */}
       <motion.div
         animate={{ scale: [1, 1.25, 0.9, 1.15, 1], rotate: [-6, 6, -4, 4, 0] }}
         transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -135,65 +160,41 @@ function SunToast({ toast, onDismiss }) {
         {emoji}
       </motion.div>
 
-      {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          margin: 0,
-          fontSize: 13,
-          fontWeight: 800,
-          color: '#1E293B',
-          lineHeight: 1.25,
+          margin: 0, fontSize: 13, fontWeight: 800,
+          color: '#1E293B', lineHeight: 1.25,
         }}>{title}</p>
         <p style={{
-          margin: '3px 0 0',
-          fontSize: 12,
-          fontWeight: 500,
-          color: '#475569',
-          lineHeight: 1.4,
+          margin: '3px 0 0', fontSize: 12, fontWeight: 500,
+          color: '#475569', lineHeight: 1.4,
         }}>{body}</p>
       </div>
 
-      {/* Accent bar */}
       <div style={{
-        position:     'absolute',
-        left:         0, top: 0, bottom: 0,
-        width:        4,
-        borderRadius: '20px 0 0 20px',
-        background:   accent,
-        opacity:      0.85,
+        position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
+        borderRadius: '20px 0 0 20px', background: accent, opacity: 0.85,
       }} />
 
-      {/* Progress bar */}
       <motion.div
         initial={{ scaleX: 1 }}
         animate={{ scaleX: 0 }}
         transition={{ duration: AUTO_DISMISS_MS / 1000, ease: 'linear' }}
         style={{
-          position:       'absolute',
-          bottom:         0, left: 0, right: 0,
-          height:         3,
-          borderRadius:   '0 0 20px 20px',
-          background:     accent,
-          opacity:        0.5,
-          transformOrigin:'left',
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          height: 3, borderRadius: '0 0 20px 20px',
+          background: accent, opacity: 0.5, transformOrigin: 'left',
         }}
       />
 
-      {/* Dismiss button */}
       <button
         onClick={onDismiss}
         aria-label="Dismiss notification"
         style={{
-          flexShrink:   0,
-          background:   'none',
-          border:       'none',
-          cursor:       'pointer',
-          padding:      '2px 4px',
-          color:        '#94A3B8',
-          fontSize:     18,
-          lineHeight:   1,
-          borderRadius: 8,
-          marginTop:    -2,
+          flexShrink: 0, background: 'none', border: 'none',
+          cursor: 'pointer', padding: '2px 4px',
+          color: '#94A3B8', fontSize: 18, lineHeight: 1,
+          borderRadius: 8, marginTop: -2,
         }}
       >
         ×
@@ -203,12 +204,21 @@ function SunToast({ toast, onDismiss }) {
 }
 
 // ── Main component ──────────────────────────────────────────────────
-
 export default function NotificationCenter({ venue, weather, sunData, score = 70 }) {
   const [activeToast, setActiveToast] = useState(null);
-  // cooldown registry: { [alertKey]: timestampMs }
   const cooldownRef  = useRef({});
   const dismissTimer = useRef(null);
+
+  // ── Stable refs for props consumed inside the polling closure ──
+  // This means the poll useEffect never needs weather/sunData in its
+  // dep array — no more effect re-runs (and clearDismissTimer calls)
+  // every time the WeatherContext updates in the background.
+  const weatherRef = useRef(weather);
+  const sunDataRef = useRef(sunData);
+  const scoreRef   = useRef(score);
+  useEffect(() => { weatherRef.current = weather; }, [weather]);
+  useEffect(() => { sunDataRef.current = sunData;  }, [sunData]);
+  useEffect(() => { scoreRef.current   = score;    }, [score]);
 
   const clearDismissTimer = useCallback(() => {
     if (dismissTimer.current) {
@@ -229,65 +239,56 @@ export default function NotificationCenter({ venue, weather, sunData, score = 70
     cooldownRef.current[alert.key] = Date.now();
   }, [clearDismissTimer, dismiss]);
 
-  // Resolve sun window from sunData or sensible defaults
-  const peakStart = Number.isFinite(sunData?.startHour) ? sunData.startHour : null;
-  const peakEnd   = Number.isFinite(sunData?.endHour)   ? sunData.endHour   : null;
-  const sunsetHour = peakEnd ?? 17.5;
-
-  // Pull cloud/rain data from weather prop
-  const hourlyData = useMemo(() =>
-    weather?.rawWeather?.hourly ??
-    (weather?.rawWeather?.time ? weather.rawWeather : null) ??
-    null,
-    [weather]
-  );
-
-  const cloudcover = useMemo(() =>
-    weather?.cloudCover ??
-    (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null) ??
-    (Array.isArray(hourlyData?.cloudcover)  ? hourlyData.cloudcover  : null),
-    [weather, hourlyData]
-  );
-
-  // ── Poll engine ──────────────────────────────────────────────────
+  // ── Poll engine — reads fresh data via refs, never re-creates the
+  // interval unless venue or score actually changes. ────────────────
   const runRules = useCallback(() => {
-    // Only fire alerts when a venue is open
     if (!venue) return;
 
-    const nowH = decimalNow();
-    const alert = evaluateRules({
-      nowH,
-      peakStart,
-      peakEnd,
-      sunsetHour,
-      score,
-      hourlyData,
-      cloudcover,
-    });
+    const currentWeather = weatherRef.current;
+    const currentSunData = sunDataRef.current;
+    const currentScore   = scoreRef.current;
+
+    const { peakStart, peakEnd } = derivePeakWindow(currentSunData);
+
+    const hourlyData =
+      currentWeather?.rawWeather?.hourly ??
+      (currentWeather?.rawWeather?.time ? currentWeather.rawWeather : null) ??
+      null;
+
+    const nowH  = decimalNow();
+    const alert = evaluateRules({ nowH, peakStart, peakEnd, score: currentScore, hourlyData });
     if (!alert) return;
 
-    // Respect per-key cooldown
     const lastFired = cooldownRef.current[alert.key] ?? 0;
     if (Date.now() - lastFired < COOLDOWN_MS) return;
 
-    // Don’t interrupt an identical active toast
-    if (activeToast?.key === alert.key) return;
+    // Don't interrupt an identical active toast — read from state via
+    // functional updater to avoid stale closure without adding activeToast
+    // to deps (which would recreate the interval every time a toast fires).
+    setActiveToast(prev => {
+      if (prev?.key === alert.key) return prev;
+      clearDismissTimer();
+      const newToast = { ...alert, id: Date.now() };
+      cooldownRef.current[alert.key] = Date.now();
+      dismissTimer.current = setTimeout(dismiss, AUTO_DISMISS_MS);
+      return newToast;
+    });
+  }, [venue, dismiss, clearDismissTimer]);
 
-    fireToast(alert);
-  }, [venue, peakStart, peakEnd, sunsetHour, score, hourlyData, cloudcover, activeToast, fireToast]);
-
-  // Run once immediately when venue or weather changes, then poll every minute
+  // Stable dep array — only [venue?.id, score] so the interval is NOT
+  // torn down / rebuilt every time weather or sunData props refresh.
   useEffect(() => {
     runRules();
     const id = setInterval(runRules, POLL_INTERVAL_MS);
     return () => {
       clearInterval(id);
-      clearDismissTimer();
+      // Do NOT call clearDismissTimer here — we only want to cancel it on
+      // true unmount (handled below), not on every score/venue change.
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [venue?.id, weather, sunData, score]);
+  }, [venue?.id, score]);
 
-  // Cleanup dismiss timer on unmount
+  // True unmount cleanup only
   useEffect(() => () => clearDismissTimer(), [clearDismissTimer]);
 
   return (

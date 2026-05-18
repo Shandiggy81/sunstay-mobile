@@ -108,15 +108,15 @@ function OwnerDashboardInner({
     const existing = safeVenue?.hours?.[d];
     defaultHours[d] = existing || { open: '08:00', close: '22:00', closed: false };
   });
-  const [hours, setHours]           = useState(defaultHours);
+  const [hours, setHours]             = useState(defaultHours);
   const [hoursSaving, setHoursSaving] = useState(false);
   const [hoursStatus, setHoursStatus] = useState({ text: '', type: '' });
 
   const [heatingState, setHeatingState] = useState({
-    heatersOn:          booleanFromVenue(safeVenue?.heatersOn,         safeVenue?.hasHeaters),
-    fireplaceOn:        booleanFromVenue(safeVenue?.fireplaceOn,       safeVenue?.hasFireplace),
-    hasUmbrellas:       !!safeVenue?.hasUmbrellas,
-    hasWindProtection:  !!safeVenue?.hasWindProtection,
+    heatersOn:         booleanFromVenue(safeVenue?.heatersOn,         safeVenue?.hasHeaters),
+    fireplaceOn:       booleanFromVenue(safeVenue?.fireplaceOn,       safeVenue?.hasFireplace),
+    hasUmbrellas:      !!safeVenue?.hasUmbrellas,
+    hasWindProtection: !!safeVenue?.hasWindProtection,
   });
   const [heatingSaving, setHeatingSaving] = useState({});
   const [heatingSaved,  setHeatingSaved]  = useState({});
@@ -126,9 +126,9 @@ function OwnerDashboardInner({
     if (Array.isArray(safeVenue.vibe)) return safeVenue.vibe;
     return safeVenue.vibe ? [safeVenue.vibe] : [];
   });
-  const [customTag,   setCustomTag]   = useState('');
-  const [vibeSaving,  setVibeSaving]  = useState(false);
-  const [vibeStatus,  setVibeStatus]  = useState({ text: '', type: '' });
+  const [customTag,  setCustomTag]  = useState('');
+  const [vibeSaving, setVibeSaving] = useState(false);
+  const [vibeStatus, setVibeStatus] = useState({ text: '', type: '' });
 
   const timeoutIdsRef = useRef(new Set());
   const scheduleTimeout = useCallback((callback, delay) => {
@@ -148,15 +148,15 @@ function OwnerDashboardInner({
     if (!venueId) { setHoursSaving(false); onClose(); return; }
     onVenueUpdate?.({ ...safeVenue, hours });
     try {
-      const { error } = await supabase.from('venues').update({ hours }).eq('id', venueId);
-      if (error) throw error;
+      if (supabase) {
+        const { error } = await supabase.from('venues').update({ hours }).eq('id', venueId);
+        if (error) throw error;
+      }
       flashStatus(setHoursStatus, '✅ Saved');
     } catch { onClose(); }
     finally { setHoursSaving(false); }
   };
 
-  // FIX: handleHeatingToggle no longer calls onClose on success —
-  // the Portal mount means parent re-renders can't destroy this modal.
   const handleHeatingToggle = useCallback(async (key, value) => {
     if (!venueId) return;
     setHeatingState(prev => ({ ...prev, [key]: value }));
@@ -169,10 +169,11 @@ function OwnerDashboardInner({
     }
     onVenueUpdate?.({ [key]: value });
     try {
-      const { error } = await supabase.from('venues').update({ [key]: value }).eq('id', venueId);
-      if (error) throw error;
+      if (supabase) {
+        const { error } = await supabase.from('venues').update({ [key]: value }).eq('id', venueId);
+        if (error) throw error;
+      }
     } catch {
-      // DB failure — silently revert toggle visual
       setHeatingState(prev => ({ ...prev, [key]: !value }));
     } finally {
       setHeatingSaved(prev  => ({ ...prev, [key]: true }));
@@ -186,8 +187,10 @@ function OwnerDashboardInner({
     if (!venueId) { setVibeSaving(false); onClose(); return; }
     onVenueUpdate?.({ ...safeVenue, tags: activeTags });
     try {
-      const { error } = await supabase.from('venues').update({ tags: activeTags }).eq('id', venueId);
-      if (error) throw new Error(error.message || JSON.stringify(error));
+      if (supabase) {
+        const { error } = await supabase.from('venues').update({ tags: activeTags }).eq('id', venueId);
+        if (error) throw new Error(error.message || JSON.stringify(error));
+      }
       flashStatus(setVibeStatus, '✅ Saved');
     } catch { onClose(); }
     finally { setVibeSaving(false); }
@@ -203,7 +206,9 @@ function OwnerDashboardInner({
   };
 
   return (
-    // Backdrop — clicking outside closes the dashboard
+    // z-index 9998 = backdrop (below inner modal and VenueCard at 9998)
+    // z-index 9999 = inner modal panel (above VenueCard)
+    // z-index 99999 = NotificationCenter toasts (highest)
     <div
       style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'rgba(0,0,0,0.4)' }}
       onClick={onClose}
@@ -217,7 +222,8 @@ function OwnerDashboardInner({
         onClick={e => e.stopPropagation()}
         style={{
           position: 'absolute', left: 0, right: 0, bottom: 0, top: 48,
-          zIndex: 9999, background: '#1a1a2e',
+          zIndex: 9999,
+          background: '#1a1a2e',
           borderRadius: '16px 16px 0 0',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
@@ -350,10 +356,7 @@ function OwnerDashboardInner({
   );
 }
 
-// ── Public export: wraps inner modal in a React Portal so it mounts
-// directly on document.body, completely outside the App component
-// tree. Parent re-renders (liveVenueFeatures, selectedVenue, etc.)
-// can no longer unmount this component.
+// ── Public export: Portal wrapper ────────────────────────────────
 export default function OwnerDashboard(props) {
   return createPortal(
     <AnimatePresence>
