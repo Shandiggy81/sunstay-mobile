@@ -40,7 +40,7 @@ const LoadingScreen = () => (
     </div>
 );
 
-// ── Weather badge helpers (pure functions, defined outside component) ──
+// ── Weather badge helpers ──────────────────────────────────────────────
 const readJsonArray = (key) => {
     try {
         const parsed = JSON.parse(localStorage.getItem(key) || '[]');
@@ -91,7 +91,7 @@ const getMarkerWeatherColor = (weather, venue) => {
     return 'sunny';
 };
 
-// ── VenueListCard ─────────────────────────────────────────────────────
+// ── VenueListCard ──────────────────────────────────────────────────────
 const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
     const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
     const profile = useMemo(() => getWindProfile(venue), [venue]);
@@ -146,7 +146,7 @@ const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
 });
 VenueListCard.displayName = 'VenueListCard';
 
-// ── VenueChip ────────────────────────────────────────────────────────
+// ── VenueChip ──────────────────────────────────────────────────────────
 const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
     const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
     return (
@@ -168,7 +168,7 @@ const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
 });
 VenueChip.displayName = 'VenueChip';
 
-// ═════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
     const { weather, getUVIndex } = useWeather();
@@ -182,12 +182,12 @@ const AppContent = () => {
         });
     }, [weather]);
 
-    const [selectedVenue, setSelectedVenue]         = useState(null);
-    const [isChatOpen, setIsChatOpen]               = useState(false);
-    const [activeFilters, setActiveFilters]         = useState([]);
-    const [activeFilter, setActiveFilter]           = useState('All');
+    const [selectedVenue, setSelectedVenue]           = useState(null);
+    const [isChatOpen, setIsChatOpen]                 = useState(false);
+    const [activeFilters, setActiveFilters]           = useState([]);
+    const [activeFilter, setActiveFilter]             = useState('All');
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
-    const [liveVenueFeatures, setLiveVenueFeatures] = useState({});
+    const [liveVenueFeatures, setLiveVenueFeatures]   = useState({});
 
     useEffect(() => {
         if (comfort.cozy) setActiveFilter('Cozy');
@@ -213,11 +213,11 @@ const AppContent = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const [mobileMapExpanded, setMobileMapExpanded]   = useState(false);
-    const [mobileSheetState, setMobileSheetState]     = useState('peek');
-    const [mapQuickFilter, setMapQuickFilter]         = useState(null);
-    const [mobileFilterOpen, setMobileFilterOpen]     = useState(false);
-    const [searchQuery, setSearchQuery]               = useState('');
+    const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
+    const [mobileSheetState, setMobileSheetState]   = useState('peek');
+    const [mapQuickFilter, setMapQuickFilter]       = useState(null);
+    const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
+    const [searchQuery, setSearchQuery]             = useState('');
 
     const mapRef  = useRef(null);
     const listRef = useRef(null);
@@ -252,10 +252,10 @@ const AppContent = () => {
                 if (intentFilters.length > 0) {
                     const rooms = v.roomTypes || [];
                     const hasRoomMatch = rooms.some(room => intentFilters.some(intentId => {
-                        if (intentId === 'sun-morning')  return room.sunProfile?.useCase === 'Morning coffee' && (room.hasBalcony || room.hasOutdoorArea);
-                        if (intentId === 'sun-sunset')   return room.sunProfile?.useCase === 'Sunset drinks' && (room.hasBalcony || room.hasOutdoorArea);
-                        if (intentId === 'sun-allday')   return room.sunScore >= 70 && (room.sunProfile?.summerHours >= 6 || room.sunProfile?.winterHours >= 4) && ['N','NE','NW'].includes(room.orientation);
-                        if (intentId === 'sun-shaded')   return room.sunProfile?.useCase === 'Shade retreat' || room.sunScore <= 40;
+                        if (intentId === 'sun-morning')   return room.sunProfile?.useCase === 'Morning coffee' && (room.hasBalcony || room.hasOutdoorArea);
+                        if (intentId === 'sun-sunset')    return room.sunProfile?.useCase === 'Sunset drinks' && (room.hasBalcony || room.hasOutdoorArea);
+                        if (intentId === 'sun-allday')    return room.sunScore >= 70 && (room.sunProfile?.summerHours >= 6 || room.sunProfile?.winterHours >= 4) && ['N','NE','NW'].includes(room.orientation);
+                        if (intentId === 'sun-shaded')    return room.sunProfile?.useCase === 'Shade retreat' || room.sunScore <= 40;
                         if (intentId === 'sun-highfloor') return (room.floorLevel || 0) >= 8 && room.obstructionLevel === 'Open' && room.hasBalcony;
                         return false;
                     }));
@@ -317,8 +317,10 @@ const AppContent = () => {
         setSelectedVenue(venue);
         const lng = Number(venue.lng);
         const lat = Number(venue.lat);
-        if (mapRef.current?.flyTo && Number.isFinite(lng) && Number.isFinite(lat)) {
-            mapRef.current.flyTo({ center: [lng, lat], zoom: 15, duration: 1200 });
+        // Use resizeAndFly so Mapbox recalculates the viewport after
+        // VenueCard has rendered and the container has its final size.
+        if (mapRef.current?.resizeAndFly && Number.isFinite(lng) && Number.isFinite(lat)) {
+            mapRef.current.resizeAndFly([lng, lat]);
         }
     }, []);
 
@@ -379,7 +381,6 @@ const AppContent = () => {
         return { [selectedVenue.id]: selectedLiveFeatureState };
     }, [selectedVenue?.id, selectedLiveFeatureState]);
 
-    // Sun data for the selected venue (used by NotificationCenter)
     const selectedVenueSunData = useMemo(() =>
         selectedVenue?.lat && selectedVenue?.lng
             ? getSunData(selectedVenue.lat, selectedVenue.lng)
@@ -387,7 +388,6 @@ const AppContent = () => {
         [selectedVenue?.lat, selectedVenue?.lng]
     );
 
-    // Comfort score for the selected venue
     const selectedVenueScore = weather?.score ?? weather?.rawWeather?.score ?? 70;
 
     return (
@@ -399,7 +399,6 @@ const AppContent = () => {
                 }} />
             )}
 
-            {/* ── Global notification layer (above map, below VenueCard) ── */}
             <NotificationCenter
                 venue={selectedVenue}
                 weather={weather}
@@ -567,7 +566,6 @@ const AppContent = () => {
                     />
                 </main>
 
-                {/* Mobile bottom sheet handle */}
                 {!mobileMapExpanded && !selectedVenue && (
                     <div
                         className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
@@ -651,7 +649,7 @@ const AppContent = () => {
     );
 };
 
-// ── Error Boundary ──────────────────────────────────────────────────────
+// ── Error Boundary ────────────────────────────────────────────────────
 class ErrorBoundary extends Component {
     state = { hasError: false, error: null };
     static getDerivedStateFromError(error) { return { hasError: true, error }; }

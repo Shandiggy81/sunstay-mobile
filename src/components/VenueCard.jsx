@@ -14,7 +14,7 @@ import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
 
-// ── Helpers ──────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────
 const ACCOMMODATION_VIBES = [
   'hotel', 'airbnb', 'apartment', 'loft', 'penthouse',
   'suite', 'villa', 'resort', 'motel', 'hostel', 'bnb',
@@ -183,7 +183,15 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
   );
 };
 
-// ── Main VenueCard (thin orchestrator) ───────────────────────────
+// ── Main VenueCard ────────────────────────────────────────────────────
+//
+// Scroll architecture:
+// • The outer wrapper is `fixed inset-0` — it is the backdrop.
+// • The inner motion.div slides up from the bottom with NO overflow-y
+//   or max-height on itself. It grows to its natural content height.
+// • The ONLY scroll container is the outer fixed wrapper itself via
+//   `overflowY: 'auto'` + `-webkit-overflow-scrolling: touch'`.
+//   This eliminates the nested-overflow scroll trap that caused jank.
 function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
   const mouseX = useMotionValue(0);
@@ -316,7 +324,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     return '--';
   }, [venue?.sunset, weather?.sys?.sunset]);
 
-  // Derive peak sun window as decimal hours for LiveSunTimeline
   const peakStartDecimal = Number.isFinite(sunData?.startHour) ? sunData.startHour : null;
   const peakEndDecimal   = Number.isFinite(sunData?.endHour)   ? sunData.endHour   : null;
 
@@ -326,10 +333,30 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   return (
     <AnimatePresence>
+      {/*
+        SCROLL ARCHITECTURE
+        ───────────────────
+        • This outer div is `fixed inset-0` — the backdrop.
+        • It is the SOLE scroll container (overflowY auto + webkit touch).
+        • The inner motion.div has NO overflow-y and NO max-height.
+          It grows to its natural height and the outer wrapper scrolls it.
+        • This eliminates the nested-overflow scroll trap.
+      */}
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-        className="fixed inset-0 z-[9999] w-full h-full flex flex-col"
-        style={{ top: '72px', background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(6px)' }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          top: '72px',
+          zIndex: 9998,
+          background: 'rgba(0,0,0,0.35)',
+          backdropFilter: 'blur(6px)',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+        }}
         onClick={onClose}
       >
         <motion.div
@@ -341,112 +368,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           transition={{ type: 'spring', damping: 30, stiffness: 280 }}
           style={{
             rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200,
-            maxHeight: '70vh', borderRadius: '28px 28px 0 0',
-            background: 'linear-gradient(160deg, #FFFFFF 0%, #F0F4F8 55%, #E8EEF4 100%)',
-            boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
-            border: '1px solid rgba(14,165,233,0.12)',
-          }}
-          className="pointer-events-auto mt-auto w-full overflow-y-auto select-none"
-          onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
-        >
-          <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: '28px 28px 0 0', zIndex: 0 }}>
-            <motion.div animate={{ scale: [1, 1.18, 1], x: [0, 40, 0], y: [0, -30, 0] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }} style={{ position: 'absolute', top: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${blobA} 0%, transparent 65%)`, filter: 'blur(48px)' }} />
-            <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
-          </div>
-
-          <div className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2">
-            <VenueCardHeader
-              displayName={displayName}
-              suburb={suburb}
-              safeVibes={safeVibes}
-              directSunHours={directSunHours}
-              peakSunWindow={peakSunWindow}
-              onClose={onClose}
-              dragControls={dragControls}
-              venue={venue}
-            />
-            <VenueCardWeather
-              score={score}
-              scoreLabel={scoreLabel}
-              scoreMeaningLabel={scoreMeaningLabel}
-              feelsLike={feelsLike}
-              wind={wind}
-              precipProb={precipProb}
-              minTemp={minTemp}
-              maxTemp={maxTemp}
-              uvIndex={uvIndex}
-              aqLabel={aqLabel}
-              hourlyData={hourlyData}
-              getWeatherDisplay={getWeatherDisplay}
-            />
-            <VenueCardSun
-              sunData={sunData}
-              sunHours={sunHours}
-              burnTimeMins={burnTimeMins}
-              hourlyData={hourlyData}
-              displaySunrise={displaySunrise}
-              displaySunset={displaySunset}
-              sunshineMins={sunshineMins}
-              daylightHours={daylightHours}
-              venue={venue}
-            />
-            {/* ── LiveSunTimeline replaces SunTimelineSlider ── */}
-            <LiveSunTimeline
-              sunData={sunData}
-              hourlyData={hourlyData}
-              cloudcover={cloudcover}
-              displaySunrise={displaySunrise}
-              displaySunset={displaySunset}
-              peakStart={peakStartDecimal}
-              peakEnd={peakEndDecimal}
-            />
-            <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
-            {lat && lng && (
-              <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
-                <div className="px-3 pt-2 pb-1"><span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>12-Hour Forecast</span></div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark />
-              </motion.div>
-            )}
-            {shielding && (
-              <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
-                <span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>Venue Shielding</span>
-                {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#0EA5E9" delay={0.1} />}
-                {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
-                {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={Math.min(100, shielding.shade)}    color="#F59E0B" delay={0.3} />}
-              </motion.div>
-            )}
-            {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
-              <BalconySunshineBlock
-                balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
-                outdoorSun={outdoorSun}
-                isRainStartingSoon={isRainStartingSoon}
-                minutesUntilRain={minutesUntilRain}
-                cloudcover={cloudcover}
-              />
-            )}
-            {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
-            <VenueCardActions
-              verdict={verdict}
-              safeTags={safeTags}
-              safeVibes={safeVibes}
-              isRainStartingSoon={isRainStartingSoon}
-              minutesUntilRain={minutesUntilRain}
-              liveFeaturesForVenue={liveFeaturesForVenue}
-              heating={heating}
-              actualHappyHour={actualHappyHour}
-              isHotelOrStay={isHotelOrStay}
-              cozyWeatherActive={cozyWeatherActive}
-              setShowOwnerDashboard={setShowOwnerDashboard}
-              setSelectedVenue={setSelectedVenue}
-              venue={venue}
-            />
-            <div style={{ height: 72 }} />
-          </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-VenueCard.displayName = 'VenueCard';
-export default memo(VenueCard);
+            // NO maxHeight, NO overflow — let content grow naturally
+            borderRadius: '28px 28px 0 0',
+            background: 'linear-g

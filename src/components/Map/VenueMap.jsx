@@ -2,20 +2,22 @@
  * VenueMap — HTML Marker emoji pins, performance-optimised
  *
  * Fixes in this version:
- * 1. Marker anchor changed to 'bottom' — pin tip sits on the coordinate, not the centre of the circle
- * 2. FLY_TO_PADDING rebalanced: { top:80, bottom:500, left:0, right:0 } — pin centres horizontally, sits above BottomSheet
+ * 1. anchor:'bottom' — pin tip sits on the coordinate
+ * 2. resizeAndFly() — waits 300 ms for BottomSheet animation, calls map.resize(),
+ *    then flyTo with simple balanced padding so the pin centres correctly
+ * 3. FLY_TO_PADDING kept minimal — no more massive bottom offset fighting the layout
  */
 
 import React, {
     useEffect, useMemo, useRef, useState,
-    forwardRef, useImperativeHandle, memo, useCallback,
+    forwardRef, useImperativeHandle, memo,
 } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
 
-// ── Pin states ──────────────────────────────────────────────────
+// ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
     heater:  { emoji: '🔥', bg: '#ff6b35', border: '#c2410c' },
     rain:    { emoji: '🌦️', bg: '#1e40af', border: '#1e3a8a' },
@@ -39,22 +41,14 @@ function getPinStateKey(venue, weather, liveVenueFeatures) {
     return 'default';
 }
 
-const isFiniteCoord = (value) => Number.isFinite(Number(value));
-const isRenderableVenue = (venue) => (
-    venue?.id != null && isFiniteCoord(venue.lng) && isFiniteCoord(venue.lat)
-);
+const isFiniteCoord = (v) => Number.isFinite(Number(v));
+const isRenderableVenue = (v) => v?.id != null && isFiniteCoord(v.lng) && isFiniteCoord(v.lat);
 
-// FIX 2: Rebalanced padding — left:0 / right:0 keeps the pin perfectly
-// centred horizontally; bottom:500 pushes it well above the BottomSheet.
-const FLY_TO_PADDING = { top: 80, bottom: 500, left: 0, right: 0 };
+// Simple, balanced padding — no more huge bottom offset.
+// map.resize() is called before flyTo so the viewport is already correct.
+const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
 
-const withVenuePadding = (opts = {}) => (
-    Array.isArray(opts.center) && Number(opts.zoom) >= 14
-        ? { ...opts, padding: opts.padding ?? FLY_TO_PADDING }
-        : opts
-);
-
-// ── Create marker DOM element (called ONCE per venue) ──────────────
+// ── Marker DOM helpers ──────────────────────────────────────────────────
 function createMarkerEl(pinKey) {
     const { emoji, bg, border } = PIN_STATES[pinKey];
     const el = document.createElement('div');
@@ -75,7 +69,6 @@ function createMarkerEl(pinKey) {
     return el;
 }
 
-// ── Update existing marker element in-place (no remove/recreate) ──
 function updateMarkerEl(el, pinKey) {
     const { emoji, bg, border } = PIN_STATES[pinKey];
     el.textContent = emoji;
@@ -83,7 +76,7 @@ function updateMarkerEl(el, pinKey) {
     el.style.borderColor = border;
 }
 
-// ════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
 const VenueMap = forwardRef(({
     venues = [],
     selectedVenue,
@@ -110,12 +103,36 @@ const VenueMap = forwardRef(({
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
 
+    // ── Imperative API ──────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
-        flyTo:  (opts) => map.current?.flyTo(withVenuePadding(opts)),
-        getMap: ()    => map.current,
+        // Legacy direct flyTo (used by recenter button etc.)
+        flyTo: (opts) => map.current?.flyTo(opts),
+
+        // resizeAndFly — the correct path when a venue is selected:
+        // 1. Wait 300 ms for the VenueCard / BottomSheet animation to complete
+        //    so the map container has its final painted size.
+        // 2. Call map.resize() so Mapbox recalculates the viewport dimensions.
+        // 3. Then flyTo — the centre is now computed against the true viewport,
+        //    so the pin lands in the middle of the visible area, not top-left.
+        resizeAndFly: ([lng, lat]) => {
+            if (!map.current) return;
+            setTimeout(() => {
+                map.current?.resize();
+                map.current?.flyTo({
+                    center:    [lng, lat],
+                    zoom:      15,
+                    pitch:     45,
+                    duration:  900,
+                    essential: false,
+                    padding:   FLY_TO_PADDING,
+                });
+            }, 300);
+        },
+
+        getMap: () => map.current,
     }));
 
-    // ── Initialise map ONCE ───────────────────────────────────────
+    // ── Initialise map ONCE ─────────────────────────────────────────
     useEffect(() => {
         if (map.current) return;
         if (!MAPBOX_TOKEN?.startsWith('pk.')) { setMapError(true); return; }
@@ -192,8 +209,7 @@ const VenueMap = forwardRef(({
             } else if (show) {
                 const el = createMarkerEl(pinKey);
                 el.addEventListener('click', () => onVenueSelectRef.current?.(venue));
-                // FIX 1: anchor:'bottom' — the bottom edge of the circle sits on
-                // the coordinate point, so pins appear exactly over their venue.
+                // anchor:'bottom' — bottom edge of circle sits on the coordinate
                 const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                     .setLngLat([Number(venue.lng), Number(venue.lat)])
                     .addTo(map.current);
@@ -209,22 +225,29 @@ const VenueMap = forwardRef(({
         });
     }, [safeVenues, weather, liveVenueFeatures, filteredIdSet, mapLoaded]);
 
-    // ── Fly to selected venue ─────────────────────────────────────
+    // ── selectedVenue change: delegate to resizeAndFly ──────────────
+    // NOTE: App.jsx calls resizeAndFly directly on pin tap.
+    // This effect handles the case where selectedVenue is set programmatically
+    // (e.g. deep-link, chat widget) without going through handleVenueSelect.
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
         const lng = Number(selectedVenue.lng);
         const lat = Number(selectedVenue.lat);
         if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
-        map.current.flyTo({
-            center:    [lng, lat],
-            zoom:      15,
-            duration:  900,
-            essential: false,
-            padding:   FLY_TO_PADDING,
-        });
+        setTimeout(() => {
+            map.current?.resize();
+            map.current?.flyTo({
+                center:    [lng, lat],
+                zoom:      15,
+                pitch:     45,
+                duration:  900,
+                essential: false,
+                padding:   FLY_TO_PADDING,
+            });
+        }, 300);
     }, [selectedVenue]);
 
-    // ── Render ────────────────────────────────────────────────────
+    // ── Render ───────────────────────────────────────────────────────
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <div
