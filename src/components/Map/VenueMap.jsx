@@ -2,7 +2,8 @@
  * VenueMap — HTML Marker emoji pins, performance-optimised
  *
  * Fixes in this version:
- * 1. FLY_TO_PADDING.bottom bumped to 520 — pin sits clearly above BottomSheet
+ * 1. Marker anchor changed to 'bottom' — pin tip sits on the coordinate, not the centre of the circle
+ * 2. FLY_TO_PADDING rebalanced: { top:80, bottom:500, left:0, right:0 } — pin centres horizontally, sits above BottomSheet
  */
 
 import React, {
@@ -43,9 +44,9 @@ const isRenderableVenue = (venue) => (
     venue?.id != null && isFiniteCoord(venue.lng) && isFiniteCoord(venue.lat)
 );
 
-// FIX: bottom bumped from 400 → 520 so the active pin sits cleanly
-// in the top half of the screen, above the VenueCard BottomSheet.
-const FLY_TO_PADDING = { top: 120, bottom: 520, left: 60, right: 60 };
+// FIX 2: Rebalanced padding — left:0 / right:0 keeps the pin perfectly
+// centred horizontally; bottom:500 pushes it well above the BottomSheet.
+const FLY_TO_PADDING = { top: 80, bottom: 500, left: 0, right: 0 };
 
 const withVenuePadding = (opts = {}) => (
     Array.isArray(opts.center) && Number(opts.zoom) >= 14
@@ -191,7 +192,9 @@ const VenueMap = forwardRef(({
             } else if (show) {
                 const el = createMarkerEl(pinKey);
                 el.addEventListener('click', () => onVenueSelectRef.current?.(venue));
-                const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                // FIX 1: anchor:'bottom' — the bottom edge of the circle sits on
+                // the coordinate point, so pins appear exactly over their venue.
+                const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                     .setLngLat([Number(venue.lng), Number(venue.lat)])
                     .addTo(map.current);
                 markersRef.current[venue.id] = { marker, el, pinKey };
