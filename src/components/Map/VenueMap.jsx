@@ -9,6 +9,7 @@
  * 4. Marker DOM recycled in-place (textContent + style only) — no remove/recreate on update
  * 5. will-change:transform on marker el for GPU compositing layer
  * 6. CSS touch-action:none on map container to prevent scroll/pan conflict
+ * 7. flyTo: essential:false + updated padding to prevent diagonal jumping when BottomSheet height shifts
  */
 
 import React, {
@@ -48,7 +49,7 @@ const isFiniteCoord = (value) => Number.isFinite(Number(value));
 const isRenderableVenue = (venue) => (
     venue?.id != null && isFiniteCoord(venue.lng) && isFiniteCoord(venue.lat)
 );
-const FLY_TO_PADDING = { top: 100, bottom: 300, left: 50, right: 50 };
+const FLY_TO_PADDING = { top: 120, bottom: 400, left: 60, right: 60 };
 const withVenuePadding = (opts = {}) => (
     Array.isArray(opts.center) && Number(opts.zoom) >= 14
         ? { ...opts, padding: opts.padding ?? FLY_TO_PADDING }
@@ -242,7 +243,7 @@ const VenueMap = forwardRef(({
             center:   [lng, lat],
             zoom:     15,
             duration: 900,
-            essential: true,
+            essential: false,
             padding: FLY_TO_PADDING,
         });
     }, [selectedVenue]);
