@@ -24,12 +24,12 @@ import { useWeather } from '../../context/WeatherContext';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
-    sunshine: { emoji: '☀️',           bg: '#FEF08A', border: '#EAB308' },  // ☀️ Live Sunshine — highest priority
-    heater:   { emoji: '\uD83D\uDD25', bg: '#ff6b35', border: '#c2410c' },
-    rain:     { emoji: '\uD83C\uDF26\uFE0F', bg: '#1e40af', border: '#1e3a8a' },
-    cold:     { emoji: '\uD83E\uDD76', bg: '#bfdbfe', border: '#60a5fa' },
-    sunny:    { emoji: '\uD83D\uDE0E', bg: '#fbbf24', border: '#d97706' },
-    default:  { emoji: '\uD83C\uDF24\uFE0F', bg: '#60a5fa', border: '#3b82f6' },
+    sunshine: { emoji: '☀️',  bg: '#FEF08A', border: '#EAB308' },
+    heater:   { emoji: '🔥',  bg: '#ff6b35', border: '#c2410c' },
+    rain:     { emoji: '🌦️', bg: '#1e40af', border: '#1e3a8a' },
+    cold:     { emoji: '🥶',  bg: '#bfdbfe', border: '#60a5fa' },
+    sunny:    { emoji: '😎',  bg: '#fbbf24', border: '#d97706' },
+    default:  { emoji: '🌤️', bg: '#60a5fa', border: '#3b82f6' },
 };
 
 function getPinStateKey(venue, weather, liveVenueFeatures) {
@@ -39,10 +39,9 @@ function getPinStateKey(venue, weather, liveVenueFeatures) {
     const cloudCover   = weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0;
     const condition    = (weather?.weather?.[0]?.main || '').toLowerCase();
     const heatersOn    = !!live.heatersOn || !!live.fireplaceOn || !!venue.heatersOn || !!venue.fireplaceOn;
-    // sunshineNow checked from both live state and static venue data
     const sunshineNow  = !!live.sunshineNow || !!venue.sunshineNow;
 
-    // Priority order: sunshineNow > heater > rain > cold > sunny > default
+    // Priority: sunshineNow > heater > rain > cold > sunny > default
     if (sunshineNow) return 'sunshine';
     if (heatersOn)   return 'heater';
     if (condition.includes('rain') || condition.includes('drizzle') || precipProb >= 40) return 'rain';
@@ -83,7 +82,6 @@ function getBoundsFromVenues(venues) {
 function createMarkerEl(pinKey) {
     const { emoji, bg, border } = PIN_STATES[pinKey];
     const el = document.createElement('div');
-    // sunshine pin gets a warm yellow drop-shadow glow
     const glow = pinKey === 'sunshine'
         ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
         : 'none';
@@ -226,16 +224,12 @@ const VenueMap = forwardRef(({
         };
     }, []);
 
-    // ── Cinematic national fitBounds — fires once after data arrives ──
+    // ── fitBounds — fires once after venues arrive ──────────────────
     useEffect(() => {
-        if (!mapLoaded) return;
-        if (!map.current) return;
-        if (hasFlownToBounds.current) return;
+        if (!mapLoaded || !map.current || hasFlownToBounds.current) return;
         if (safeVenues.length <= 2) return;
-
         const bounds = getBoundsFromVenues(safeVenues);
         if (!bounds) return;
-
         try {
             map.current.fitBounds(bounds, {
                 padding:   { top: 100, bottom: 200, left: 50, right: 50 },
@@ -249,10 +243,6 @@ const VenueMap = forwardRef(({
     }, [mapLoaded, safeVenues]);
 
     // ── Sync markers ────────────────────────────────────────────────
-    //
-    // CRITICAL: click + touchend both call stopPropagation() + preventDefault()
-    // to prevent the event reaching the Mapbox GL canvas underneath.
-    // Without this: pin jumps to top-left (canvas pan) + double-tap required.
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         const visible = filteredIdSet;
@@ -268,7 +258,6 @@ const VenueMap = forwardRef(({
                 }
             } else if (show) {
                 const el = createMarkerEl(pinKey);
-
                 const handleSelect = (e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -276,7 +265,6 @@ const VenueMap = forwardRef(({
                 };
                 el.addEventListener('click',    handleSelect);
                 el.addEventListener('touchend', handleSelect, { passive: false });
-
                 const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                     .setLngLat([Number(venue.lng), Number(venue.lat)])
                     .addTo(map.current);
@@ -292,7 +280,7 @@ const VenueMap = forwardRef(({
         });
     }, [safeVenues, weather, liveVenueFeatures, filteredIdSet, mapLoaded]);
 
-    // ── selectedVenue change: fly to pin ────────────────────────────
+    // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
         const lng = Number(selectedVenue.lng);
@@ -322,13 +310,13 @@ const VenueMap = forwardRef(({
                 <div style={styles.overlay}>
                     {mapError ? (
                         <div style={{ textAlign: 'center', padding: 24 }}>
-                            <div style={{ fontSize: 48, marginBottom: 16 }}>\uD83D\uDDFA\uFE0F</div>
+                            <div style={{ fontSize: 48, marginBottom: 16 }}>🗺️</div>
                             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: 600 }}>Map failed to load</p>
                         </div>
                     ) : (
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 40 }}>\u2600\uFE0F</div>
-                            <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Loading map\u2026</p>
+                            <div style={{ fontSize: 40 }}>☀️</div>
+                            <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Loading map...</p>
                         </div>
                     )}
                 </div>
@@ -336,7 +324,7 @@ const VenueMap = forwardRef(({
             {mapLoaded && !mapError && (
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner">
-                        \uD83D\uDCCD Live Weather Pins \u2022 {venues.length} venues
+                        📍 Live Weather Pins &bull; {venues.length} venues
                     </div>
                 </div>
             )}
