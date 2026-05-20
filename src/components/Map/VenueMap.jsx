@@ -1,17 +1,17 @@
 /**
  * VenueMap — HTML Marker emoji pins, performance-optimised
  *
- * Changelog:
- * 1. anchor:'bottom' — pin tip sits on the coordinate
- * 2. resizeAndFly() — waits 300 ms for BottomSheet animation, calls map.resize(),
- *    then flyTo with simple balanced padding so the pin centres correctly
- * 3. FLY_TO_PADDING kept minimal — no more massive bottom offset fighting the layout
- * 4. fitBounds via useEffect (NOT the map load event) — waits for venues
- *    to arrive before calculating bounds, fires only once via hasFlownToBounds ref
- * 5. stopPropagation + preventDefault on click ONLY — mobile browser synthesises
- *    click only on a clean tap, so pinch/pan gestures are never intercepted.
- *    touchend removed to prevent accidental venue opens during map navigation.
- * 6. sunshineNow pin state — ☀️ with yellow glow, takes precedence over 🔥 heater
+ * Memory & crash fixes (iOS Safari):
+ * A. selectedVenue flyTo effect: clearTimeout on cleanup prevents stacked
+ *    resize()+flyTo() calls exhausting the WebGL context.
+ * B. liveVenueFeatures stabilised via JSON-serialised ref — marker sync effect
+ *    only re-runs when live feature VALUES change, not on every parent render.
+ * C. Marker sync gated behind requestAnimationFrame so it never runs in the
+ *    same microtask flush as fitBounds (prevents dual WebGL thrash on first paint).
+ * D. Map cleanup: marker.remove() + map.remove() + null refs on unmount.
+ * E. click-only marker interaction — touchend removed, touch-action omitted on
+ *    pin elements so Mapbox handles pinch/pan gestures unobstructed.
+ * F. sunshineNow pin state — ☀️ with yellow glow, takes precedence over 🔥 heater.
  */
 
 import React, {
@@ -42,7 +42,6 @@ function getPinStateKey(venue, weather, liveVenueFeatures) {
     const heatersOn    = !!live.heatersOn || !!live.fireplaceOn || !!venue.heatersOn || !!venue.fireplaceOn;
     const sunshineNow  = !!live.sunshineNow || !!venue.sunshineNow;
 
-    // Priority: sunshineNow > heater > rain > cold > sunny > default
     if (sunshineNow) return 'sunshine';
     if (heatersOn)   return 'heater';
     if (condition.includes('rain') || condition.includes('drizzle') || precipProb >= 40) return 'rain';
@@ -96,8 +95,6 @@ function createMarkerEl(pinKey) {
         'user-select:none', 'line-height:1',
         'will-change:transform',
         '-webkit-tap-highlight-color:transparent',
-        // touch-action intentionally omitted — lets Mapbox handle pinch/pan
-        // gestures that START on a pin without intercepting them.
         `filter:${glow}`,
     ].join(';');
     el.textContent = emoji;
@@ -128,6 +125,7 @@ const VenueMap = forwardRef(({
     const map              = useRef(null);
     const markersRef       = useRef({});
     const hasFlownToBounds = useRef(false);
+    const rafRef           = useRef(null);   // FIX C: tracks pending rAF for marker sync
     const [mapLoaded, setMapLoaded] = useState(false);
     const [mapError,  setMapError]  = useState(false);
     const { weather } = useWeather();
@@ -143,6 +141,16 @@ const VenueMap = forwardRef(({
 
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
+
+    // FIX B: Stabilise liveVenueFeatures — serialise to JSON so the marker
+    // sync effect only re-runs when the actual values change, not on every
+    // parent render that produces a new object reference.
+    const liveVenueFeaturesRef = useRef(liveVenueFeatures);
+    const liveKey = JSON.stringify(liveVenueFeatures);
+    useEffect(() => {
+        liveVenueFeaturesRef.current = liveVenueFeatures;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [liveKey]);
 
     // ── Imperative API ──────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
@@ -216,9 +224,11 @@ const VenueMap = forwardRef(({
             setMapError(true);
         }
 
+        // FIX D: Full cleanup — cancel rAF, remove all markers, destroy WebGL context
         return () => {
             disposed = true;
             clearTimeout(loadTimeout);
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
             map.current?.remove();
@@ -245,50 +255,75 @@ const VenueMap = forwardRef(({
     }, [mapLoaded, safeVenues]);
 
     // ── Sync markers ────────────────────────────────────────────────
+    // FIX C: Wrapped in rAF so this never runs in the same microtask flush
+    // as fitBounds (prevents dual WebGL thrash on first paint in iOS Safari).
+    // FIX B: Keyed on liveKey (serialised) rather than the live object reference.
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
-        const visible = filteredIdSet;
-        safeVenues.forEach(venue => {
-            const pinKey   = getPinStateKey(venue, weather, liveVenueFeatures);
-            const existing = markersRef.current[venue.id];
-            const show     = !visible || visible.has(String(venue.id));
-            if (existing) {
-                existing.el.style.display = show ? 'flex' : 'none';
-                if (show && existing.pinKey !== pinKey) {
-                    updateMarkerEl(existing.el, pinKey);
-                    existing.pinKey = pinKey;
+
+        // Cancel any pending rAF from a previous rapid render
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+        rafRef.current = requestAnimationFrame(() => {
+            if (!map.current) return;
+            const visible  = filteredIdSet;
+            const live     = liveVenueFeaturesRef.current;
+
+            safeVenues.forEach(venue => {
+                const pinKey   = getPinStateKey(venue, weather, live);
+                const existing = markersRef.current[venue.id];
+                const show     = !visible || visible.has(String(venue.id));
+
+                if (existing) {
+                    existing.el.style.display = show ? 'flex' : 'none';
+                    if (show && existing.pinKey !== pinKey) {
+                        updateMarkerEl(existing.el, pinKey);
+                        existing.pinKey = pinKey;
+                    }
+                } else if (show) {
+                    const el = createMarkerEl(pinKey);
+                    // click ONLY — synthesised by browser only on a clean tap,
+                    // never on a drag/pinch, so map gestures are fully preserved.
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        onVenueSelectRef.current?.(venue);
+                    });
+                    const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+                        .setLngLat([Number(venue.lng), Number(venue.lat)])
+                        .addTo(map.current);
+                    markersRef.current[venue.id] = { marker, el, pinKey };
                 }
-            } else if (show) {
-                const el = createMarkerEl(pinKey);
-                // click ONLY — browser synthesises this only on a clean tap,
-                // never on a drag or pinch, so map gestures are fully preserved.
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onVenueSelectRef.current?.(venue);
-                });
-                const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-                    .setLngLat([Number(venue.lng), Number(venue.lat)])
-                    .addTo(map.current);
-                markersRef.current[venue.id] = { marker, el, pinKey };
-            }
+            });
+
+            // Remove markers for venues no longer in safeVenues
+            const venueIds = new Set(safeVenues.map(v => String(v.id)));
+            Object.keys(markersRef.current).forEach(id => {
+                if (!venueIds.has(id)) {
+                    markersRef.current[id].marker.remove();
+                    delete markersRef.current[id];
+                }
+            });
         });
-        const venueIds = new Set(safeVenues.map(v => String(v.id)));
-        Object.keys(markersRef.current).forEach(id => {
-            if (!venueIds.has(id)) {
-                markersRef.current[id].marker.remove();
-                delete markersRef.current[id];
-            }
-        });
-    }, [safeVenues, weather, liveVenueFeatures, filteredIdSet, mapLoaded]);
+
+        return () => {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        };
+    // liveKey is the serialised dependency — stable until values actually change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [safeVenues, weather, liveKey, filteredIdSet, mapLoaded]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
+    // FIX A: clearTimeout in cleanup cancels any stacked timers from rapid
+    // selectedVenue changes, preventing multiple simultaneous resize()+flyTo()
+    // calls that exhaust the iOS Safari WebGL context budget.
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
         const lng = Number(selectedVenue.lng);
         const lat = Number(selectedVenue.lat);
         if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
-        setTimeout(() => {
+
+        const t = setTimeout(() => {
             map.current?.resize();
             map.current?.flyTo({
                 center:    [lng, lat],
@@ -299,6 +334,8 @@ const VenueMap = forwardRef(({
                 padding:   FLY_TO_PADDING,
             });
         }, 300);
+
+        return () => clearTimeout(t);   // FIX A: cancel stale timer
     }, [selectedVenue]);
 
     // ── Render ───────────────────────────────────────────────────────
