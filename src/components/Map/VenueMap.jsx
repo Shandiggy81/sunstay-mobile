@@ -8,8 +8,9 @@
  * 3. FLY_TO_PADDING kept minimal — no more massive bottom offset fighting the layout
  * 4. fitBounds via useEffect (NOT the map load event) — waits for venues
  *    to arrive before calculating bounds, fires only once via hasFlownToBounds ref
- * 5. stopPropagation + preventDefault on marker click — kills canvas bubble
- *    that caused the pin to jump and required a double-tap
+ * 5. stopPropagation + preventDefault on click ONLY — mobile browser synthesises
+ *    click only on a clean tap, so pinch/pan gestures are never intercepted.
+ *    touchend removed to prevent accidental venue opens during map navigation.
  * 6. sunshineNow pin state — ☀️ with yellow glow, takes precedence over 🔥 heater
  */
 
@@ -95,7 +96,8 @@ function createMarkerEl(pinKey) {
         'user-select:none', 'line-height:1',
         'will-change:transform',
         '-webkit-tap-highlight-color:transparent',
-        'touch-action:none',
+        // touch-action intentionally omitted — lets Mapbox handle pinch/pan
+        // gestures that START on a pin without intercepting them.
         `filter:${glow}`,
     ].join(';');
     el.textContent = emoji;
@@ -258,13 +260,13 @@ const VenueMap = forwardRef(({
                 }
             } else if (show) {
                 const el = createMarkerEl(pinKey);
-                const handleSelect = (e) => {
+                // click ONLY — browser synthesises this only on a clean tap,
+                // never on a drag or pinch, so map gestures are fully preserved.
+                el.addEventListener('click', (e) => {
                     e.stopPropagation();
                     e.preventDefault();
                     onVenueSelectRef.current?.(venue);
-                };
-                el.addEventListener('click',    handleSelect);
-                el.addEventListener('touchend', handleSelect, { passive: false });
+                });
                 const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                     .setLngLat([Number(venue.lng), Number(venue.lat)])
                     .addTo(map.current);
