@@ -8,6 +8,8 @@
  * 3. FLY_TO_PADDING kept minimal — no more massive bottom offset fighting the layout
  * 4. fitBounds via useEffect (NOT the map load event) — waits for Supabase venues
  *    to arrive before calculating bounds, fires only once via hasFlownToBounds ref
+ * 5. stopPropagation + preventDefault on marker click — kills canvas bubble that
+ *    caused the pin to jump to top-left and required a second tap to open VenueCard
  */
 
 import React, {
@@ -49,11 +51,6 @@ const isRenderableVenue = (v) => v?.id != null && isFiniteCoord(v.lng) && isFini
 const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
 
 // ── Bounds utility ──────────────────────────────────────────────────────
-/**
- * getBoundsFromVenues
- * Returns a mapboxgl.LngLatBounds covering all venues, or null if fewer
- * than 2 valid venues are supplied. Wrapped in try/catch — never throws.
- */
 function getBoundsFromVenues(venues) {
     if (!Array.isArray(venues) || venues.length < 2) return null;
     try {
@@ -90,6 +87,8 @@ function createMarkerEl(pinKey) {
         'user-select:none', 'line-height:1',
         'will-change:transform',
         '-webkit-tap-highlight-color:transparent',
+        // Prevent the browser from treating a tap as a drag-start on the map
+        'touch-action:none',
     ].join(';');
     el.textContent = emoji;
     el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.2)'; });
@@ -115,7 +114,7 @@ const VenueMap = forwardRef(({
     const mapContainer     = useRef(null);
     const map              = useRef(null);
     const markersRef       = useRef({});
-    const hasFlownToBounds = useRef(false);   // fires the cinematic flight once only
+    const hasFlownToBounds = useRef(false);
     const [mapLoaded, setMapLoaded] = useState(false);
     const [mapError,  setMapError]  = useState(false);
     const { weather } = useWeather();
@@ -184,8 +183,6 @@ const VenueMap = forwardRef(({
                 map.current.touchZoomRotate.disableRotation();
                 setMapLoaded(true);
                 setMapError(false);
-                // fitBounds is intentionally NOT here — Supabase data hasn't
-                // arrived yet at this point. The useEffect below handles it.
             });
 
             map.current.on('error', (e) => {
@@ -216,14 +213,7 @@ const VenueMap = forwardRef(({
         };
     }, []);
 
-    // ── Cinematic national fitBounds — fires once after Supabase data arrives ──
-    //
-    // Both gates must be true before the flight triggers:
-    //   1. mapLoaded  — Mapbox tile render is complete, safe to call fitBounds
-    //   2. safeVenues.length > 2 — enough real venues for meaningful bounds
-    //
-    // hasFlownToBounds ref ensures we only fly once per app session,
-    // even if the venues array updates again after the initial load.
+    // ── Cinematic national fitBounds — fires once after data arrives ──
     useEffect(() => {
         if (!mapLoaded) return;
         if (!map.current) return;
@@ -242,12 +232,21 @@ const VenueMap = forwardRef(({
             hasFlownToBounds.current = true;
         } catch (e) {
             console.warn('[VenueMap] fitBounds failed:', e?.message);
-            // Map stays at INITIAL_VIEW_STATE — still fully functional
         }
     }, [mapLoaded, safeVenues]);
-    // ────────────────────────────────────────────────────────────────────────
 
     // ── Sync markers ────────────────────────────────────────────────
+    //
+    // CRITICAL: The click handler MUST call stopPropagation() + preventDefault()
+    // on BOTH 'click' and 'touchend' events.
+    //
+    // Without this, the DOM event bubbles from the marker <div> down into the
+    // Mapbox GL canvas underneath, which:
+    //   (a) triggers Mapbox's internal click-to-pan logic  →  pin jumps to top-left
+    //   (b) fires onVenueSelect once on the marker AND once on the canvas  →  double-tap
+    //
+    // touch-action:none on the element CSS + stopPropagation here together give
+    // complete isolation of marker taps from map canvas gestures.
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         const visible = filteredIdSet;
@@ -263,7 +262,21 @@ const VenueMap = forwardRef(({
                 }
             } else if (show) {
                 const el = createMarkerEl(pinKey);
-                el.addEventListener('click', () => onVenueSelectRef.current?.(venue));
+
+                // ── Event bubble kill ──────────────────────────────────────
+                // stopPropagation prevents the click reaching the Mapbox canvas.
+                // preventDefault prevents any browser default (drag, text-select).
+                // We attach to both 'click' and 'touchend' to cover mobile Safari
+                // where touch events fire independently of click.
+                const handleSelect = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onVenueSelectRef.current?.(venue);
+                };
+                el.addEventListener('click',    handleSelect);
+                el.addEventListener('touchend', handleSelect, { passive: false });
+                // ──────────────────────────────────────────────────────────
+
                 const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                     .setLngLat([Number(venue.lng), Number(venue.lat)])
                     .addTo(map.current);
@@ -279,7 +292,7 @@ const VenueMap = forwardRef(({
         });
     }, [safeVenues, weather, liveVenueFeatures, filteredIdSet, mapLoaded]);
 
-    // ── selectedVenue change: delegate to resizeAndFly ──────────────
+    // ── selectedVenue change: fly to pin ────────────────────────────
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
         const lng = Number(selectedVenue.lng);
