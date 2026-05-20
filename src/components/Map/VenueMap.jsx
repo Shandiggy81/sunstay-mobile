@@ -6,6 +6,8 @@
  * 2. resizeAndFly() — waits 300 ms for BottomSheet animation, calls map.resize(),
  *    then flyTo with simple balanced padding so the pin centres correctly
  * 3. FLY_TO_PADDING kept minimal — no more massive bottom offset fighting the layout
+ * 4. fitBounds on load — dynamically frames all loaded venues on first paint;
+ *    falls back to INITIAL_VIEW_STATE when <2 valid venues exist
  */
 
 import React, {
@@ -19,11 +21,11 @@ import { useWeather } from '../../context/WeatherContext';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
-    heater:  { emoji: '🔥', bg: '#ff6b35', border: '#c2410c' },
-    rain:    { emoji: '🌦️', bg: '#1e40af', border: '#1e3a8a' },
-    cold:    { emoji: '🥶', bg: '#bfdbfe', border: '#60a5fa' },
-    sunny:   { emoji: '😎', bg: '#fbbf24', border: '#d97706' },
-    default: { emoji: '🌤️', bg: '#60a5fa', border: '#3b82f6' },
+    heater:  { emoji: '\uD83D\uDD25', bg: '#ff6b35', border: '#c2410c' },
+    rain:    { emoji: '\uD83C\uDF26\uFE0F', bg: '#1e40af', border: '#1e3a8a' },
+    cold:    { emoji: '\uD83E\uDD76', bg: '#bfdbfe', border: '#60a5fa' },
+    sunny:   { emoji: '\uD83D\uDE0E', bg: '#fbbf24', border: '#d97706' },
+    default: { emoji: '\uD83C\uDF24\uFE0F', bg: '#60a5fa', border: '#3b82f6' },
 };
 
 function getPinStateKey(venue, weather, liveVenueFeatures) {
@@ -47,6 +49,38 @@ const isRenderableVenue = (v) => v?.id != null && isFiniteCoord(v.lng) && isFini
 // Simple, balanced padding — no more huge bottom offset.
 // map.resize() is called before flyTo so the viewport is already correct.
 const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
+
+// ── Bounds helpers ──────────────────────────────────────────────────────
+/**
+ * getBoundsFromVenues
+ * Takes a pre-filtered venues array (all entries guaranteed to have finite
+ * lat/lng) and returns a mapboxgl.LngLatBounds, or null if fewer than 2
+ * venues are present (a single point has no meaningful bounds to fit).
+ */
+function getBoundsFromVenues(venues) {
+    if (!Array.isArray(venues) || venues.length < 2) return null;
+    try {
+        let minLng = Infinity, maxLng = -Infinity;
+        let minLat = Infinity, maxLat = -Infinity;
+        for (const v of venues) {
+            const lng = Number(v.lng);
+            const lat = Number(v.lat);
+            if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+        }
+        if (!Number.isFinite(minLng)) return null; // no valid coords found
+        return new mapboxgl.LngLatBounds(
+            [minLng, minLat], // SW corner
+            [maxLng, maxLat]  // NE corner
+        );
+    } catch (e) {
+        console.warn('[VenueMap] getBoundsFromVenues error:', e?.message);
+        return null;
+    }
+}
 
 // ── Marker DOM helpers ──────────────────────────────────────────────────
 function createMarkerEl(pinKey) {
@@ -102,6 +136,11 @@ const VenueMap = forwardRef(({
 
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
+
+    // Keep a stable ref to safeVenues so the load handler can read the
+    // latest value without being in its dependency array (map init runs once).
+    const safeVenuesRef = useRef(safeVenues);
+    useEffect(() => { safeVenuesRef.current = safeVenues; }, [safeVenues]);
 
     // ── Imperative API ──────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
@@ -162,6 +201,26 @@ const VenueMap = forwardRef(({
                 map.current.touchZoomRotate.disableRotation();
                 setMapLoaded(true);
                 setMapError(false);
+
+                // ── Cinematic national fitBounds ──────────────────────────
+                // Read latest venues from ref so this closure always sees
+                // the real data even if venues prop arrived after map init.
+                try {
+                    const bounds = getBoundsFromVenues(safeVenuesRef.current);
+                    if (bounds) {
+                        map.current.fitBounds(bounds, {
+                            padding:  { top: 100, bottom: 200, left: 50, right: 50 },
+                            duration: 2000,
+                            essential: false,
+                        });
+                    }
+                    // If bounds is null (0–1 venues on first load) the map
+                    // simply stays at the INITIAL_VIEW_STATE — no crash.
+                } catch (e) {
+                    console.warn('[VenueMap] fitBounds on load failed:', e?.message);
+                    // Intentionally swallowed — map is still usable at default view
+                }
+                // ─────────────────────────────────────────────────────────
             });
 
             map.current.on('error', (e) => {
@@ -258,13 +317,13 @@ const VenueMap = forwardRef(({
                 <div style={styles.overlay}>
                     {mapError ? (
                         <div style={{ textAlign: 'center', padding: 24 }}>
-                            <div style={{ fontSize: 48, marginBottom: 16 }}>🗺️</div>
+                            <div style={{ fontSize: 48, marginBottom: 16 }}>\uD83D\uDDFA\uFE0F</div>
                             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: 600 }}>Map failed to load</p>
                         </div>
                     ) : (
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 40 }}>☀️</div>
-                            <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Loading map…</p>
+                            <div style={{ fontSize: 40 }}>\u2600\uFE0F</div>
+                            <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Loading map\u2026</p>
                         </div>
                     )}
                 </div>
@@ -272,7 +331,7 @@ const VenueMap = forwardRef(({
             {mapLoaded && !mapError && (
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner">
-                        📍 Live Weather Pins • {venues.length} venues
+                        \uD83D\uDCCD Live Weather Pins \u2022 {venues.length} venues
                     </div>
                 </div>
             )}
