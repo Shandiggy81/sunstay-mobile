@@ -6,10 +6,11 @@
  * 2. resizeAndFly() — waits 300 ms for BottomSheet animation, calls map.resize(),
  *    then flyTo with simple balanced padding so the pin centres correctly
  * 3. FLY_TO_PADDING kept minimal — no more massive bottom offset fighting the layout
- * 4. fitBounds via useEffect (NOT the map load event) — waits for Supabase venues
+ * 4. fitBounds via useEffect (NOT the map load event) — waits for venues
  *    to arrive before calculating bounds, fires only once via hasFlownToBounds ref
- * 5. stopPropagation + preventDefault on marker click — kills canvas bubble that
- *    caused the pin to jump to top-left and required a second tap to open VenueCard
+ * 5. stopPropagation + preventDefault on marker click — kills canvas bubble
+ *    that caused the pin to jump and required a double-tap
+ * 6. sunshineNow pin state — ☀️ with yellow glow, takes precedence over 🔥 heater
  */
 
 import React, {
@@ -23,11 +24,12 @@ import { useWeather } from '../../context/WeatherContext';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
-    heater:  { emoji: '\uD83D\uDD25', bg: '#ff6b35', border: '#c2410c' },
-    rain:    { emoji: '\uD83C\uDF26\uFE0F', bg: '#1e40af', border: '#1e3a8a' },
-    cold:    { emoji: '\uD83E\uDD76', bg: '#bfdbfe', border: '#60a5fa' },
-    sunny:   { emoji: '\uD83D\uDE0E', bg: '#fbbf24', border: '#d97706' },
-    default: { emoji: '\uD83C\uDF24\uFE0F', bg: '#60a5fa', border: '#3b82f6' },
+    sunshine: { emoji: '☀️',           bg: '#FEF08A', border: '#EAB308' },  // ☀️ Live Sunshine — highest priority
+    heater:   { emoji: '\uD83D\uDD25', bg: '#ff6b35', border: '#c2410c' },
+    rain:     { emoji: '\uD83C\uDF26\uFE0F', bg: '#1e40af', border: '#1e3a8a' },
+    cold:     { emoji: '\uD83E\uDD76', bg: '#bfdbfe', border: '#60a5fa' },
+    sunny:    { emoji: '\uD83D\uDE0E', bg: '#fbbf24', border: '#d97706' },
+    default:  { emoji: '\uD83C\uDF24\uFE0F', bg: '#60a5fa', border: '#3b82f6' },
 };
 
 function getPinStateKey(venue, weather, liveVenueFeatures) {
@@ -37,8 +39,12 @@ function getPinStateKey(venue, weather, liveVenueFeatures) {
     const cloudCover   = weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0;
     const condition    = (weather?.weather?.[0]?.main || '').toLowerCase();
     const heatersOn    = !!live.heatersOn || !!live.fireplaceOn || !!venue.heatersOn || !!venue.fireplaceOn;
+    // sunshineNow checked from both live state and static venue data
+    const sunshineNow  = !!live.sunshineNow || !!venue.sunshineNow;
 
-    if (heatersOn) return 'heater';
+    // Priority order: sunshineNow > heater > rain > cold > sunny > default
+    if (sunshineNow) return 'sunshine';
+    if (heatersOn)   return 'heater';
     if (condition.includes('rain') || condition.includes('drizzle') || precipProb >= 40) return 'rain';
     if (apparentTemp <= 11) return 'cold';
     if (apparentTemp >= 18 && cloudCover <= 35 && precipProb < 20) return 'sunny';
@@ -77,18 +83,22 @@ function getBoundsFromVenues(venues) {
 function createMarkerEl(pinKey) {
     const { emoji, bg, border } = PIN_STATES[pinKey];
     const el = document.createElement('div');
+    // sunshine pin gets a warm yellow drop-shadow glow
+    const glow = pinKey === 'sunshine'
+        ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
+        : 'none';
     el.style.cssText = [
         'width:40px', 'height:40px', 'border-radius:50%',
         `background:${bg}`, `border:3px solid ${border}`,
         'display:flex', 'align-items:center', 'justify-content:center',
         'font-size:20px', 'cursor:pointer',
         'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
-        'transition:transform 120ms ease',
+        'transition:transform 120ms ease, filter 120ms ease',
         'user-select:none', 'line-height:1',
         'will-change:transform',
         '-webkit-tap-highlight-color:transparent',
-        // Prevent the browser from treating a tap as a drag-start on the map
         'touch-action:none',
+        `filter:${glow}`,
     ].join(';');
     el.textContent = emoji;
     el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.2)'; });
@@ -101,6 +111,9 @@ function updateMarkerEl(el, pinKey) {
     el.textContent = emoji;
     el.style.background = bg;
     el.style.borderColor = border;
+    el.style.filter = pinKey === 'sunshine'
+        ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
+        : 'none';
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -237,16 +250,9 @@ const VenueMap = forwardRef(({
 
     // ── Sync markers ────────────────────────────────────────────────
     //
-    // CRITICAL: The click handler MUST call stopPropagation() + preventDefault()
-    // on BOTH 'click' and 'touchend' events.
-    //
-    // Without this, the DOM event bubbles from the marker <div> down into the
-    // Mapbox GL canvas underneath, which:
-    //   (a) triggers Mapbox's internal click-to-pan logic  →  pin jumps to top-left
-    //   (b) fires onVenueSelect once on the marker AND once on the canvas  →  double-tap
-    //
-    // touch-action:none on the element CSS + stopPropagation here together give
-    // complete isolation of marker taps from map canvas gestures.
+    // CRITICAL: click + touchend both call stopPropagation() + preventDefault()
+    // to prevent the event reaching the Mapbox GL canvas underneath.
+    // Without this: pin jumps to top-left (canvas pan) + double-tap required.
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
         const visible = filteredIdSet;
@@ -263,11 +269,6 @@ const VenueMap = forwardRef(({
             } else if (show) {
                 const el = createMarkerEl(pinKey);
 
-                // ── Event bubble kill ──────────────────────────────────────
-                // stopPropagation prevents the click reaching the Mapbox canvas.
-                // preventDefault prevents any browser default (drag, text-select).
-                // We attach to both 'click' and 'touchend' to cover mobile Safari
-                // where touch events fire independently of click.
                 const handleSelect = (e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -275,7 +276,6 @@ const VenueMap = forwardRef(({
                 };
                 el.addEventListener('click',    handleSelect);
                 el.addEventListener('touchend', handleSelect, { passive: false });
-                // ──────────────────────────────────────────────────────────
 
                 const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                     .setLngLat([Number(venue.lng), Number(venue.lat)])

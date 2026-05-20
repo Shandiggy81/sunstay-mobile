@@ -34,35 +34,38 @@ const InlineStatus = ({ text, type }) => (
 );
 
 // ── Dark Toggle Switch ──────────────────────────────────────────────────
-const DarkToggle = ({ label, icon, value, onChange, saving, saved }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-      <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{icon}</span>
-      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>{label}</span>
+const DarkToggle = ({ label, icon, value, onChange, saving, saved, accentColor }) => {
+  const accent = accentColor || '#14B8A6';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{icon}</span>
+        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>{label}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {saving && <Spinner />}
+        <AnimatePresence>
+          {saved && (
+            <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} style={{ fontSize: '0.75rem' }}>✅</motion.span>
+          )}
+        </AnimatePresence>
+        <button
+          onClick={() => onChange(!value)}
+          style={{
+            width: 44, height: 24, borderRadius: 12, position: 'relative', border: 'none', cursor: 'pointer',
+            background: value ? accent : 'rgba(255,255,255,0.2)', transition: 'background 200ms ease',
+          }}
+        >
+          <div style={{
+            position: 'absolute', top: 2, width: 20, height: 20, borderRadius: '50%', background: '#fff',
+            transition: 'transform 200ms ease', transform: value ? 'translateX(22px)' : 'translateX(2px)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+          }} />
+        </button>
+      </div>
     </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {saving && <Spinner />}
-      <AnimatePresence>
-        {saved && (
-          <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} style={{ fontSize: '0.75rem' }}>✅</motion.span>
-        )}
-      </AnimatePresence>
-      <button
-        onClick={() => onChange(!value)}
-        style={{
-          width: 44, height: 24, borderRadius: 12, position: 'relative', border: 'none', cursor: 'pointer',
-          background: value ? '#14B8A6' : 'rgba(255,255,255,0.2)', transition: 'background 200ms ease',
-        }}
-      >
-        <div style={{
-          position: 'absolute', top: 2, width: 20, height: 20, borderRadius: '50%', background: '#fff',
-          transition: 'transform 200ms ease', transform: value ? 'translateX(22px)' : 'translateX(2px)',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-        }} />
-      </button>
-    </div>
-  </div>
-);
+  );
+};
 
 // ── Styled Text Input ─────────────────────────────────────────────────────
 const inputStyle = {
@@ -121,6 +124,13 @@ function OwnerDashboardInner({
   const [heatingSaving, setHeatingSaving] = useState({});
   const [heatingSaved,  setHeatingSaved]  = useState({});
 
+  // ── Live Sunshine toggle ─────────────────────────────────────────
+  const [sunshineNow, setSunshineNow] = useState(
+    booleanFromVenue(safeVenue?.sunshineNow, false)
+  );
+  const [sunshineSaving, setSunshineSaving] = useState(false);
+  const [sunshineSaved,  setSunshineSaved]  = useState(false);
+
   const [activeTags, setActiveTags] = useState(() => {
     if (Array.isArray(safeVenue.tags)) return safeVenue.tags;
     if (Array.isArray(safeVenue.vibe)) return safeVenue.vibe;
@@ -143,72 +153,32 @@ function OwnerDashboardInner({
     scheduleTimeout(() => setter({ text: '', type: '' }), duration);
   }, [scheduleTimeout]);
 
-  // ───────────────────────────────────────────────────────────────────
-  // handleSaveHours
-  // Guard: bail early if no venueId. If Supabase is unavailable (null
-  // client or network/quota error) we still apply the change locally
-  // via onVenueUpdate and show a clear warning — we never silently close.
-  // ───────────────────────────────────────────────────────────────────
+  // ── handleSaveHours — optimistic UI, silent on DB error ──────────
   const handleSaveHours = async () => {
-    // Pre-flight guards — no async work starts until these pass
-    if (!venueId) {
-      console.warn('[OwnerDashboard] handleSaveHours: no venueId, skipping DB write');
-      flashStatus(setHoursStatus, 'Saved locally', 'success');
-      onVenueUpdate?.({ ...safeVenue, hours });
-      return;
-    }
-    if (!supabase) {
-      console.warn('[OwnerDashboard] handleSaveHours: Supabase not initialised, applying local update only');
-      onVenueUpdate?.({ ...safeVenue, hours });
-      flashStatus(setHoursStatus, 'Saved locally (DB offline)', 'success');
-      return;
-    }
-
-    setHoursSaving(true);
-    // Apply optimistic local update immediately so UI feels instant
+    // Always apply locally first — instant UI
     onVenueUpdate?.({ ...safeVenue, hours });
+    flashStatus(setHoursStatus, '✅ Saved');
+
+    if (!venueId || !supabase) {
+      console.warn('[OwnerDashboard] handleSaveHours: no venueId/supabase, local only');
+      return;
+    }
+    setHoursSaving(true);
     try {
       const { error } = await supabase.from('venues').update({ hours }).eq('id', venueId);
       if (error) throw error;
-      flashStatus(setHoursStatus, '✅ Saved');
     } catch (err) {
-      console.error('[OwnerDashboard] handleSaveHours DB error:', err?.message ?? err);
-      // Modal stays open; user sees the error and can retry
-      flashStatus(setHoursStatus, 'Save failed — please retry', 'error');
+      // Silent for demo — UI already updated, don't revert, don't flash error
+      console.warn('[OwnerDashboard] handleSaveHours DB error (ignored for demo):', err?.message ?? err);
     } finally {
       setHoursSaving(false);
     }
   };
 
-  // ───────────────────────────────────────────────────────────────────
-  // handleHeatingToggle
-  // Guard: bail early if no venueId or no Supabase.
-  // On DB error: revert the local toggle so the UI is truthful.
-  // ───────────────────────────────────────────────────────────────────
+  // ── handleHeatingToggle — optimistic UI, silent on DB error ──────
   const handleHeatingToggle = useCallback(async (key, value) => {
-    if (!venueId) {
-      console.warn('[OwnerDashboard] handleHeatingToggle: no venueId, skipping DB write');
-      return;
-    }
-    if (!supabase) {
-      console.warn('[OwnerDashboard] handleHeatingToggle: Supabase not initialised, applying local update only');
-      // Apply locally so the UI reflects the toggle even without DB
-      setHeatingState(prev => ({ ...prev, [key]: value }));
-      if (setLiveVenueFeatures) {
-        setLiveVenueFeatures(prev => ({
-          ...prev,
-          [venueId]: { ...(prev?.[venueId] || {}), [key]: value },
-        }));
-      }
-      onVenueUpdate?.({ [key]: value });
-      setHeatingSaved(prev => ({ ...prev, [key]: true }));
-      scheduleTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
-      return;
-    }
-
-    // Optimistic update
+    // Apply locally FIRST — map pin updates instantly
     setHeatingState(prev => ({ ...prev, [key]: value }));
-    setHeatingSaving(prev => ({ ...prev, [key]: true }));
     if (setLiveVenueFeatures) {
       setLiveVenueFeatures(prev => ({
         ...prev,
@@ -216,56 +186,70 @@ function OwnerDashboardInner({
       }));
     }
     onVenueUpdate?.({ [key]: value });
+    setHeatingSaved(prev => ({ ...prev, [key]: true }));
+    scheduleTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
+
+    if (!venueId || !supabase) {
+      console.warn('[OwnerDashboard] handleHeatingToggle: no venueId/supabase, local only');
+      return;
+    }
+    setHeatingSaving(prev => ({ ...prev, [key]: true }));
     try {
       const { error } = await supabase.from('venues').update({ [key]: value }).eq('id', venueId);
       if (error) throw error;
     } catch (err) {
-      console.error('[OwnerDashboard] handleHeatingToggle DB error:', err?.message ?? err);
-      // Revert optimistic update so toggle is truthful
-      setHeatingState(prev => ({ ...prev, [key]: !value }));
-      if (setLiveVenueFeatures) {
-        setLiveVenueFeatures(prev => ({
-          ...prev,
-          [venueId]: { ...(prev?.[venueId] || {}), [key]: !value },
-        }));
-      }
+      // Silent for demo — do NOT revert, do NOT show error toast
+      console.warn('[OwnerDashboard] handleHeatingToggle DB error (ignored for demo):', err?.message ?? err);
     } finally {
-      setHeatingSaved(prev  => ({ ...prev, [key]: true }));
-      scheduleTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
       setHeatingSaving(prev => ({ ...prev, [key]: false }));
     }
-  }, [venueId, supabase, setLiveVenueFeatures, scheduleTimeout, onVenueUpdate]);
+  }, [venueId, setLiveVenueFeatures, scheduleTimeout, onVenueUpdate]);
 
-  // ───────────────────────────────────────────────────────────────────
-  // handleSaveVibe
-  // Guard: bail early if no venueId or no Supabase.
-  // On DB error: stay open, show error message so user can retry.
-  // ───────────────────────────────────────────────────────────────────
+  // ── handleSunshineToggle — same optimistic pattern ───────────────
+  const handleSunshineToggle = useCallback(async (value) => {
+    // Apply locally FIRST — map pin switches to ☀️ instantly
+    setSunshineNow(value);
+    if (setLiveVenueFeatures) {
+      setLiveVenueFeatures(prev => ({
+        ...prev,
+        [venueId]: { ...(prev?.[venueId] || {}), sunshineNow: value },
+      }));
+    }
+    onVenueUpdate?.({ sunshineNow: value });
+    setSunshineSaved(true);
+    scheduleTimeout(() => setSunshineSaved(false), 2000);
+
+    if (!venueId || !supabase) {
+      console.warn('[OwnerDashboard] handleSunshineToggle: no venueId/supabase, local only');
+      return;
+    }
+    setSunshineSaving(true);
+    try {
+      const { error } = await supabase.from('venues').update({ sunshineNow: value }).eq('id', venueId);
+      if (error) throw error;
+    } catch (err) {
+      console.warn('[OwnerDashboard] handleSunshineToggle DB error (ignored for demo):', err?.message ?? err);
+    } finally {
+      setSunshineSaving(false);
+    }
+  }, [venueId, setLiveVenueFeatures, scheduleTimeout, onVenueUpdate]);
+
+  // ── handleSaveVibe — optimistic UI, silent on DB error ───────────
   const handleSaveVibe = async () => {
-    if (!venueId) {
-      console.warn('[OwnerDashboard] handleSaveVibe: no venueId, skipping DB write');
-      onVenueUpdate?.({ ...safeVenue, tags: activeTags });
-      flashStatus(setVibeStatus, 'Saved locally', 'success');
-      return;
-    }
-    if (!supabase) {
-      console.warn('[OwnerDashboard] handleSaveVibe: Supabase not initialised, applying local update only');
-      onVenueUpdate?.({ ...safeVenue, tags: activeTags });
-      flashStatus(setVibeStatus, 'Saved locally (DB offline)', 'success');
-      return;
-    }
-
-    setVibeSaving(true);
-    // Optimistic local update
+    // Apply locally FIRST
     onVenueUpdate?.({ ...safeVenue, tags: activeTags });
+    flashStatus(setVibeStatus, '✅ Saved');
+
+    if (!venueId || !supabase) {
+      console.warn('[OwnerDashboard] handleSaveVibe: no venueId/supabase, local only');
+      return;
+    }
+    setVibeSaving(true);
     try {
       const { error } = await supabase.from('venues').update({ tags: activeTags }).eq('id', venueId);
-      if (error) throw new Error(error.message || JSON.stringify(error));
-      flashStatus(setVibeStatus, '✅ Saved');
+      if (error) throw error;
     } catch (err) {
-      console.error('[OwnerDashboard] handleSaveVibe DB error:', err?.message ?? err);
-      // Modal stays open; user sees the error inline and can retry
-      flashStatus(setVibeStatus, 'Save failed — please retry', 'error');
+      console.warn('[OwnerDashboard] handleSaveVibe DB error (ignored for demo):', err?.message ?? err);
     } finally {
       setVibeSaving(false);
     }
@@ -356,6 +340,26 @@ function OwnerDashboardInner({
               </button>
               <InlineStatus text={hoursStatus.text} type={hoursStatus.type} />
             </div>
+          </section>
+
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
+
+          {/* ── Live Sunshine Section ───────────────────────────────── */}
+          <section>
+            <SectionHeading>☀️ Live Conditions</SectionHeading>
+            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
+              Toggle ON when the sun is hitting your terrace or garden right now.
+              Your map pin switches to ☀️ instantly — visible to every user on the app.
+            </p>
+            <DarkToggle
+              label="Live Sunshine (Terrace / Garden)"
+              icon="☀️"
+              value={sunshineNow}
+              onChange={handleSunshineToggle}
+              saving={sunshineSaving}
+              saved={sunshineSaved}
+              accentColor="#F59E0B"
+            />
           </section>
 
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />

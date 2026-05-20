@@ -79,14 +79,16 @@ const SparkLine = ({ data, color, label, unit }) => {
   const fillPts = `0,${H} ${pts} ${W},${H}`;
   return (
     <div className="flex flex-col gap-1 flex-1 min-w-0">
-      <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>{label}</span>
+      {/* Label: dark slate for legibility on light card background */}
+      <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#475569' }}>{label}</span>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="w-full h-auto overflow-visible">
         <polyline points={fillPts} fill={color} fillOpacity="0.12" stroke="none" />
         <motion.polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.2, ease: 'easeOut' }} />
       </svg>
       <div className="flex justify-between">
-        <span className="text-[8px] font-black" style={{ color: '#94A3B8' }}>{Math.round(min)}{unit}</span>
-        <span className="text-[8px] font-black" style={{ color: '#64748B' }}>{Math.round(max)}{unit}</span>
+        {/* Min/max values: dark enough for WCAG AA on light bg */}
+        <span className="text-[8px] font-black" style={{ color: '#334155' }}>{Math.round(min)}{unit}</span>
+        <span className="text-[8px] font-black" style={{ color: '#1E293B' }}>{Math.round(max)}{unit}</span>
       </div>
     </div>
   );
@@ -139,12 +141,13 @@ export default function VenueCardWeather({
           transition={{ delay: 0.4 }}
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#64748B' }}>Live Sun Exposure</span>
+            {/* Section label — dark for legibility on light card bg */}
+            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#334155' }}>Live Sun Exposure</span>
             <span
               className="text-[10px] font-bold px-2 py-0.5 rounded-full"
               style={{
                 background: ['Brilliant Sun','Mostly Sunny'].includes(getWeatherDisplay.label) ? 'rgba(16,185,129,0.12)' : 'rgba(148,163,184,0.12)',
-                color: ['Brilliant Sun','Mostly Sunny'].includes(getWeatherDisplay.label) ? '#059669' : '#64748B',
+                color: ['Brilliant Sun','Mostly Sunny'].includes(getWeatherDisplay.label) ? '#059669' : '#475569',
                 border: '1px solid rgba(0,0,0,0.06)',
               }}
             >
@@ -156,9 +159,10 @@ export default function VenueCardWeather({
           </div>
           <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
             <div className="flex items-center justify-between cursor-pointer" onClick={() => setGraphExpanded(g => !g)}>
-              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#94A3B8' }}>Temp / Cloud / Wind</span>
+              {/* Expandable section label — dark for legibility */}
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#475569' }}>Temp / Cloud / Wind</span>
               <motion.div animate={{ rotate: graphExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}>
-                <ChevronDown size={13} color="#94A3B8" />
+                <ChevronDown size={13} color="#475569" />
               </motion.div>
             </div>
             <AnimatePresence>
