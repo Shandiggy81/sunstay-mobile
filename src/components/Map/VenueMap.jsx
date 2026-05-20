@@ -1,13 +1,13 @@
 /**
  * VenueMap — HTML Marker emoji pins, performance-optimised
  *
- * Fixes in this version:
+ * Changelog:
  * 1. anchor:'bottom' — pin tip sits on the coordinate
  * 2. resizeAndFly() — waits 300 ms for BottomSheet animation, calls map.resize(),
  *    then flyTo with simple balanced padding so the pin centres correctly
  * 3. FLY_TO_PADDING kept minimal — no more massive bottom offset fighting the layout
- * 4. fitBounds on load — dynamically frames all loaded venues on first paint;
- *    falls back to INITIAL_VIEW_STATE when <2 valid venues exist
+ * 4. fitBounds via useEffect (NOT the map load event) — waits for Supabase venues
+ *    to arrive before calculating bounds, fires only once via hasFlownToBounds ref
  */
 
 import React, {
@@ -46,22 +46,19 @@ function getPinStateKey(venue, weather, liveVenueFeatures) {
 const isFiniteCoord = (v) => Number.isFinite(Number(v));
 const isRenderableVenue = (v) => v?.id != null && isFiniteCoord(v.lng) && isFiniteCoord(v.lat);
 
-// Simple, balanced padding — no more huge bottom offset.
-// map.resize() is called before flyTo so the viewport is already correct.
 const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
 
-// ── Bounds helpers ──────────────────────────────────────────────────────
+// ── Bounds utility ──────────────────────────────────────────────────────
 /**
  * getBoundsFromVenues
- * Takes a pre-filtered venues array (all entries guaranteed to have finite
- * lat/lng) and returns a mapboxgl.LngLatBounds, or null if fewer than 2
- * venues are present (a single point has no meaningful bounds to fit).
+ * Returns a mapboxgl.LngLatBounds covering all venues, or null if fewer
+ * than 2 valid venues are supplied. Wrapped in try/catch — never throws.
  */
 function getBoundsFromVenues(venues) {
     if (!Array.isArray(venues) || venues.length < 2) return null;
     try {
-        let minLng = Infinity, maxLng = -Infinity;
-        let minLat = Infinity, maxLat = -Infinity;
+        let minLng = Infinity,  maxLng = -Infinity;
+        let minLat = Infinity,  maxLat = -Infinity;
         for (const v of venues) {
             const lng = Number(v.lng);
             const lat = Number(v.lat);
@@ -71,11 +68,8 @@ function getBoundsFromVenues(venues) {
             if (lat < minLat) minLat = lat;
             if (lat > maxLat) maxLat = lat;
         }
-        if (!Number.isFinite(minLng)) return null; // no valid coords found
-        return new mapboxgl.LngLatBounds(
-            [minLng, minLat], // SW corner
-            [maxLng, maxLat]  // NE corner
-        );
+        if (!Number.isFinite(minLng)) return null;
+        return new mapboxgl.LngLatBounds([minLng, minLat], [maxLng, maxLat]);
     } catch (e) {
         console.warn('[VenueMap] getBoundsFromVenues error:', e?.message);
         return null;
@@ -118,9 +112,10 @@ const VenueMap = forwardRef(({
     onVenueSelect,
     liveVenueFeatures = {},
 }, ref) => {
-    const mapContainer = useRef(null);
-    const map          = useRef(null);
-    const markersRef   = useRef({});
+    const mapContainer     = useRef(null);
+    const map              = useRef(null);
+    const markersRef       = useRef({});
+    const hasFlownToBounds = useRef(false);   // fires the cinematic flight once only
     const [mapLoaded, setMapLoaded] = useState(false);
     const [mapError,  setMapError]  = useState(false);
     const { weather } = useWeather();
@@ -137,22 +132,10 @@ const VenueMap = forwardRef(({
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
 
-    // Keep a stable ref to safeVenues so the load handler can read the
-    // latest value without being in its dependency array (map init runs once).
-    const safeVenuesRef = useRef(safeVenues);
-    useEffect(() => { safeVenuesRef.current = safeVenues; }, [safeVenues]);
-
     // ── Imperative API ──────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
-        // Legacy direct flyTo (used by recenter button etc.)
         flyTo: (opts) => map.current?.flyTo(opts),
 
-        // resizeAndFly — the correct path when a venue is selected:
-        // 1. Wait 300 ms for the VenueCard / BottomSheet animation to complete
-        //    so the map container has its final painted size.
-        // 2. Call map.resize() so Mapbox recalculates the viewport dimensions.
-        // 3. Then flyTo — the centre is now computed against the true viewport,
-        //    so the pin lands in the middle of the visible area, not top-left.
         resizeAndFly: ([lng, lat]) => {
             if (!map.current) return;
             setTimeout(() => {
@@ -201,26 +184,8 @@ const VenueMap = forwardRef(({
                 map.current.touchZoomRotate.disableRotation();
                 setMapLoaded(true);
                 setMapError(false);
-
-                // ── Cinematic national fitBounds ──────────────────────────
-                // Read latest venues from ref so this closure always sees
-                // the real data even if venues prop arrived after map init.
-                try {
-                    const bounds = getBoundsFromVenues(safeVenuesRef.current);
-                    if (bounds) {
-                        map.current.fitBounds(bounds, {
-                            padding:  { top: 100, bottom: 200, left: 50, right: 50 },
-                            duration: 2000,
-                            essential: false,
-                        });
-                    }
-                    // If bounds is null (0–1 venues on first load) the map
-                    // simply stays at the INITIAL_VIEW_STATE — no crash.
-                } catch (e) {
-                    console.warn('[VenueMap] fitBounds on load failed:', e?.message);
-                    // Intentionally swallowed — map is still usable at default view
-                }
-                // ─────────────────────────────────────────────────────────
+                // fitBounds is intentionally NOT here — Supabase data hasn't
+                // arrived yet at this point. The useEffect below handles it.
             });
 
             map.current.on('error', (e) => {
@@ -251,6 +216,37 @@ const VenueMap = forwardRef(({
         };
     }, []);
 
+    // ── Cinematic national fitBounds — fires once after Supabase data arrives ──
+    //
+    // Both gates must be true before the flight triggers:
+    //   1. mapLoaded  — Mapbox tile render is complete, safe to call fitBounds
+    //   2. safeVenues.length > 2 — enough real venues for meaningful bounds
+    //
+    // hasFlownToBounds ref ensures we only fly once per app session,
+    // even if the venues array updates again after the initial load.
+    useEffect(() => {
+        if (!mapLoaded) return;
+        if (!map.current) return;
+        if (hasFlownToBounds.current) return;
+        if (safeVenues.length <= 2) return;
+
+        const bounds = getBoundsFromVenues(safeVenues);
+        if (!bounds) return;
+
+        try {
+            map.current.fitBounds(bounds, {
+                padding:   { top: 100, bottom: 200, left: 50, right: 50 },
+                duration:  2000,
+                essential: false,
+            });
+            hasFlownToBounds.current = true;
+        } catch (e) {
+            console.warn('[VenueMap] fitBounds failed:', e?.message);
+            // Map stays at INITIAL_VIEW_STATE — still fully functional
+        }
+    }, [mapLoaded, safeVenues]);
+    // ────────────────────────────────────────────────────────────────────────
+
     // ── Sync markers ────────────────────────────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
@@ -268,7 +264,6 @@ const VenueMap = forwardRef(({
             } else if (show) {
                 const el = createMarkerEl(pinKey);
                 el.addEventListener('click', () => onVenueSelectRef.current?.(venue));
-                // anchor:'bottom' — bottom edge of circle sits on the coordinate
                 const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
                     .setLngLat([Number(venue.lng), Number(venue.lat)])
                     .addTo(map.current);
@@ -285,9 +280,6 @@ const VenueMap = forwardRef(({
     }, [safeVenues, weather, liveVenueFeatures, filteredIdSet, mapLoaded]);
 
     // ── selectedVenue change: delegate to resizeAndFly ──────────────
-    // NOTE: App.jsx calls resizeAndFly directly on pin tap.
-    // This effect handles the case where selectedVenue is set programmatically
-    // (e.g. deep-link, chat widget) without going through handleVenueSelect.
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
         const lng = Number(selectedVenue.lng);
