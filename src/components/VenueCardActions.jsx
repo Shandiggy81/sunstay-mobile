@@ -52,9 +52,11 @@ export default function VenueCardActions({
         <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <span className="font-black uppercase tracking-widest" style={{ fontSize: '14px', color: '#D97706' }}>How's the Vibe? ✨</span>
-            <span className="font-semibold" style={{ fontSize: '12px', color: '#64748B' }}>{verdict.icon} {verdict.text}</span>
+            {/* FIX 1: #334155 (Slate 700) replaces #64748B — high-glare legibility on amber bg */}
+            <span className="font-bold" style={{ fontSize: '12px', color: '#334155' }}>{verdict.icon} {verdict.text}</span>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          {/* FIX 2: flex-nowrap + overflow-x-auto — single swipe row, never wraps */}
+          <div className="flex gap-2 flex-nowrap overflow-x-auto scrollbar-none pb-1">
             {(safeTags.length ? safeTags : safeVibes.length ? safeVibes : ['Chill']).map((t, i) => (
               <span key={i} className="font-bold whitespace-nowrap" style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)', color: '#0369A1' }}>{t}</span>
             ))}
@@ -71,24 +73,25 @@ export default function VenueCardActions({
         </div>
       </motion.div>
 
-      {/* SECONDARY CTA — Manage This Venue (ghost/outline, visually subordinate) */}
+      {/* FIX 3: TERTIARY owner link — borderless underline, opacity-60, clearly below primary workflow */}
       {setShowOwnerDashboard && (
         <motion.button
           onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
-          className="w-full flex items-center justify-center rounded-xl"
+          className="w-full flex items-center justify-center mt-2.5 mb-1 opacity-60 hover:opacity-100 transition-opacity"
           style={{
-            padding: '7px 0',
-            fontSize: '0.72rem',
-            fontWeight: 600,
+            padding: '4px 0',
+            fontSize: '0.7rem',
+            fontWeight: 500,
             background: 'transparent',
-            color: '#94A3B8',
-            border: '1px solid rgba(148,163,184,0.30)',
-            letterSpacing: '0.02em',
+            color: '#64748B',
+            border: 'none',
+            textDecoration: 'underline',
+            letterSpacing: '0.03em',
           }}
-          whileHover={{ borderColor: 'rgba(148,163,184,0.55)', color: '#CBD5E1' }}
-          whileTap={{ scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-        >Manage This Venue →</motion.button>
+          whileTap={{ scale: 0.98 }}
+        >
+          ⚙️ Manage this partner venue
+        </motion.button>
       )}
 
       <motion.div
