@@ -12,6 +12,9 @@
  * E. click-only marker interaction — touchend removed, touch-action omitted on
  *    pin elements so Mapbox handles pinch/pan gestures unobstructed.
  * F. sunshineNow pin state — ☀️ with yellow glow, takes precedence over 🔥 heater.
+ * G. Outer/inner marker architecture — outer el given to Mapbox for positioning ONLY.
+ *    All scale transforms, transitions, and styles applied to inner child so
+ *    scale(1.2) never clobbers Mapbox's translate(Xpx, Ypx) on the outer wrapper.
  */
 
 import React, {
@@ -79,13 +82,23 @@ function getBoundsFromVenues(venues) {
 }
 
 // ── Marker DOM helpers ──────────────────────────────────────────────────
+// FIX G: Outer/inner architecture.
+// Outer el  → handed to Mapbox for translate(Xpx, Ypx) positioning ONLY. Never touch its transform.
+// Inner div → owns all visual styles, scale transitions, and emoji. Safe to scale freely.
 function createMarkerEl(pinKey) {
     const { emoji, bg, border } = PIN_STATES[pinKey];
+
+    // Outer wrapper: Mapbox writes translate() here — we never modify its transform
     const el = document.createElement('div');
+    el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center;';
+
+    // Inner container: all visual styling + scale animations live here
+    const inner = document.createElement('div');
     const glow = pinKey === 'sunshine'
         ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
         : 'none';
-    el.style.cssText = [
+
+    inner.style.cssText = [
         'width:40px', 'height:40px', 'border-radius:50%',
         `background:${bg}`, `border:3px solid ${border}`,
         'display:flex', 'align-items:center', 'justify-content:center',
@@ -97,18 +110,27 @@ function createMarkerEl(pinKey) {
         '-webkit-tap-highlight-color:transparent',
         `filter:${glow}`,
     ].join(';');
-    el.textContent = emoji;
-    el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.2)'; });
-    el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
+
+    inner.textContent = emoji;
+
+    // Scale animations target inner only — Mapbox translate on outer is never disturbed
+    inner.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; });
+    inner.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
+
+    el.appendChild(inner);
     return el;
 }
 
 function updateMarkerEl(el, pinKey) {
+    // Target the inner child, not the Mapbox-controlled outer wrapper
+    const inner = el.querySelector('div');
+    if (!inner) return;
+
     const { emoji, bg, border } = PIN_STATES[pinKey];
-    el.textContent = emoji;
-    el.style.background = bg;
-    el.style.borderColor = border;
-    el.style.filter = pinKey === 'sunshine'
+    inner.textContent = emoji;
+    inner.style.background = bg;
+    inner.style.borderColor = border;
+    inner.style.filter = pinKey === 'sunshine'
         ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
         : 'none';
 }
