@@ -11,6 +11,9 @@ const CACHE_EXPIRY = 900000;
 const CACHE_KEY = `sunstay_weather_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
 const isAbortError = (error) => error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
 
+// Resolved once at module level — stable reference, never causes useCallback/useEffect churn
+const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_KEY || '').trim();
+
 const DEMO_WEATHER = {
     main: { temp: 22, feels_like: 21, humidity: 55 },
     weather: [{ main: 'Clear', description: 'sunny day', icon: '01d' }],
@@ -144,8 +147,6 @@ export const WeatherProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [theme, setTheme] = useState('sunny');
     const [overrideType, setOverrideType] = useState(null);
-
-    const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_API_KEY || '').trim();
 
     const OVERRIDES = {
         perfect: {
@@ -287,7 +288,8 @@ export const WeatherProvider = ({ children }) => {
                 // cache write failed
             }
         }
-    }, [WEATHER_API_KEY, overrideType, applyWeatherData]);
+    // WEATHER_API_KEY removed from deps — now module-level constant, never changes
+    }, [overrideType, applyWeatherData]);
 
     useEffect(() => {
         const controller = new AbortController();

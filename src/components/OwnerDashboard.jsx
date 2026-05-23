@@ -155,7 +155,6 @@ function OwnerDashboardInner({
 
   // ── handleSaveHours — optimistic UI, silent on DB error ──────────
   const handleSaveHours = async () => {
-    // Always apply locally first — instant UI
     onVenueUpdate?.({ ...safeVenue, hours });
     flashStatus(setHoursStatus, '✅ Saved');
 
@@ -168,7 +167,6 @@ function OwnerDashboardInner({
       const { error } = await supabase.from('venues').update({ hours }).eq('id', venueId);
       if (error) throw error;
     } catch (err) {
-      // Silent for demo — UI already updated, don't revert, don't flash error
       console.warn('[OwnerDashboard] handleSaveHours DB error (ignored for demo):', err?.message ?? err);
     } finally {
       setHoursSaving(false);
@@ -177,7 +175,6 @@ function OwnerDashboardInner({
 
   // ── handleHeatingToggle — optimistic UI, silent on DB error ──────
   const handleHeatingToggle = useCallback(async (key, value) => {
-    // Apply locally FIRST — map pin updates instantly
     setHeatingState(prev => ({ ...prev, [key]: value }));
     if (setLiveVenueFeatures) {
       setLiveVenueFeatures(prev => ({
@@ -198,7 +195,6 @@ function OwnerDashboardInner({
       const { error } = await supabase.from('venues').update({ [key]: value }).eq('id', venueId);
       if (error) throw error;
     } catch (err) {
-      // Silent for demo — do NOT revert, do NOT show error toast
       console.warn('[OwnerDashboard] handleHeatingToggle DB error (ignored for demo):', err?.message ?? err);
     } finally {
       setHeatingSaving(prev => ({ ...prev, [key]: false }));
@@ -207,7 +203,6 @@ function OwnerDashboardInner({
 
   // ── handleSunshineToggle — same optimistic pattern ───────────────
   const handleSunshineToggle = useCallback(async (value) => {
-    // Apply locally FIRST — map pin switches to ☀️ instantly
     setSunshineNow(value);
     if (setLiveVenueFeatures) {
       setLiveVenueFeatures(prev => ({
@@ -236,7 +231,6 @@ function OwnerDashboardInner({
 
   // ── handleSaveVibe — optimistic UI, silent on DB error ───────────
   const handleSaveVibe = async () => {
-    // Apply locally FIRST
     onVenueUpdate?.({ ...safeVenue, tags: activeTags });
     flashStatus(setVibeStatus, '✅ Saved');
 
@@ -266,8 +260,17 @@ function OwnerDashboardInner({
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'rgba(0,0,0,0.4)' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'rgba(0,0,0,0.4)', cursor: 'pointer' }}
       onClick={onClose}
+      role="button"
+      tabIndex={0}
+      aria-label="Close dashboard"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
       <motion.div
         key="owner-dashboard"
