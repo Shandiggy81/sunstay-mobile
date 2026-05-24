@@ -13,6 +13,7 @@ import VenueCardHeader from './VenueCardHeader';
 import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
+import WindComfortPanel from './WindComfortPanel';
 
 // ── Helpers ────────────────────────────────────────────────
 const ACCOMMODATION_VIBES = [
@@ -399,7 +400,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 }}
               >
                 <div className="flex items-center justify-center text-xl bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex-shrink-0">
-                  🛠️
+                  🛰️
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block">
@@ -463,6 +464,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 <HourlyForecastStrip lat={lat} lng={lng} dark />
               </motion.div>
             )}
+
+            {/* WIND & COMFORT INTELLIGENCE — self-contained, reads from useWeather() context */}
+            <WindComfortPanel venue={venue} />
+
             {shielding && (
               <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
                 <span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>Venue Shielding</span>
