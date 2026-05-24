@@ -127,30 +127,31 @@ export default function VenueCardSun({
       {/* Sunrise / Sunset / Sun hours meta row */}
       <div className="flex gap-5 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
         <div className="flex flex-col">
-          <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Sunrise</span>
+          {/* FIX B: #334155 (Slate 700) replaces #94A3B8 across all sun meta grid labels */}
+          <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#334155' }}>Sunrise</span>
           <span className="font-black text-sm text-amber-500">{displaySunrise}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Sunset</span>
+          <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#334155' }}>Sunset</span>
           <span className="font-black text-sm text-orange-500">{displaySunset}</span>
         </div>
         <div className="flex flex-col ml-auto items-end">
-          <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>{sunHours.labels.outdoor}</span>
+          <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#334155' }}>{sunHours.labels.outdoor}</span>
           <span className="font-black text-sm" style={{ color: '#1E293B' }}>{sunHours.outdoor}</span>
         </div>
         <div className="flex flex-col items-end">
-          <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>{sunHours.labels.covered}</span>
+          <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#334155' }}>{sunHours.labels.covered}</span>
           <span className="font-black text-sm" style={{ color: '#1E293B' }}>{sunHours.covered}</span>
         </div>
         {sunshineMins !== null && (
           <div className="flex flex-col">
-            <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Sunshine</span>
+            <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#334155' }}>Sunshine</span>
             <span className="font-black text-sm text-amber-500">{sunshineMins}m</span>
           </div>
         )}
         {daylightHours !== null && (
           <div className="flex flex-col items-end">
-            <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#94A3B8' }}>Daylight</span>
+            <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#334155' }}>Daylight</span>
             <span className="font-black text-sm" style={{ color: '#1E293B' }}>{daylightHours}h</span>
           </div>
         )}

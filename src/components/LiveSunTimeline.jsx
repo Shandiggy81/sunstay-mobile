@@ -222,7 +222,8 @@ export default function LiveSunTimeline({
             {headline.text}
           </span>
           {!isNight && displaySunrise && displaySunset && (
-            <span style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600 }}>
+            // FIX C: #475569 fontWeight 800 replaces #94A3B8 fw600 — glare-safe timeline labels
+            <span style={{ fontSize: 10, color: '#475569', fontWeight: 800 }}>
               {displaySunrise} — {displaySunset}
             </span>
           )}
@@ -349,9 +350,10 @@ export default function LiveSunTimeline({
               position: 'absolute',
               left: `${pct(h)}%`,
               transform: 'translateX(-50%)',
+              // FIX C: #475569 fontWeight 800 replaces #94A3B8 fw600
               fontSize: 9,
-              fontWeight: 600,
-              color: '#94A3B8',
+              fontWeight: 800,
+              color: '#475569',
               userSelect: 'none',
             }}
           >
@@ -375,7 +377,8 @@ export default function LiveSunTimeline({
                   boxShadow: s.glow ? `0 0 5px ${s.glow}` : 'none',
                 }}
               />
-              <span style={{ fontSize: 9, fontWeight: 600, color: '#94A3B8' }}>{s.label}</span>
+              {/* FIX C: legend labels also stepped up to #475569 fw800 */}
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#475569' }}>{s.label}</span>
             </div>
           );
         })}

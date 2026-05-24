@@ -22,7 +22,8 @@ const StatChip = ({ icon, label, value, delay = 0, className = 'flex-1 min-w-0' 
     >
       <span className="text-lg mb-0.5">{icon}</span>
       <span className="leading-none" style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{value}</span>
-      <span className="uppercase tracking-widest font-bold mt-0.5" style={{ fontSize: '9px', color: '#64748B' }}>{label}</span>
+      {/* FIX A: #475569 (Slate 600) replaces #64748B — higher contrast on ambient-lit screens */}
+      <span className="uppercase tracking-widest font-black mt-0.5" style={{ fontSize: '9px', color: '#475569' }}>{label}</span>
     </motion.div>
   </Float>
 );
@@ -176,11 +177,13 @@ export default function VenueCardWeather({
                   onClick={e => e.stopPropagation()}
                 >
                   <div className="flex gap-4">
-                    <SparkLine data={buildSpark('temperature_2m')} color="#F59E0B" label="Temperature" unit="°" />
-                    <SparkLine data={buildSpark('cloud_cover') || buildSpark('cloudcover')} color="#94A3B8" label="Cloud" unit="%" />
+                    {/* FIX 2: explicit .length checks replace truthy || short-circuit */}
+                    {/* Prevents empty array [] (truthy) masking valid fallback key */}
+                    <SparkLine data={buildSpark('temperature_2m').length ? buildSpark('temperature_2m') : buildSpark('temp')} color="#F59E0B" label="Temperature" unit="°" />
+                    <SparkLine data={buildSpark('cloud_cover').length ? buildSpark('cloud_cover') : buildSpark('cloudcover')} color="#94A3B8" label="Cloud" unit="%" />
                   </div>
                   <div className="flex gap-4">
-                    <SparkLine data={buildSpark('wind_speed_10m') || buildSpark('windspeed_10m')} color="#0EA5E9" label="Wind" unit=" km" />
+                    <SparkLine data={buildSpark('wind_speed_10m').length ? buildSpark('wind_speed_10m') : buildSpark('windspeed_10m')} color="#0EA5E9" label="Wind" unit=" km/h" />
                   </div>
                 </motion.div>
               )}

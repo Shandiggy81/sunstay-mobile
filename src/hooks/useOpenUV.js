@@ -19,7 +19,9 @@ export function useOpenUV(lat, lng) {
       return;
     }
 
-    fetch(`https://api.openuv.io/api/v1/uv?lat=${lat}&lng=${lng}`, {
+    // FIX: cast lat/lng via Number() before .toFixed() to prevent TypeError crash
+    // when coordinates arrive as string primitives from venue data
+    fetch(`https://api.openuv.io/api/v1/uv?lat=${Number(lat).toFixed(4)}&lng=${Number(lng).toFixed(4)}`, {
       headers: { 'x-access-token': import.meta.env.VITE_OPENUV_API_KEY },
     })
       .then(r => r.json())

@@ -23,9 +23,11 @@ export function useOpenAQ(lat, lng) {
 
     async function fetchAQ() {
       try {
+        // FIX: cast lat/lng via Number() before .toFixed() to prevent TypeError crash
+        // when coordinates arrive as string primitives from venue data
         const params = new URLSearchParams({
-          latitude: String(lat),
-          longitude: String(lng),
+          latitude: String(Number(lat).toFixed(4)),
+          longitude: String(Number(lng).toFixed(4)),
           hourly: 'pm2_5',
           timezone: 'auto',
           forecast_days: '1',
