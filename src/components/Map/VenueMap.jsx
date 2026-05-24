@@ -15,6 +15,9 @@
  * G. Outer/inner marker architecture — outer el given to Mapbox for positioning ONLY.
  *    All scale transforms, transitions, and styles applied to inner child so
  *    scale(1.2) never clobbers Mapbox's translate(Xpx, Ypx) on the outer wrapper.
+ * H. RainViewer radar overlay — fetches live timestamp from RainViewer public API,
+ *    injects XYZ raster tiles below aeroway-polygon (under pins/labels), with a
+ *    floating FAB toggle button. Auto-refreshes timestamp every 5 minutes.
  */
 
 import React, {
@@ -82,17 +85,12 @@ function getBoundsFromVenues(venues) {
 }
 
 // ── Marker DOM helpers ──────────────────────────────────────────────────
-// FIX G: Outer/inner architecture.
-// Outer el  → handed to Mapbox for translate(Xpx, Ypx) positioning ONLY. Never touch its transform.
-// Inner div → owns all visual styles, scale transitions, and emoji. Safe to scale freely.
 function createMarkerEl(pinKey) {
     const { emoji, bg, border } = PIN_STATES[pinKey];
 
-    // Outer wrapper: Mapbox writes translate() here — we never modify its transform
     const el = document.createElement('div');
     el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center;';
 
-    // Inner container: all visual styling + scale animations live here
     const inner = document.createElement('div');
     const glow = pinKey === 'sunshine'
         ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
@@ -113,7 +111,6 @@ function createMarkerEl(pinKey) {
 
     inner.textContent = emoji;
 
-    // Scale animations target inner only — Mapbox translate on outer is never disturbed
     inner.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; });
     inner.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
 
@@ -122,7 +119,6 @@ function createMarkerEl(pinKey) {
 }
 
 function updateMarkerEl(el, pinKey) {
-    // Target the inner child, not the Mapbox-controlled outer wrapper
     const inner = el.querySelector('div');
     if (!inner) return;
 
@@ -133,6 +129,75 @@ function updateMarkerEl(el, pinKey) {
     inner.style.filter = pinKey === 'sunshine'
         ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
         : 'none';
+}
+
+// ── RainViewer helpers ──────────────────────────────────────────────────
+const RAINVIEWER_META_URL = 'https://api.rainviewer.com/public/weather-maps.json';
+const RADAR_SOURCE_ID     = 'rainviewer-radar';
+const RADAR_LAYER_ID      = 'rainviewer-radar-layer';
+// Insert the radar layer just below road labels and all venue pins
+const RADAR_INSERT_BEFORE = 'aeroway-polygon';
+
+async function fetchRadarTimestamp() {
+    try {
+        const res  = await fetch(RAINVIEWER_META_URL);
+        const json = await res.json();
+        // Pick the latest available radar frame
+        const frames = json?.radar?.past;
+        if (!Array.isArray(frames) || frames.length === 0) return null;
+        return frames[frames.length - 1].path; // e.g. "/v2/radar/1716520800"
+    } catch (e) {
+        console.warn('[VenueMap] RainViewer metadata fetch failed:', e?.message);
+        return null;
+    }
+}
+
+function buildRadarTileURL(path) {
+    // RainViewer XYZ tile pattern — colour scheme 2 (standard blue-green-red), smooth=1, snow=1
+    return `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
+}
+
+function addOrUpdateRadarLayer(map, tileURL) {
+    if (!map) return;
+    try {
+        if (map.getSource(RADAR_SOURCE_ID)) {
+            // Update existing source tiles in-place — no flash/flicker
+            map.getSource(RADAR_SOURCE_ID).setTiles([tileURL]);
+        } else {
+            map.addSource(RADAR_SOURCE_ID, {
+                type:     'raster',
+                tiles:    [tileURL],
+                tileSize: 256,
+                attribution: 'RainViewer',
+            });
+            // Determine a safe insert-before layer — fall back gracefully if
+            // the style doesn't have aeroway-polygon (e.g. satellite styles)
+            const insertBefore = map.getLayer(RADAR_INSERT_BEFORE)
+                ? RADAR_INSERT_BEFORE
+                : undefined;
+            map.addLayer({
+                id:     RADAR_LAYER_ID,
+                type:   'raster',
+                source: RADAR_SOURCE_ID,
+                paint: {
+                    'raster-opacity':       0.55,
+                    'raster-fade-duration': 150,
+                },
+            }, insertBefore);
+        }
+    } catch (e) {
+        console.warn('[VenueMap] addOrUpdateRadarLayer error:', e?.message);
+    }
+}
+
+function removeRadarLayer(map) {
+    if (!map) return;
+    try {
+        if (map.getLayer(RADAR_LAYER_ID))  map.removeLayer(RADAR_LAYER_ID);
+        if (map.getSource(RADAR_SOURCE_ID)) map.removeSource(RADAR_SOURCE_ID);
+    } catch (e) {
+        console.warn('[VenueMap] removeRadarLayer error:', e?.message);
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -147,9 +212,12 @@ const VenueMap = forwardRef(({
     const map              = useRef(null);
     const markersRef       = useRef({});
     const hasFlownToBounds = useRef(false);
-    const rafRef           = useRef(null);   // FIX C: tracks pending rAF for marker sync
-    const [mapLoaded, setMapLoaded] = useState(false);
-    const [mapError,  setMapError]  = useState(false);
+    const rafRef           = useRef(null);
+    const radarTimerRef    = useRef(null);  // FIX H: interval ref for auto-refresh
+    const [mapLoaded,    setMapLoaded]    = useState(false);
+    const [mapError,     setMapError]     = useState(false);
+    const [radarOn,      setRadarOn]      = useState(false);  // FAB toggle state
+    const [radarLoading, setRadarLoading] = useState(false);  // spinner while fetching
     const { weather } = useWeather();
 
     const safeVenues = useMemo(
@@ -164,9 +232,6 @@ const VenueMap = forwardRef(({
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
 
-    // FIX B: Stabilise liveVenueFeatures — serialise to JSON so the marker
-    // sync effect only re-runs when the actual values change, not on every
-    // parent render that produces a new object reference.
     const liveVenueFeaturesRef = useRef(liveVenueFeatures);
     const liveKey = JSON.stringify(liveVenueFeatures);
     useEffect(() => {
@@ -231,6 +296,8 @@ const VenueMap = forwardRef(({
             map.current.on('error', (e) => {
                 if (disposed) return;
                 const msg = e.error?.message || '';
+                // Suppress tile 404s from RainViewer when radar is toggling
+                if (msg.includes(RADAR_LAYER_ID) || msg.includes('tilecache.rainviewer')) return;
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
                     setMapError(true);
@@ -246,17 +313,54 @@ const VenueMap = forwardRef(({
             setMapError(true);
         }
 
-        // FIX D: Full cleanup — cancel rAF, remove all markers, destroy WebGL context
         return () => {
             disposed = true;
             clearTimeout(loadTimeout);
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            if (rafRef.current)   cancelAnimationFrame(rafRef.current);
+            if (radarTimerRef.current) clearInterval(radarTimerRef.current);
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
             map.current?.remove();
             map.current = null;
         };
     }, []);
+
+    // ── FIX H: Radar toggle effect ──────────────────────────────────
+    // Fires when radarOn flips. Fetches the latest RainViewer timestamp,
+    // injects/removes the raster layer, and sets up a 5-minute auto-refresh
+    // so the radar frame stays current during long browsing sessions.
+    useEffect(() => {
+        if (!mapLoaded || !map.current) return;
+
+        // Clear any existing refresh timer when toggling
+        if (radarTimerRef.current) {
+            clearInterval(radarTimerRef.current);
+            radarTimerRef.current = null;
+        }
+
+        if (!radarOn) {
+            removeRadarLayer(map.current);
+            return;
+        }
+
+        // Fetch + inject immediately
+        const loadRadar = async () => {
+            setRadarLoading(true);
+            const path = await fetchRadarTimestamp();
+            setRadarLoading(false);
+            if (!path || !map.current) return;
+            addOrUpdateRadarLayer(map.current, buildRadarTileURL(path));
+        };
+
+        loadRadar();
+
+        // Refresh every 5 minutes to pull the latest radar frame
+        radarTimerRef.current = setInterval(loadRadar, 5 * 60 * 1000);
+
+        return () => {
+            if (radarTimerRef.current) clearInterval(radarTimerRef.current);
+        };
+    }, [radarOn, mapLoaded]);
 
     // ── fitBounds — fires once after venues arrive ──────────────────
     useEffect(() => {
@@ -277,13 +381,9 @@ const VenueMap = forwardRef(({
     }, [mapLoaded, safeVenues]);
 
     // ── Sync markers ────────────────────────────────────────────────
-    // FIX C: Wrapped in rAF so this never runs in the same microtask flush
-    // as fitBounds (prevents dual WebGL thrash on first paint in iOS Safari).
-    // FIX B: Keyed on liveKey (serialised) rather than the live object reference.
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
-        // Cancel any pending rAF from a previous rapid render
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
         rafRef.current = requestAnimationFrame(() => {
@@ -304,8 +404,6 @@ const VenueMap = forwardRef(({
                     }
                 } else if (show) {
                     const el = createMarkerEl(pinKey);
-                    // click ONLY — synthesised by browser only on a clean tap,
-                    // never on a drag/pinch, so map gestures are fully preserved.
                     el.addEventListener('click', (e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -318,7 +416,6 @@ const VenueMap = forwardRef(({
                 }
             });
 
-            // Remove markers for venues no longer in safeVenues
             const venueIds = new Set(safeVenues.map(v => String(v.id)));
             Object.keys(markersRef.current).forEach(id => {
                 if (!venueIds.has(id)) {
@@ -331,14 +428,10 @@ const VenueMap = forwardRef(({
         return () => {
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
         };
-    // liveKey is the serialised dependency — stable until values actually change
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [safeVenues, weather, liveKey, filteredIdSet, mapLoaded]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
-    // FIX A: clearTimeout in cleanup cancels any stacked timers from rapid
-    // selectedVenue changes, preventing multiple simultaneous resize()+flyTo()
-    // calls that exhaust the iOS Safari WebGL context budget.
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
         const lng = Number(selectedVenue.lng);
@@ -357,7 +450,7 @@ const VenueMap = forwardRef(({
             });
         }, 300);
 
-        return () => clearTimeout(t);   // FIX A: cancel stale timer
+        return () => clearTimeout(t);
     }, [selectedVenue]);
 
     // ── Render ───────────────────────────────────────────────────────
@@ -367,6 +460,41 @@ const VenueMap = forwardRef(({
                 ref={mapContainer}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
+
+            {/* ── FIX H: Radar FAB toggle ── */}
+            {mapLoaded && !mapError && (
+                <button
+                    onClick={() => setRadarOn(prev => !prev)}
+                    title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                    style={{
+                        position:        'absolute',
+                        bottom:          80,
+                        right:           12,
+                        zIndex:          20,
+                        width:           44,
+                        height:          44,
+                        borderRadius:    '50%',
+                        border:          radarOn ? '2px solid #3B82F6' : '2px solid rgba(255,255,255,0.3)',
+                        background:      radarOn ? 'rgba(59,130,246,0.9)' : 'rgba(15,15,30,0.85)',
+                        backdropFilter:  'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)',
+                        color:           '#fff',
+                        fontSize:        20,
+                        cursor:          'pointer',
+                        display:         'flex',
+                        alignItems:      'center',
+                        justifyContent:  'center',
+                        boxShadow:       '0 2px 10px rgba(0,0,0,0.4)',
+                        transition:      'background 200ms ease, border-color 200ms ease',
+                        WebkitTapHighlightColor: 'transparent',
+                    }}
+                    aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                    aria-pressed={radarOn}
+                >
+                    {radarLoading ? '⏳' : '📡'}
+                </button>
+            )}
+
             {(!mapLoaded || mapError) && (
                 <div style={styles.overlay}>
                     {mapError ? (
