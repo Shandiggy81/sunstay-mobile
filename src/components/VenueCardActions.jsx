@@ -52,11 +52,11 @@ export default function VenueCardActions({
         <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <span className="font-black uppercase tracking-widest" style={{ fontSize: '14px', color: '#D97706' }}>How's the Vibe? ✨</span>
-            {/* FIX 1: #334155 (Slate 700) replaces #64748B — high-glare legibility on amber bg */}
+            {/* Slate 700 (#334155) for high-glare legibility on amber background */}
             <span className="font-bold" style={{ fontSize: '12px', color: '#334155' }}>{verdict.icon} {verdict.text}</span>
           </div>
-          {/* FIX 2: flex-nowrap + overflow-x-auto — single swipe row, never wraps */}
-          <div className="flex gap-2 flex-nowrap overflow-x-auto scrollbar-none pb-1">
+          {/* Single swipe row — scrollbar-hide maps to the custom utility in src/index.css */}
+          <div className="flex gap-2 flex-nowrap overflow-x-auto scrollbar-hide pb-1">
             {(safeTags.length ? safeTags : safeVibes.length ? safeVibes : ['Chill']).map((t, i) => (
               <span key={i} className="font-bold whitespace-nowrap" style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)', color: '#0369A1' }}>{t}</span>
             ))}
@@ -73,7 +73,7 @@ export default function VenueCardActions({
         </div>
       </motion.div>
 
-      {/* FIX 3: TERTIARY owner link — borderless underline, opacity-60, clearly below primary workflow */}
+      {/* TERTIARY owner link — borderless underline, opacity-60, clearly below primary workflow */}
       {setShowOwnerDashboard && (
         <motion.button
           onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
