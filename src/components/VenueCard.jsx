@@ -14,7 +14,7 @@ import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
 
-// ── Helpers ──────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────
 const ACCOMMODATION_VIBES = [
   'hotel', 'airbnb', 'apartment', 'loft', 'penthouse',
   'suite', 'villa', 'resort', 'motel', 'hostel', 'bnb',
@@ -108,7 +108,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
     ? cloudcover[new Date().getHours()] ?? cloudcover[0] ?? 0
     : typeof cloudcover === 'number' ? cloudcover : 0;
   const isSunNow = sunHoursNum > 0 && cloudPct < 70;
-  const rainSoon = isRainStartingSoon && minutesUntilRain > 0 && minutesUntilRain <= 60;
+  const rainSoon = isRainStartingSoon && minutesUntilRain >= 0 && minutesUntilRain <= 60;
   const cloudSoon = cloudPct >= 50 && cloudPct < 80;
   return (
     <motion.div
@@ -141,7 +141,9 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
       {rainSoon && (
         <motion.div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.22)' }} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
           <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1.4, repeat: Infinity }}>🌧️</motion.span>
-          <span className="font-bold text-[12px]" style={{ color: '#0369A1' }}>Rain approaching in {minutesUntilRain} mins — grab a spot now</span>
+          <span className="font-bold text-[12px]" style={{ color: '#0369A1' }}>
+            {minutesUntilRain === 0 ? 'Rain falling now — head inside' : `Rain approaching in ${minutesUntilRain} mins — grab a spot now`}
+          </span>
         </motion.div>
       )}
       {!rainSoon && cloudSoon && (
@@ -183,15 +185,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
   );
 };
 
-// ── Main VenueCard ────────────────────────────────────────────────
-//
-// SCROLL ARCHITECTURE
-// ───────────────────
-// The outer motion.div is `fixed inset-0` and is the SOLE scroll
-// container (overflowY: auto + WebkitOverflowScrolling: touch).
-// The inner motion.div (slide-up card) has NO overflow-y and NO
-// maxHeight — it grows to its natural content height and the outer
-// wrapper scrolls it. This eliminates the nested-overflow jank.
+// ── Main VenueCard ────────────────────────────────────────────
 function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
   const mouseX = useMotionValue(0);
@@ -237,7 +231,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const daylightHours = weather?.daylightDuration ? Math.round(weather.daylightDuration / 3600) : null;
   const maxTemp = weather?.maxTemp ?? null;
   const minTemp = weather?.minTemp ?? null;
-  const { isRainStartingSoon, minutesUntilRain } = useTomorrowRain(lat, lng);
+
+  // All four values — isRainStartingSoon + minutesUntilRain feed BalconySunshineBlock
+  // and VenueCardActions; rainArrivalMins + rainArrivalLabel feed the nowcast banner
+  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng);
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
@@ -333,10 +330,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   return (
     <AnimatePresence>
-      {/*
-        OUTER wrapper = fixed backdrop + SOLE scroll container.
-        NO overflow on the inner card — it grows to natural height.
-      */}
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
         style={{
@@ -363,7 +356,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           transition={{ type: 'spring', damping: 30, stiffness: 280 }}
           style={{
             rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200,
-            // NO maxHeight, NO overflow — outer wrapper handles scrolling
             borderRadius: '28px 28px 0 0',
             background: 'linear-gradient(160deg, #FFFFFF 0%, #F0F4F8 55%, #E8EEF4 100%)',
             boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
@@ -388,6 +380,48 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               dragControls={dragControls}
               venue={venue}
             />
+
+            {/* LIVE PREDICTIVE NOWCAST RADAR TRACKER
+                Only renders when Tomorrow.io detects rain within 45 mins.
+                rainArrivalMins === 0  → 'Active'  badge  (rain right now)
+                rainArrivalMins 1–45   → 'Imminent' badge (closing in)
+            */}
+            {rainArrivalMins !== null && rainArrivalMins <= 45 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                className="w-full flex items-center gap-3 p-3.5 rounded-2xl border"
+                style={{
+                  background: 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)',
+                  borderColor: '#F59E0B',
+                  boxShadow: '0 4px 14px rgba(245,158,11,0.06)',
+                }}
+              >
+                <div className="flex items-center justify-center text-xl bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex-shrink-0">
+                  🛠️
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block">
+                    Predictive Radar Alert
+                  </span>
+                  <p className="text-sm font-black text-slate-900 leading-tight mt-0.5">
+                    {rainArrivalLabel}
+                  </p>
+                  <span className="text-[11px] text-slate-700 font-medium block mt-0.5">
+                    Precipitation detected nearby. Consider covered or indoor seating.
+                  </span>
+                </div>
+                <motion.span
+                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
+                  animate={{ opacity: [1, 0.4, 1] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  {rainArrivalMins === 0 ? 'Active' : 'Imminent'}
+                </motion.span>
+              </motion.div>
+            )}
+
             <VenueCardWeather
               score={score}
               scoreLabel={scoreLabel}
