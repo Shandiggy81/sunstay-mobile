@@ -15,9 +15,10 @@
  * G. Outer/inner marker architecture — outer el given to Mapbox for positioning ONLY.
  *    All scale transforms, transitions, and styles applied to inner child so
  *    scale(1.2) never clobbers Mapbox's translate(Xpx, Ypx) on the outer wrapper.
- * H. RainViewer radar overlay — fetches live timestamp from RainViewer public API,
- *    injects XYZ raster tiles below aeroway-polygon (under pins/labels), with a
- *    floating FAB toggle button. Auto-refreshes timestamp every 5 minutes.
+ * H. Internalised layer controls — Radar XYZ raster tiles & native GPU comfort
+ *    heatmap are fully self-contained with internal toggle state, no App.jsx props.
+ *    Radar: RainViewer timestamp fetched on first toggle, auto-refreshed every 5 min.
+ *    Heatmap: GeoJSON point weights derived from calculateSunstayScore with fallback.
  */
 
 import React, {
@@ -135,17 +136,19 @@ function updateMarkerEl(el, pinKey) {
 const RAINVIEWER_META_URL = 'https://api.rainviewer.com/public/weather-maps.json';
 const RADAR_SOURCE_ID     = 'rainviewer-radar';
 const RADAR_LAYER_ID      = 'rainviewer-radar-layer';
-// Insert the radar layer just below road labels and all venue pins
 const RADAR_INSERT_BEFORE = 'aeroway-polygon';
+
+// ── Comfort heatmap constants ───────────────────────────────────────────
+const HEATMAP_SOURCE_ID = 'comfort-heatmap-src';
+const HEATMAP_LAYER_ID  = 'comfort-heatmap-lyr';
 
 async function fetchRadarTimestamp() {
     try {
         const res  = await fetch(RAINVIEWER_META_URL);
         const json = await res.json();
-        // Pick the latest available radar frame
         const frames = json?.radar?.past;
         if (!Array.isArray(frames) || frames.length === 0) return null;
-        return frames[frames.length - 1].path; // e.g. "/v2/radar/1716520800"
+        return frames[frames.length - 1].path;
     } catch (e) {
         console.warn('[VenueMap] RainViewer metadata fetch failed:', e?.message);
         return null;
@@ -153,7 +156,6 @@ async function fetchRadarTimestamp() {
 }
 
 function buildRadarTileURL(path) {
-    // RainViewer XYZ tile pattern — colour scheme 2 (standard blue-green-red), smooth=1, snow=1
     return `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
 }
 
@@ -161,7 +163,6 @@ function addOrUpdateRadarLayer(map, tileURL) {
     if (!map) return;
     try {
         if (map.getSource(RADAR_SOURCE_ID)) {
-            // Update existing source tiles in-place — no flash/flicker
             map.getSource(RADAR_SOURCE_ID).setTiles([tileURL]);
         } else {
             map.addSource(RADAR_SOURCE_ID, {
@@ -170,11 +171,7 @@ function addOrUpdateRadarLayer(map, tileURL) {
                 tileSize: 256,
                 attribution: 'RainViewer',
             });
-            // Determine a safe insert-before layer — fall back gracefully if
-            // the style doesn't have aeroway-polygon (e.g. satellite styles)
-            const insertBefore = map.getLayer(RADAR_INSERT_BEFORE)
-                ? RADAR_INSERT_BEFORE
-                : undefined;
+            const insertBefore = map.getLayer(RADAR_INSERT_BEFORE) ? RADAR_INSERT_BEFORE : undefined;
             map.addLayer({
                 id:     RADAR_LAYER_ID,
                 type:   'raster',
@@ -193,7 +190,7 @@ function addOrUpdateRadarLayer(map, tileURL) {
 function removeRadarLayer(map) {
     if (!map) return;
     try {
-        if (map.getLayer(RADAR_LAYER_ID))  map.removeLayer(RADAR_LAYER_ID);
+        if (map.getLayer(RADAR_LAYER_ID))   map.removeLayer(RADAR_LAYER_ID);
         if (map.getSource(RADAR_SOURCE_ID)) map.removeSource(RADAR_SOURCE_ID);
     } catch (e) {
         console.warn('[VenueMap] removeRadarLayer error:', e?.message);
@@ -213,12 +210,18 @@ const VenueMap = forwardRef(({
     const markersRef       = useRef({});
     const hasFlownToBounds = useRef(false);
     const rafRef           = useRef(null);
-    const radarTimerRef    = useRef(null);  // FIX H: interval ref for auto-refresh
+    const radarTimerRef    = useRef(null);
+
+    // ── Internalised layer toggle state ────────────────────────────
+    const [radarOn,      setRadarOn]      = useState(false);
+    const [comfortMapOn, setComfortMapOn] = useState(false);
+    const [radarLoading, setRadarLoading] = useState(false);
+
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
-    const [radarOn,      setRadarOn]      = useState(false);  // FAB toggle state
-    const [radarLoading, setRadarLoading] = useState(false);  // spinner while fetching
-    const { weather } = useWeather();
+
+    // FIX H: destructure calculateSunstayScore with undefined safety
+    const { weather, calculateSunstayScore } = useWeather();
 
     const safeVenues = useMemo(
         () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
@@ -296,7 +299,7 @@ const VenueMap = forwardRef(({
             map.current.on('error', (e) => {
                 if (disposed) return;
                 const msg = e.error?.message || '';
-                // Suppress tile 404s from RainViewer when radar is toggling
+                // Suppress tile 404s from RainViewer frame transitions
                 if (msg.includes(RADAR_LAYER_ID) || msg.includes('tilecache.rainviewer')) return;
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
@@ -316,7 +319,7 @@ const VenueMap = forwardRef(({
         return () => {
             disposed = true;
             clearTimeout(loadTimeout);
-            if (rafRef.current)   cancelAnimationFrame(rafRef.current);
+            if (rafRef.current)        cancelAnimationFrame(rafRef.current);
             if (radarTimerRef.current) clearInterval(radarTimerRef.current);
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
@@ -325,14 +328,10 @@ const VenueMap = forwardRef(({
         };
     }, []);
 
-    // ── FIX H: Radar toggle effect ──────────────────────────────────
-    // Fires when radarOn flips. Fetches the latest RainViewer timestamp,
-    // injects/removes the raster layer, and sets up a 5-minute auto-refresh
-    // so the radar frame stays current during long browsing sessions.
+    // ── FIX H: Radar toggle — fetch, inject, and auto-refresh ──────
     useEffect(() => {
         if (!mapLoaded || !map.current) return;
 
-        // Clear any existing refresh timer when toggling
         if (radarTimerRef.current) {
             clearInterval(radarTimerRef.current);
             radarTimerRef.current = null;
@@ -343,7 +342,6 @@ const VenueMap = forwardRef(({
             return;
         }
 
-        // Fetch + inject immediately
         const loadRadar = async () => {
             setRadarLoading(true);
             const path = await fetchRadarTimestamp();
@@ -354,13 +352,72 @@ const VenueMap = forwardRef(({
 
         loadRadar();
 
-        // Refresh every 5 minutes to pull the latest radar frame
+        // Auto-refresh every 5 minutes
         radarTimerRef.current = setInterval(loadRadar, 5 * 60 * 1000);
 
         return () => {
             if (radarTimerRef.current) clearInterval(radarTimerRef.current);
         };
     }, [radarOn, mapLoaded]);
+
+    // ── FIX H: GPU-accelerated native comfort heatmap ───────────────
+    useEffect(() => {
+        if (!map.current || !mapLoaded) return;
+
+        // Build GeoJSON — robust fallback if calculateSunstayScore isn't ready
+        const geojsonFeatures = safeVenues.map(venue => {
+            const rawScore = typeof calculateSunstayScore === 'function'
+                ? calculateSunstayScore(venue)
+                : 75;
+            // Clamp to [0,1] weight; guard NaN/undefined from uninitialised context
+            const weight = Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75;
+            return {
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
+                properties: { score: weight },
+            };
+        });
+
+        const geojsonData = { type: 'FeatureCollection', features: geojsonFeatures };
+
+        if (!map.current.getSource(HEATMAP_SOURCE_ID)) {
+            map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: geojsonData });
+
+            const insertBefore = map.current.getLayer(RADAR_INSERT_BEFORE) ? RADAR_INSERT_BEFORE : undefined;
+            map.current.addLayer({
+                id:      HEATMAP_LAYER_ID,
+                type:    'heatmap',
+                source:  HEATMAP_SOURCE_ID,
+                maxzoom: 15,
+                paint: {
+                    'heatmap-weight':     ['get', 'score'],
+                    'heatmap-intensity':  ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
+                    'heatmap-color': [
+                        'interpolate', ['linear'], ['heatmap-density'],
+                        0,    'rgba(0,0,0,0)',
+                        0.15, 'rgba(37,99,235,0.25)',   // Cold / Unfavourable — Blue
+                        0.45, 'rgba(16,185,129,0.40)',  // Moderate — Emerald
+                        0.75, 'rgba(245,158,11,0.55)',   // Great — Amber
+                        1.0,  'rgba(239,68,68,0.65)',   // Peak comfort — Red
+                    ],
+                    'heatmap-radius':  ['interpolate', ['linear'], ['zoom'], 0, 3, 15, 55],
+                    'heatmap-opacity': 0.45,
+                },
+            }, insertBefore);
+        } else {
+            // Source already registered — update data in-place (no layer flash)
+            map.current.getSource(HEATMAP_SOURCE_ID).setData(geojsonData);
+        }
+
+        if (map.current.getLayer(HEATMAP_LAYER_ID)) {
+            map.current.setLayoutProperty(
+                HEATMAP_LAYER_ID,
+                'visibility',
+                comfortMapOn ? 'visible' : 'none'
+            );
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapLoaded, safeVenues, comfortMapOn, weather, calculateSunstayScore]);
 
     // ── fitBounds — fires once after venues arrive ──────────────────
     useEffect(() => {
@@ -461,38 +518,75 @@ const VenueMap = forwardRef(({
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
 
-            {/* ── FIX H: Radar FAB toggle ── */}
+            {/* ── FIX H: Self-contained FAB stack — Radar + Comfort heatmap ── */}
             {mapLoaded && !mapError && (
-                <button
-                    onClick={() => setRadarOn(prev => !prev)}
-                    title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                <div
                     style={{
-                        position:        'absolute',
-                        bottom:          80,
-                        right:           12,
-                        zIndex:          20,
-                        width:           44,
-                        height:          44,
-                        borderRadius:    '50%',
-                        border:          radarOn ? '2px solid #3B82F6' : '2px solid rgba(255,255,255,0.3)',
-                        background:      radarOn ? 'rgba(59,130,246,0.9)' : 'rgba(15,15,30,0.85)',
-                        backdropFilter:  'blur(8px)',
-                        WebkitBackdropFilter: 'blur(8px)',
-                        color:           '#fff',
-                        fontSize:        20,
-                        cursor:          'pointer',
-                        display:         'flex',
-                        alignItems:      'center',
-                        justifyContent:  'center',
-                        boxShadow:       '0 2px 10px rgba(0,0,0,0.4)',
-                        transition:      'background 200ms ease, border-color 200ms ease',
-                        WebkitTapHighlightColor: 'transparent',
+                        position:       'absolute',
+                        bottom:         80,
+                        right:          12,
+                        zIndex:         20,
+                        display:        'flex',
+                        flexDirection:  'column',
+                        gap:            8,
                     }}
-                    aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
-                    aria-pressed={radarOn}
                 >
-                    {radarLoading ? '⏳' : '📡'}
-                </button>
+                    {/* Rain Radar FAB */}
+                    <button
+                        onClick={() => setRadarOn(prev => !prev)}
+                        title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                        style={{
+                            width:               44,
+                            height:              44,
+                            borderRadius:        '50%',
+                            border:              radarOn ? '2px solid #3B82F6' : '2px solid rgba(255,255,255,0.3)',
+                            background:          radarOn ? 'rgba(59,130,246,0.9)' : 'rgba(15,15,30,0.85)',
+                            backdropFilter:      'blur(8px)',
+                            WebkitBackdropFilter:'blur(8px)',
+                            color:               '#fff',
+                            fontSize:            20,
+                            cursor:              'pointer',
+                            display:             'flex',
+                            alignItems:          'center',
+                            justifyContent:      'center',
+                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
+                            transition:          'background 200ms ease, border-color 200ms ease',
+                            WebkitTapHighlightColor: 'transparent',
+                        }}
+                        aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                        aria-pressed={radarOn}
+                    >
+                        {radarLoading ? '⏳' : '📡'}
+                    </button>
+
+                    {/* Comfort Heatmap FAB */}
+                    <button
+                        onClick={() => setComfortMapOn(prev => !prev)}
+                        title={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
+                        style={{
+                            width:               44,
+                            height:              44,
+                            borderRadius:        '50%',
+                            border:              comfortMapOn ? '2px solid #D97706' : '2px solid rgba(255,255,255,0.3)',
+                            background:          comfortMapOn ? 'rgba(217,119,6,0.9)' : 'rgba(15,15,30,0.85)',
+                            backdropFilter:      'blur(8px)',
+                            WebkitBackdropFilter:'blur(8px)',
+                            color:               '#fff',
+                            fontSize:            20,
+                            cursor:              'pointer',
+                            display:             'flex',
+                            alignItems:          'center',
+                            justifyContent:      'center',
+                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
+                            transition:          'background 200ms ease, border-color 200ms ease',
+                            WebkitTapHighlightColor: 'transparent',
+                        }}
+                        aria-label={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
+                        aria-pressed={comfortMapOn}
+                    >
+                        🔥
+                    </button>
+                </div>
             )}
 
             {(!mapLoaded || mapError) && (
