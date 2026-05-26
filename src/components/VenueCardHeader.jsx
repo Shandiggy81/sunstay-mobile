@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
+import { useWeather } from '../context/WeatherContext';
 
 export default function VenueCardHeader({
   displayName,
@@ -13,6 +14,17 @@ export default function VenueCardHeader({
   dragControls,
   venue,
 }) {
+  const { getBestWindow } = useWeather();
+  const projection = getBestWindow();
+
+  // Only render the badge when we have a real result (not the fallback UNKNOWN state)
+  const showProjection = projection.type === 'CURRENT_PEAK' || projection.type === 'FUTURE_WINDOW';
+
+  // Visual treatment: amber for current peak, sky-blue tint for a future window
+  const isFuture = projection.type === 'FUTURE_WINDOW';
+  const badgeBorder = isFuture ? 'rgba(14,165,233,0.35)' : 'rgba(245,158,11,0.40)';
+  const badgeColor  = isFuture ? '#38BDF8'              : '#F59E0B';
+
   return (
     <>
       <div
@@ -64,6 +76,35 @@ export default function VenueCardHeader({
               <span className="font-bold" style={{ fontSize: 16, color: '#92400E' }}>
                 ☀️ Peak sun: {peakSunWindow}
               </span>
+            )}
+            {showProjection && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18, type: 'spring', stiffness: 320, damping: 28 }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  marginTop: 4,
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                  background: 'rgba(15,15,30,0.72)',
+                  border: `1px solid ${badgeBorder}`,
+                  backdropFilter: 'blur(8px)',
+                  width: 'fit-content',
+                }}
+              >
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: badgeColor,
+                  letterSpacing: '0.04em',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {projection.label}
+                </span>
+              </motion.div>
             )}
           </div>
           <span style={{ fontSize: '0.7rem', color: '#64748B' }}>
