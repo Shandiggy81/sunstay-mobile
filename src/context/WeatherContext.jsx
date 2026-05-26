@@ -68,10 +68,11 @@ const fetchOpenMeteoWeather = async (lat, lon, signal) => {
             'uv_index',
             'is_day',
         ].join(','),
-        hourly: 'shortwave_radiation,precipitation_probability,cloud_cover',
+        // temperature_2m added for forward window projection; forecast_days=2 eliminates midnight data gap
+        hourly: 'shortwave_radiation,precipitation_probability,cloud_cover,temperature_2m',
         daily: 'sunrise,sunset',
         timezone: 'auto',
-        forecast_days: '1',
+        forecast_days: '2',
     });
 
     const response = await axios.get(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { signal });
@@ -101,13 +102,15 @@ const fetchOpenMeteoWeather = async (lat, lon, signal) => {
         isDay: current.is_day ?? 1,
         cloudCoverPct: current.cloud_cover ?? 0,
         hourly: {
-            shortwave_radiation:      response?.data?.hourly?.shortwave_radiation      || [],
+            shortwave_radiation:       response?.data?.hourly?.shortwave_radiation       || [],
             precipitation_probability: response?.data?.hourly?.precipitation_probability || [],
-            cloud_cover:              response?.data?.hourly?.cloud_cover               || [],
+            cloud_cover:               response?.data?.hourly?.cloud_cover               || [],
+            temperature_2m:            response?.data?.hourly?.temperature_2m            || [],
+            // wind_gusts_10m not in hourly params — forward window uses current gusts as flat proxy
         },
         sys: {
             sunrise: sunrise ?? Math.floor(Date.now() / 1000) - 7200,
-            sunset: sunset ?? Math.floor(Date.now() / 1000) + 10800,
+            sunset:  sunset  ?? Math.floor(Date.now() / 1000) + 10800,
         },
         name: 'Melbourne',
         source: 'open-meteo',
@@ -132,6 +135,7 @@ export const useWeather = () => {
             theme: 'sunny',
             getBackgroundGradient: () => 'from-amber-400 via-orange-400 to-yellow-500',
             calculateSunstayScore: () => 75,
+            getBestWindow: () => ({ type: 'UNKNOWN', label: '⚡ Checking conditions...', score: 0, startsInHours: null }),
             getFireplaceMode: () => false,
             getTemperature: () => null,
             getWeatherDescription: () => 'Loading weather...',
@@ -368,6 +372,81 @@ export const WeatherProvider = ({ children }) => {
         return Math.max(0, Math.min(100, score + cozyBonus - outdoorPenalty));
     };
 
+    // ─── Forward Window Projection ────────────────────────────────────────────
+    // Scans the next `hoursAhead` hourly slots using the real calculateLiveSunScore
+    // engine. Uses a 2-hour rolling average block so short spikes don't mislead.
+    // Wind gusts are not in the hourly array — current gusts used as a flat proxy
+    // (conservative: avoids falsely inflating future scores on gusty days).
+    // Only promotes a future window when it beats current score by > 15 points
+    // (not %) to avoid noisy micro-improvements cluttering the card copy.
+    const getBestWindow = (hoursAhead = 8) => {
+        const hourly = weather?.hourly;
+
+        // Guard: no hourly data (OpenWeather path, demo mode, or cache from before this deploy)
+        if (!hourly || !hourly.shortwave_radiation?.length) {
+            return { type: 'UNKNOWN', label: '⚡ Checking conditions...', score: 0, startsInHours: null };
+        }
+
+        // Current hour index — for 2-day arrays this is always 0-23 (today)
+        const currentHour = new Date().getHours();
+        const currentGusts = weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6;
+        const totalSlots = hourly.shortwave_radiation.length; // 48 for 2-day forecast
+
+        // Build a weather input object for a given hourly index, matching calculateLiveSunScore's signature
+        const inputForIndex = (i) => ({
+            shortwaveRadiation:  hourly.shortwave_radiation?.[i]       ?? 0,
+            apparentTemp:        hourly.temperature_2m?.[i]            ?? 20,
+            precipProbability:   hourly.precipitation_probability?.[i] ?? 0,
+            cloudCover:          hourly.cloud_cover?.[i]               ?? 0,
+            windGusts:           currentGusts,    // flat proxy — see comment above
+            isDay:               (i % 24) >= 6 && (i % 24) <= 21 ? 1 : 0,  // simple day guard
+            uvIndex:             null,             // not in hourly params; engine defaults gracefully
+        });
+
+        // Current baseline score (0-100 scale, same as calculateSunstayScore)
+        const currentScore = calculateLiveSunScore(inputForIndex(currentHour)).score;
+
+        let bestScore = currentScore;
+        let bestOffset = 0;
+
+        for (let offset = 1; offset <= hoursAhead; offset++) {
+            const slotIndex = currentHour + offset;
+            if (slotIndex >= totalSlots) break;
+
+            // 2-hour rolling block average (smooths single-hour spikes)
+            const nextIndex = slotIndex + 1 < totalSlots ? slotIndex + 1 : slotIndex;
+            const blockScore = (
+                calculateLiveSunScore(inputForIndex(slotIndex)).score +
+                calculateLiveSunScore(inputForIndex(nextIndex)).score
+            ) / 2;
+
+            // Only promote if materially better (15-point threshold, not percentage)
+            if (blockScore > bestScore && (blockScore - currentScore) > 15) {
+                bestScore = blockScore;
+                bestOffset = offset;
+            }
+        }
+
+        const pct = Math.round(bestScore);
+
+        if (bestOffset === 0) {
+            return {
+                type: 'CURRENT_PEAK',
+                label: `✨ Peak Comfort Right Now (Score: ${pct}%)`,
+                score: bestScore,
+                startsInHours: 0,
+            };
+        }
+
+        return {
+            type: 'FUTURE_WINDOW',
+            label: `☀️ Golden Window: Starts in ${bestOffset}h (Score: ${pct}%)`,
+            score: bestScore,
+            startsInHours: bestOffset,
+        };
+    };
+    // ─────────────────────────────────────────────────────────────────────────
+
     const getFireplaceMode = () => getCozyModeMeta().isActive;
     const getTemperature = () => (weather ? Math.round(weather.main?.temp ?? 0) : null);
     const getUVIndex = () => weather?.uvi ?? 0;
@@ -399,6 +478,7 @@ export const WeatherProvider = ({ children }) => {
         updateOverride,
         getBackgroundGradient,
         calculateSunstayScore,
+        getBestWindow,
         getFireplaceMode,
         getTemperature,
         getWeatherDescription,
