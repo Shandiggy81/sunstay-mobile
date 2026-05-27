@@ -81,7 +81,7 @@ const fetchOpenMeteoWeather = async (lat, lon, signal) => {
     if (current.temperature_2m == null) return null;
 
     const mappedCondition = getWeatherFromOpenMeteoCode(Number(current.weather_code));
-    const sunset = toUnixTimestamp(response?.data?.daily?.sunset?.[0]);
+    const sunset  = toUnixTimestamp(response?.data?.daily?.sunset?.[0]);
     const sunrise = toUnixTimestamp(response?.data?.daily?.sunrise?.[0]);
 
     return {
@@ -106,6 +106,9 @@ const fetchOpenMeteoWeather = async (lat, lon, signal) => {
             precipitation_probability: response?.data?.hourly?.precipitation_probability || [],
             cloud_cover:               response?.data?.hourly?.cloud_cover               || [],
             temperature_2m:            response?.data?.hourly?.temperature_2m            || [],
+            // FIX: Capture utc_offset_seconds so getBestWindow can anchor to Melbourne local time
+            // regardless of the browser/device timezone of whoever is running the demo.
+            _tzOffsetSeconds:          response?.data?.utc_offset_seconds                ?? null,
             // wind_gusts_10m not in hourly params — forward window uses current gusts as flat proxy
         },
         sys: {
@@ -135,7 +138,7 @@ export const useWeather = () => {
             theme: 'sunny',
             getBackgroundGradient: () => 'from-amber-400 via-orange-400 to-yellow-500',
             calculateSunstayScore: () => 75,
-            getBestWindow: () => ({ type: 'UNKNOWN', label: '⚡ Checking conditions...', score: 0, startsInHours: null }),
+            getBestWindow: () => ({ type: 'UNKNOWN', label: '\u26A1 Checking conditions...', score: 0, startsInHours: null }),
             getFireplaceMode: () => false,
             getTemperature: () => null,
             getWeatherDescription: () => 'Loading weather...',
@@ -372,57 +375,89 @@ export const WeatherProvider = ({ children }) => {
         return Math.max(0, Math.min(100, score + cozyBonus - outdoorPenalty));
     };
 
-    // ─── Forward Window Projection ────────────────────────────────────────────
-    // Scans the next `hoursAhead` hourly slots using the real calculateLiveSunScore
-    // engine. Uses a 2-hour rolling average block so short spikes don't mislead.
-    // Wind gusts are not in the hourly array — current gusts used as a flat proxy
-    // (conservative: avoids falsely inflating future scores on gusty days).
-    // Only promotes a future window when it beats current score by > 15 points
-    // (not %) to avoid noisy micro-improvements cluttering the card copy.
+    // ─── Forward Window Projection (hardened) ────────────────────────────────
+    //
+    // FIX 1 — Timezone anchor: derives Melbourne local hour from the API's own
+    //   utc_offset_seconds field, not the browser clock. Prevents index misalignment
+    //   when an investor opens the app from a non-Melbourne timezone.
+    //
+    // FIX 2 — Astronomical isDay: uses real sys.sunrise / sys.sunset Unix timestamps
+    //   instead of the naive 06:00–21:00 proxy. Critical for winter months when
+    //   Melbourne sunset is ~17:09 — the old guard was scoring 8pm slots as daytime.
+    //
+    // FIX 3 — 3-slot front-weighted average [50% / 35% / 15%]: replaces the 2-slot
+    //   equal-weight block. Prevents single-hour spikes or drops from triggering badge
+    //   changes mid-demo. Weights normalise automatically at array boundaries.
+    //
+    // FIX 4 — Midnight clamp: Math.min(index, 47) instead of break. Allows the scan
+    //   to read fully into day 2's data near midnight without an early exit.
+    //
+    // Note: threshold is intentionally 15 (not 0.15) — scores live on a 0–100 scale.
+    // ─────────────────────────────────────────────────────────────────────────
     const getBestWindow = (hoursAhead = 8) => {
         const hourly = weather?.hourly;
 
-        // Guard: no hourly data (OpenWeather path, demo mode, or cache from before this deploy)
+        // Guard: no hourly data (OpenWeather path, demo mode, or pre-deploy cache)
         if (!hourly || !hourly.shortwave_radiation?.length) {
-            return { type: 'UNKNOWN', label: '⚡ Checking conditions...', score: 0, startsInHours: null };
+            return { type: 'UNKNOWN', label: '\u26A1 Checking conditions...', score: 0, startsInHours: null };
         }
 
-        // Current hour index — for 2-day arrays this is always 0-23 (today)
-        const currentHour = new Date().getHours();
+        const { sunrise, sunset } = weather.sys || {};
         const currentGusts = weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6;
-        const totalSlots = hourly.shortwave_radiation.length; // 48 for 2-day forecast
 
-        // Build a weather input object for a given hourly index, matching calculateLiveSunScore's signature
-        const inputForIndex = (i) => ({
-            shortwaveRadiation:  hourly.shortwave_radiation?.[i]       ?? 0,
-            apparentTemp:        hourly.temperature_2m?.[i]            ?? 20,
-            precipProbability:   hourly.precipitation_probability?.[i] ?? 0,
-            cloudCover:          hourly.cloud_cover?.[i]               ?? 0,
-            windGusts:           currentGusts,    // flat proxy — see comment above
-            isDay:               (i % 24) >= 6 && (i % 24) <= 21 ? 1 : 0,  // simple day guard
-            uvIndex:             null,             // not in hourly params; engine defaults gracefully
-        });
+        // FIX 1: Anchor to Melbourne local time via the API's utc_offset_seconds.
+        // Fallback uses Intl — both paths are browser-safe and handle DST correctly.
+        const tzOffsetSeconds = hourly._tzOffsetSeconds ?? null;
+        const currentHour = tzOffsetSeconds !== null
+            ? Math.floor((Date.now() / 1000 + tzOffsetSeconds) / 3600) % 24
+            : new Date(
+                new Date().toLocaleString('en-AU', { timeZone: 'Australia/Melbourne' })
+              ).getHours();
 
-        // Current baseline score (0-100 scale, same as calculateSunstayScore)
+        // FIX 2: Per-slot isDay derived from real sunrise/sunset unix timestamps.
+        // slotUnix approximates the epoch of each future hourly slot relative to today's sunrise.
+        const inputForIndex = (i) => {
+            const slotUnix = sunrise != null
+                ? sunrise - (currentHour * 3600) + (i * 3600)
+                : null;
+            const isDay = (slotUnix != null && sunrise != null && sunset != null)
+                ? (slotUnix > sunrise && slotUnix < sunset ? 1 : 0)
+                : ((i % 24) >= 6 && (i % 24) <= 20 ? 1 : 0); // narrow fallback
+            return {
+                shortwaveRadiation:  hourly.shortwave_radiation?.[i]       ?? 0,
+                apparentTemp:        hourly.temperature_2m?.[i]            ?? 20,
+                precipProbability:   hourly.precipitation_probability?.[i] ?? 0,
+                cloudCover:          hourly.cloud_cover?.[i]               ?? 0,
+                windGusts:           currentGusts,
+                isDay,
+                uvIndex:             null,
+            };
+        };
+
         const currentScore = calculateLiveSunScore(inputForIndex(currentHour)).score;
-
-        let bestScore = currentScore;
+        let bestScore  = currentScore;
         let bestOffset = 0;
 
         for (let offset = 1; offset <= hoursAhead; offset++) {
-            const slotIndex = currentHour + offset;
-            if (slotIndex >= totalSlots) break;
+            // FIX 4: Clamp to 47 (never break early) so near-midnight scans fully
+            // utilise the 48-slot day-2 buffer without out-of-bounds reads.
+            const slotIndex = Math.min(currentHour + offset, 47);
 
-            // 2-hour rolling block average (smooths single-hour spikes)
-            const nextIndex = slotIndex + 1 < totalSlots ? slotIndex + 1 : slotIndex;
-            const blockScore = (
-                calculateLiveSunScore(inputForIndex(slotIndex)).score +
-                calculateLiveSunScore(inputForIndex(nextIndex)).score
-            ) / 2;
+            // FIX 3: Front-weighted 3-slot rolling average.
+            // Weights: 50% on the target slot, 35% on +1h, 15% on +2h.
+            // Slice auto-shrinks at the array edge — weightSum re-normalises.
+            const slots   = [slotIndex, slotIndex + 1, slotIndex + 2].filter(idx => idx <= 47);
+            const rawW    = [0.5, 0.35, 0.15].slice(0, slots.length);
+            const wSum    = rawW.reduce((a, b) => a + b, 0);
+            const blockScore = slots.reduce(
+                (acc, idx, j) => acc + calculateLiveSunScore(inputForIndex(idx)).score * rawW[j],
+                0
+            ) / wSum;
 
-            // Only promote if materially better (15-point threshold, not percentage)
+            // Promote only when materially better than current conditions.
+            // Threshold is 15 points (0–100 scale) — not 0.15.
             if (blockScore > bestScore && (blockScore - currentScore) > 15) {
-                bestScore = blockScore;
+                bestScore  = blockScore;
                 bestOffset = offset;
             }
         }
@@ -432,7 +467,7 @@ export const WeatherProvider = ({ children }) => {
         if (bestOffset === 0) {
             return {
                 type: 'CURRENT_PEAK',
-                label: `✨ Peak Comfort Right Now (Score: ${pct}%)`,
+                label: `\u2728 Peak Comfort Right Now (Score: ${pct}%)`,
                 score: bestScore,
                 startsInHours: 0,
             };
@@ -440,7 +475,7 @@ export const WeatherProvider = ({ children }) => {
 
         return {
             type: 'FUTURE_WINDOW',
-            label: `☀️ Golden Window: Starts in ${bestOffset}h (Score: ${pct}%)`,
+            label: `\u2600\uFE0F Golden Window: Starts in ${bestOffset}h (Score: ${pct}%)`,
             score: bestScore,
             startsInHours: bestOffset,
         };
