@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
@@ -15,7 +15,13 @@ export default function VenueCardHeader({
   venue,
 }) {
   const { getBestWindow } = useWeather();
-  const projection = getBestWindow();
+
+  // PERF: Memoize the 8-hour look-ahead projection so it only re-runs when
+  // weather data actually updates — not on every requestAnimationFrame tick
+  // triggered by VenueMap marker sync. getBestWindow is stable within the
+  // WeatherProvider closure, so this memo has the same invalidation boundary
+  // as the weather fetch cycle (~15 min).
+  const projection = useMemo(() => getBestWindow(), [getBestWindow]);
 
   // Only render the badge when we have a real result (not the fallback UNKNOWN state)
   const showProjection = projection.type === 'CURRENT_PEAK' || projection.type === 'FUTURE_WINDOW';
