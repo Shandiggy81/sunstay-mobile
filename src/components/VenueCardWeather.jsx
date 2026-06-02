@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import { useWeather } from '../context/WeatherContext';
 
 const Float = ({ children, delay = 0, range = 6, duration = 4, className = '' }) => (
   <motion.div
@@ -71,6 +72,48 @@ const ScoreOrb = ({ score }) => {
   );
 };
 
+// ─── Forward Window Badge ─────────────────────────────────────────────────────
+// Self-contained — reads getBestWindow() directly from context.
+// Hidden when type === 'UNKNOWN' (no hourly data / demo mode) to avoid layout shift.
+const WindowBadge = () => {
+  const { getBestWindow } = useWeather();
+  const win = getBestWindow(8);
+
+  if (!win || win.type === 'UNKNOWN') return null;
+
+  const isPeak = win.type === 'CURRENT_PEAK';
+  const bg     = isPeak ? 'rgba(245,158,11,0.12)' : 'rgba(14,165,233,0.10)';
+  const border = isPeak ? 'rgba(245,158,11,0.30)'  : 'rgba(14,165,233,0.25)';
+  const color  = isPeak ? '#B45309'                 : '#0369A1';
+  const emoji  = isPeak ? '✨'                       : '☀️';
+  const text   = isPeak
+    ? `Peak Comfort Now (${Math.round(win.score)}%)`
+    : `Golden Window: in ${win.startsInHours}h (${Math.round(win.score)}%)`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 22, delay: 0.55 }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '5px 10px',
+        borderRadius: 999,
+        background: bg,
+        border: `1px solid ${border}`,
+        alignSelf: 'flex-start',
+        marginTop: 6,
+      }}
+    >
+      <span style={{ fontSize: 12 }}>{emoji}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '0.01em' }}>{text}</span>
+    </motion.div>
+  );
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 const SparkLine = ({ data, color, label, unit }) => {
   if (!data || data.length < 2) return null;
   const max = Math.max(...data), min = Math.min(...data);
@@ -109,28 +152,34 @@ export default function VenueCardWeather({
   return (
     <>
       <motion.div
-        className="flex items-start gap-3"
+        className="flex flex-col"
         style={{ overflow: 'visible' }}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}
       >
-        <ScoreOrb score={score} />
-        <div className="flex flex-col justify-center ml-1 mr-2 flex-shrink-0" style={{ paddingTop: '6px' }}>
-          <span className="font-bold text-lg leading-tight tracking-wide" style={{ color: '#1E293B' }}>{scoreLabel}</span>
-          <span className="text-[11px] uppercase tracking-wider mt-0.5" style={{ color: '#64748B' }}>For Current Weather</span>
-          <span className="text-[11px] font-semibold mt-1" style={{ color: '#94A3B8' }}>{scoreMeaningLabel}</span>
+        {/* Score orb + stat chips row */}
+        <div className="flex items-start gap-3">
+          <ScoreOrb score={score} />
+          <div className="flex flex-col justify-center ml-1 mr-2 flex-shrink-0" style={{ paddingTop: '6px' }}>
+            <span className="font-bold text-lg leading-tight tracking-wide" style={{ color: '#1E293B' }}>{scoreLabel}</span>
+            <span className="text-[11px] uppercase tracking-wider mt-0.5" style={{ color: '#64748B' }}>Sunstay Score</span>
+            <span className="text-[11px] font-semibold mt-1" style={{ color: '#94A3B8' }}>{scoreMeaningLabel}</span>
+          </div>
+          <div className="flex-1 grid grid-cols-6 gap-1.5">
+            <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
+            <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
+            <StatChip className="col-span-2 min-w-0" icon="🌂" label="Rain" value={precipProb ? `${precipProb}%` : '0%'} delay={0.16} />
+            {(minTemp !== null && maxTemp !== null) && (
+              <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Range" value={`${Math.round(minTemp)}–${Math.round(maxTemp)}°`} delay={0.12} />
+            )}
+            <StatChip className="col-span-2 min-w-0" icon="🔆" label="UV" value={uvIndex ?? '–'} delay={0.24} />
+            <StatChip className="col-span-2 min-w-0" icon="🌿" label="Air" value={aqLabel} delay={0.32} />
+          </div>
         </div>
-        <div className="flex-1 grid grid-cols-6 gap-1.5">
-          <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
-          <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
-          <StatChip className="col-span-2 min-w-0" icon="🌂" label="Rain" value={precipProb ? `${precipProb}%` : '0%'} delay={0.16} />
-          {(minTemp !== null && maxTemp !== null) && (
-            <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Range" value={`${Math.round(minTemp)}–${Math.round(maxTemp)}°`} delay={0.12} />
-          )}
-          <StatChip className="col-span-2 min-w-0" icon="🔆" label="UV" value={uvIndex ?? '–'} delay={0.24} />
-          <StatChip className="col-span-2 min-w-0" icon="🌿" label="Air" value={aqLabel} delay={0.32} />
-        </div>
+
+        {/* Forward window badge — sits below the orb row, hidden when no hourly data */}
+        <WindowBadge />
       </motion.div>
 
       {hourlyData && (
