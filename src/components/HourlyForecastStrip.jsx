@@ -14,8 +14,6 @@ function getWeatherEmoji(code, isNight) {
   return isNight ? '🌙' : '🌤️';
 }
 
-// Inline shimmer so the loading state looks polished regardless of
-// whether Tailwind's animate-pulse class is available in the bundle.
 const ShimmerCard = () => (
   <div
     style={{
@@ -23,14 +21,13 @@ const ShimmerCard = () => (
       width: 54,
       height: 82,
       borderRadius: 14,
-      background: 'rgba(245,158,11,0.10)',
-      border: '1px solid rgba(245,158,11,0.12)',
+      background: 'rgba(255,255,255,0.08)',
+      border: '1px solid rgba(255,255,255,0.10)',
       animation: 'ss-pulse 1.4s ease-in-out infinite',
     }}
   />
 );
 
-// Inject the keyframe once at module level (safe to call multiple times).
 if (typeof document !== 'undefined' && !document.getElementById('ss-pulse-kf')) {
   const style = document.createElement('style');
   style.id = 'ss-pulse-kf';
@@ -43,7 +40,6 @@ export default function HourlyForecastStrip({ lat, lng }) {
   const [loading, setLoading]                 = useState(true);
   const [sunshineMinsToday, setSunshineMinsToday] = useState(null);
 
-  // Normalise lat/lng — accept string, number, or null
   const latNum = lat != null ? Number(lat) : NaN;
   const lngNum = lng != null ? Number(lng) : NaN;
   const hasCoords = Number.isFinite(latNum) && Number.isFinite(lngNum);
@@ -110,35 +106,59 @@ export default function HourlyForecastStrip({ lat, lng }) {
   // ── Loading state ─────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, paddingLeft: 12, paddingRight: 12, paddingTop: 4 }}>
-        {Array.from({ length: 6 }).map((_, i) => <ShimmerCard key={i} />)}
+      <div style={{
+        background: '#12141c',
+        borderRadius: 16,
+        padding: '12px 0 4px',
+        margin: '12px 0 0',
+      }}>
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, paddingLeft: 12, paddingRight: 12, paddingTop: 4 }}>
+          {Array.from({ length: 6 }).map((_, i) => <ShimmerCard key={i} />)}
+        </div>
       </div>
     );
   }
 
-  // ── No data / bad coords fallback ─────────────────────────────
+  // ── No data fallback ──────────────────────────────────────────
   if (!hourly.length) {
     return (
-      <div style={{ padding: '12px 16px', textAlign: 'center' }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>Forecast unavailable</span>
+      <div style={{
+        background: '#12141c',
+        borderRadius: 16,
+        padding: '12px 16px',
+        margin: '12px 0 0',
+        textAlign: 'center',
+      }}>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Forecast unavailable</span>
       </div>
     );
   }
 
   // ── Render strip ──────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {sunshineMinsToday !== null && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 12 }}>
-          <span style={{ color: '#FBBF24', fontSize: 11, fontWeight: 800 }}>☀️</span>
+    <div style={{
+      background: '#12141c',
+      borderRadius: 16,
+      padding: '12px 0 8px',
+      margin: '12px 0 0',
+      border: '1px solid rgba(255,255,255,0.07)',
+    }}>
+      {/* Section header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 12, paddingRight: 12, marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
+          12-Hour Forecast
+        </span>
+        {sunshineMinsToday !== null && (
           <span style={{ color: '#FCD34D', fontSize: 11, fontWeight: 800 }}>
-            {sunshineMinsToday >= 60
+            ☀️ {sunshineMinsToday >= 60
               ? `${(sunshineMinsToday / 60).toFixed(1)} hrs direct sun today`
               : `${sunshineMinsToday} mins direct sun today`}
           </span>
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, paddingLeft: 12, paddingRight: 12, paddingTop: 4, scrollbarWidth: 'none' }}>
+        )}
+      </div>
+
+      {/* Scrollable hour cards */}
+      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, paddingLeft: 12, paddingRight: 12, scrollbarWidth: 'none' }}>
         {hourly.map((hour, i) => {
           const sunData    = getSunData(latNum, lngNum);
           const startHour  = sunData?.startHour ?? 6;
@@ -156,31 +176,31 @@ export default function HourlyForecastStrip({ lat, lng }) {
                 flexShrink: 0,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                 padding: '10px 10px',
-                borderRadius: 16,
+                borderRadius: 14,
                 minWidth: 54,
-                background: isWet    ? 'rgba(56,189,248,0.10)'
-                          : isGolden ? 'rgba(245,158,11,0.13)'
-                          : isWarm   ? 'rgba(16,185,129,0.07)'
-                          : 'rgba(255,255,255,0.05)',
-                border: isWet    ? '1px solid rgba(56,189,248,0.22)'
-                      : isGolden ? '1px solid rgba(245,158,11,0.28)'
-                      : isWarm   ? '1px solid rgba(16,185,129,0.18)'
-                      : '1px solid rgba(255,255,255,0.08)',
+                background: isWet    ? 'rgba(56,189,248,0.12)'
+                          : isGolden ? 'rgba(245,158,11,0.16)'
+                          : isWarm   ? 'rgba(16,185,129,0.10)'
+                          : 'rgba(255,255,255,0.06)',
+                border: isWet    ? '1px solid rgba(56,189,248,0.25)'
+                      : isGolden ? '1px solid rgba(245,158,11,0.32)'
+                      : isWarm   ? '1px solid rgba(16,185,129,0.22)'
+                      : '1px solid rgba(255,255,255,0.10)',
               }}
             >
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontWeight: 700, margin: 0 }}>
+              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 700, margin: 0 }}>
                 {hour.time.toLocaleTimeString([], { hour: 'numeric', hour12: true }).replace(' ', '').toLowerCase()}
               </p>
-              <span style={{ fontSize: 16 }}>{getWeatherEmoji(hour.code, isNight)}</span>
+              <span style={{ fontSize: 18 }}>{getWeatherEmoji(hour.code, isNight)}</span>
               <p style={{ fontSize: 13, color: '#fff', fontWeight: 800, margin: 0 }}>{hour.temp}°</p>
-              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 700, margin: 0 }}>
+              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.50)', fontWeight: 700, margin: 0 }}>
                 {hour.precip > 0 ? `${hour.precip}%🌧️` : hour.solarW > 0 ? `${hour.solarW}W` : ''}
               </p>
               {hour.gusts > 25 && (
-                <p style={{ fontSize: 9, color: 'rgba(56,189,248,0.7)', fontWeight: 700, margin: 0 }}>💨{hour.gusts}</p>
+                <p style={{ fontSize: 9, color: 'rgba(125,211,252,0.85)', fontWeight: 700, margin: 0 }}>💨{hour.gusts}</p>
               )}
               {hour.feelsLike !== hour.temp && (
-                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', fontWeight: 600, margin: 0 }}>f{hour.feelsLike}°</p>
+                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 600, margin: 0 }}>f{hour.feelsLike}°</p>
               )}
             </div>
           );

@@ -19,6 +19,8 @@
  *    heatmap are fully self-contained with internal toggle state, no App.jsx props.
  *    Radar: RainViewer timestamp fetched on first toggle, auto-refreshed every 5 min.
  *    Heatmap: GeoJSON point weights derived from calculateSunstayScore with fallback.
+ * I. FAB touch fix — FAB wrapper uses touchAction:'auto' + stopPropagation on
+ *    touchEnd so the map container's touchAction:'none' never swallows button taps.
  */
 
 import React, {
@@ -220,7 +222,6 @@ const VenueMap = forwardRef(({
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
 
-    // FIX H: destructure calculateSunstayScore with undefined safety
     const { weather, calculateSunstayScore } = useWeather();
 
     const safeVenues = useMemo(
@@ -299,7 +300,6 @@ const VenueMap = forwardRef(({
             map.current.on('error', (e) => {
                 if (disposed) return;
                 const msg = e.error?.message || '';
-                // Suppress tile 404s from RainViewer frame transitions
                 if (msg.includes(RADAR_LAYER_ID) || msg.includes('tilecache.rainviewer')) return;
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
@@ -328,7 +328,7 @@ const VenueMap = forwardRef(({
         };
     }, []);
 
-    // ── FIX H: Radar toggle — fetch, inject, and auto-refresh ──────
+    // ── Radar toggle ───────────────────────────────────────────────
     useEffect(() => {
         if (!mapLoaded || !map.current) return;
 
@@ -351,8 +351,6 @@ const VenueMap = forwardRef(({
         };
 
         loadRadar();
-
-        // Auto-refresh every 5 minutes
         radarTimerRef.current = setInterval(loadRadar, 5 * 60 * 1000);
 
         return () => {
@@ -360,16 +358,14 @@ const VenueMap = forwardRef(({
         };
     }, [radarOn, mapLoaded]);
 
-    // ── FIX H: GPU-accelerated native comfort heatmap ───────────────
+    // ── GPU comfort heatmap ─────────────────────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
-        // Build GeoJSON — robust fallback if calculateSunstayScore isn't ready
         const geojsonFeatures = safeVenues.map(venue => {
             const rawScore = typeof calculateSunstayScore === 'function'
                 ? calculateSunstayScore(venue)
                 : 75;
-            // Clamp to [0,1] weight; guard NaN/undefined from uninitialised context
             const weight = Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75;
             return {
                 type: 'Feature',
@@ -395,17 +391,16 @@ const VenueMap = forwardRef(({
                     'heatmap-color': [
                         'interpolate', ['linear'], ['heatmap-density'],
                         0,    'rgba(0,0,0,0)',
-                        0.15, 'rgba(37,99,235,0.25)',   // Cold / Unfavourable — Blue
-                        0.45, 'rgba(16,185,129,0.40)',  // Moderate — Emerald
-                        0.75, 'rgba(245,158,11,0.55)',   // Great — Amber
-                        1.0,  'rgba(239,68,68,0.65)',   // Peak comfort — Red
+                        0.15, 'rgba(37,99,235,0.25)',
+                        0.45, 'rgba(16,185,129,0.40)',
+                        0.75, 'rgba(245,158,11,0.55)',
+                        1.0,  'rgba(239,68,68,0.65)',
                     ],
                     'heatmap-radius':  ['interpolate', ['linear'], ['zoom'], 0, 3, 15, 55],
                     'heatmap-opacity': 0.45,
                 },
             }, insertBefore);
         } else {
-            // Source already registered — update data in-place (no layer flash)
             map.current.getSource(HEATMAP_SOURCE_ID).setData(geojsonData);
         }
 
@@ -419,7 +414,7 @@ const VenueMap = forwardRef(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mapLoaded, safeVenues, comfortMapOn, weather, calculateSunstayScore]);
 
-    // ── fitBounds — fires once after venues arrive ──────────────────
+    // ── fitBounds once ──────────────────────────────────────────────
     useEffect(() => {
         if (!mapLoaded || !map.current || hasFlownToBounds.current) return;
         if (safeVenues.length <= 2) return;
@@ -518,22 +513,27 @@ const VenueMap = forwardRef(({
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
 
-            {/* ── FIX H: Self-contained FAB stack — Radar + Comfort heatmap ── */}
+            {/* FAB stack — FIX I: touchAction:'auto' + stopPropagation so the
+                map container's touchAction:'none' never swallows button taps */}
             {mapLoaded && !mapError && (
                 <div
                     style={{
-                        position:       'absolute',
-                        bottom:         80,
-                        right:          12,
-                        zIndex:         20,
-                        display:        'flex',
-                        flexDirection:  'column',
-                        gap:            8,
+                        position:        'absolute',
+                        bottom:          80,
+                        right:           12,
+                        zIndex:          20,
+                        display:         'flex',
+                        flexDirection:   'column',
+                        gap:             8,
+                        touchAction:     'auto',
+                        pointerEvents:   'auto',
                     }}
+                    onTouchEnd={e => e.stopPropagation()}
                 >
                     {/* Rain Radar FAB */}
                     <button
                         onClick={() => setRadarOn(prev => !prev)}
+                        onTouchEnd={e => { e.stopPropagation(); }}
                         title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
                         style={{
                             width:               44,
@@ -552,6 +552,7 @@ const VenueMap = forwardRef(({
                             boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
                             transition:          'background 200ms ease, border-color 200ms ease',
                             WebkitTapHighlightColor: 'transparent',
+                            touchAction:         'auto',
                         }}
                         aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
                         aria-pressed={radarOn}
@@ -562,6 +563,7 @@ const VenueMap = forwardRef(({
                     {/* Comfort Heatmap FAB */}
                     <button
                         onClick={() => setComfortMapOn(prev => !prev)}
+                        onTouchEnd={e => { e.stopPropagation(); }}
                         title={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
                         style={{
                             width:               44,
@@ -580,6 +582,7 @@ const VenueMap = forwardRef(({
                             boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
                             transition:          'background 200ms ease, border-color 200ms ease',
                             WebkitTapHighlightColor: 'transparent',
+                            touchAction:         'auto',
                         }}
                         aria-label={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
                         aria-pressed={comfortMapOn}
