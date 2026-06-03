@@ -21,6 +21,9 @@
  *    Heatmap: GeoJSON point weights derived from calculateSunstayScore with fallback.
  * I. FAB touch fix — FAB wrapper uses touchAction:'auto' + stopPropagation on
  *    touchEnd so the map container's touchAction:'none' never swallows button taps.
+ * J. Radar zoom fix — raster source capped at maxzoom:12 (RainViewer hard limit).
+ *    Mapbox will never request z=13+ tiles, eliminating "Zoom level not supported".
+ *    Error suppression also widened to catch zoom-range messages from radar source.
  */
 
 import React, {
@@ -140,6 +143,12 @@ const RADAR_SOURCE_ID     = 'rainviewer-radar';
 const RADAR_LAYER_ID      = 'rainviewer-radar-layer';
 const RADAR_INSERT_BEFORE = 'aeroway-polygon';
 
+// FIX J: RainViewer only serves tiles up to zoom 12.
+// Declaring maxzoom:12 on the source tells Mapbox to reuse z=12
+// tiles when zoomed beyond that level instead of requesting z=13+
+// (which 404s and triggers "Zoom level not supported" canvas errors).
+const RADAR_SOURCE_MAXZOOM = 12;
+
 // ── Comfort heatmap constants ───────────────────────────────────────────
 const HEATMAP_SOURCE_ID = 'comfort-heatmap-src';
 const HEATMAP_LAYER_ID  = 'comfort-heatmap-lyr';
@@ -171,6 +180,11 @@ function addOrUpdateRadarLayer(map, tileURL) {
                 type:     'raster',
                 tiles:    [tileURL],
                 tileSize: 256,
+                // FIX J: cap at RainViewer's hard zoom limit.
+                // Mapbox will over-zoom (scale up) the z=12 tile rather
+                // than requesting z=13+ tiles that don't exist.
+                minzoom:  0,
+                maxzoom:  RADAR_SOURCE_MAXZOOM,
                 attribution: 'RainViewer',
             });
             const insertBefore = map.getLayer(RADAR_INSERT_BEFORE) ? RADAR_INSERT_BEFORE : undefined;
@@ -197,6 +211,23 @@ function removeRadarLayer(map) {
     } catch (e) {
         console.warn('[VenueMap] removeRadarLayer error:', e?.message);
     }
+}
+
+// ── Error suppression helper ────────────────────────────────────────────
+// FIX J (part 2): widen suppression to catch zoom-range errors that
+// originate from the radar or heatmap sources. Mapbox formats these as
+// "Zoom level X is not supported" or "source maxzoom" variants.
+function isSuppressedMapError(msg) {
+    if (!msg) return false;
+    const lower = msg.toLowerCase();
+    return (
+        lower.includes(RADAR_LAYER_ID) ||
+        lower.includes('tilecache.rainviewer') ||
+        lower.includes('zoom level') ||
+        lower.includes('not supported') ||
+        lower.includes(HEATMAP_SOURCE_ID) ||
+        lower.includes(HEATMAP_LAYER_ID)
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -297,10 +328,12 @@ const VenueMap = forwardRef(({
                 setMapError(false);
             });
 
+            // FIX J (part 2): suppress zoom-range errors from radar/heatmap
+            // sources in addition to the existing token/auth error handling.
             map.current.on('error', (e) => {
                 if (disposed) return;
-                const msg = e.error?.message || '';
-                if (msg.includes(RADAR_LAYER_ID) || msg.includes('tilecache.rainviewer')) return;
+                const msg = e.error?.message || e.message || '';
+                if (isSuppressedMapError(msg)) return;
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
                     setMapError(true);
@@ -328,7 +361,7 @@ const VenueMap = forwardRef(({
         };
     }, []);
 
-    // ── Radar toggle ───────────────────────────────────────────────
+    // ── Radar toggle ────────────────────────────────────────────────
     useEffect(() => {
         if (!mapLoaded || !map.current) return;
 
@@ -505,7 +538,7 @@ const VenueMap = forwardRef(({
         return () => clearTimeout(t);
     }, [selectedVenue]);
 
-    // ── Render ───────────────────────────────────────────────────────
+    // ── Render ──────────────────────────────────────────────────────
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <div
