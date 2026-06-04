@@ -189,9 +189,10 @@ const AppContent = () => {
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
     const [liveVenueFeatures, setLiveVenueFeatures]   = useState({});
 
-    useEffect(() => {
-        if (comfort.cozy) setActiveFilter('Cozy');
-    }, [comfort.cozy]);
+    // NOTE: Auto-cozy filter removed. comfort.cozy is intentionally NOT used
+    // to silently mutate activeFilter on load — doing so filtered the venue
+    // list before fitBounds ran, causing VenueMap to zoom out to all of
+    // Victoria on rainy days. The Cozy button remains fully interactive.
 
     const [customFilters, setCustomFilters] = useState(
         () => readJsonArray('sunstay-custom-filters')
@@ -497,9 +498,13 @@ const AppContent = () => {
                         <div className="ss-map-container">
                             <MapErrorBoundary>
                                 <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
+                                    {/* FIX: venues receives the full demoVenues array so VenueMap's
+                                        fitBounds always initialises over Melbourne regardless of
+                                        active filters. Pin visibility is controlled separately
+                                        by filteredVenueIds={stableFilteredIds}. */}
                                     <VenueMap
                                         ref={mapRef}
-                                        venues={filteredVenues}
+                                        venues={demoVenues}
                                         onVenueSelect={handleVenueSelect}
                                         selectedVenue={selectedVenue}
                                         filteredVenueIds={stableFilteredIds}
