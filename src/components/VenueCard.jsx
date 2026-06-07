@@ -14,6 +14,7 @@ import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
+import { useWeather } from '../context/WeatherContext';
 
 // ── Helpers ────────────────────────────────────────────────
 const ACCOMMODATION_VIBES = [
@@ -186,6 +187,84 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
   );
 };
 
+// ── Sunstay Score Badge ────────────────────────────────────
+const SunstayScoreBadge = ({ score, bestWindow }) => {
+  const pct = Math.round(Math.max(0, Math.min(100, score)));
+
+  // Colour ramp: cold/poor → blue, mid → amber, high → emerald
+  const { bg, border, text, fill } = pct >= 75
+    ? { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.28)', text: '#065F46', fill: '#10B981' }
+    : pct >= 50
+    ? { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.28)', text: '#92400E', fill: '#F59E0B' }
+    : { bg: 'rgba(14,165,233,0.07)', border: 'rgba(14,165,233,0.22)', text: '#0C4A6E', fill: '#0EA5E9' };
+
+  const emoji = pct >= 75 ? '☀️' : pct >= 50 ? '🌤️' : '🌥️';
+  const label = pct >= 75 ? 'Peak Comfort' : pct >= 50 ? 'Good Conditions' : 'Worth a Look';
+
+  // Best window line (only show if there is a meaningful future window)
+  const showWindow = bestWindow?.type === 'FUTURE_WINDOW' && bestWindow.startsInHours > 0;
+
+  return (
+    <motion.div
+      className="rounded-2xl px-4 py-3 flex items-center gap-3"
+      style={{ background: bg, border: `1px solid ${border}` }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 26, delay: 0.08 }}
+    >
+      {/* Circular score ring */}
+      <div className="relative flex-shrink-0" style={{ width: 52, height: 52 }}>
+        <svg width="52" height="52" viewBox="0 0 52 52" style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="4" />
+          <motion.circle
+            cx="26" cy="26" r="22" fill="none"
+            stroke={fill} strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={`${2 * Math.PI * 22}`}
+            initial={{ strokeDashoffset: 2 * Math.PI * 22 }}
+            animate={{ strokeDashoffset: 2 * Math.PI * 22 * (1 - pct / 100) }}
+            transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[13px] font-black leading-none" style={{ color: text }}>{pct}</span>
+        </div>
+      </div>
+
+      {/* Labels */}
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[0.65rem] font-black uppercase tracking-widest" style={{ color: text }}>Sunstay Score</span>
+          <span className="text-base leading-none">{emoji}</span>
+        </div>
+        <span className="text-[15px] font-black leading-tight" style={{ color: '#1E293B' }}>{label}</span>
+        {showWindow && (
+          <motion.span
+            className="text-[11px] font-semibold leading-tight mt-0.5"
+            style={{ color: text }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.45 }}
+          >
+            {`☀️ Golden window starts in ${bestWindow.startsInHours}h`}
+          </motion.span>
+        )}
+        {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && (
+          <motion.span
+            className="text-[11px] font-semibold leading-tight mt-0.5"
+            style={{ color: '#065F46' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.45 }}
+          >
+            ✨ Peak comfort right now
+          </motion.span>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
 // ── Main VenueCard ────────────────────────────────────────────
 function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const dragControls = useDragControls();
@@ -193,6 +272,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const mouseY = useMotionValue(0);
   const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [4, -4]), { stiffness: 200, damping: 25 });
   const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-4, 4]), { stiffness: 200, damping: 25 });
+
+  // Pull calculateSunstayScore + getBestWindow from context
+  const { calculateSunstayScore, getBestWindow } = useWeather();
 
   function handlePointerMove(e) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -211,7 +293,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
   const wind       = weather?.rawWeather?.wind ?? weather?.wind?.speed ?? 0;
-  const score      = weather?.score ?? weather?.rawWeather?.score ?? 70;
+  // Use context-computed score (venue-adjusted) if available, fall back to prop score
+  const contextScore = typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null;
+  const score      = contextScore ?? weather?.score ?? weather?.rawWeather?.score ?? 70;
   const uvIndex    = weather?.rawWeather?.uvIndex ?? venue?.weatherNow?.uvIndex ?? 3;
   const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
@@ -325,6 +409,13 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const peakStartDecimal = Number.isFinite(sunData?.startHour) ? sunData.startHour : null;
   const peakEndDecimal   = Number.isFinite(sunData?.endHour)   ? sunData.endHour   : null;
 
+  // Compute best window once per render (stable — getBestWindow reads from context weather)
+  const bestWindow = useMemo(
+    () => typeof getBestWindow === 'function' ? getBestWindow(8) : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getBestWindow]
+  );
+
   const blobA = isRain ? 'rgba(14,165,233,0.12)' : 'rgba(245,158,11,0.10)';
   const blobB = isRain ? 'rgba(99,102,241,0.07)' : 'rgba(14,165,233,0.08)';
   const liveFeaturesForVenue = venue?.id ? liveVenueFeatures?.[venue.id] : null;
@@ -381,6 +472,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               dragControls={dragControls}
               venue={venue}
             />
+
+            {/* ── SUNSTAY SCORE BADGE + BEST WINDOW ── */}
+            <SunstayScoreBadge score={score} bestWindow={bestWindow} />
 
             {/* LIVE PREDICTIVE NOWCAST RADAR TRACKER
                 Only renders when Tomorrow.io detects rain within 45 mins.
