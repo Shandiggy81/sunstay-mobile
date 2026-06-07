@@ -541,6 +541,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               sunshineMins={sunshineMins}
               daylightHours={daylightHours}
               venue={venue}
+              weather={weather}
+              calculateSunstayScore={calculateSunstayScore}
+              getBestWindow={getBestWindow}
             />
             <LiveSunTimeline
               sunData={sunData}
