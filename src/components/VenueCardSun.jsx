@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import BalconySunWidget from './BalconySunWidget';
+import SunshineScoreBadge from './SunshineScoreBadge';
 
 // ── Helpers used only within this file ──────────────────────────
 const ACCOMMODATION_KEYWORDS = [
@@ -84,6 +85,65 @@ const GoldenWindowBar = ({ sunData }) => {
   );
 };
 
+// ── Live score + best window strip ──────────────────────────
+const LiveScoreStrip = ({ venue, weather, calculateSunstayScore, getBestWindow }) => {
+  // Guard: need at least a venue and the context functions
+  if (!venue || typeof calculateSunstayScore !== 'function' || typeof getBestWindow !== 'function') return null;
+
+  const score = calculateSunstayScore(venue);
+  const window = getBestWindow(8);
+
+  // Choose colour based on score tier
+  const scoreColor =
+    score >= 75 ? '#F59E0B' :   // amber — great
+    score >= 50 ? '#10B981' :   // emerald — good
+    score >= 30 ? '#64748B' :   // slate — marginal
+                  '#3B82F6';    // blue — cold/unfavourable
+
+  const windowColor = window.type === 'CURRENT_PEAK' ? '#F59E0B' : '#10B981';
+
+  return (
+    <div
+      className="flex items-center justify-between gap-2 mt-2 pt-2 flex-wrap"
+      style={{ borderTop: '1px solid rgba(245,158,11,0.12)' }}
+    >
+      {/* Left: Sunstay Score badge */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] uppercase tracking-widest font-black" style={{ color: '#64748B' }}>
+          Sunstay Score
+        </span>
+        <span
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-black"
+          style={{
+            background: `${scoreColor}18`,
+            color: scoreColor,
+            border: `1px solid ${scoreColor}40`,
+            fontSize: '11px',
+          }}
+        >
+          {score >= 75 ? '☀️' : score >= 50 ? '😎' : score >= 30 ? '🌤️' : '🥶'} {Math.round(score)}
+          <span className="font-normal opacity-70" style={{ fontSize: '9px' }}>/100</span>
+        </span>
+        {/* Static SunshineScoreBadge for the venue-level score */}
+        {weather && <SunshineScoreBadge venue={venue} weather={weather} size="md" showLabel={false} />}
+      </div>
+
+      {/* Right: Forward window projection from getBestWindow */}
+      {window.type !== 'UNKNOWN' && (
+        <motion.span
+          className="text-[11px] font-semibold"
+          style={{ color: windowColor }}
+          initial={{ opacity: 0, x: 6 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4, duration: 0.4 }}
+        >
+          {window.label}
+        </motion.span>
+      )}
+    </div>
+  );
+};
+
 // ── Main export ──────────────────────────────────────────────
 export default function VenueCardSun({
   sunData,
@@ -94,8 +154,11 @@ export default function VenueCardSun({
   displaySunset,
   sunshineMins,
   daylightHours,
-  // New props for balcony widget
+  // Venue + live weather props (additive — callers that omit these get old layout)
   venue,
+  weather,
+  calculateSunstayScore,
+  getBestWindow,
 }) {
   if (!hourlyData) return null;
 
@@ -124,10 +187,17 @@ export default function VenueCardSun({
         )}
       </div>
 
+      {/* ─── Live Sunstay Score + forward window projection ─── */}
+      <LiveScoreStrip
+        venue={venue}
+        weather={weather}
+        calculateSunstayScore={calculateSunstayScore}
+        getBestWindow={getBestWindow}
+      />
+
       {/* Sunrise / Sunset / Sun hours meta row */}
       <div className="flex gap-5 mt-3 pt-3 flex-wrap" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
         <div className="flex flex-col">
-          {/* FIX B: #334155 (Slate 700) replaces #94A3B8 across all sun meta grid labels */}
           <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#334155' }}>Sunrise</span>
           <span className="font-black text-sm text-amber-500">{displaySunrise}</span>
         </div>
