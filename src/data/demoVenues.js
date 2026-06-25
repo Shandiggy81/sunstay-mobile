@@ -12,6 +12,36 @@
  * can add "many venues per company" without changing map code.
  */
 
+// ── Filter Categories (used by FilterSheet) ───────────────────────
+export const FILTER_CATEGORIES = [
+  { id: 'Sunny',              icon: '☀️',  label: 'Sunny Patio' },
+  { id: 'Rooftop',            icon: '🏙️',  label: 'Rooftop' },
+  { id: 'Beer Garden',        icon: '🍺',  label: 'Beer Garden' },
+  { id: 'Cozy',               icon: '🔥',  label: 'Cozy & Covered' },
+  { id: 'Fireplace',          icon: '🪵',  label: 'Fireplace' },
+  { id: 'Pet Friendly',       icon: '🐶',  label: 'Pet Friendly' },
+  { id: 'Pram Friendly',      icon: '🍼',  label: 'Pram Friendly' },
+  { id: 'Live Music',         icon: '🎸',  label: 'Live Music' },
+  { id: 'Views',              icon: '🌅',  label: 'Views' },
+  { id: 'Wheelchair Accessible', icon: '♿', label: 'Accessible' },
+  { id: 'Craft Beer',         icon: '🍻',  label: 'Craft Beer' },
+  { id: 'Cocktails',          icon: '🍸',  label: 'Cocktails' },
+  { id: 'Vegan',              icon: '🥗',  label: 'Vegan Options' },
+  { id: 'Specialty Coffee',   icon: '☕',  label: 'Specialty Coffee' },
+  { id: 'Large Groups',       icon: '👥',  label: 'Large Groups' },
+  { id: 'Smoking Area',       icon: '🚬',  label: 'Smoking Area' },
+  { id: 'Shaded',             icon: '⛱️',  label: 'Shaded' },
+  { id: 'Indoor Warmth',      icon: '🧥',  label: 'Indoor Warmth' },
+  { id: 'Heaters',            icon: '🌡️',  label: 'Heaters' },
+  { id: 'River',              icon: '🌊',  label: 'Waterfront' },
+  { id: 'Premium',            icon: '💎',  label: 'Premium' },
+  { id: 'Afternoon Sun',      icon: '🌤️',  label: 'Afternoon Sun' },
+  { id: 'Morning Sun',        icon: '🌄',  label: 'Morning Sun' },
+  { id: 'Hotel',              icon: '🏨',  label: 'Hotel' },
+  { id: 'Short Stay',         icon: '🛌',  label: 'Short Stay' },
+  { id: 'Balcony',            icon: '🏡',  label: 'Balcony' },
+];
+
 // ── Target Companies (from Airtable / outreach list) ──────────────
 export const targetCompanies = [
     { name: 'Australian Venue Co', segment: 'Large Group', priority: 'High', status: 'Outreach Planned' },
@@ -85,7 +115,6 @@ export const demoVenues = [
         lng: 144.99223,
         emoji: '🍸',
         vibe: 'Rooftop Club',
-        // fix: removed duplicate 'Views' tag
         tags: ['Party', 'Views', 'Rooftop', 'Smoking Area', 'Shaded', 'Live Music', 'Craft Beer'],
         heating: 'heated outdoor',
         price: '$$$',
@@ -453,7 +482,6 @@ export const demoVenues = [
         lng: 144.9680,
         emoji: '🚉',
         vibe: 'High-Exposure Rooftop',
-        // fix: removed duplicate 'Views' tag
         tags: ['Rooftop', 'Views', 'Sunny', 'Exposed', 'Windy'],
         heating: 'heated outdoor',
         price: '$$$',
