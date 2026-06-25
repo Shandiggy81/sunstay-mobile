@@ -1,31 +1,3 @@
-/**
- * VenueMap — HTML Marker emoji pins, performance-optimised
- *
- * Memory & crash fixes (iOS Safari):
- * A. selectedVenue flyTo effect: clearTimeout on cleanup prevents stacked
- *    resize()+flyTo() calls exhausting the WebGL context.
- * B. liveVenueFeatures stabilised via JSON-serialised ref — marker sync effect
- *    only re-runs when live feature VALUES change, not on every parent render.
- * C. Marker sync gated behind requestAnimationFrame so it never runs in the
- *    same microtask flush as fitBounds (prevents dual WebGL thrash on first paint).
- * D. Map cleanup: marker.remove() + map.remove() + null refs on unmount.
- * E. click-only marker interaction — touchend removed, touch-action omitted on
- *    pin elements so Mapbox handles pinch/pan gestures unobstructed.
- * F. sunshineNow pin state — ☀️ with yellow glow, takes precedence over 🔥 heater.
- * G. Outer/inner marker architecture — outer el given to Mapbox for positioning ONLY.
- *    All scale transforms, transitions, and styles applied to inner child so
- *    scale(1.2) never clobbers Mapbox's translate(Xpx, Ypx) on the outer wrapper.
- * H. Internalised layer controls — Radar XYZ raster tiles & native GPU comfort
- *    heatmap are fully self-contained with internal toggle state, no App.jsx props.
- *    Radar: RainViewer timestamp fetched on first toggle, auto-refreshed every 5 min.
- *    Heatmap: GeoJSON point weights derived from calculateSunstayScore with fallback.
- * I. FAB touch fix — FAB wrapper uses touchAction:'auto' + stopPropagation on
- *    touchEnd so the map container's touchAction:'none' never swallows button taps.
- * J. Radar zoom fix — raster source capped at maxzoom:12 (RainViewer hard limit).
- *    Mapbox will never request z=13+ tiles, eliminating "Zoom level not supported".
- *    Error suppression also widened to catch zoom-range messages from radar source.
- */
-
 import React, {
     useEffect, useMemo, useRef, useState,
     forwardRef, useImperativeHandle, memo,
@@ -137,21 +109,51 @@ function updateMarkerEl(el, pinKey) {
         : 'none';
 }
 
-// ── RainViewer helpers ──────────────────────────────────────────────────
+function createClusterMarkerEl(count) {
+    const el = document.createElement('div');
+    el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center;';
+    
+    const inner = document.createElement('div');
+    inner.style.cssText = [
+        'width:40px', 'height:40px', 'border-radius:50%',
+        'background:#3B82F6', 'border:3px solid #1D4ED8',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'font-size:16px', 'font-weight:bold', 'color:white',
+        'cursor:pointer', 'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
+        'transition:transform 120ms ease', 'user-select:none',
+        'will-change:transform', '-webkit-tap-highlight-color:transparent'
+    ].join(';');
+
+    inner.textContent = count;
+
+    inner.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.1)'; });
+    inner.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
+
+    el.appendChild(inner);
+    return el;
+}
+
+function updateClusterMarkerEl(el, count) {
+    const inner = el.querySelector('div');
+    if (inner) inner.textContent = count;
+}
+
+// ── Layer helpers ───────────────────────────────────────────────────────
 const RAINVIEWER_META_URL = 'https://api.rainviewer.com/public/weather-maps.json';
 const RADAR_SOURCE_ID     = 'rainviewer-radar';
 const RADAR_LAYER_ID      = 'rainviewer-radar-layer';
 const RADAR_INSERT_BEFORE = 'aeroway-polygon';
-
-// FIX J: RainViewer only serves tiles up to zoom 12.
-// Declaring maxzoom:12 on the source tells Mapbox to reuse z=12
-// tiles when zoomed beyond that level instead of requesting z=13+
-// (which 404s and triggers "Zoom level not supported" canvas errors).
 const RADAR_SOURCE_MAXZOOM = 12;
 
-// ── Comfort heatmap constants ───────────────────────────────────────────
 const HEATMAP_SOURCE_ID = 'comfort-heatmap-src';
 const HEATMAP_LAYER_ID  = 'comfort-heatmap-lyr';
+
+const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_KEY || '').trim();
+const CLOUD_SOURCE_ID = 'openweathermap-cloud';
+const CLOUD_LAYER_ID  = 'openweathermap-cloud-layer';
+
+const CLUSTER_SOURCE_ID = 'venues-cluster-src';
+const CLUSTER_LAYER_ID  = 'venues-cluster-lyr';
 
 async function fetchRadarTimestamp() {
     try {
@@ -180,9 +182,6 @@ function addOrUpdateRadarLayer(map, tileURL) {
                 type:     'raster',
                 tiles:    [tileURL],
                 tileSize: 256,
-                // FIX J: cap at RainViewer's hard zoom limit.
-                // Mapbox will over-zoom (scale up) the z=12 tile rather
-                // than requesting z=13+ tiles that don't exist.
                 minzoom:  0,
                 maxzoom:  RADAR_SOURCE_MAXZOOM,
                 attribution: 'RainViewer',
@@ -213,10 +212,44 @@ function removeRadarLayer(map) {
     }
 }
 
-// ── Error suppression helper ────────────────────────────────────────────
-// FIX J (part 2): widen suppression to catch zoom-range errors that
-// originate from the radar or heatmap sources. Mapbox formats these as
-// "Zoom level X is not supported" or "source maxzoom" variants.
+function addOrUpdateCloudLayer(map) {
+    if (!map || !WEATHER_API_KEY) return;
+    try {
+        if (!map.getSource(CLOUD_SOURCE_ID)) {
+            map.addSource(CLOUD_SOURCE_ID, {
+                type: 'raster',
+                tiles: [`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${WEATHER_API_KEY}`],
+                tileSize: 256,
+                minzoom: 0,
+                maxzoom: 18,
+                attribution: 'OpenWeatherMap',
+            });
+            const insertBefore = map.getLayer(RADAR_INSERT_BEFORE) ? RADAR_INSERT_BEFORE : undefined;
+            map.addLayer({
+                id: CLOUD_LAYER_ID,
+                type: 'raster',
+                source: CLOUD_SOURCE_ID,
+                paint: {
+                    'raster-opacity': 0.65,
+                    'raster-fade-duration': 150,
+                },
+            }, insertBefore);
+        }
+    } catch (e) {
+        console.warn('[VenueMap] addOrUpdateCloudLayer error:', e?.message);
+    }
+}
+
+function removeCloudLayer(map) {
+    if (!map) return;
+    try {
+        if (map.getLayer(CLOUD_LAYER_ID))   map.removeLayer(CLOUD_LAYER_ID);
+        if (map.getSource(CLOUD_SOURCE_ID)) map.removeSource(CLOUD_SOURCE_ID);
+    } catch (e) {
+        console.warn('[VenueMap] removeCloudLayer error:', e?.message);
+    }
+}
+
 function isSuppressedMapError(msg) {
     if (!msg) return false;
     const lower = msg.toLowerCase();
@@ -226,7 +259,9 @@ function isSuppressedMapError(msg) {
         lower.includes('zoom level') ||
         lower.includes('not supported') ||
         lower.includes(HEATMAP_SOURCE_ID) ||
-        lower.includes(HEATMAP_LAYER_ID)
+        lower.includes(HEATMAP_LAYER_ID) ||
+        lower.includes(CLOUD_SOURCE_ID) ||
+        lower.includes(CLOUD_LAYER_ID)
     );
 }
 
@@ -245,9 +280,9 @@ const VenueMap = forwardRef(({
     const rafRef           = useRef(null);
     const radarTimerRef    = useRef(null);
 
-    // ── Internalised layer toggle state ────────────────────────────
     const [radarOn,      setRadarOn]      = useState(false);
     const [comfortMapOn, setComfortMapOn] = useState(false);
+    const [cloudOn,      setCloudOn]      = useState(false);
     const [radarLoading, setRadarLoading] = useState(false);
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
@@ -259,6 +294,11 @@ const VenueMap = forwardRef(({
         () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
         [venues]
     );
+    const venuesMapRef = useRef(new Map());
+    useEffect(() => {
+        venuesMapRef.current = new Map(safeVenues.map(v => [String(v.id), v]));
+    }, [safeVenues]);
+
     const filteredIdSet = useMemo(() => {
         if (!Array.isArray(filteredVenueIds)) return null;
         return new Set(filteredVenueIds.map(id => String(id)));
@@ -271,7 +311,6 @@ const VenueMap = forwardRef(({
     const liveKey = JSON.stringify(liveVenueFeatures);
     useEffect(() => {
         liveVenueFeaturesRef.current = liveVenueFeatures;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [liveKey]);
 
     // ── Imperative API ──────────────────────────────────────────────
@@ -328,8 +367,6 @@ const VenueMap = forwardRef(({
                 setMapError(false);
             });
 
-            // FIX J (part 2): suppress zoom-range errors from radar/heatmap
-            // sources in addition to the existing token/auth error handling.
             map.current.on('error', (e) => {
                 if (disposed) return;
                 const msg = e.error?.message || e.message || '';
@@ -391,11 +428,26 @@ const VenueMap = forwardRef(({
         };
     }, [radarOn, mapLoaded]);
 
-    // ── GPU comfort heatmap ─────────────────────────────────────────
+    // ── Cloud toggle ────────────────────────────────────────────────
+    useEffect(() => {
+        if (!mapLoaded || !map.current) return;
+
+        if (cloudOn) {
+            addOrUpdateCloudLayer(map.current);
+        } else {
+            removeCloudLayer(map.current);
+        }
+    }, [cloudOn, mapLoaded]);
+
+    // ── Cluster source + GPU comfort heatmap ─────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
-        const geojsonFeatures = safeVenues.map(venue => {
+        const visibleVenues = filteredIdSet 
+            ? safeVenues.filter(v => filteredIdSet.has(String(v.id)))
+            : safeVenues;
+
+        const geojsonFeatures = visibleVenues.map(venue => {
             const rawScore = typeof calculateSunstayScore === 'function'
                 ? calculateSunstayScore(venue)
                 : 75;
@@ -403,11 +455,31 @@ const VenueMap = forwardRef(({
             return {
                 type: 'Feature',
                 geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
-                properties: { score: weight },
+                properties: { id: venue.id, score: weight },
             };
         });
 
         const geojsonData = { type: 'FeatureCollection', features: geojsonFeatures };
+
+        if (!map.current.getSource(CLUSTER_SOURCE_ID)) {
+            map.current.addSource(CLUSTER_SOURCE_ID, {
+                type: 'geojson',
+                data: geojsonData,
+                cluster: true,
+                clusterMaxZoom: 14,
+                clusterRadius: 50
+            });
+            
+            // Dummy layer required to query rendered features
+            map.current.addLayer({
+                id: CLUSTER_LAYER_ID,
+                type: 'circle',
+                source: CLUSTER_SOURCE_ID,
+                paint: { 'circle-radius': 0, 'circle-opacity': 0 }
+            });
+        } else {
+            map.current.getSource(CLUSTER_SOURCE_ID).setData(geojsonData);
+        }
 
         if (!map.current.getSource(HEATMAP_SOURCE_ID)) {
             map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: geojsonData });
@@ -444,8 +516,7 @@ const VenueMap = forwardRef(({
                 comfortMapOn ? 'visible' : 'none'
             );
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapLoaded, safeVenues, comfortMapOn, weather, calculateSunstayScore]);
+    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore]);
 
     // ── fitBounds once ──────────────────────────────────────────────
     useEffect(() => {
@@ -465,56 +536,98 @@ const VenueMap = forwardRef(({
         }
     }, [mapLoaded, safeVenues]);
 
-    // ── Sync markers ────────────────────────────────────────────────
+    // ── Sync clustered markers ───────────────────────────────────────
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
-        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        const syncMarkers = () => {
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            rafRef.current = requestAnimationFrame(() => {
+                if (!map.current || !map.current.isSourceLoaded(CLUSTER_SOURCE_ID)) return;
+                
+                const features = map.current.queryRenderedFeatures({ layers: [CLUSTER_LAYER_ID] });
+                const newMarkers = {};
+                const live = liveVenueFeaturesRef.current;
 
-        rafRef.current = requestAnimationFrame(() => {
-            if (!map.current) return;
-            const visible  = filteredIdSet;
-            const live     = liveVenueFeaturesRef.current;
+                features.forEach(feature => {
+                    const coords = feature.geometry.coordinates;
+                    const isCluster = feature.properties.cluster;
+                    let markerId = '';
 
-            safeVenues.forEach(venue => {
-                const pinKey   = getPinStateKey(venue, weather, live);
-                const existing = markersRef.current[venue.id];
-                const show     = !visible || visible.has(String(venue.id));
+                    if (isCluster) {
+                        markerId = `cluster-${feature.properties.cluster_id}`;
+                        const count = feature.properties.point_count;
+                        let existing = markersRef.current[markerId];
 
-                if (existing) {
-                    existing.el.style.display = show ? 'flex' : 'none';
-                    if (show && existing.pinKey !== pinKey) {
-                        updateMarkerEl(existing.el, pinKey);
-                        existing.pinKey = pinKey;
+                        if (existing) {
+                            if (existing.count !== count) {
+                                updateClusterMarkerEl(existing.el, count);
+                                existing.count = count;
+                            }
+                        } else {
+                            const el = createClusterMarkerEl(count);
+                            el.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                map.current.easeTo({ center: coords, zoom: map.current.getZoom() + 2 });
+                            });
+                            const marker = new mapboxgl.Marker({ element: el })
+                                .setLngLat(coords)
+                                .addTo(map.current);
+                            existing = { marker, el, count, isCluster: true };
+                        }
+                        newMarkers[markerId] = existing;
+                    } else {
+                        const venueId = feature.properties.id;
+                        markerId = `venue-${venueId}`;
+                        const venue = venuesMapRef.current.get(String(venueId));
+                        if (!venue) return;
+
+                        const pinKey = getPinStateKey(venue, weather, live);
+                        let existing = markersRef.current[markerId];
+
+                        if (existing) {
+                            if (existing.pinKey !== pinKey) {
+                                updateMarkerEl(existing.el, pinKey);
+                                existing.pinKey = pinKey;
+                            }
+                        } else {
+                            const el = createMarkerEl(pinKey);
+                            el.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                onVenueSelectRef.current?.(venue);
+                            });
+                            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+                                .setLngLat(coords)
+                                .addTo(map.current);
+                            existing = { marker, el, pinKey, isCluster: false };
+                        }
+                        newMarkers[markerId] = existing;
                     }
-                } else if (show) {
-                    const el = createMarkerEl(pinKey);
-                    el.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        onVenueSelectRef.current?.(venue);
-                    });
-                    const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-                        .setLngLat([Number(venue.lng), Number(venue.lat)])
-                        .addTo(map.current);
-                    markersRef.current[venue.id] = { marker, el, pinKey };
-                }
-            });
+                });
 
-            const venueIds = new Set(safeVenues.map(v => String(v.id)));
-            Object.keys(markersRef.current).forEach(id => {
-                if (!venueIds.has(id)) {
-                    markersRef.current[id].marker.remove();
-                    delete markersRef.current[id];
-                }
+                Object.keys(markersRef.current).forEach(id => {
+                    if (!newMarkers[id]) {
+                        markersRef.current[id].marker.remove();
+                    }
+                });
+                markersRef.current = newMarkers;
             });
-        });
+        };
+
+        map.current.on('data', syncMarkers);
+        map.current.on('move', syncMarkers);
+        map.current.on('moveend', syncMarkers);
 
         return () => {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            if (map.current) {
+                map.current.off('data', syncMarkers);
+                map.current.off('move', syncMarkers);
+                map.current.off('moveend', syncMarkers);
+            }
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [safeVenues, weather, liveKey, filteredIdSet, mapLoaded]);
+    }, [mapLoaded, weather, liveKey]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {
@@ -546,8 +659,7 @@ const VenueMap = forwardRef(({
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
 
-            {/* FAB stack — FIX I: touchAction:'auto' + stopPropagation so the
-                map container's touchAction:'none' never swallows button taps */}
+            {/* FAB stack */}
             {mapLoaded && !mapError && (
                 <div
                     style={{
@@ -622,6 +734,38 @@ const VenueMap = forwardRef(({
                     >
                         🔥
                     </button>
+
+                    {/* Cloud Cover FAB */}
+                    {WEATHER_API_KEY && (
+                        <button
+                            onClick={() => setCloudOn(prev => !prev)}
+                            onTouchEnd={e => { e.stopPropagation(); }}
+                            title={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
+                            style={{
+                                width:               44,
+                                height:              44,
+                                borderRadius:        '50%',
+                                border:              cloudOn ? '2px solid #9CA3AF' : '2px solid rgba(255,255,255,0.3)',
+                                background:          cloudOn ? 'rgba(156,163,175,0.9)' : 'rgba(15,15,30,0.85)',
+                                backdropFilter:      'blur(8px)',
+                                WebkitBackdropFilter:'blur(8px)',
+                                color:               '#fff',
+                                fontSize:            20,
+                                cursor:              'pointer',
+                                display:             'flex',
+                                alignItems:          'center',
+                                justifyContent:      'center',
+                                boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
+                                transition:          'background 200ms ease, border-color 200ms ease',
+                                WebkitTapHighlightColor: 'transparent',
+                                touchAction:         'auto',
+                            }}
+                            aria-label={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
+                            aria-pressed={cloudOn}
+                        >
+                            ☁️
+                        </button>
+                    )}
                 </div>
             )}
 

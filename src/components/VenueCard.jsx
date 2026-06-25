@@ -14,6 +14,7 @@ import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
+import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
 
 // ── Helpers ────────────────────────────────────────────────
@@ -583,6 +584,14 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               />
             )}
             {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
+            {isHotelOrStay && venue?.roomTypes?.length > 0 && (
+              <div className="mt-2">
+                <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Room Intelligence</span>
+                {venue.roomTypes.map(room => (
+                  <RoomSunCard key={room.id} room={room} />
+                ))}
+              </div>
+            )}
             <VenueCardActions
               verdict={verdict}
               safeTags={safeTags}

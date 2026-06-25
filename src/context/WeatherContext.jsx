@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { storage } from '../utils/platform';
 import { calculateLiveSunScore } from '../utils/sunScore';
+import { fetchOpenMeteoWeather } from '../utils/weatherService';
 
 const WeatherContext = createContext(null);
 
@@ -9,9 +9,6 @@ const MELBOURNE_COORDS = { lat: -37.8136, lon: 144.9631 };
 const CACHE_EXPIRY = 900000;
 const CACHE_KEY = `sunstay_weather_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
 const isAbortError = (error) => error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
-
-// Resolved once at module level — stable reference, never causes useCallback/useEffect churn
-const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_KEY || '').trim();
 
 const DEMO_WEATHER = {
     main: { temp: 22, feels_like: 21, humidity: 55 },
@@ -23,122 +20,6 @@ const DEMO_WEATHER = {
     name: 'Melbourne (Demo)',
     source: 'demo',
     theme: 'sunny',
-};
-
-const getThemeFromCondition = (condition) => {
-    if (condition.includes('rain') || condition.includes('drizzle')) return 'rainy';
-    if (condition.includes('cloud') || condition.includes('fog')) return 'cloudy';
-    if (condition.includes('wind') || condition.includes('gale')) return 'windy';
-    return 'sunny';
-};
-
-const toUnixTimestamp = (isoDateTime) => {
-    if (!isoDateTime) return null;
-    const ms = Date.parse(isoDateTime);
-    if (!Number.isFinite(ms)) return null;
-    return Math.floor(ms / 1000);
-};
-
-const getWeatherFromOpenMeteoCode = (code) => {
-    if (code === 0) return { main: 'Clear', description: 'clear sky', icon: '01d' };
-    if ([1].includes(code)) return { main: 'Clouds', description: 'mostly clear', icon: '02d' };
-    if ([2].includes(code)) return { main: 'Clouds', description: 'partly cloudy', icon: '03d' };
-    if ([3].includes(code)) return { main: 'Clouds', description: 'overcast', icon: '04d' };
-    if ([45, 48].includes(code)) return { main: 'Fog', description: 'foggy', icon: '50d' };
-    if ([51, 53, 55, 56, 57].includes(code)) return { main: 'Drizzle', description: 'drizzle', icon: '09d' };
-    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { main: 'Rain', description: 'rain showers', icon: '10d' };
-    if ([71, 73, 75, 77, 85, 86].includes(code)) return { main: 'Snow', description: 'snow', icon: '13d' };
-    if ([95, 96, 99].includes(code)) return { main: 'Thunderstorm', description: 'thunderstorm', icon: '11d' };
-    return { main: 'Clouds', description: 'variable cloud', icon: '03d' };
-};
-
-const fetchOpenMeteoWeather = async (lat, lon, signal) => {
-    const params = new URLSearchParams({
-        latitude: String(lat),
-        longitude: String(lon),
-        current: [
-            'temperature_2m',
-            'apparent_temperature',
-            'relative_humidity_2m',
-            'precipitation',
-            'weather_code',
-            'wind_speed_10m',
-            'wind_gusts_10m',
-            'cloud_cover',
-            'uv_index',
-            'is_day',
-            'shortwave_radiation',
-            'surface_pressure',
-        ].join(','),
-        hourly: [
-            'temperature_2m',
-            'apparent_temperature',
-            'precipitation_probability',
-            'weather_code',
-            'cloud_cover',
-            'wind_speed_10m',
-            'wind_gusts_10m',
-            'shortwave_radiation',
-            'uv_index',
-            'is_day',
-        ].join(','),
-        daily: [
-            'weather_code',
-            'temperature_2m_max',
-            'temperature_2m_min',
-            'sunrise',
-            'sunset',
-            'uv_index_max',
-            'precipitation_sum',
-            'wind_speed_10m_max',
-        ].join(','),
-        timezone: 'Australia/Melbourne',
-        forecast_days: '2',
-        wind_speed_unit: 'kmh',
-    });
-
-    const url = `https://api.open-meteo.com/v1/forecast?${params}`;
-    const response = await fetch(url, { signal });
-    if (!response.ok) throw new Error(`Open-Meteo HTTP ${response.status}`);
-    const data = await response.json();
-
-    const current = data.current || {};
-    const daily = data.daily || {};
-    const hourly = data.hourly || {};
-
-    const wmoCode = current.weather_code ?? 0;
-    const weatherDesc = getWeatherFromOpenMeteoCode(wmoCode);
-
-    // Derive sunrise/sunset unix from daily ISO strings
-    const sunriseUnix = toUnixTimestamp(daily.sunrise?.[0]);
-    const sunsetUnix = toUnixTimestamp(daily.sunset?.[0]);
-
-    return {
-        main: {
-            temp: current.temperature_2m ?? 20,
-            feels_like: current.apparent_temperature ?? 20,
-            humidity: current.relative_humidity_2m ?? 50,
-        },
-        weather: [weatherDesc],
-        wind: { speed: (current.wind_speed_10m ?? 0) / 3.6 }, // convert kmh → m/s
-        clouds: { all: current.cloud_cover ?? 0 },
-        uvi: current.uv_index ?? 0,
-        sys: {
-            sunrise: sunriseUnix,
-            sunset: sunsetUnix,
-        },
-        name: 'Melbourne',
-        source: 'open-meteo',
-        theme: getThemeFromCondition(weatherDesc.description),
-        isDay: current.is_day === 1,
-        shortwaveRadiation: current.shortwave_radiation ?? 0,
-        windGusts: current.wind_gusts_10m ?? 0,
-        hourly: {
-            ...hourly,
-            _tzOffsetSeconds: 36000, // AEST = UTC+10
-        },
-        daily,
-    };
 };
 
 export const useWeather = () => {
@@ -186,7 +67,7 @@ export const WeatherProvider = ({ children }) => {
                 return;
             }
 
-            // 2. Fetch from Open-Meteo (primary source — no key required)
+            // 2. Fetch from Open-Meteo (primary source)
             const data = await fetchOpenMeteoWeather(
                 MELBOURNE_COORDS.lat,
                 MELBOURNE_COORDS.lon,
@@ -198,28 +79,7 @@ export const WeatherProvider = ({ children }) => {
             if (isAbortError(err)) return;
 
             console.warn('[WeatherProvider] Open-Meteo fetch failed, falling back to demo data:', err.message);
-
-            // 3. Fall back to OpenWeather if key available
-            if (WEATHER_API_KEY) {
-                try {
-                    const owUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${MELBOURNE_COORDS.lat}&lon=${MELBOURNE_COORDS.lon}&units=metric&appid=${WEATHER_API_KEY}`;
-                    const resp = await axios.get(owUrl, { signal });
-                    const owData = {
-                        ...resp.data,
-                        source: 'openweather',
-                        theme: getThemeFromCondition(resp.data.weather?.[0]?.description ?? ''),
-                    };
-                    await setCachedWeather(owData);
-                    setWeather(owData);
-                } catch (owErr) {
-                    if (isAbortError(owErr)) return;
-                    console.warn('[WeatherProvider] OpenWeather fallback also failed:', owErr.message);
-                    setWeather(DEMO_WEATHER);
-                }
-            } else {
-                setWeather(DEMO_WEATHER);
-            }
-
+            setWeather(DEMO_WEATHER);
             setError(err.message);
         } finally {
             setLoading(false);

@@ -116,3 +116,29 @@ export const fetchVenuesBriefByIds = async (ids) => {
     const idSet = new Set(ids);
     return all.filter(v => idSet.has(v.id));
 };
+
+/**
+ * Fetch venue data formatted as a GeoJSON FeatureCollection.
+ * Used natively by Mapbox GL JS for clustering and optimized rendering.
+ *
+ * @returns {Promise<object>} GeoJSON FeatureCollection
+ */
+export const fetchVenuesGeoJSON = async () => {
+    // Simulate network latency (remove when using real API)
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    return {
+        type: 'FeatureCollection',
+        features: demoVenues.map(venue => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [venue.lng, venue.lat],
+            },
+            properties: {
+                id: venue.id,
+                sunshineScore: calculateSunshineScore(venue),
+            },
+        })),
+    };
+};
