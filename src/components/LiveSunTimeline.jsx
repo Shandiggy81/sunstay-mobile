@@ -254,7 +254,6 @@ export default function LiveSunTimeline({
             return (
               <motion.div
                 key={i}
-                className="absolute top-0 h-full"
                 style={{
                   position: 'absolute',
                   top: 0,
