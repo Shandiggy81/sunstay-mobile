@@ -5,16 +5,19 @@ import { FILTER_CATEGORIES } from '../data/demoVenues';
 
 const FilterSheet = ({
     isOpen,
-    onClose,
-    activeFilters,
-    onToggleFilter,
-    onClearAll,
-    customFilters,
-    newCustomFilter,
-    setNewCustomFilter,
-    onAddCustomFilter,
-    resultCount
+    onClose = () => {},
+    activeFilters = [],
+    onToggleFilter = () => {},
+    onClearAll = () => {},
+    customFilters = [],
+    newCustomFilter = '',
+    setNewCustomFilter = () => {},
+    onAddCustomFilter = () => {},
+    resultCount = 0
 }) => {
+    const safeActiveFilters = Array.isArray(activeFilters) ? activeFilters : [];
+    const safeCustomFilters = Array.isArray(customFilters) ? customFilters : [];
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -35,7 +38,7 @@ const FilterSheet = ({
                     >
                         <div className="ss-filter-sheet-head">
                             <h3>Filters</h3>
-                            {activeFilters.length > 0 && (
+                            {safeActiveFilters.length > 0 && (
                                 <button onClick={onClearAll} className="ss-filter-sheet-clear">Clear all</button>
                             )}
                             <button onClick={onClose} className="ss-filter-sheet-close">
@@ -45,7 +48,7 @@ const FilterSheet = ({
                         
                         <div className="ss-filter-chip-grid">
                             {FILTER_CATEGORIES.map(filter => {
-                                const isActive = activeFilters.includes(filter.id);
+                                const isActive = safeActiveFilters.includes(filter.id);
                                 return (
                                     <button
                                         key={filter.id}
@@ -65,7 +68,7 @@ const FilterSheet = ({
                         <div className="custom-filter-section">
                             <p className="filter-section-label">YOUR FILTERS</p>
                             <div className="custom-filter-chips">
-                                {customFilters.map(f => (
+                                {safeCustomFilters.map(f => (
                                     <span key={f} className="filter-chip custom">✏️ {f}</span>
                                 ))}
                             </div>

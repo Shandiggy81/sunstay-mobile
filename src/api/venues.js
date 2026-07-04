@@ -56,13 +56,13 @@ const calculateSunshineScore = (venue) => {
  * @typedef {Object} VenueBrief
  * @property {string} id
  * @property {number} lat
- * @property {number} lon
+ * @property {number} lng
  * @property {number} sunshineScore
  */
 
 /**
  * Fetch lightweight venue data for map markers.
- * Returns ONLY the fields needed for pin rendering: id, lat, lon, sunshineScore.
+ * Returns ONLY the fields needed for pin rendering: id, lat, lng, sunshineScore.
  *
  * Performance: ~200 bytes per venue vs ~2 KB for full details.
  * Designed to handle 1000+ venues without payload bloat.
@@ -76,7 +76,7 @@ export const fetchVenuesBrief = async () => {
     return demoVenues.map(venue => ({
         id: venue.id,
         lat: venue.lat,
-        lon: venue.lng, // normalize lng → lon for API consistency
+        lng: venue.lng,
         sunshineScore: calculateSunshineScore(venue),
     }));
 };
@@ -115,4 +115,30 @@ export const fetchVenuesBriefByIds = async (ids) => {
     const all = await fetchVenuesBrief();
     const idSet = new Set(ids);
     return all.filter(v => idSet.has(v.id));
+};
+
+/**
+ * Fetch venue data formatted as a GeoJSON FeatureCollection.
+ * Used natively by Mapbox GL JS for clustering and optimized rendering.
+ *
+ * @returns {Promise<object>} GeoJSON FeatureCollection
+ */
+export const fetchVenuesGeoJSON = async () => {
+    // Simulate network latency (remove when using real API)
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    return {
+        type: 'FeatureCollection',
+        features: demoVenues.map(venue => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [venue.lng, venue.lat],
+            },
+            properties: {
+                id: venue.id,
+                sunshineScore: calculateSunshineScore(venue),
+            },
+        })),
+    };
 };

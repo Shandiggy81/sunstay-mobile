@@ -1,0 +1,24 @@
+/* WeatherBackground CSS-only particles
+   Uses CSS animations (compositor only) instead of Framer Motion JS animations.
+   transform + opacity are GPU-composited — zero JS thread cost. */
+
+@keyframes ss-float {
+    0%   { transform: translate(0, 0) scale(1);    opacity: 0.08; }
+    33%  { transform: translate(30px, -40px) scale(1.15); opacity: 0.14; }
+    66%  { transform: translate(-20px, 20px) scale(0.9);  opacity: 0.06; }
+    100% { transform: translate(0, 0) scale(1);    opacity: 0.08; }
+}
+
+.ss-bg-particle {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(40px);
+    animation: ss-float linear infinite;
+    will-change: transform, opacity;
+    pointer-events: none;
+    /* Respect reduced-motion preference */
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+        opacity: 0.06;
+    }
+}

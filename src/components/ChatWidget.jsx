@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MessageCircle, Send, Sun, Cloud, CloudRain, Wind, Thermometer } from 'lucide-react';
 
@@ -149,6 +149,21 @@ const ChatWidget = ({
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const timeoutIdsRef = useRef(new Set());
+
+  const scheduleTimeout = useCallback((callback, delay) => {
+    const id = setTimeout(() => {
+      timeoutIdsRef.current.delete(id);
+      callback();
+    }, delay);
+    timeoutIdsRef.current.add(id);
+    return id;
+  }, []);
+
+  useEffect(() => () => {
+    timeoutIdsRef.current.forEach(clearTimeout);
+    timeoutIdsRef.current.clear();
+  }, []);
 
   // Reset & seed greeting when opened
   useEffect(() => {
@@ -156,9 +171,9 @@ const ChatWidget = ({
       setMessages([{ id: 1, type: 'bot', text: buildGreeting(weather), ts: new Date() }]);
       setHasActed(false);
       setInputValue('');
-      setTimeout(() => inputRef.current?.focus(), 400);
+      scheduleTimeout(() => inputRef.current?.focus(), 400);
     }
-  }, [isOpen]);
+  }, [isOpen, scheduleTimeout, weather]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -171,7 +186,7 @@ const ChatWidget = ({
   const addBotMsg = (text, delay = 900) => {
     setIsTyping(true);
     return new Promise(resolve => {
-      setTimeout(() => {
+      scheduleTimeout(() => {
         setIsTyping(false);
         setMessages(prev => [...prev, { id: Date.now(), type: 'bot', text, ts: new Date() }]);
         resolve();
@@ -180,7 +195,7 @@ const ChatWidget = ({
   };
 
   const fireAction = (actionKey, delay = 400) => {
-    setTimeout(() => {
+    scheduleTimeout(() => {
       const fn = actionMap[actionKey];
       if (typeof fn === 'function') fn();
       setHasActed(true);

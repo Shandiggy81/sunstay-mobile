@@ -12,190 +12,68 @@
  * can add "many venues per company" without changing map code.
  */
 
+// ── Filter Categories (used by FilterSheet) ───────────────────────
+export const FILTER_CATEGORIES = [
+  { id: 'Sunny',              icon: '☀️',  label: 'Sunny Patio' },
+  { id: 'Rooftop',            icon: '🏙️',  label: 'Rooftop' },
+  { id: 'Beer Garden',        icon: '🍺',  label: 'Beer Garden' },
+  { id: 'Cozy',               icon: '🔥',  label: 'Cozy & Covered' },
+  { id: 'Fireplace',          icon: '🪵',  label: 'Fireplace' },
+  { id: 'Pet Friendly',       icon: '🐶',  label: 'Pet Friendly' },
+  { id: 'Pram Friendly',      icon: '🍼',  label: 'Pram Friendly' },
+  { id: 'Live Music',         icon: '🎸',  label: 'Live Music' },
+  { id: 'Views',              icon: '🌅',  label: 'Views' },
+  { id: 'Wheelchair Accessible', icon: '♿', label: 'Accessible' },
+  { id: 'Craft Beer',         icon: '🍻',  label: 'Craft Beer' },
+  { id: 'Cocktails',          icon: '🍸',  label: 'Cocktails' },
+  { id: 'Vegan',              icon: '🥗',  label: 'Vegan Options' },
+  { id: 'Specialty Coffee',   icon: '☕',  label: 'Specialty Coffee' },
+  { id: 'Large Groups',       icon: '👥',  label: 'Large Groups' },
+  { id: 'Smoking Area',       icon: '🚬',  label: 'Smoking Area' },
+  { id: 'Shaded',             icon: '⛱️',  label: 'Shaded' },
+  { id: 'Indoor Warmth',      icon: '🧥',  label: 'Indoor Warmth' },
+  { id: 'Heaters',            icon: '🌡️',  label: 'Heaters' },
+  { id: 'River',              icon: '🌊',  label: 'Waterfront' },
+  { id: 'Premium',            icon: '💎',  label: 'Premium' },
+  { id: 'Afternoon Sun',      icon: '🌤️',  label: 'Afternoon Sun' },
+  { id: 'Morning Sun',        icon: '🌄',  label: 'Morning Sun' },
+  { id: 'Hotel',              icon: '🏨',  label: 'Hotel' },
+  { id: 'Short Stay',         icon: '🛌',  label: 'Short Stay' },
+  { id: 'Balcony',            icon: '🏡',  label: 'Balcony' },
+];
+
 // ── Target Companies (from Airtable / outreach list) ──────────────
-// This array is the "source of truth" for which companies we're
-// pitching. Each entry can have metadata used in popups & emails.
 export const targetCompanies = [
-    {
-        name: 'Australian Venue Co',
-        segment: 'Large Group',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Good Company',
-        segment: 'Premium Group',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'ALH Group (Endeavour)',
-        segment: 'Pub Network',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Sand Hill Road',
-        segment: 'Boutique Group',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Pacific Concepts',
-        segment: 'Dining Group',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Commune Group',
-        segment: 'Multi-Venue',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Dixon Hospitality',
-        segment: 'Hotel & Bars',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Melbourne Pub Group',
-        segment: 'Pub Network',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Lucas Restaurants',
-        segment: 'Fine Dining',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Worksmith',
-        segment: 'Cafe & Co-Work',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Common Man Group',
-        segment: 'Independent',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Trader House',
-        segment: 'Bar Group',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Lancemore Group',
-        segment: 'Boutique Hotels',
-        priority: 'Low',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Hostplus Venues',
-        segment: 'Sports & Events',
-        priority: 'Low',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Kennards Hire (Events)',
-        segment: 'Events',
-        priority: 'Low',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Mary Martin Bookshop (Cafe)',
-        segment: 'Independent Cafe',
-        priority: 'Low',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'ALH Hotels',
-        segment: 'Hotel Group',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Pullman Melbourne',
-        segment: 'Luxury Hotels',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Sheraton Melbourne',
-        segment: 'Luxury Hotels',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Accor Apartments',
-        segment: 'Apartment Hotel',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'BNB Butler',
-        segment: 'Short Stay',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'MadeComfy',
-        segment: 'Short Stay',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Hometime',
-        segment: 'Short Stay',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'L\'Abode Accommodation',
-        segment: 'Short Stay',
-        priority: 'Low',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Property Mums',
-        segment: 'Short Stay',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Urban Rest',
-        segment: 'Short Stay',
-        priority: 'High',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Staypilot',
-        segment: 'Short Stay',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Oasis Stay',
-        segment: 'Short Stay',
-        priority: 'Medium',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'LaneStay',
-        segment: 'Short Stay',
-        priority: 'Low',
-        status: 'Outreach Planned',
-    },
-    {
-        name: 'Method Stay',
-        segment: 'Short Stay',
-        priority: 'Low',
-        status: 'Outreach Planned',
-    },
+    { name: 'Australian Venue Co', segment: 'Large Group', priority: 'High', status: 'Outreach Planned' },
+    { name: 'Good Company', segment: 'Premium Group', priority: 'High', status: 'Outreach Planned' },
+    { name: 'ALH Group (Endeavour)', segment: 'Pub Network', priority: 'High', status: 'Outreach Planned' },
+    { name: 'Sand Hill Road', segment: 'Boutique Group', priority: 'High', status: 'Outreach Planned' },
+    { name: 'Pacific Concepts', segment: 'Dining Group', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Commune Group', segment: 'Multi-Venue', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Dixon Hospitality', segment: 'Hotel & Bars', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Melbourne Pub Group', segment: 'Pub Network', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Lucas Restaurants', segment: 'Fine Dining', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Worksmith', segment: 'Cafe & Co-Work', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Common Man Group', segment: 'Independent', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Trader House', segment: 'Bar Group', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Lancemore Group', segment: 'Boutique Hotels', priority: 'Low', status: 'Outreach Planned' },
+    { name: 'Hostplus Venues', segment: 'Sports & Events', priority: 'Low', status: 'Outreach Planned' },
+    { name: 'Kennards Hire (Events)', segment: 'Events', priority: 'Low', status: 'Outreach Planned' },
+    { name: 'Mary Martin Bookshop (Cafe)', segment: 'Independent Cafe', priority: 'Low', status: 'Outreach Planned' },
+    { name: 'ALH Hotels', segment: 'Hotel Group', priority: 'High', status: 'Outreach Planned' },
+    { name: 'Pullman Melbourne', segment: 'Luxury Hotels', priority: 'High', status: 'Outreach Planned' },
+    { name: 'Sheraton Melbourne', segment: 'Luxury Hotels', priority: 'High', status: 'Outreach Planned' },
+    { name: 'Accor Apartments', segment: 'Apartment Hotel', priority: 'High', status: 'Outreach Planned' },
+    { name: 'BNB Butler', segment: 'Short Stay', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'MadeComfy', segment: 'Short Stay', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Hometime', segment: 'Short Stay', priority: 'High', status: 'Outreach Planned' },
+    { name: "L'Abode Accommodation", segment: 'Short Stay', priority: 'Low', status: 'Outreach Planned' },
+    { name: 'Property Mums', segment: 'Short Stay', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Urban Rest', segment: 'Short Stay', priority: 'High', status: 'Outreach Planned' },
+    { name: 'Staypilot', segment: 'Short Stay', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'Oasis Stay', segment: 'Short Stay', priority: 'Medium', status: 'Outreach Planned' },
+    { name: 'LaneStay', segment: 'Short Stay', priority: 'Low', status: 'Outreach Planned' },
+    { name: 'Method Stay', segment: 'Short Stay', priority: 'Low', status: 'Outreach Planned' },
 ];
 
 // Helper: quick company lookup
@@ -237,7 +115,7 @@ export const demoVenues = [
         lng: 144.99223,
         emoji: '🍸',
         vibe: 'Rooftop Club',
-        tags: ['Party', 'Views', 'Rooftop', 'Smoking Area', 'Shaded', 'Views', 'Live Music', 'Craft Beer'],
+        tags: ['Party', 'Views', 'Rooftop', 'Smoking Area', 'Shaded', 'Live Music', 'Craft Beer'],
         heating: 'heated outdoor',
         price: '$$$',
         capacity: 300,
@@ -314,7 +192,7 @@ export const demoVenues = [
         capacity: 800,
         hasCozy: true,
         notes: 'Real Sand Hill Road venue.',
-        proTip: 'The internal garden courtyard is perfectly shielded from Melbourne\'s south-westerly winds. 🌳',
+        proTip: "The internal garden courtyard is perfectly shielded from Melbourne's south-westerly winds. 🌳",
     },
     {
         id: 'dv-07',
@@ -604,7 +482,7 @@ export const demoVenues = [
         lng: 144.9680,
         emoji: '🚉',
         vibe: 'High-Exposure Rooftop',
-        tags: ['Rooftop', 'Views', 'Sunny', 'Exposed', 'Windy', 'Views'],
+        tags: ['Rooftop', 'Views', 'Sunny', 'Exposed', 'Windy'],
         heating: 'heated outdoor',
         price: '$$$',
         capacity: 500,
@@ -638,7 +516,7 @@ export const demoVenues = [
         vibe: 'Bar & Restaurant',
         sunIntelligence: 'Cozy indoor atmosphere with premium electric fireplace heating.',
         tags: ['dog-friendly', 'indoor-only'],
-        heating: 'electric-fireplace'
+        heating: 'electric-fireplace',
     },
     {
         id: 'union-hotel',
@@ -652,7 +530,7 @@ export const demoVenues = [
         vibe: 'Pub & Restaurant',
         sunIntelligence: 'Classic pub warmth with a traditional gas fireplace in the dining room.',
         tags: ['live-music', 'food-available'],
-        heating: 'traditional-fireplace'
+        heating: 'traditional-fireplace',
     },
 
     // ─── NEW Demo Hotels ───
@@ -691,44 +569,32 @@ export const demoVenues = [
         notes: 'Demo hotel for Pullman Melbourne.',
         roomTypes: [
             {
-                id: "pullman-king-morning",
-                name: "City View King",
+                id: 'pullman-king-morning',
+                name: 'City View King',
                 hasBalcony: true,
                 hasOutdoorArea: true,
-                orientation: "E",
+                orientation: 'E',
                 floorLevel: 8,
-                obstructionLevel: "Partial",
+                obstructionLevel: 'Partial',
                 maxGuests: 2,
                 baseNightlyRateDemo: 260,
                 sunScore: 42,
-                sunProfile: {
-                    summerHours: 5.0,
-                    winterHours: 3.0,
-                    bestSeason: "Summer",
-                    peakTime: "06:00–11:00",
-                    useCase: "Morning coffee"
-                }
+                sunProfile: { summerHours: 5.0, winterHours: 3.0, bestSeason: 'Summer', peakTime: '06:00–11:00', useCase: 'Morning coffee' },
             },
             {
-                id: "pullman-sunset-suite",
-                name: "Sunset Suite",
+                id: 'pullman-sunset-suite',
+                name: 'Sunset Suite',
                 hasBalcony: true,
                 hasOutdoorArea: true,
-                orientation: "W",
+                orientation: 'W',
                 floorLevel: 15,
-                obstructionLevel: "Open",
+                obstructionLevel: 'Open',
                 maxGuests: 2,
                 baseNightlyRateDemo: 420,
                 sunScore: 85,
-                sunProfile: {
-                    summerHours: 8.5,
-                    winterHours: 6.0,
-                    bestSeason: "Summer",
-                    peakTime: "14:00–20:30",
-                    useCase: "Sunset drinks"
-                }
-            }
-        ]
+                sunProfile: { summerHours: 8.5, winterHours: 6.0, bestSeason: 'Summer', peakTime: '14:00–20:30', useCase: 'Sunset drinks' },
+            },
+        ],
     },
     {
         id: 'dv-hotel-03',
@@ -748,44 +614,32 @@ export const demoVenues = [
         notes: 'Demo hotel for Sheraton Melbourne.',
         roomTypes: [
             {
-                id: "sheraton-harbor-nw",
-                name: "Harbor Balcony Room",
+                id: 'sheraton-harbor-nw',
+                name: 'Harbor Balcony Room',
                 hasBalcony: true,
                 hasOutdoorArea: true,
-                orientation: "NW",
+                orientation: 'NW',
                 floorLevel: 12,
-                obstructionLevel: "Open",
+                obstructionLevel: 'Open',
                 maxGuests: 2,
                 baseNightlyRateDemo: 380,
                 sunScore: 82,
-                sunProfile: {
-                    summerHours: 8.0,
-                    winterHours: 5.5,
-                    bestSeason: "Summer",
-                    peakTime: "08:00–17:00",
-                    useCase: "Sunset drinks"
-                }
+                sunProfile: { summerHours: 8.0, winterHours: 5.5, bestSeason: 'Summer', peakTime: '08:00–17:00', useCase: 'Sunset drinks' },
             },
             {
-                id: "sheraton-club-north",
-                name: "Club Lounge King",
+                id: 'sheraton-club-north',
+                name: 'Club Lounge King',
                 hasBalcony: true,
                 hasOutdoorArea: true,
-                orientation: "N",
+                orientation: 'N',
                 floorLevel: 18,
-                obstructionLevel: "Open",
+                obstructionLevel: 'Open',
                 maxGuests: 2,
                 baseNightlyRateDemo: 450,
                 sunScore: 91,
-                sunProfile: {
-                    summerHours: 9.5,
-                    winterHours: 7.0,
-                    bestSeason: "Summer",
-                    peakTime: "08:00–17:00",
-                    useCase: "Remote work"
-                }
-            }
-        ]
+                sunProfile: { summerHours: 9.5, winterHours: 7.0, bestSeason: 'Summer', peakTime: '08:00–17:00', useCase: 'Remote work' },
+            },
+        ],
     },
     {
         id: 'dv-hotel-04',
@@ -803,7 +657,7 @@ export const demoVenues = [
         heating: 'indoor only',
         price: '$$$',
         notes: 'Demo hotel for Accor Apartments.',
-        balconyData: { hours: 8, factor: 85, direction: 'North-East', views: 'Sunrise' }
+        balconyData: { hours: 8, factor: 85, direction: 'North-East', views: 'Sunrise' },
     },
 
     // ─── NEW Demo Short Stays ───
@@ -826,276 +680,18 @@ export const demoVenues = [
         notes: 'Demo stay for BNB Butler.',
         roomTypes: [
             {
-                id: "stay-stkilda-beach",
-                name: "St Kilda Beachfront Studio",
+                id: 'stay-stkilda-beach',
+                name: 'St Kilda Beachfront Studio',
                 hasBalcony: true,
                 hasOutdoorArea: true,
-                orientation: "W",
+                orientation: 'W',
                 floorLevel: 3,
-                obstructionLevel: "Partial",
+                obstructionLevel: 'Partial',
                 maxGuests: 2,
                 baseNightlyRateDemo: 280,
                 sunScore: 72,
-                sunProfile: {
-                    summerHours: 7.0,
-                    winterHours: 4.5,
-                    bestSeason: "Summer",
-                    peakTime: "14:00–20:30",
-                    useCase: "Sunset drinks"
-                }
-            }
-        ]
-    },
-    {
-        id: 'dv-stay-02',
-        companyName: 'MadeComfy',
-        venueName: 'Fitzroy Warehouse Loft (Demo)',
-        address: '42 Gertrude Street, Fitzroy VIC 3065',
-        suburb: 'Fitzroy',
-        lat: -37.8023,
-        lng: 144.9789,
-        emoji: '🏬',
-        vibe: 'Industrial Loft',
-        typeCategory: 'ShortStay',
-        typeLabel: 'Apartment Stay',
-        tags: ['Short Stay', 'Balcony', 'City Views', 'Pet Friendly'],
-        nightlyPriceDemo: 'From $220 per night (demo)',
-        guests: 2,
-        notes: 'Demo stay for MadeComfy.',
-        roomTypes: [
-            {
-                id: "stay-fitzroy-loft",
-                name: "Fitzroy Warehouse Loft",
-                hasBalcony: true,
-                hasOutdoorArea: true,
-                orientation: "N",
-                floorLevel: 2,
-                obstructionLevel: "Open",
-                maxGuests: 2,
-                baseNightlyRateDemo: 220,
-                sunScore: 78,
-                sunProfile: {
-                    summerHours: 8.0,
-                    winterHours: 5.5,
-                    bestSeason: "Summer",
-                    peakTime: "08:00–17:00",
-                    useCase: "Remote work"
-                }
-            }
-        ]
-    },
-    {
-        id: 'dv-stay-03',
-        companyName: 'Hometime',
-        venueName: 'Family Garden Home – Brunswick (Demo)',
-        address: '88 Union Street, Brunswick VIC 3056',
-        suburb: 'Brunswick',
-        lat: -37.7745,
-        lng: 144.9567,
-        emoji: '🏡',
-        vibe: 'Spacious Family Home',
-        typeCategory: 'ShortStay',
-        typeLabel: 'Townhouse Stay',
-        tags: ['Short Stay', 'Backyard', 'Pram Friendly', 'Family Friendly'],
-        nightlyPriceDemo: 'From $350 per night (demo)',
-        guests: 6,
-        notes: 'Demo stay for Hometime.',
-    },
-    {
-        id: 'dv-stay-04',
-        companyName: 'L\'Abode Accommodation',
-        venueName: 'Sleek Studio – Southbank (Demo)',
-        address: '22 Kavanagh Street, Southbank VIC 3006',
-        suburb: 'Southbank',
-        lat: -37.8245,
-        lng: 144.9634,
-        emoji: '🏙️',
-        vibe: 'Modern City Living',
-        typeCategory: 'ShortStay',
-        typeLabel: 'Apartment Stay',
-        tags: ['Short Stay', 'Views', 'Pool Access', 'Gym'],
-        nightlyPriceDemo: 'From $190 per night (demo)',
-        guests: 2,
-        notes: 'Demo stay for L\'Abode Accommodation.',
-    },
-    {
-        id: 'dv-stay-05',
-        companyName: 'Property Mums',
-        venueName: 'South Yarra Shaded Courtyard (Demo)',
-        address: '45 Ormond Road, Elwood VIC 3184',
-        suburb: 'South Yarra',
-        lat: -37.8440,
-        lng: 144.9856,
-        emoji: '🌳',
-        vibe: 'Quiet Residential Oasis',
-        typeCategory: 'ShortStay',
-        typeLabel: 'House Stay',
-        tags: ['Short Stay', 'Backyard', 'Quiet'],
-        nightlyPriceDemo: 'From $320 per night (demo)',
-        guests: 5,
-        notes: 'Demo stay for Property Mums.',
-        roomTypes: [
-            {
-                id: "stay-southyarra-shaded",
-                name: "South Yarra Shaded Courtyard",
-                hasBalcony: false,
-                hasOutdoorArea: true,
-                orientation: "S",
-                floorLevel: 1,
-                obstructionLevel: "Heavy",
-                maxGuests: 4,
-                baseNightlyRateDemo: 310,
-                sunScore: 25,
-                sunProfile: {
-                    summerHours: 2.5,
-                    winterHours: 1.0,
-                    bestSeason: "Spring/Autumn",
-                    peakTime: "10:00–14:00",
-                    useCase: "Shade retreat"
-                }
-            }
-        ]
-    },
-    {
-        id: 'dv-stay-06',
-        companyName: 'Urban Rest',
-        venueName: 'Corporate Executive Studio – CBD (Demo)',
-        address: '568 Collins Street, Melbourne VIC 3000',
-        suburb: 'CBD',
-        lat: -37.8189,
-        lng: 144.9545,
-        emoji: '💼',
-        vibe: 'High-end Corporate Stay',
-        typeCategory: 'ShortStay',
-        typeLabel: 'Apartment Stay',
-        tags: ['Short Stay', 'Business Friendly', 'City Views', 'Work Station'],
-        nightlyPriceDemo: 'From $250 per night (demo)',
-        guests: 2,
-        notes: 'Demo stay for Urban Rest.',
-    },
-    {
-        id: 'dv-stay-07',
-        companyName: 'Staypilot',
-        venueName: 'Modern City Terrace – Richmond (Demo)',
-        address: '12 Swan Street, Richmond VIC 3121',
-        suburb: 'Richmond',
-        lat: -37.8256,
-        lng: 144.9923,
-        emoji: '🏙️',
-        vibe: 'Stylish Urban Terrace',
-        typeCategory: 'ShortStay',
-        typeLabel: 'Townhouse Stay',
-        tags: ['Short Stay', 'Rooftop Terrace', 'Near Cafés', 'Views'],
-        nightlyPriceDemo: 'From $300 per night (demo)',
-        guests: 4,
-        notes: 'Demo stay for Staypilot.',
-    },
-    {
-        id: 'dv-stay-08',
-        companyName: 'Oasis Stay',
-        venueName: 'Sun-drenched Villa – Prahran (Demo)',
-        address: '8 Greville Street, Prahran VIC 3181',
-        suburb: 'Prahran',
-        lat: -37.8502,
-        lng: 144.9912,
-        emoji: '☀️',
-        vibe: 'Light-filled Sanctuary',
-        typeCategory: 'ShortStay',
-        typeLabel: 'House Stay',
-        tags: ['Short Stay', 'Outdoor Area', 'Sunny', 'Near Shopping'],
-        nightlyPriceDemo: 'From $290 per night (demo)',
-        guests: 3,
-        notes: 'Demo stay for Oasis Stay.',
-    },
-    {
-        id: 'dv-stay-09',
-        companyName: 'LaneStay',
-        venueName: 'Stylish Warehouse Loft – Collingwood (Demo)',
-        address: '101 Smith Street, Collingwood VIC 3066',
-        suburb: 'Collingwood',
-        lat: -37.8034,
-        lng: 144.9845,
-        emoji: '🏗️',
-        vibe: 'Authentic Warehouse Vibe',
-        typeCategory: 'ShortStay',
-        typeLabel: 'Apartment Stay',
-        tags: ['Short Stay', 'Industrial', 'Arts District', 'High Ceilings'],
-        nightlyPriceDemo: 'From $210 per night (demo)',
-        guests: 2,
-        notes: 'Demo stay for LaneStay.',
-    },
-    {
-        id: 'dv-stay-10',
-        companyName: 'Method Stay',
-        venueName: 'Minimalist Designer Apartment – Abbotsford (Demo)',
-        address: '22 Nicholson Street, Abbotsford VIC 3067',
-        suburb: 'Abbotsford',
-        lat: -37.8067,
-        lng: 144.9989,
-        emoji: '🎨',
-        vibe: 'Clean Contemporary Design',
-        typeCategory: 'ShortStay',
-        typeLabel: 'Apartment Stay',
-        tags: ['Short Stay', 'Views', 'Riverside', 'Quiet'],
-        nightlyPriceDemo: 'From $180 per night (demo)',
-        guests: 2,
-        notes: 'Demo stay for Method Stay.',
+                sunProfile: { summerHours: 7.0, winterHours: 4.5, bestSeason: 'Summer', peakTime: '13:00–19:00', useCase: 'Afternoon sun' },
+            },
+        ],
     },
 ];
-
-
-// ── Helpers ───────────────────────────────────────────────────────
-
-/**
- * Look up the target company object for a given DemoVenue.
- * Returns undefined if no match (shouldn't happen with clean data).
- */
-export function getCompanyForVenue(demoVenue) {
-    return companyByName[demoVenue.companyName];
-}
-
-/**
- * Get all demo venues for a given company name.
- */
-export function getVenuesForCompany(companyName) {
-    return demoVenues.filter(v => v.companyName === companyName);
-}
-
-
-// Re-export filter categories so the rest of the app still works
-export const FILTER_CATEGORIES = [
-    { id: 'all-bars', label: 'Bars', icon: '🍻', typeFilter: 'Bar' },
-    { id: 'all-hotels', label: 'Hotels', icon: '🏨', typeFilter: 'Hotel' },
-    { id: 'all-stays', label: 'Stays', icon: '🏠', typeFilter: 'ShortStay' },
-
-    { id: 'sun-morning', label: 'Morning sun 🌅', icon: '🌅', intent: 'Morning' },
-    { id: 'sun-sunset', label: 'Sunset balcony 🌇', icon: '🌇', intent: 'Sunset' },
-    { id: 'sun-allday', label: 'All-day sun ☀️', icon: '☀️', intent: 'AllDay' },
-    { id: 'sun-shaded', label: 'Shaded retreat 🌿', icon: '🌿', intent: 'Shaded' },
-    { id: 'sun-highfloor', label: 'High floor + open sky 🏙️', icon: '🏙️', intent: 'HighFloor' },
-
-    { id: 'full-sun', label: 'Full Sun', icon: '☀️', emoji: '☀️', tag: 'Sunny' },
-    { id: 'rooftop', label: 'Rooftop', icon: '🏙️', tag: 'Rooftop' },
-    { id: 'beer-garden', label: 'Beer Garden', icon: '🍺', tag: 'Beer Garden' },
-    { id: 'pram-friendly', label: 'Pram Friendly', icon: '👶', tag: 'Pram Friendly' },
-    { id: 'pet-friendly', label: 'Pet Friendly', icon: '🐕', tag: 'Pet Friendly' },
-    { id: 'wheelchair', label: 'Wheelchair Accessible', icon: '♿', tag: 'Wheelchair Accessible' },
-    { id: 'smoking', label: 'Smoking Area', icon: '🚬', tag: 'Smoking Area' },
-    { id: 'large-groups', label: 'Large Groups', icon: '👥', tag: 'Large Groups' },
-    { id: 'shade', label: 'Shade/Cover', icon: '⛱️', tag: 'Shaded' },
-    { id: 'gluten-free', label: 'Gluten Free', icon: '🌾', tag: 'Gluten Free' },
-    { id: 'vegan', label: 'Vegan', icon: '🌱', tag: 'Vegan' },
-    { id: 'craft-beer', label: 'Craft Beer', icon: '🍺', tag: 'Craft Beer' },
-    { id: 'specialty-coffee', label: 'Specialty Coffee', icon: '☕', tag: 'Specialty Coffee' },
-    { id: 'live-music', label: 'Live Music', icon: '🎵', tag: 'Live Music' },
-    { id: 'sun-balcony', label: 'Balcony sun ☀️', icon: '☀️', intent: 'BalconySun' },
-    { id: 'sun-drinks', label: 'Sunny drinks 🍹', icon: '🍹', intent: 'SunnyDrinks' },
-    { id: 'fireplaces', label: 'Fireplaces/Heaters 🔥', icon: '🔥', tag: 'Fireplace' },
-    { id: 'cozy-mode', label: 'Cozy Mode ☕🔥', icon: '☕', tag: 'CozyMode' },
-];
-
-// Melbourne center coordinates for initial map view
-export const MELBOURNE_CENTER = {
-    lat: -37.8136,
-    lng: 144.9631,
-};

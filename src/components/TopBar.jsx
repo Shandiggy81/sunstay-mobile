@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Sun, Cloud, Wind } from 'lucide-react';
-import { CloudRain } from 'lucide-react';
+import { Search, X, Sun, Cloud, Wind, CloudRain } from 'lucide-react';
 
 const BANNER_GRADIENT = 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)';
 
@@ -14,9 +13,11 @@ const SunLogo = () => (
 );
 
 const WeatherIcon = ({ condition, windSpeed }) => {
-    if (condition.includes('rain') || condition.includes('drizzle')) return <CloudRain size={16} className="text-white/90" />;
-    if (windSpeed > 40) return <Wind size={16} className="text-white/90" />;
-    if (condition.includes('cloud')) return <Cloud size={16} className="text-white/90" />;
+    const safeCondition = String(condition || '').toLowerCase();
+    const safeWindSpeed = Number(windSpeed) || 0;
+    if (safeCondition.includes('rain') || safeCondition.includes('drizzle')) return <CloudRain size={16} className="text-white/90" />;
+    if (safeWindSpeed > 40) return <Wind size={16} className="text-white/90" />;
+    if (safeCondition.includes('cloud')) return <Cloud size={16} className="text-white/90" />;
     return <Sun size={16} className="text-yellow-300" />;
 };
 

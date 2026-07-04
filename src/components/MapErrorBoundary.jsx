@@ -4,6 +4,7 @@ class MapErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, retryCount: 0 };
+    this.retryTimer = null;
   }
 
   static getDerivedStateFromError(error) {
@@ -15,9 +16,17 @@ class MapErrorBoundary extends React.Component {
     
     // Silent retry: only once within the first failure
     if (this.state.retryCount < 1) {
-      setTimeout(() => {
+      this.retryTimer = setTimeout(() => {
         this.setState({ hasError: false, retryCount: 1 });
+        this.retryTimer = null;
       }, 3000);
+    }
+  }
+
+  componentWillUnmount() {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
     }
   }
 

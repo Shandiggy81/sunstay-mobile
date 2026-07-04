@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import WeatherGuaranteeToggle from './WeatherGuaranteeToggle';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
 import BookingWindowTimeline from './BookingWindowTimeline';
 import OperatorWeatherPanel from './OperatorWeatherPanel';
+import HourlyForecastStrip from './HourlyForecastStrip';
 import {
     ArrowLeft,
     CloudRain,
@@ -201,6 +202,14 @@ const VenueDetail = ({ venue, onClose, weather }) => {
     const { calculateSunstayScore, getTemperature, weather: liveWeather } = useWeather();
     const { airQuality, loading: airQualityLoading } = useAirQuality(venue?.lat, venue?.lng);
 
+    // FIX: scroll to top whenever a new venue is opened
+    const scrollRef = useRef(null);
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = 0;
+        }
+    }, [venue?.id]);
+
     const weatherQuote = getWeatherGuaranteeQuote({
       bookingValue: venue?.bookingPrice || 120,
       rainProbability: weather?.precipProbability ?? 18,
@@ -286,251 +295,3 @@ const VenueDetail = ({ venue, onClose, weather }) => {
 
     const hasFireplace = venue.tags?.includes('Fireplace');
     const hasHeaters = venue.tags?.includes('Heaters');
-    const hhStatus = getHappyHourStatus(venue.happyHour);
-    const ctaHref = venue.bookingUrl || venue.bookingLink || venue.booking || null;
-    const ctaLabel = ctaHref ? 'Book Now' : 'Manage This Venue';
-
-    const handlePrimaryCta = () => {
-        if (!ctaHref) return;
-        window.open(ctaHref, '_blank', 'noopener,noreferrer');
-    };
-
-    const statChips = [
-        {
-            icon: <Thermometer size={12} />,
-            label: 'Feels Like',
-            value: apparentTemp != null ? `${apparentTemp}\u00B0` : '--',
-        },
-        {
-            icon: <Wind size={12} />,
-            label: 'Wind',
-            value: windSpeedKmh != null ? `${windSpeedKmh}km/h` : '--',
-            accent: windSpeedKmh != null && windSpeedKmh > 30,
-        },
-        {
-            icon: <CloudRain size={12} />,
-            label: 'Rain',
-            value: rainLabel,
-            accent: isRaining || rainNowMm > 0,
-        },
-        {
-            icon: <Sun size={12} />,
-            label: 'UV',
-            value: uvIndex,
-            accent: Number(uvIndex) >= 7,
-        },
-        {
-            icon: <Leaf size={12} />,
-            label: 'Air',
-            value: airLabel,
-            accent: airIsPoor,
-        },
-    ];
-
-    return (
-        <div className="relative min-h-full bg-[#1a1c23] text-white pb-28 overflow-hidden">
-            <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -top-24 -right-24 h-56 w-56 rounded-full bg-amber-500/20 blur-3xl" />
-                <div className="absolute top-1/3 -left-20 h-52 w-52 rounded-full bg-cyan-500/20 blur-3xl" />
-                <div className="absolute bottom-0 left-1/3 h-44 w-44 rounded-full bg-fuchsia-500/12 blur-3xl" />
-            </div>
-
-            <div className="relative z-10 px-4">
-                <div className="sticky top-0 z-20 -mx-4 px-4 pt-3 pb-3 bg-[#1a1c23]/95 backdrop-blur-xl border-b border-white/10">
-                    <div className="flex items-start gap-3">
-                        <button
-                            onClick={onClose}
-                            className="h-9 w-9 mt-0.5 rounded-full bg-white/10 border border-white/15 text-white/85 flex items-center justify-center hover:bg-white/15 transition-colors"
-                            aria-label="Back"
-                        >
-                            <ArrowLeft size={16} />
-                        </button>
-                        <div className="min-w-0">
-                            <h2 className="text-base font-extrabold text-white leading-tight truncate">{venue.venueName}</h2>
-                            <p className="text-xs text-white/60 mt-0.5 truncate">{typeLabel} - {venue.suburb}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-4 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">Sunstay Score</p>
-                            <p className="text-3xl font-black mt-1 bg-gradient-to-r from-amber-300 via-yellow-200 to-orange-400 bg-clip-text text-transparent">
-                                {sunstayScore}
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-white/55">Current Temp</p>
-                            <p className="text-2xl font-bold mt-1">{temperature != null ? `${temperature}\u00B0` : '--'}</p>
-                        </div>
-                    </div>
-
-                    <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${clamp(sunstayScore, 0, 100)}%` }}
-                            transition={{ duration: 0.9, ease: 'easeOut' }}
-                            className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-300 to-orange-500"
-                        />
-                    </div>
-                </div>
-
-                <div className="mt-3 overflow-x-auto scrollbar-hide">
-                    <div className="flex gap-2 pb-1">
-                        {statChips.map((chip) => (
-                            <StatChip
-                                key={chip.label}
-                                icon={chip.icon}
-                                label={chip.label}
-                                value={chip.value}
-                                accent={chip.accent}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                <div className="mt-4">
-                    <GoldenWindowBar
-                        startHour={startHour}
-                        endHour={endHour}
-                        windowLabel={optimalWindow}
-                    />
-                </div>
-
-                <div className="mt-3">
-                    <div className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-semibold tracking-[0.18em] uppercase text-white/60">Best Time to Visit</p>
-                            <p className="text-xs text-amber-200 font-semibold">
-                                Next 8 hrs · Live ☀️
-                            </p>
-                        </div>
-                        <div className="h-28 flex items-end justify-between gap-1.5">
-                            {hourlyScores.map((h) => (
-                                <div key={h.hour} className="flex-1 flex flex-col items-center gap-1.5">
-                                    <span className={`text-[9px] font-bold tabular-nums ${h.isNow ? 'text-amber-300' : 'text-white/40'}`}>
-                                        {h.score}
-                                    </span>
-                                    <motion.div
-                                        initial={{ height: 0 }}
-                                        animate={{ height: `${Math.max(h.score, 4)}%` }}
-                                        transition={{ duration: 0.5, delay: h.isNow ? 0 : 0.05 }}
-                                        className={`w-full rounded-t-md ${
-                                            h.isNow
-                                                ? 'bg-gradient-to-t from-amber-500 to-yellow-300 shadow-[0_0_14px_rgba(251,191,36,0.5)]'
-                                                : h.score >= 65
-                                                    ? 'bg-gradient-to-t from-emerald-500/80 to-emerald-300/80'
-                                                    : h.score >= 45
-                                                        ? 'bg-gradient-to-t from-slate-500/70 to-slate-300/60'
-                                                        : 'bg-gradient-to-t from-blue-600/60 to-indigo-400/50'
-                                        }`}
-                                    />
-                                    <span className={`text-[9px] ${h.isNow ? 'text-amber-300 font-bold' : 'text-white/45'}`}>
-                                        {h.label}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <BookingWindowTimeline
-                  venue={venue}
-                  weatherHours={typeof hourlyForecast !== 'undefined' ? hourlyForecast : null}
-                  bookingStart={null}
-                  bookingEnd={null}
-                />
-                <OperatorWeatherPanel
-                  venue={venue}
-                  quote={weatherQuote}
-                />
-                <WeatherGuaranteeToggle
-                  venue={venue}
-                  quote={weatherQuote}
-                  enabled={weatherGuarantee}
-                  onToggle={setWeatherGuarantee}
-                />
-
-                {!isAccommodation && (hhStatus.isActive || hhStatus.isUpcoming) && (
-                    <div className={`mt-3 rounded-2xl border p-4 ${
-                        hhStatus.isActive
-                            ? 'bg-amber-500/15 border-amber-400/30'
-                            : 'bg-emerald-500/10 border-emerald-400/25'
-                    }`}>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className="text-lg">🍺</span>
-                                <div>
-                                    <p className={`text-xs font-bold uppercase tracking-wide ${
-                                        hhStatus.isActive ? 'text-amber-300' : 'text-emerald-300'
-                                    }`}>
-                                        {hhStatus.isActive ? `Happy Hour · ${hhStatus.minutesLeft}min left` : `Happy Hour starts in ${hhStatus.minutesUntil}min`}
-                                    </p>
-                                    <p className="text-[11px] text-white/60 mt-0.5">{hhStatus.timeRange}</p>
-                                </div>
-                            </div>
-                            <motion.div
-                                animate={{ scale: [1, 1.15, 1] }}
-                                transition={{ repeat: Infinity, duration: 1.8 }}
-                                className={`w-2 h-2 rounded-full ${hhStatus.isActive ? 'bg-amber-400' : 'bg-emerald-400'}`}
-                            />
-                        </div>
-                        {hhStatus.deal && (
-                            <p className="mt-2 text-[12px] text-white/80 font-medium leading-snug">{hhStatus.deal}</p>
-                        )}
-                    </div>
-                )}
-
-                <div className="mt-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-4">
-                    <div className="flex items-center gap-2 text-white/80">
-                        <MapPin size={14} className="text-white/55" />
-                        <p className="text-xs truncate">{venue.address || 'Address unavailable'}</p>
-                    </div>
-
-                    {(hasFireplace || hasHeaters) && (
-                        <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-amber-400/15 border border-amber-300/30 text-amber-200">
-                            <Flame size={12} />
-                            <span>{hasFireplace ? 'Fireplace' : 'Heaters'} Available</span>
-                        </div>
-                    )}
-
-                    {venue.tags?.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                            {venue.tags.slice(0, 8).map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="px-2 py-1 rounded-full text-[10px] bg-white/7 border border-white/10 text-white/70"
-                                >
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-
-                    {(venue.notes || airQuality?.source) && (
-                        <div className="mt-3 text-[11px] text-white/55 leading-relaxed">
-                            {venue.notes && <p>{venue.notes}</p>}
-                            {airQuality?.source && (
-                                <p className="mt-1">
-                                    Air source: {airQuality.source === 'openaq' ? 'OpenAQ' : 'Open-Meteo'} (PM2.5 {airPmValue})
-                                </p>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="sticky bottom-0 z-20 px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom,0px))] bg-gradient-to-t from-[#1a1c23] via-[#1a1c23]/96 to-[#1a1c23]/0">
-                <button
-                    onClick={handlePrimaryCta}
-                    className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold py-3.5 shadow-[0_8px_30px_rgba(245,158,11,0.35)] hover:shadow-[0_10px_35px_rgba(245,158,11,0.45)] transition-shadow"
-                >
-                    {ctaLabel}
-                </button>
-            </div>
-        </div>
-    );
-};
-
-export default VenueDetail;

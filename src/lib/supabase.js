@@ -3,12 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Graceful fallback — missing env vars log a warning but never throw,
+// so the map and UI still render during demos or cold-start hiccups.
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    '[Sunstay] Missing Supabase environment variables.\n' +
-    'Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env file.\n' +
-    'Never hardcode these values — rotate your key at supabase.com/dashboard if it was exposed.'
+  console.warn(
+    '[Sunstay] Missing Supabase env vars (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).\n' +
+    'DB features will be disabled. Set these in your .env to enable them.'
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Export null when credentials are absent — callers must guard: if (supabase) { ... }
+export const supabase =
+  supabaseUrl && supabaseKey
+    ? createClient(supabaseUrl, supabaseKey)
+    : null;
