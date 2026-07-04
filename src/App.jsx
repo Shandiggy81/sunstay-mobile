@@ -526,21 +526,6 @@ const AppContent = () => {
                         >
                             <Locate size={18} />
                         </motion.button>
-
-                        <div className="ss-map-filters-row absolute bottom-40 left-1/2 -translate-x-1/2 z-20 flex gap-2 w-full px-4 justify-center pr-16">
-                            {[['All', '🌐 All', 'bg-sky-600 text-white border-sky-600 scale-105', 'bg-white/90 backdrop-blur text-sky-700 border-sky-100 hover:bg-sky-50'],
-                              ['Sunny', '☀️ Sunny Patios', 'bg-amber-400 text-amber-950 border-amber-500 scale-105', 'bg-white/90 backdrop-blur text-amber-700 border-amber-100 hover:bg-amber-50'],
-                              ['Cozy', '🔥 Cozy & Covered', 'bg-orange-600 text-white border-orange-700 scale-105', 'bg-white/90 backdrop-blur text-orange-700 border-orange-100 hover:bg-orange-50'],
-                            ].map(([key, label, activeClass, inactiveClass]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => setActiveFilter(key)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
-                                        activeFilter === key ? activeClass : inactiveClass
-                                    }`}
-                                >{label}</button>
-                            ))}
-                        </div>
                     </section>
 
                     {selectedVenue && (

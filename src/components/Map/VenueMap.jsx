@@ -583,6 +583,14 @@ const VenueMap = forwardRef(({
                         const venue = venuesMapRef.current.get(String(venueId));
                         if (!venue) return;
 
+                        // FIX: Use the canonical venue coordinate, NOT feature.geometry.coordinates.
+                        // The cluster source can return a centroid coord for individual features
+                        // when they are near clustered points, causing pins to drift from their
+                        // true position (e.g. Wonderland Bar rendered near "Tyranny of Distance").
+                        const venueLng = Number(venue.lng);
+                        const venueLat = Number(venue.lat);
+                        if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
+
                         const pinKey = getPinStateKey(venue, weather, live);
                         let existing = markersRef.current[markerId];
 
@@ -599,7 +607,7 @@ const VenueMap = forwardRef(({
                                 onVenueSelectRef.current?.(venue);
                             });
                             const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-                                .setLngLat(coords)
+                                .setLngLat([venueLng, venueLat])
                                 .addTo(map.current);
                             existing = { marker, el, pinKey, isCluster: false };
                         }
