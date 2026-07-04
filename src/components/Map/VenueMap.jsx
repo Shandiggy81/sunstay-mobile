@@ -156,7 +156,6 @@ const VenueMap = forwardRef(({
                     emoji: getPinEmoji(v, weather),
                     name: v.venueName || v.name || '',
                     haloColor: getHaloColor(v),
-                    visible: filteredVenueIds === null || filteredVenueIds.includes(v.id),
                     score: (() => {
                         const liveInput = {
                             shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
@@ -171,7 +170,7 @@ const VenueMap = forwardRef(({
                 },
             })),
         };
-    }, [venues, weather, weatherColorFn, filteredVenueIds]);
+    }, [venues, weather]);
 
     // ── Sunshine overlay (memoized) ───────────────────────────────
     const sunshineGeoJSON = useMemo(
@@ -228,9 +227,8 @@ const VenueMap = forwardRef(({
                 map.current.addSource(VENUE_SOURCE_ID, {
                     type: 'geojson',
                     data: venueGeoJSON,
-                    cluster: true,
-                    clusterMaxZoom: 14,
-                    clusterRadius: 50,
+                    // Clustering disabled: cluster centroid ≠ true venue coordinate → position drift.
+                    // App pre-filters the venues array, so individual GL symbols are sufficient.
                 });
 
                 map.current.addLayer({
@@ -242,7 +240,7 @@ const VenueMap = forwardRef(({
                         'visibility': 'visible',
                     },
                     paint: VENUE_SYMBOL_PAINT,
-                    filter: ['==', ['get', 'visible'], true],
+                    // No filter needed: App.jsx pre-filters venues before passing them here.
                 });
 
                 // ── Add Sunshine Overlay Source + Circle Layer ───────

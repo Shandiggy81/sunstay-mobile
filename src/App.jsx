@@ -185,12 +185,10 @@ const AppContent = () => {
         return () => clearTimeout(timer);
     }, [liveVenueFeatures]);
 
-    // Auto-enable cozy mode if comfort.cozy === true
-    useEffect(() => {
-        if (comfort.cozy) {
-            setActiveFilter('Cozy');
-        }
-    }, [comfort.cozy]);
+
+    // Removed: auto-enable cozy mode was silently setting activeFilter='Cozy'
+    // which filtered out ~9 venues (reducing 43 → ~34). Cozy mode can still be
+    // applied manually via the Filters sheet.
 
     // Custom filters
     const [customFilters, setCustomFilters] = useState(
@@ -609,42 +607,6 @@ const AppContent = () => {
                             >
                                 <Locate size={18} />
                             </motion.button>
-
-                            {/* Functional Filter Buttons */}
-                            <div className="ss-map-filters-row absolute bottom-40 left-1/2 -translate-x-1/2 z-20 flex gap-2 w-full px-4 justify-center pr-16">
-                                <button
-                                    onClick={() => setActiveFilter('All')}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
-                                        activeFilter === 'All'
-                                            ? 'bg-sky-600 text-white border-sky-600 scale-105'
-                                            : 'bg-white/90 backdrop-blur text-sky-700 border-sky-100 hover:bg-sky-50'
-                                    }`}
-                                >
-                                    🌐 All
-                                </button>
-
-                                <button
-                                    onClick={() => setActiveFilter('Sunny')}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
-                                        activeFilter === 'Sunny'
-                                            ? 'bg-amber-400 text-amber-950 border-amber-500 scale-105'
-                                            : 'bg-white/90 backdrop-blur text-amber-700 border-amber-100 hover:bg-amber-50'
-                                    }`}
-                                >
-                                    ☀️ Sunny Patios
-                                </button>
-
-                                <button
-                                    onClick={() => setActiveFilter('Cozy')}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-lg border transition-all ${
-                                        activeFilter === 'Cozy'
-                                            ? 'bg-orange-600 text-white border-orange-700 scale-105'
-                                            : 'bg-white/90 backdrop-blur text-orange-700 border-orange-100 hover:bg-orange-50'
-                                    }`}
-                                >
-                                    🔥 Cozy & Covered
-                                </button>
-                            </div>
                         </section>
                         
                         {/* ═══ Venue detail card ═══ */}
