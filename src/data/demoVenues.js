@@ -92,6 +92,7 @@ export const demoVenues = [
         venueName: 'Wonderland Bar',
         address: '37–39 Chapel Street, Windsor VIC 3181',
         suburb: 'Windsor',
+        // Anchor pin — kept at true coordinates
         lat: -37.8546,
         lng: 144.9925,
         emoji: '🌿',
@@ -276,8 +277,9 @@ export const demoVenues = [
         venueName: 'Railway Hotel (Windsor)',
         address: '29 Chapel Street, Windsor VIC 3181, Australia',
         suburb: 'Windsor',
-        lat: -37.8549,
-        lng: 144.9925,
+        // Offset ~130m south of Wonderland Bar (dv-01) to prevent cluster pile-up
+        lat: -37.8558,
+        lng: 144.9924,
         emoji: '🍺',
         vibe: 'Pub · Restaurant',
         tags: ['24h License', 'Deck', 'Beer Garden', 'Smoking Area', 'Wheelchair Accessible'],
@@ -510,8 +512,9 @@ export const demoVenues = [
         venueName: 'Holy Grail',
         address: 'Chapel Street, Windsor VIC 3181',
         suburb: 'Windsor',
+        // Offset ~70m north of Wonderland Bar (dv-01) to prevent cluster pile-up
         lat: -37.8540,
-        lng: 144.9926,
+        lng: 144.9920,
         emoji: '🍷',
         vibe: 'Bar & Restaurant',
         sunIntelligence: 'Cozy indoor atmosphere with premium electric fireplace heating.',
@@ -524,8 +527,9 @@ export const demoVenues = [
         venueName: 'Union Hotel',
         address: 'Chapel Street, Windsor VIC 3181',
         suburb: 'Windsor',
-        lat: -37.8530,
-        lng: 144.9927,
+        // Offset ~180m north of Wonderland Bar (dv-01) to prevent cluster pile-up
+        lat: -37.8528,
+        lng: 144.9918,
         emoji: '🍺',
         vibe: 'Pub & Restaurant',
         sunIntelligence: 'Classic pub warmth with a traditional gas fireplace in the dining room.',
