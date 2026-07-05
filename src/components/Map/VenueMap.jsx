@@ -571,7 +571,7 @@ const VenueMap = forwardRef(({
                                 e.preventDefault();
                                 map.current.easeTo({ center: coords, zoom: map.current.getZoom() + 2 });
                             });
-                            const marker = new mapboxgl.Marker({ element: el })
+                            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
                                 .setLngLat(coords)
                                 .addTo(map.current);
                             existing = { marker, el, count, isCluster: true };
@@ -606,7 +606,7 @@ const VenueMap = forwardRef(({
                                 e.preventDefault();
                                 onVenueSelectRef.current?.(venue);
                             });
-                            const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+                            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(map.current);
                             existing = { marker, el, pinKey, isCluster: false };
