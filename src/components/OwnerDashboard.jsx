@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import FohWeatherWidget from './FohWeatherWidget';
+import MascotReaction from './MascotReaction';
 
 // ── Shared Spinner ──────────────────────────────────────────────────────
 const Spinner = () => (
@@ -273,6 +274,7 @@ function OwnerDashboardInner({
         }
       }}
     >
+      <MascotReaction lat={safeVenue?.lat || safeVenue?.latitude} lng={safeVenue?.lng || safeVenue?.longitude} />
       <motion.div
         key="owner-dashboard"
         initial={{ y: '100%' }}

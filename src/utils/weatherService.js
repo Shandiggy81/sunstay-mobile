@@ -108,6 +108,7 @@ export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
         isDay: current.is_day === 1,
         shortwaveRadiation: current.shortwave_radiation ?? 0,
         windGusts: current.wind_gusts_10m ?? 0,
+        precipitation: current.precipitation ?? 0,
         hourly: {
             ...hourly,
             _tzOffsetSeconds: 36000, // AEST = UTC+10
