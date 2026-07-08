@@ -58,7 +58,7 @@ export default function FohWeatherWidget({ lat = DEFAULT_LAT, lng = DEFAULT_LNG 
           if (!advisoryBlock && (wind > 35 || uv > 8)) {
             advisoryBlock = {
               start: t,
-              reason: wind > 35 ? 'Wind advisory. Pack down umbrellas and batten down the hatches.' : 'UV extreme. Deploy all shade immediately.'
+              reason: wind > 35 ? 'Gales expected. Pull in the A-frames and drop the umbrellas.' : 'Sun\'s baking. Deploy all shade and prep the sunscreen station.'
             };
           }
 
@@ -67,7 +67,7 @@ export default function FohWeatherWidget({ lat = DEFAULT_LAT, lng = DEFAULT_LNG 
           if (!slowBlock && isRaining) {
             slowBlock = {
               start: t,
-              reason: 'Rain incoming. Prep for a quiet floor.'
+              reason: 'Rain rolling in. Good time to run breaks and restock the bar.'
             };
           }
 
@@ -75,7 +75,7 @@ export default function FohWeatherWidget({ lat = DEFAULT_LAT, lng = DEFAULT_LNG 
           if (!peakBlock && temp >= 18 && temp <= 28 && precip < 20 && wind < 25) {
             peakBlock = {
               start: t,
-              reason: 'Prime beer garden weather. Expect a rush.'
+              reason: 'Prime beer garden weather. Staff up and prep for a rush.'
             };
           }
         }
@@ -108,7 +108,7 @@ export default function FohWeatherWidget({ lat = DEFAULT_LAT, lng = DEFAULT_LNG 
           animate={{ rotate: 360 }}
           transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
         />
-        <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Loading FOH Insights...</span>
+        <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>Pulling Shift Intel...</span>
       </div>
     );
   }
@@ -118,7 +118,7 @@ export default function FohWeatherWidget({ lat = DEFAULT_LAT, lng = DEFAULT_LNG 
     return (
       <div style={{ background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
         <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
-          No major weather shifts expected. Standard service ahead.
+          Weather's holding steady. Standard service on the floor today.
         </p>
       </div>
     );

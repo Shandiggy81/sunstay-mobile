@@ -86,10 +86,10 @@ const PRESET_TAGS = [
 ];
 
 const HEATING_FIELDS = [
-  { key: 'heatersOn',         label: 'Outdoor Heaters',    icon: '🔆' },
-  { key: 'fireplaceOn',       label: 'Fireplace / Fire Pit', icon: '🔥' },
-  { key: 'hasUmbrellas',      label: 'Shade Umbrellas',     icon: '⛱️' },
-  { key: 'hasWindProtection', label: 'Wind Protection',     icon: '🌬️' },
+  { key: 'heatersOn',         label: 'Mushroom Heaters',    icon: '🔆' },
+  { key: 'fireplaceOn',       label: 'Open Fire / Fire Pit', icon: '🔥' },
+  { key: 'hasUmbrellas',      label: 'Umbrellas Deployed',     icon: '⛱️' },
+  { key: 'hasWindProtection', label: 'Awnings / Windbreaks Down',     icon: '🌬️' },
 ];
 
 const booleanFromVenue = (currentValue, legacyFallback) => (
@@ -300,7 +300,7 @@ function OwnerDashboardInner({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div>
             <h2 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{venueName}</h2>
-            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>Owner Dashboard</span>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>Floor Ops Manager</span>
           </div>
           <button
             onClick={onClose}
@@ -314,12 +314,12 @@ function OwnerDashboardInner({
         <div style={{ flex: 1, overflowY: 'auto', padding: 16, WebkitOverflowScrolling: 'touch' }}>
 
           <section style={{ marginBottom: 24 }}>
-            <SectionHeading>📊 FOH Weather Insights</SectionHeading>
+            <SectionHeading>📊 FOH Weather Intel</SectionHeading>
             <FohWeatherWidget lat={safeVenue?.lat || safeVenue?.latitude} lng={safeVenue?.lng || safeVenue?.longitude} />
           </section>
 
           <section>
-            <SectionHeading>🕐 Operating Hours</SectionHeading>
+            <SectionHeading>🕐 Service Hours</SectionHeading>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {DAYS.map(day => {
                 const d = hours[day];
@@ -347,7 +347,7 @@ function OwnerDashboardInner({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginTop: 12 }}>
               <button onClick={handleSaveHours} disabled={hoursSaving} style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: hoursSaving ? 0.6 : 1 }}>
-                {hoursSaving ? 'Saving...' : 'Save Hours'}
+                {hoursSaving ? 'Saving...' : 'Update Trading Hours'}
               </button>
               <InlineStatus text={hoursStatus.text} type={hoursStatus.type} />
             </div>
@@ -357,13 +357,13 @@ function OwnerDashboardInner({
 
           {/* ── Live Sunshine Section ───────────────────────────────── */}
           <section>
-            <SectionHeading>☀️ Live Conditions</SectionHeading>
+            <SectionHeading>☀️ Live Floor Status</SectionHeading>
             <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
-              Toggle ON when the sun is hitting your terrace or garden right now.
-              Your map pin switches to ☀️ instantly — visible to every user on the app.
+              Flip this when the beer garden is cracking.
+              Your map pin instantly turns into a ☀️ so punters know you're the spot to be.
             </p>
             <DarkToggle
-              label="Live Sunshine (Terrace / Garden)"
+              label="Sun is Hitting the Garden"
               icon="☀️"
               value={sunshineNow}
               onChange={handleSunshineToggle}
@@ -376,9 +376,9 @@ function OwnerDashboardInner({
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
 
           <section>
-            <SectionHeading>🔥 Heating & Comfort</SectionHeading>
+            <SectionHeading>🔥 Winter Proofing</SectionHeading>
             <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
-              Toggling Heaters or Fireplace ON changes your map pin to 🔥 instantly.
+              Got the fires roaring? Flip these on so locals know you're a cozy refuge. Your map pin instantly switches to 🔥.
             </p>
             {HEATING_FIELDS.map(({ key, label, icon }) => (
               <DarkToggle
@@ -396,7 +396,7 @@ function OwnerDashboardInner({
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
 
           <section>
-            <SectionHeading>✨ Your Venue Vibe</SectionHeading>
+            <SectionHeading>✨ Venue Vibe Check</SectionHeading>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
               {activeTags.map(tag => (
                 <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 999, background: '#14B8A6', color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>
@@ -405,7 +405,7 @@ function OwnerDashboardInner({
                 </span>
               ))}
               {activeTags.length === 0 && (
-                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No tags yet — tap below to add</span>
+                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No vibe tags set — tap below to add</span>
               )}
             </div>
             <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 8, fontWeight: 600 }}>{activeTags.length}/8 tags</p>
@@ -430,7 +430,7 @@ function OwnerDashboardInner({
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <button onClick={handleSaveVibe} disabled={vibeSaving}
                 style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: vibeSaving ? 0.6 : 1 }}>
-                {vibeSaving ? 'Saving...' : 'Save Vibe'}
+                {vibeSaving ? 'Saving...' : 'Lock in Vibe'}
               </button>
               <InlineStatus text={vibeStatus.text} type={vibeStatus.type} />
             </div>
