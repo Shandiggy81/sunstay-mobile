@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import FohWeatherWidget from './FohWeatherWidget';
 
 // ── Shared Spinner ──────────────────────────────────────────────────────
 const Spinner = () => (
@@ -309,6 +310,11 @@ function OwnerDashboardInner({
 
         {/* Scrollable Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16, WebkitOverflowScrolling: 'touch' }}>
+
+          <section style={{ marginBottom: 24 }}>
+            <SectionHeading>📊 FOH Weather Insights</SectionHeading>
+            <FohWeatherWidget lat={safeVenue?.lat || safeVenue?.latitude} lng={safeVenue?.lng || safeVenue?.longitude} />
+          </section>
 
           <section>
             <SectionHeading>🕐 Operating Hours</SectionHeading>
