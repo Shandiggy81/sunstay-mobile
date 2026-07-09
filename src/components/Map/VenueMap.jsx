@@ -191,6 +191,7 @@ function addOrUpdateRadarLayer(map, tileURL) {
                 id:     RADAR_LAYER_ID,
                 type:   'raster',
                 source: RADAR_SOURCE_ID,
+                maxzoom: 13,
                 paint: {
                     'raster-opacity':       0.55,
                     'raster-fade-duration': 150,
@@ -229,6 +230,7 @@ function addOrUpdateCloudLayer(map) {
                 id: CLOUD_LAYER_ID,
                 type: 'raster',
                 source: CLOUD_SOURCE_ID,
+                maxzoom: 13,
                 paint: {
                     'raster-opacity': 0.65,
                     'raster-fade-duration': 150,
