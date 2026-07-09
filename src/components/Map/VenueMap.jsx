@@ -221,7 +221,7 @@ function addOrUpdateCloudLayer(map) {
                 tiles: [`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${WEATHER_API_KEY}`],
                 tileSize: 256,
                 minzoom: 0,
-                maxzoom: 18,
+                maxzoom: 12,
                 attribution: 'OpenWeatherMap',
             });
             const insertBefore = map.getLayer(RADAR_INSERT_BEFORE) ? RADAR_INSERT_BEFORE : undefined;
