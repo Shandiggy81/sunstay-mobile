@@ -208,7 +208,7 @@ function addOrUpdateRadarLayer(map, tileURL) {
                 id:     RADAR_LAYER_ID,
                 type:   'raster',
                 source: RADAR_SOURCE_ID,
-                maxzoom: 13,
+                maxzoom: 12,
                 paint: {
                     'raster-opacity':       0.55,
                     'raster-fade-duration': 150,
