@@ -24,6 +24,10 @@ import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
 import MapErrorBoundary from './components/MapErrorBoundary';
 
+// ── Filter ID constants (single source of truth) ──────────────────────
+export const FILTER_COZY  = 'cozy-mode';
+export const FILTER_SUNNY = 'sunny-mode';
+
 const EMPTY_LIVE_FEATURES = Object.freeze({});
 
 const LoadingScreen = () => (
@@ -184,15 +188,17 @@ const AppContent = () => {
 
     const [selectedVenue, setSelectedVenue]           = useState(null);
     const [isChatOpen, setIsChatOpen]                 = useState(false);
+    // ── UNIFIED filter state: single source of truth ─────────────────
+    // 'cozy-mode' replaces the old activeFilter === 'Cozy'
+    // 'sunny-mode' replaces the old activeFilter === 'Sunny'
+    // All other tag IDs (from FILTER_CATEGORIES) are also held here.
     const [activeFilters, setActiveFilters]           = useState([]);
-    const [activeFilter, setActiveFilter]             = useState('All');
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
     const [liveVenueFeatures, setLiveVenueFeatures]   = useState({});
 
-    // NOTE: Auto-cozy filter removed. comfort.cozy is intentionally NOT used
-    // to silently mutate activeFilter on load — doing so filtered the venue
-    // list before fitBounds ran, causing VenueMap to zoom out to all of
-    // Victoria on rainy days. The Cozy button remains fully interactive.
+    // NOTE: The old `activeFilter` string state ('All' | 'Cozy' | 'Sunny') has
+    // been retired. Use activeFilters.includes(FILTER_COZY) and
+    // activeFilters.includes(FILTER_SUNNY) instead throughout this file.
 
     const [customFilters, setCustomFilters] = useState(
         () => readJsonArray('sunstay-custom-filters')
@@ -216,7 +222,6 @@ const AppContent = () => {
 
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
-    const [mapQuickFilter, setMapQuickFilter]       = useState(null);
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
 
@@ -232,11 +237,25 @@ const AppContent = () => {
         return weather.minTemp < 8 || weather.precipitation > 0.5 || (weather.windSpeed || 0) > 15;
     }, [weather]);
 
+    // Derived booleans from the unified array — used by VenueMap & filteredVenues
+    const cozyFilterActive  = activeFilters.includes(FILTER_COZY);
+    const sunnyFilterActive = activeFilters.includes(FILTER_SUNNY);
+
+    // ── Unified venue filtering ────────────────────────────────────────
+    // filteredVenueIds feeds the map (pin visibility).
+    // filteredVenues feeds the sidebar list & result count.
+    // Both now use the same activeFilters array as their only source of truth.
     const filteredVenueIds = useMemo(() => {
         const filters = activeFilters || [];
         const typeFilters   = filters.filter(f => f.startsWith('all-'));
         const intentFilters = filters.filter(f => f.startsWith('sun-'));
-        const tagFilters    = filters.filter(f => !f.startsWith('all-') && !f.startsWith('sun-'));
+        // Exclude the special mode keys from tag matching
+        const tagFilters    = filters.filter(f =>
+            !f.startsWith('all-') &&
+            !f.startsWith('sun-') &&
+            f !== FILTER_COZY &&
+            f !== FILTER_SUNNY
+        );
         const categoryData  = FILTER_CATEGORIES;
 
         return demoVenues
@@ -270,30 +289,36 @@ const AppContent = () => {
                 });
                 return hasTagMatch;
             })
-            .filter(v => !activeFilters.includes('cozy-mode') || v.hasCozy)
+            // cozy-mode: was previously handled via separate activeFilter === 'Cozy'
+            .filter(v => !cozyFilterActive || v.hasCozy)
             .map(v => v.id);
-    }, [activeFilters]);
+    }, [activeFilters, cozyFilterActive]);
 
     const filteredVenues = useMemo(() => {
         return demoVenues.filter((venue) => {
-            if (activeFilter !== 'All') {
-                if (activeFilter === 'Cozy') {
-                    const liveState = liveVenueFeatures?.[venue.id] || {};
-                    const hasLiveCozy = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
-                    const hasStaticCozy =
-                        (venue.shielding?.rainCover ?? 0) > 80 ||
-                        venue.tags?.some(t => ['cozy','covered','indoor'].includes(t.toLowerCase())) ||
-                        venue.hasCozy;
-                    if (!hasLiveCozy && !hasStaticCozy) return false;
-                }
-                if (activeFilter === 'Sunny') {
-                    const liveState = liveVenueFeatures?.[venue.id] || {};
-                    const roofClosed = !!liveState.roofClosed;
-                    const uvIndexValue = getUVIndex() || 0;
-                    if (uvIndexValue < 4 || roofClosed) return false;
-                }
+            // cozy-mode filter (unified)
+            if (cozyFilterActive) {
+                const liveState = liveVenueFeatures?.[venue.id] || {};
+                const hasLiveCozy = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
+                const hasStaticCozy =
+                    (venue.shielding?.rainCover ?? 0) > 80 ||
+                    venue.tags?.some(t => ['cozy','covered','indoor'].includes(t.toLowerCase())) ||
+                    venue.hasCozy;
+                if (!hasLiveCozy && !hasStaticCozy) return false;
             }
-            if (activeFilters.length > 0 && !filteredVenueIds.includes(venue.id)) return false;
+
+            // sunny-mode filter (unified)
+            if (sunnyFilterActive) {
+                const liveState = liveVenueFeatures?.[venue.id] || {};
+                const roofClosed = !!liveState.roofClosed;
+                const uvIndexValue = getUVIndex() || 0;
+                if (uvIndexValue < 4 || roofClosed) return false;
+            }
+
+            // all other tag/type/intent filters via filteredVenueIds
+            if (activeFilters.filter(f => f !== FILTER_COZY && f !== FILTER_SUNNY).length > 0 &&
+                !filteredVenueIds.includes(venue.id)) return false;
+
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase();
                 const matchesSearch =
@@ -304,7 +329,7 @@ const AppContent = () => {
             }
             return true;
         });
-    }, [activeFilter, activeFilters, filteredVenueIds, liveVenueFeatures, searchQuery, getUVIndex]);
+    }, [cozyFilterActive, sunnyFilterActive, activeFilters, filteredVenueIds, liveVenueFeatures, searchQuery, getUVIndex]);
 
     const matchingCount = filteredVenues.length;
 
@@ -318,8 +343,6 @@ const AppContent = () => {
         setSelectedVenue(venue);
         const lng = Number(venue.lng);
         const lat = Number(venue.lat);
-        // Use resizeAndFly so Mapbox recalculates the viewport after
-        // VenueCard has rendered and the container has its final size.
         if (mapRef.current?.resizeAndFly && Number.isFinite(lng) && Number.isFinite(lat)) {
             mapRef.current.resizeAndFly([lng, lat]);
         }
@@ -340,7 +363,6 @@ const AppContent = () => {
 
     const handleClearFilters = useCallback(() => {
         setActiveFilters([]);
-        setMapQuickFilter(null);
     }, []);
 
     const makeChatFilter = (filter) => () => {
@@ -353,7 +375,7 @@ const AppContent = () => {
     const handleFindSmoking       = useCallback(makeChatFilter('smoking'), []);
     const handleFindFamily        = useCallback(makeChatFilter('pram-friendly'), []);
     const handleFindBusiness      = useCallback(makeChatFilter('Large Groups'), []);
-    const handleFindSunny         = useCallback(makeChatFilter('full-sun'), []);
+    const handleFindSunny         = useCallback(makeChatFilter(FILTER_SUNNY), []);
     const handleFindRooftop       = useCallback(makeChatFilter('rooftop'), []);
     const handleFindIndoor        = useCallback(makeChatFilter('shade'), []);
     const handleFindWindSheltered = useCallback(makeChatFilter('shade'), []);
@@ -451,9 +473,27 @@ const AppContent = () => {
                             )}
                         </div>
 
+                        {/* Quick-filter pills: Cozy + Sunny (now toggle into activeFilters) */}
+                        <div className="ss-quick-filter-row flex gap-2 px-3 py-2">
+                            <button
+                                onClick={() => handleFilterToggle(FILTER_COZY)}
+                                className={`ss-quick-pill ${cozyFilterActive ? 'ss-quick-pill--active' : ''}`}
+                                aria-pressed={cozyFilterActive}
+                            >
+                                🛋️ Cozy
+                            </button>
+                            <button
+                                onClick={() => handleFilterToggle(FILTER_SUNNY)}
+                                className={`ss-quick-pill ${sunnyFilterActive ? 'ss-quick-pill--active' : ''}`}
+                                aria-pressed={sunnyFilterActive}
+                            >
+                                ☀️ Sunny
+                            </button>
+                        </div>
+
                         <div className="ss-sidebar-count">
                             <span>{matchingCount} venue{matchingCount !== 1 ? 's' : ''}</span>
-                            {(activeFilters.length > 0 || mapQuickFilter) && (
+                            {activeFilters.length > 0 && (
                                 <button onClick={handleClearFilters} className="ss-sidebar-clear">Clear all</button>
                             )}
                         </div>
@@ -498,10 +538,6 @@ const AppContent = () => {
                         <div className="ss-map-container">
                             <MapErrorBoundary>
                                 <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
-                                    {/* FIX: venues receives the full demoVenues array so VenueMap's
-                                        fitBounds always initialises over Melbourne regardless of
-                                        active filters. Pin visibility is controlled separately
-                                        by filteredVenueIds={stableFilteredIds}. */}
                                     <VenueMap
                                         ref={mapRef}
                                         venues={demoVenues}
@@ -511,7 +547,7 @@ const AppContent = () => {
                                         liveVenueFeatures={liveVenueFeatures}
                                         weatherColorFn={getMarkerWeatherColor}
                                         cozyWeatherActive={cozyWeatherActive}
-                                        cozyFilterActive={activeFilter === 'Cozy'}
+                                        cozyFilterActive={cozyFilterActive}
                                         isExpanded={mobileMapExpanded}
                                     />
                                 </Suspense>
