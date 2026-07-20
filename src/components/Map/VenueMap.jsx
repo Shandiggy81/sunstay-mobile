@@ -15,9 +15,26 @@ const PIN_STATES = {
     cold:     { emoji: '🥶',  bg: '#bfdbfe', border: '#60a5fa' },
     sunny:    { emoji: '😎',  bg: '#fbbf24', border: '#d97706' },
     default:  { emoji: '🌤️', bg: '#60a5fa', border: '#3b82f6' },
+    // cozy-specific override when cozyFilterActive
+    cozy:     { emoji: '🛋️', bg: '#fde68a', border: '#f59e0b' },
+    // windy override from weatherColorFn
+    windy:    { emoji: '💨',  bg: '#bfdbfe', border: '#60a5fa' },
+    cloudy:   { emoji: '☁️',  bg: '#d1d5db', border: '#9ca3af' },
 };
 
-function getPinStateKey(venue, weather, liveVenueFeatures) {
+function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive) {
+    // If a custom weatherColorFn is provided, let it take priority
+    if (typeof weatherColorFn === 'function') {
+        const fnResult = weatherColorFn(weather, venue);
+        if (fnResult && PIN_STATES[fnResult]) return fnResult;
+    }
+
+    // Cozy filter active: highlight cozy venues differently
+    if (cozyFilterActive) {
+        const live = liveVenueFeatures?.[venue.id] || {};
+        if (live.fireplaceOn || live.heatersOn || live.roofClosed || venue.hasCozy) return 'cozy';
+    }
+
     const live = liveVenueFeatures?.[venue.id] || {};
     const apparentTemp = weather?.apparentTemp ?? weather?.main?.feels_like ?? weather?.main?.temp ?? 20;
     const precipProb   = weather?.precipProbability ?? 0;
@@ -64,7 +81,7 @@ function getBoundsFromVenues(venues) {
 
 // ── Marker DOM helpers ──────────────────────────────────────────────────
 function createMarkerEl(pinKey) {
-    const { emoji, bg, border } = PIN_STATES[pinKey];
+    const { emoji, bg, border } = PIN_STATES[pinKey] || PIN_STATES.default;
 
     const el = document.createElement('div');
     el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center;';
@@ -100,7 +117,7 @@ function updateMarkerEl(el, pinKey) {
     const inner = el.querySelector('div');
     if (!inner) return;
 
-    const { emoji, bg, border } = PIN_STATES[pinKey];
+    const { emoji, bg, border } = PIN_STATES[pinKey] || PIN_STATES.default;
     inner.textContent = emoji;
     inner.style.background = bg;
     inner.style.borderColor = border;
@@ -274,6 +291,11 @@ const VenueMap = forwardRef(({
     filteredVenueIds,
     onVenueSelect,
     liveVenueFeatures = {},
+    // ── NEW: props wired from App.jsx ──────────────────────────────
+    weatherColorFn    = null,   // (weather, venue) => pinKey string
+    cozyWeatherActive = false,  // true when weather is cold/rainy
+    cozyFilterActive  = false,  // true when user has 'Cozy' filter selected
+    isExpanded        = false,  // true when map is in fullscreen/expanded mode
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -314,6 +336,19 @@ const VenueMap = forwardRef(({
     useEffect(() => {
         liveVenueFeaturesRef.current = liveVenueFeatures;
     }, [liveKey]);
+
+    // Keep refs stable for use inside event handlers
+    const weatherColorFnRef   = useRef(weatherColorFn);
+    const cozyFilterActiveRef = useRef(cozyFilterActive);
+    useEffect(() => { weatherColorFnRef.current   = weatherColorFn;   }, [weatherColorFn]);
+    useEffect(() => { cozyFilterActiveRef.current = cozyFilterActive; }, [cozyFilterActive]);
+
+    // Resize map when isExpanded changes so tiles fill the new container size
+    useEffect(() => {
+        if (!map.current || !mapLoaded) return;
+        const t = setTimeout(() => map.current?.resize(), 300);
+        return () => clearTimeout(t);
+    }, [isExpanded, mapLoaded]);
 
     // ── Imperative API ──────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
@@ -586,14 +621,17 @@ const VenueMap = forwardRef(({
                         if (!venue) return;
 
                         // FIX: Use the canonical venue coordinate, NOT feature.geometry.coordinates.
-                        // The cluster source can return a centroid coord for individual features
-                        // when they are near clustered points, causing pins to drift from their
-                        // true position (e.g. Wonderland Bar rendered near "Tyranny of Distance").
                         const venueLng = Number(venue.lng);
                         const venueLat = Number(venue.lat);
                         if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
 
-                        const pinKey = getPinStateKey(venue, weather, live);
+                        const pinKey = getPinStateKey(
+                            venue,
+                            weather,
+                            live,
+                            weatherColorFnRef.current,
+                            cozyFilterActiveRef.current,
+                        );
                         let existing = markersRef.current[markerId];
 
                         if (existing) {
@@ -776,6 +814,31 @@ const VenueMap = forwardRef(({
                             ☁️
                         </button>
                     )}
+
+                    {/* Cozy weather indicator — shows when cozyWeatherActive */}
+                    {cozyWeatherActive && (
+                        <div
+                            title="Cozy weather conditions active"
+                            style={{
+                                width:               44,
+                                height:              44,
+                                borderRadius:        '50%',
+                                border:              '2px solid #F59E0B',
+                                background:          'rgba(251,191,36,0.15)',
+                                backdropFilter:      'blur(8px)',
+                                WebkitBackdropFilter:'blur(8px)',
+                                display:             'flex',
+                                alignItems:          'center',
+                                justifyContent:      'center',
+                                fontSize:            20,
+                                boxShadow:           '0 2px 10px rgba(0,0,0,0.3)',
+                                pointerEvents:       'none',
+                            }}
+                            aria-label="Cozy weather active"
+                        >
+                            🧥
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -798,6 +861,7 @@ const VenueMap = forwardRef(({
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner">
                         📍 Live Weather Pins &bull; {venues.length} venues
+                        {cozyFilterActive && <span style={{ marginLeft: 6 }}>· 🛋️ Cozy filter on</span>}
                     </div>
                 </div>
             )}
