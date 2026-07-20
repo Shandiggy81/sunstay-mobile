@@ -12,6 +12,19 @@ dist
 dist-ssr
 *.local
 
+# Build & CI artifacts — never commit these
+*.txt
+*.json.bak
+build_output*
+deploy_output*
+deploy_retry*
+git_log*
+raw_copy*
+weather_test*
+
+# Scratch / temp directories
+scratch/
+
 # Environment variables
 .env
 .env.local
