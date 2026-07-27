@@ -188,16 +188,16 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
   );
 };
 
-// ── Sunstay Score Badge ────────────────────────────────────
+// ── Sunstay Score Hero Badge ────────────────────────────────────
 const SunstayScoreBadge = ({ score, bestWindow }) => {
   const pct = Math.round(Math.max(0, Math.min(100, score)));
 
   // Colour ramp: cold/poor → blue, mid → amber, high → emerald
-  const { bg, border, text, fill } = pct >= 75
-    ? { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.28)', text: '#065F46', fill: '#10B981' }
+  const { bg, border, text, fill, glow } = pct >= 75
+    ? { bg: 'rgba(16,185,129,0.09)', border: 'rgba(16,185,129,0.35)', text: '#065F46', fill: '#10B981', glow: 'rgba(16,185,129,0.15)' }
     : pct >= 50
-    ? { bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.28)', text: '#92400E', fill: '#F59E0B' }
-    : { bg: 'rgba(14,165,233,0.07)', border: 'rgba(14,165,233,0.22)', text: '#0C4A6E', fill: '#0EA5E9' };
+    ? { bg: 'rgba(245,158,11,0.09)', border: 'rgba(245,158,11,0.35)', text: '#92400E', fill: '#F59E0B', glow: 'rgba(245,158,11,0.15)' }
+    : { bg: 'rgba(14,165,233,0.08)', border: 'rgba(14,165,233,0.28)', text: '#0C4A6E', fill: '#0EA5E9', glow: 'rgba(14,165,233,0.12)' };
 
   const emoji = pct >= 75 ? '☀️' : pct >= 50 ? '🌤️' : '🌥️';
   const label = pct >= 75 ? 'Peak Comfort' : pct >= 50 ? 'Good Conditions' : 'Worth a Look';
@@ -207,41 +207,41 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
 
   return (
     <motion.div
-      className="rounded-2xl px-4 py-3 flex items-center gap-3"
-      style={{ background: bg, border: `1px solid ${border}` }}
+      className="rounded-2xl px-5 py-4 flex items-center gap-4 w-full"
+      style={{ background: bg, border: `2px solid ${border}`, boxShadow: `0 4px 20px ${glow}` }}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 280, damping: 26, delay: 0.08 }}
     >
       {/* Circular score ring */}
-      <div className="relative flex-shrink-0" style={{ width: 52, height: 52 }}>
-        <svg width="52" height="52" viewBox="0 0 52 52" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="4" />
+      <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: 62, height: 62 }}>
+        <svg width="62" height="62" viewBox="0 0 62 62" style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="5" />
           <motion.circle
-            cx="26" cy="26" r="22" fill="none"
-            stroke={fill} strokeWidth="4"
+            cx="31" cy="31" r="26" fill="none"
+            stroke={fill} strokeWidth="5"
             strokeLinecap="round"
-            strokeDasharray={`${2 * Math.PI * 22}`}
-            initial={{ strokeDashoffset: 2 * Math.PI * 22 }}
-            animate={{ strokeDashoffset: 2 * Math.PI * 22 * (1 - pct / 100) }}
+            strokeDasharray={`${2 * Math.PI * 26}`}
+            initial={{ strokeDashoffset: 2 * Math.PI * 26 }}
+            animate={{ strokeDashoffset: 2 * Math.PI * 26 * (1 - pct / 100) }}
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[13px] font-black leading-none" style={{ color: text }}>{pct}</span>
+          <span className="text-[16px] font-black leading-none" style={{ color: text }}>{pct}</span>
         </div>
       </div>
 
       {/* Labels */}
-      <div className="flex flex-col gap-0.5 min-w-0">
+      <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-[0.65rem] font-black uppercase tracking-widest" style={{ color: text }}>Sunstay Score</span>
-          <span className="text-base leading-none">{emoji}</span>
+          <span className="text-[0.72rem] font-black uppercase tracking-widest" style={{ color: text }}>Sunstay Score</span>
+          <span className="text-lg leading-none">{emoji}</span>
         </div>
-        <span className="text-[15px] font-black leading-tight" style={{ color: '#1E293B' }}>{label}</span>
+        <span className="text-lg font-black leading-tight" style={{ color: '#1E293B' }}>{label}</span>
         {showWindow && (
           <motion.span
-            className="text-[11px] font-semibold leading-tight mt-0.5"
+            className="text-[12px] font-bold leading-tight mt-0.5"
             style={{ color: text }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -252,7 +252,7 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
         )}
         {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && (
           <motion.span
-            className="text-[11px] font-semibold leading-tight mt-0.5"
+            className="text-[12px] font-bold leading-tight mt-0.5"
             style={{ color: '#065F46' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -263,6 +263,98 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
         )}
       </div>
     </motion.div>
+  );
+};
+
+// ── Collapsible Deep Dive Accordion ──────────────────────────────
+const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-2 mt-1 w-full">
+      <motion.button
+        type="button"
+        onClick={() => setIsExpanded(prev => !prev)}
+        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 select-none"
+        style={{
+          background: isExpanded ? 'rgba(14,165,233,0.10)' : 'rgba(14,165,233,0.04)',
+          borderColor: isExpanded ? 'rgba(14,165,233,0.25)' : 'rgba(14,165,233,0.12)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        }}
+        whileHover={{ scale: 1.01, background: 'rgba(14,165,233,0.08)' }}
+        whileTap={{ scale: 0.99 }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/20 text-base flex-shrink-0">
+            📊
+          </span>
+          <div>
+            <span className="text-[14px] font-extrabold text-slate-900 block leading-tight">
+              Detailed Forecast & Intelligence
+            </span>
+            <span className="text-[11px] font-semibold text-slate-500 block mt-0.5">
+              {isExpanded ? 'Tap to hide detailed forecast' : 'Tap for detailed forecast'}
+            </span>
+          </div>
+        </div>
+        <motion.div
+          animate={{ rotate: isExpanded ? 180 : 0 }}
+          transition={{ duration: 0.28, ease: 'easeInOut' }}
+          className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-200/60 text-slate-700 flex-shrink-0"
+        >
+          <span style={{ fontSize: 11, fontWeight: 'bold' }}>▼</span>
+        </motion.div>
+      </motion.button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.32, ease: 'easeInOut' }}
+            className="overflow-hidden flex flex-col gap-3 pt-1 pb-1"
+          >
+            {/* Secondary Metrics (UV & Pristine Air) - removed from default view */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div
+                className="flex items-center gap-3 p-3.5 rounded-2xl border"
+                style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.14)' }}
+              >
+                <span className="text-xl flex-shrink-0">🔆</span>
+                <div className="min-w-0">
+                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">UV Index</span>
+                  <span className="text-[15px] font-extrabold text-slate-900 block mt-0.5">{uvIndex ?? '–'}</span>
+                </div>
+              </div>
+              <div
+                className="flex items-center gap-3 p-3.5 rounded-2xl border"
+                style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.14)' }}
+              >
+                <span className="text-xl flex-shrink-0">🌿</span>
+                <div className="min-w-0">
+                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">Pristine Air</span>
+                  <span className="text-[15px] font-extrabold text-slate-900 block mt-0.5 truncate">{aqLabel ?? '–'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Hourly Comfort Forecast */}
+            {lat && lng && (
+              <div className="rounded-2xl overflow-hidden border" style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.12)' }}>
+                <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
+                  <span className="text-[0.72rem] font-black uppercase tracking-widest text-slate-700">Hourly Comfort Forecast</span>
+                </div>
+                <HourlyForecastStrip lat={lat} lng={lng} dark />
+              </div>
+            )}
+
+            {/* Wind & Comfort Intelligence */}
+            <WindComfortPanel venue={venue} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
@@ -543,8 +635,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               daylightHours={daylightHours}
               venue={venue}
               weather={weather}
-              calculateSunstayScore={calculateSunstayScore}
-              getBestWindow={getBestWindow}
             />
             <LiveSunTimeline
               sunData={sunData}
@@ -556,15 +646,15 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               peakEnd={peakEndDecimal}
             />
             <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
-            {lat && lng && (
-              <motion.div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.32 }}>
-                <div className="px-3 pt-2 pb-1"><span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>12-Hour Forecast</span></div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark />
-              </motion.div>
-            )}
-
-            {/* WIND & COMFORT INTELLIGENCE — self-contained, reads from useWeather() context */}
-            <WindComfortPanel venue={venue} />
+            
+            {/* COLLAPSIBLE DEEP DIVE (Hourly Comfort Forecast, Wind & Comfort Intelligence, UV & Pristine Air) */}
+            <DetailedForecastAccordion
+              lat={lat}
+              lng={lng}
+              venue={venue}
+              uvIndex={uvIndex}
+              aqLabel={aqLabel}
+            />
 
             {shielding && (
               <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>

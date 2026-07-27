@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
-import { useWeather } from '../context/WeatherContext';
 
-const Float = ({ children, delay = 0, range = 6, duration = 4, className = '' }) => (
+const Float = ({ children, delay = 0, range = 4, duration = 4, className = '' }) => (
   <motion.div
     className={className}
     animate={{ y: [0, -range, 0] }}
@@ -14,105 +13,24 @@ const Float = ({ children, delay = 0, range = 6, duration = 4, className = '' })
 );
 
 const StatChip = ({ icon, label, value, delay = 0, className = 'flex-1 min-w-0' }) => (
-  <Float delay={delay} range={4} duration={4.5} className={className}>
+  <Float delay={delay} range={3} duration={4.5} className={className}>
     <motion.div
-      className="flex flex-col items-center justify-center rounded-2xl"
-      style={{ padding: '8px 4px', background: 'rgba(14,165,233,0.07)', border: '1px solid rgba(14,165,233,0.15)', boxShadow: '0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)' }}
-      whileHover={{ scale: 1.06, background: 'rgba(14,165,233,0.11)' }}
+      className="flex flex-col items-center justify-center rounded-2xl w-full"
+      style={{
+        padding: '12px 8px',
+        background: 'rgba(14,165,233,0.07)',
+        border: '1px solid rgba(14,165,233,0.18)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.8)'
+      }}
+      whileHover={{ scale: 1.04, background: 'rgba(14,165,233,0.11)' }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
-      <span className="text-lg mb-0.5">{icon}</span>
-      <span className="leading-none" style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{value}</span>
-      {/* FIX A: #475569 (Slate 600) replaces #64748B — higher contrast on ambient-lit screens */}
-      <span className="uppercase tracking-widest font-black mt-0.5" style={{ fontSize: '9px', color: '#475569' }}>{label}</span>
+      <span className="text-xl mb-1">{icon}</span>
+      <span className="leading-none" style={{ fontSize: '15px', fontWeight: 800, color: '#1E293B' }}>{value}</span>
+      <span className="uppercase tracking-widest font-black mt-1" style={{ fontSize: '10px', color: '#475569' }}>{label}</span>
     </motion.div>
   </Float>
 );
-
-const ScoreOrb = ({ score }) => {
-  const r = 38;
-  const circ = r * 2 * Math.PI;
-  const offset = circ - (Math.max(0, Math.min(100, score)) / 100) * circ;
-  const color = score > 75 ? '#F59E0B' : score >= 50 ? '#0EA5E9' : '#94A3B8';
-  const glowColor = score > 75 ? 'rgba(245,158,11,0.30)' : score >= 50 ? 'rgba(14,165,233,0.30)' : 'rgba(148,163,184,0.15)';
-  return (
-    <Float range={5} duration={5} delay={0.3}>
-      <motion.div
-        className="relative flex items-center justify-center flex-shrink-0"
-        style={{ width: 72, height: 72, willChange: 'transform', transform: 'translateZ(0)' }}
-        animate={{ boxShadow: [`0 0 0px 0px ${glowColor}`, `0 0 28px 8px ${glowColor}`, `0 0 0px 0px ${glowColor}`] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, ${glowColor} 0%, transparent 70%)` }} />
-        <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth={6} />
-          <defs>
-            <linearGradient id="og" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#F59E0B" />
-              <stop offset="100%" stopColor="#EF4444" />
-            </linearGradient>
-          </defs>
-          <motion.circle
-            cx="50" cy="50" r={r} fill="none"
-            stroke={score > 75 ? 'url(#og)' : color}
-            strokeWidth={6}
-            strokeDasharray={circ}
-            initial={{ strokeDashoffset: circ }}
-            animate={{ strokeDashoffset: offset }}
-            transition={{ duration: 1.8, ease: 'easeOut', delay: 0.4 }}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="flex flex-col items-center justify-center text-center z-10">
-          <span className="font-black text-[1.5rem] leading-none" style={{ color: '#1E293B' }}>{Math.round(score)}</span>
-          <span className="text-[9px] uppercase tracking-widest font-bold mt-0.5" style={{ color }}>Vibe</span>
-        </div>
-      </motion.div>
-    </Float>
-  );
-};
-
-// ─── Forward Window Badge ─────────────────────────────────────────────────────
-// Self-contained — reads getBestWindow() directly from context.
-// Hidden when type === 'UNKNOWN' (no hourly data / demo mode) to avoid layout shift.
-const WindowBadge = () => {
-  const { getBestWindow } = useWeather();
-  const win = getBestWindow(8);
-
-  if (!win || win.type === 'UNKNOWN') return null;
-
-  const isPeak = win.type === 'CURRENT_PEAK';
-  const bg     = isPeak ? 'rgba(245,158,11,0.12)' : 'rgba(14,165,233,0.10)';
-  const border = isPeak ? 'rgba(245,158,11,0.30)'  : 'rgba(14,165,233,0.25)';
-  const color  = isPeak ? '#B45309'                 : '#0369A1';
-  const emoji  = isPeak ? '✨'                       : '☀️';
-  const text   = isPeak
-    ? `Peak Comfort Now (${Math.round(win.score)}%)`
-    : `Golden Window: in ${win.startsInHours}h (${Math.round(win.score)}%)`;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 22, delay: 0.55 }}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '5px 10px',
-        borderRadius: 999,
-        background: bg,
-        border: `1px solid ${border}`,
-        alignSelf: 'flex-start',
-        marginTop: 6,
-      }}
-    >
-      <span style={{ fontSize: 12 }}>{emoji}</span>
-      <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '0.01em' }}>{text}</span>
-    </motion.div>
-  );
-};
-// ─────────────────────────────────────────────────────────────────────────────
 
 const SparkLine = ({ data, color, label, unit }) => {
   if (!data || data.length < 2) return null;
@@ -123,14 +41,12 @@ const SparkLine = ({ data, color, label, unit }) => {
   const fillPts = `0,${H} ${pts} ${W},${H}`;
   return (
     <div className="flex flex-col gap-1 flex-1 min-w-0">
-      {/* Label: dark slate for legibility on light card background */}
       <span className="text-[8px] uppercase tracking-widest font-black" style={{ color: '#475569' }}>{label}</span>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="w-full h-auto overflow-visible">
         <polyline points={fillPts} fill={color} fillOpacity="0.12" stroke="none" />
         <motion.polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: 1.2, ease: 'easeOut' }} />
       </svg>
       <div className="flex justify-between">
-        {/* Min/max values: dark enough for WCAG AA on light bg */}
         <span className="text-[8px] font-black" style={{ color: '#334155' }}>{Math.round(min)}{unit}</span>
         <span className="text-[8px] font-black" style={{ color: '#1E293B' }}>{Math.round(max)}{unit}</span>
       </div>
@@ -152,34 +68,18 @@ export default function VenueCardWeather({
   return (
     <>
       <motion.div
-        className="flex flex-col"
+        className="flex flex-col w-full"
         style={{ overflow: 'visible' }}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.22, type: 'spring', stiffness: 260, damping: 24 }}
       >
-        {/* Score orb + stat chips row */}
-        <div className="flex items-start gap-3">
-          <ScoreOrb score={score} />
-          <div className="flex flex-col justify-center ml-1 mr-2 flex-shrink-0" style={{ paddingTop: '6px' }}>
-            <span className="font-bold text-lg leading-tight tracking-wide" style={{ color: '#1E293B' }}>{scoreLabel}</span>
-            <span className="text-[11px] uppercase tracking-wider mt-0.5" style={{ color: '#64748B' }}>Sunstay Score</span>
-            <span className="text-[11px] font-semibold mt-1" style={{ color: '#94A3B8' }}>{scoreMeaningLabel}</span>
-          </div>
-          <div className="flex-1 grid grid-cols-6 gap-1.5">
-            <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Feels" value={`${Math.round(feelsLike)}°`} delay={0} />
-            <StatChip className="col-span-2 min-w-0" icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
-            <StatChip className="col-span-2 min-w-0" icon="🌂" label="Rain" value={precipProb ? `${precipProb}%` : '0%'} delay={0.16} />
-            {(minTemp !== null && maxTemp !== null) && (
-              <StatChip className="col-span-2 min-w-0" icon="🌡️" label="Range" value={`${Math.round(minTemp)}–${Math.round(maxTemp)}°`} delay={0.12} />
-            )}
-            <StatChip className="col-span-2 min-w-0" icon="🔆" label="UV" value={uvIndex ?? '–'} delay={0.24} />
-            <StatChip className="col-span-2 min-w-0" icon="🌿" label="Air" value={aqLabel} delay={0.32} />
-          </div>
+        {/* Consolidated Weather Metrics: Single compact horizontal row of Feels Like, Wind, and Rain */}
+        <div className="grid grid-cols-3 gap-2.5 w-full">
+          <StatChip icon="🌡️" label="Feels Like" value={`${Math.round(feelsLike)}°`} delay={0} />
+          <StatChip icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
+          <StatChip icon="🌂" label="Rain" value={precipProb ? `${precipProb}%` : '0%'} delay={0.16} />
         </div>
-
-        {/* Forward window badge — sits below the orb row, hidden when no hourly data */}
-        <WindowBadge />
       </motion.div>
 
       {hourlyData && (
