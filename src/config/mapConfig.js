@@ -19,6 +19,8 @@ export const MAP_STYLE = {
                 'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
             ],
             tileSize: 256,
+            minzoom: 3,
+            maxzoom: 18,
             attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
         }
     },
@@ -27,8 +29,8 @@ export const MAP_STYLE = {
             id: 'carto-positron-layer',
             type: 'raster',
             source: 'carto-positron',
-            minzoom: 0,
-            maxzoom: 20
+            minzoom: 3,
+            maxzoom: 18
         }
     ]
 };

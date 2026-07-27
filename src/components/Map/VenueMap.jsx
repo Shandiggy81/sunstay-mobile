@@ -156,11 +156,7 @@ function updateClusterMarkerEl(el, count) {
 }
 
 // ── Layer helpers ───────────────────────────────────────────────────────
-const RAINVIEWER_META_URL = 'https://api.rainviewer.com/public/weather-maps.json';
-const RADAR_SOURCE_ID     = 'rainviewer-radar';
-const RADAR_LAYER_ID      = 'rainviewer-radar-layer';
-const RADAR_INSERT_BEFORE = 'aeroway-polygon';
-const RADAR_SOURCE_MAXZOOM = 12;
+const LAYER_INSERT_BEFORE = 'aeroway-polygon';
 
 const HEATMAP_SOURCE_ID = 'comfort-heatmap-src';
 const HEATMAP_LAYER_ID  = 'comfort-heatmap-lyr';
@@ -171,64 +167,6 @@ const CLOUD_LAYER_ID  = 'openweathermap-cloud-layer';
 
 const CLUSTER_SOURCE_ID = 'venues-cluster-src';
 const CLUSTER_LAYER_ID  = 'venues-cluster-lyr';
-
-async function fetchRadarTimestamp() {
-    try {
-        const res  = await fetch(RAINVIEWER_META_URL);
-        const json = await res.json();
-        const frames = json?.radar?.past;
-        if (!Array.isArray(frames) || frames.length === 0) return null;
-        return frames[frames.length - 1].path;
-    } catch (e) {
-        console.warn('[VenueMap] RainViewer metadata fetch failed:', e?.message);
-        return null;
-    }
-}
-
-function buildRadarTileURL(path) {
-    return `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`;
-}
-
-function addOrUpdateRadarLayer(map, tileURL) {
-    if (!map) return;
-    try {
-        if (map.getSource(RADAR_SOURCE_ID)) {
-            map.getSource(RADAR_SOURCE_ID).setTiles([tileURL]);
-        } else {
-            map.addSource(RADAR_SOURCE_ID, {
-                type:     'raster',
-                tiles:    [tileURL],
-                tileSize: 256,
-                minzoom:  0,
-                maxzoom:  RADAR_SOURCE_MAXZOOM,
-                attribution: 'RainViewer',
-            });
-            const insertBefore = map.getLayer(RADAR_INSERT_BEFORE) ? RADAR_INSERT_BEFORE : undefined;
-            map.addLayer({
-                id:     RADAR_LAYER_ID,
-                type:   'raster',
-                source: RADAR_SOURCE_ID,
-                maxzoom: 12,
-                paint: {
-                    'raster-opacity':       0.55,
-                    'raster-fade-duration': 150,
-                },
-            }, insertBefore);
-        }
-    } catch (e) {
-        console.warn('[VenueMap] addOrUpdateRadarLayer error:', e?.message);
-    }
-}
-
-function removeRadarLayer(map) {
-    if (!map) return;
-    try {
-        if (map.getLayer(RADAR_LAYER_ID))   map.removeLayer(RADAR_LAYER_ID);
-        if (map.getSource(RADAR_SOURCE_ID)) map.removeSource(RADAR_SOURCE_ID);
-    } catch (e) {
-        console.warn('[VenueMap] removeRadarLayer error:', e?.message);
-    }
-}
 
 function addOrUpdateCloudLayer(map) {
     if (!map || !WEATHER_API_KEY) return;
@@ -242,7 +180,7 @@ function addOrUpdateCloudLayer(map) {
                 maxzoom: 12,
                 attribution: 'OpenWeatherMap',
             });
-            const insertBefore = map.getLayer(RADAR_INSERT_BEFORE) ? RADAR_INSERT_BEFORE : undefined;
+            const insertBefore = map.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
             map.addLayer({
                 id: CLOUD_LAYER_ID,
                 type: 'raster',
@@ -273,8 +211,6 @@ function isSuppressedMapError(msg) {
     if (!msg) return false;
     const lower = msg.toLowerCase();
     return (
-        lower.includes(RADAR_LAYER_ID) ||
-        lower.includes('tilecache.rainviewer') ||
         lower.includes('zoom level') ||
         lower.includes('not supported') ||
         lower.includes(HEATMAP_SOURCE_ID) ||
@@ -302,12 +238,9 @@ const VenueMap = forwardRef(({
     const markersRef       = useRef({});
     const hasFlownToBounds = useRef(false);
     const rafRef           = useRef(null);
-    const radarTimerRef    = useRef(null);
 
-    const [radarOn,      setRadarOn]      = useState(false);
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
-    const [radarLoading, setRadarLoading] = useState(false);
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
@@ -388,6 +321,8 @@ const VenueMap = forwardRef(({
                 style:               MAP_STYLE,
                 center:              [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
                 zoom:                INITIAL_VIEW_STATE.zoom,
+                minZoom:             3,
+                maxZoom:             18,
                 pitch:               0,
                 bearing:             0,
                 cooperativeGestures: false,
@@ -426,8 +361,7 @@ const VenueMap = forwardRef(({
         return () => {
             disposed = true;
             clearTimeout(loadTimeout);
-            if (rafRef.current)        cancelAnimationFrame(rafRef.current);
-            if (radarTimerRef.current) clearInterval(radarTimerRef.current);
+            if (rafRef.current) cancelAnimationFrame(rafRef.current);
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
             map.current?.remove();
@@ -435,35 +369,7 @@ const VenueMap = forwardRef(({
         };
     }, []);
 
-    // ── Radar toggle ────────────────────────────────────────────────
-    useEffect(() => {
-        if (!mapLoaded || !map.current) return;
 
-        if (radarTimerRef.current) {
-            clearInterval(radarTimerRef.current);
-            radarTimerRef.current = null;
-        }
-
-        if (!radarOn) {
-            removeRadarLayer(map.current);
-            return;
-        }
-
-        const loadRadar = async () => {
-            setRadarLoading(true);
-            const path = await fetchRadarTimestamp();
-            setRadarLoading(false);
-            if (!path || !map.current) return;
-            addOrUpdateRadarLayer(map.current, buildRadarTileURL(path));
-        };
-
-        loadRadar();
-        radarTimerRef.current = setInterval(loadRadar, 5 * 60 * 1000);
-
-        return () => {
-            if (radarTimerRef.current) clearInterval(radarTimerRef.current);
-        };
-    }, [radarOn, mapLoaded]);
 
     // ── Cloud toggle ────────────────────────────────────────────────
     useEffect(() => {
@@ -521,7 +427,7 @@ const VenueMap = forwardRef(({
         if (!map.current.getSource(HEATMAP_SOURCE_ID)) {
             map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: geojsonData });
 
-            const insertBefore = map.current.getLayer(RADAR_INSERT_BEFORE) ? RADAR_INSERT_BEFORE : undefined;
+            const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
             map.current.addLayer({
                 id:      HEATMAP_LAYER_ID,
                 type:    'heatmap',
@@ -723,35 +629,6 @@ const VenueMap = forwardRef(({
                     }}
                     onTouchEnd={e => e.stopPropagation()}
                 >
-                    {/* Rain Radar FAB */}
-                    <button
-                        onClick={() => setRadarOn(prev => !prev)}
-                        onTouchEnd={e => { e.stopPropagation(); }}
-                        title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
-                        style={{
-                            width:               44,
-                            height:              44,
-                            borderRadius:        '50%',
-                            border:              radarOn ? '2px solid #3B82F6' : '2px solid rgba(255,255,255,0.3)',
-                            background:          radarOn ? 'rgba(59,130,246,0.9)' : 'rgba(15,15,30,0.85)',
-                            backdropFilter:      'blur(8px)',
-                            WebkitBackdropFilter:'blur(8px)',
-                            color:               '#fff',
-                            fontSize:            20,
-                            cursor:              'pointer',
-                            display:             'flex',
-                            alignItems:          'center',
-                            justifyContent:      'center',
-                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
-                            transition:          'background 200ms ease, border-color 200ms ease',
-                            WebkitTapHighlightColor: 'transparent',
-                            touchAction:         'auto',
-                        }}
-                        aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
-                        aria-pressed={radarOn}
-                    >
-                        {radarLoading ? '⏳' : '📡'}
-                    </button>
 
                     {/* Comfort Heatmap FAB */}
                     <button
