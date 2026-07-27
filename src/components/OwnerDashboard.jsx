@@ -17,8 +17,8 @@ const Spinner = () => (
 );
 
 // ── Section Heading ─────────────────────────────────────────────────────
-const SectionHeading = ({ children }) => (
-  <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>{children}</p>
+const SectionHeading = ({ children, style = {} }) => (
+  <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, color: 'rgba(255,255,255,0.6)', marginBottom: 12, ...style }}>{children}</p>
 );
 
 // ── Inline Status ────────────────────────────────────────────────────────
@@ -116,6 +116,7 @@ function OwnerDashboardInner({
   const [hours, setHours]             = useState(defaultHours);
   const [hoursSaving, setHoursSaving] = useState(false);
   const [hoursStatus, setHoursStatus] = useState({ text: '', type: '' });
+  const [showHoursEdit, setShowHoursEdit] = useState(false);
 
   const [heatingState, setHeatingState] = useState({
     heatersOn:         booleanFromVenue(safeVenue?.heatersOn,         safeVenue?.hasHeaters),
@@ -310,47 +311,86 @@ function OwnerDashboardInner({
           </button>
         </div>
 
+        {/* Pinned Actionable Alerts Banner (FOH Weather Intel) */}
+        <div style={{ padding: '16px 16px 16px', background: 'rgba(15,23,42,0.65)', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+          <SectionHeading style={{ marginBottom: 10 }}>📊 FOH Weather Intel</SectionHeading>
+          <FohWeatherWidget lat={safeVenue?.lat || safeVenue?.latitude} lng={safeVenue?.lng || safeVenue?.longitude} />
+        </div>
+
         {/* Scrollable Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16, WebkitOverflowScrolling: 'touch' }}>
 
-          <section style={{ marginBottom: 24 }}>
-            <SectionHeading>📊 FOH Weather Intel</SectionHeading>
-            <FohWeatherWidget lat={safeVenue?.lat || safeVenue?.latitude} lng={safeVenue?.lng || safeVenue?.longitude} />
-          </section>
-
+          {/* Collapsed Static Schedule */}
           <section>
-            <SectionHeading>🕐 Service Hours</SectionHeading>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {DAYS.map(day => {
-                const d = hours[day];
-                return (
-                  <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 32, fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{DAY_LABELS[day]}</span>
-                    <button
-                      onClick={() => setHours(h => ({ ...h, [day]: { ...h[day], closed: !h[day].closed } }))}
-                      style={{ width: 36, height: 20, borderRadius: 10, position: 'relative', border: 'none', cursor: 'pointer', flexShrink: 0, background: d.closed ? 'rgba(255,255,255,0.15)' : '#14B8A6', transition: 'background 200ms ease' }}
-                    >
-                      <div style={{ position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'transform 200ms ease', transform: d.closed ? 'translateX(2px)' : 'translateX(18px)', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-                    </button>
-                    {d.closed ? (
-                      <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Closed</span>
-                    ) : (
-                      <>
-                        <input type="time" value={d.open}  onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], open:  e.target.value } }))} style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }} />
-                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}>–</span>
-                        <input type="time" value={d.close} onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], close: e.target.value } }))} style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }} />
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: 12 }}>
-              <button onClick={handleSaveHours} disabled={hoursSaving} style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: hoursSaving ? 0.6 : 1 }}>
-                {hoursSaving ? 'Saving...' : 'Update Trading Hours'}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showHoursEdit ? 12 : 0 }}>
+              <SectionHeading style={{ marginBottom: 0 }}>🕐 Service Hours</SectionHeading>
+              <button
+                type="button"
+                onClick={() => setShowHoursEdit(prev => !prev)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  background: showHoursEdit ? 'rgba(255,255,255,0.15)' : 'rgba(20,184,166,0.2)',
+                  border: `1px solid ${showHoursEdit ? 'rgba(255,255,255,0.2)' : 'rgba(20,184,166,0.5)'}`,
+                  color: showHoursEdit ? '#F1F5F9' : '#2DD4BF',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  transition: 'all 150ms ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span>{showHoursEdit ? 'Close Service Hours' : 'Edit Service Hours'}</span>
+                <span style={{ fontSize: '0.65rem' }}>{showHoursEdit ? '▲' : '▼'}</span>
               </button>
-              <InlineStatus text={hoursStatus.text} type={hoursStatus.type} />
             </div>
+
+            <AnimatePresence>
+              {showHoursEdit && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: 'easeInOut' }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {DAYS.map(day => {
+                      const d = hours[day];
+                      return (
+                        <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ width: 32, fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{DAY_LABELS[day]}</span>
+                          <button
+                            type="button"
+                            onClick={() => setHours(h => ({ ...h, [day]: { ...h[day], closed: !h[day].closed } }))}
+                            style={{ width: 36, height: 20, borderRadius: 10, position: 'relative', border: 'none', cursor: 'pointer', flexShrink: 0, background: d.closed ? 'rgba(255,255,255,0.15)' : '#14B8A6', transition: 'background 200ms ease' }}
+                          >
+                            <div style={{ position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'transform 200ms ease', transform: d.closed ? 'translateX(2px)' : 'translateX(18px)', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                          </button>
+                          {d.closed ? (
+                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Closed</span>
+                          ) : (
+                            <>
+                              <input type="time" value={d.open}  onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], open:  e.target.value } }))} style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }} />
+                              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}>–</span>
+                              <input type="time" value={d.close} onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], close: e.target.value } }))} style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }} />
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', marginTop: 14, marginBottom: 4 }}>
+                    <button type="button" onClick={handleSaveHours} disabled={hoursSaving} style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: hoursSaving ? 0.6 : 1 }}>
+                      {hoursSaving ? 'Saving...' : 'Update Trading Hours'}
+                    </button>
+                    <InlineStatus text={hoursStatus.text} type={hoursStatus.type} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </section>
 
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
