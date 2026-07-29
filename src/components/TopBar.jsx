@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Sun, Cloud, Wind, CloudRain } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Sun, Cloud, Wind, CloudRain } from 'lucide-react';
 
 const BANNER_GRADIENT = 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)';
 
@@ -22,7 +22,6 @@ const WeatherIcon = ({ condition, windSpeed }) => {
 };
 
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen, comfort }) => {
-    const [searchOpen, setSearchOpen] = useState(false);
     const [logoFailed, setLogoFailed] = useState(false);
 
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
@@ -124,39 +123,6 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 )}
             </div>
 
-            <AnimatePresence>
-                {searchOpen && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        style={{ background: BANNER_GRADIENT, overflow: 'hidden' }}
-                        className="px-3 pb-2.5"
-                    >
-                        <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2">
-                            <Search size={14} className="text-gray-400 flex-shrink-0" />
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="Search venues, suburbs\u2026"
-                                value={searchQuery}
-                                onChange={e => onSearchChange(e.target.value)}
-                                className="flex-1 bg-transparent text-gray-800 placeholder-gray-400 text-[13px] outline-none font-medium"
-                            />
-                            {searchQuery ? (
-                                <button onMouseDown={e => { e.preventDefault(); onSearchChange(''); }}>
-                                    <X size={13} className="text-gray-400" />
-                                </button>
-                            ) : (
-                                <button onMouseDown={() => setSearchOpen(false)}>
-                                    <X size={13} className="text-gray-400" />
-                                </button>
-                            )}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </motion.div>
     );
 };
