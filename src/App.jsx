@@ -331,6 +331,42 @@ const AppContent = () => {
         });
     }, [cozyFilterActive, sunnyFilterActive, activeFilters, filteredVenueIds, liveVenueFeatures, searchQuery, getUVIndex]);
 
+    // --- DEV DIAGNOSTICS ---
+    useEffect(() => {
+        if (!import.meta.env.DEV) return;
+
+        console.log("=== VENUE PIPELINE DIAGNOSTICS ===");
+        console.log(`1. Raw imported demoVenues count: ${demoVenues.length}`);
+
+        const rawIds = demoVenues.map(v => v.id);
+        const uniqueIds = new Set(rawIds);
+        console.log(`2. Unique IDs in demoVenues: ${uniqueIds.size}`);
+
+        // Find duplicates
+        const duplicates = rawIds.filter((item, index) => rawIds.indexOf(item) !== index);
+        if (duplicates.length > 0) console.log(`   Duplicate IDs found:`, duplicates);
+
+        // Find invalid coordinates
+        const invalidCoords = demoVenues.filter(v => {
+            const lat = Number(v.lat);
+            const lng = Number(v.lng);
+            return isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180;
+        }).map(v => v.id);
+        if (invalidCoords.length > 0) console.log(`   Invalid coordinate IDs:`, invalidCoords);
+
+        console.log(`3. Active Filters:`, activeFilters);
+        console.log(`4. filteredVenueIds count: ${filteredVenueIds.length}`);
+        console.log(`5. Final filteredVenues count (list render): ${filteredVenues.length}`);
+
+        const removedByFilters = demoVenues.filter(v => !filteredVenues.includes(v));
+        console.log(`   Removed by filters count: ${removedByFilters.length}`);
+        if (removedByFilters.length > 0) {
+            console.log(`   IDs removed:`, removedByFilters.map(v => v.id));
+        }
+        console.log("==================================");
+    }, [filteredVenues, filteredVenueIds, activeFilters]);
+    // --- END DIAGNOSTICS ---
+
     const matchingCount = filteredVenues.length;
 
     const stableFilteredIds = useMemo(
@@ -627,7 +663,7 @@ const AppContent = () => {
                                     <h3>Venues</h3>
                                     <p>{matchingCount} results</p>
                                 </div>
-                                <div className="ss-mobile-sheet-list">
+                                <div className="ss-mobile-sheet-list" onPointerDownCapture={e => e.stopPropagation()}>
                                     {filteredVenues.map(venue => (
                                         <VenueListCard
                                             key={venue.id}
