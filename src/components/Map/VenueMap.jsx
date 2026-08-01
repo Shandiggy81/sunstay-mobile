@@ -4,7 +4,7 @@ import React, {
 } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
+import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
 
 // ── Pin states ──────────────────────────────────────────────────────────
@@ -465,7 +465,15 @@ const VenueMap = forwardRef(({
     useEffect(() => {
         if (!mapLoaded || !map.current || hasFlownToBounds.current) return;
         if (safeVenues.length <= 2) return;
-        const bounds = getBoundsFromVenues(safeVenues);
+
+        const [[minLng, minLat], [maxLng, maxLat]] = MAX_BOUNDS;
+        const melbourneVenues = safeVenues.filter((venue) => {
+            const lng = Number(venue.lng);
+            const lat = Number(venue.lat);
+            return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
+        });
+
+        const bounds = getBoundsFromVenues(melbourneVenues) || getBoundsFromVenues(safeVenues);
         if (!bounds) return;
         try {
             map.current.fitBounds(bounds, {
