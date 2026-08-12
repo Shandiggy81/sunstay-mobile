@@ -9,7 +9,7 @@ import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
 import { useOpenUV } from '../hooks/useOpenUV';
-import VenueCardHeader from './VenueCardHeader';
+import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
 import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
@@ -267,7 +267,7 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
 };
 
 // ── Collapsible Deep Dive Accordion ──────────────────────────────
-const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel }) => {
+const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -351,6 +351,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel }) => {
 
             {/* Wind & Comfort Intelligence */}
             <WindComfortPanel venue={venue} />
+            {children}
           </motion.div>
         )}
       </AnimatePresence>
@@ -380,8 +381,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const { name, type, suburb, lat, lng, shielding, balconyData, heating, vibe = [], tags = [] } = safeVenue;
   const safeTags = Array.isArray(tags) ? tags : [];
   const safeVibes = Array.isArray(vibe) ? vibe : (vibe ? [vibe] : []);
-  const displayName = venue?.name || venue?.title || venue?.venueName || venue?.businessName || venue?.label || 'Unknown Venue';
+  const fallbackName = venue?.venueName ?? venue?.name ?? venue?.title ?? 'Unnamed venue';
+  const displayName = fallbackName;
   const isHotelOrStay = checkIsAccommodation(venue);
+  const venueImage = venue?.image ?? venue?.imageUrl ?? venue?.photoUrl ?? venue?.photo;
 
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
@@ -532,7 +535,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
         }}
         onClick={onClose}
       >
-        <motion.div
+        <motion.article
+          aria-label={fallbackName}
           onClick={e => e.stopPropagation()}
           drag="y" dragControls={dragControls} dragListener={false}
           dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.15}
@@ -555,151 +559,238 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           </div>
 
           <div className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2">
-            <VenueCardHeader
-              displayName={displayName}
-              suburb={suburb}
-              safeVibes={safeVibes}
-              directSunHours={directSunHours}
-              peakSunWindow={peakSunWindow}
-              onClose={onClose}
-              dragControls={dragControls}
-              venue={venue}
-            />
+            {/* 1. Extracted Drag Handle for top of sheet */}
+            <div
+              className="flex justify-center pt-1 pb-3 md:hidden w-full"
+              onPointerDown={e => dragControls.start(e)}
+              style={{ touchAction: 'none' }}
+            >
+              <div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(14,165,233,0.35)' }} />
+            </div>
 
-            {/* ── SUNSTAY SCORE BADGE + BEST WINDOW ── */}
-            <SunstayScoreBadge score={score} bestWindow={bestWindow} />
-
-            {/* LIVE PREDICTIVE NOWCAST RADAR TRACKER
-                Only renders when Tomorrow.io detects rain within 45 mins.
-                rainArrivalMins === 0  → 'Active'  badge  (rain right now)
-                rainArrivalMins 1–45   → 'Imminent' badge (closing in)
-            */}
-            {rainArrivalMins !== null && rainArrivalMins <= 45 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -6 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                className="w-full flex items-center gap-3 p-3.5 rounded-2xl border"
-                style={{
-                  background: 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)',
-                  borderColor: '#F59E0B',
-                  boxShadow: '0 4px 14px rgba(245,158,11,0.06)',
-                }}
+            {/* 2. Premium Detail Sheet Header */}
+            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 100%)' }}>
+              {venueImage ? (
+                <img src={venueImage} alt={fallbackName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center opacity-40 bg-slate-300">
+                  <span className="text-4xl mb-2">🏙️</span>
+                  <span className="text-sm font-bold text-slate-700">No Image Available</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent pointer-events-none" />
+              <motion.button
+                onClick={onClose}
+                className="absolute top-3 left-3 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/20 rounded-full z-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-900"
+                style={{ width: 44, height: 44 }}
+                whileTap={{ scale: 0.92 }}
+                aria-label="Close venue details"
               >
-                <div className="flex items-center justify-center text-xl bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex-shrink-0">
-                  🛰️
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block">
-                    Predictive Radar Alert
-                  </span>
-                  <p className="text-sm font-black text-slate-900 leading-tight mt-0.5">
-                    {rainArrivalLabel}
-                  </p>
-                  <span className="text-[11px] text-slate-700 font-medium block mt-0.5">
-                    Precipitation detected nearby. Consider covered or indoor seating.
-                  </span>
-                </div>
-                <motion.span
-                  className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
-                  animate={{ opacity: [1, 0.4, 1] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                >
-                  {rainArrivalMins === 0 ? 'Active' : 'Imminent'}
-                </motion.span>
-              </motion.div>
-            )}
+                <span className="text-white font-bold" style={{ fontSize: '20px' }}>✕</span>
+              </motion.button>
+              <div className="absolute bottom-0 left-0 right-0 p-4 pb-3 flex flex-col pointer-events-none">
+                <h1 className="text-white font-extrabold text-2xl leading-tight truncate mb-0.5" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+                  {fallbackName}
+                </h1>
+                <span className="text-white/90 font-medium text-sm truncate" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                  {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
+                </span>
+              </div>
+            </div>
 
-            <VenueCardWeather
-              score={score}
-              scoreLabel={scoreLabel}
-              scoreMeaningLabel={scoreMeaningLabel}
-              feelsLike={feelsLike}
-              wind={wind}
-              precipProb={precipProb}
-              minTemp={minTemp}
-              maxTemp={maxTemp}
-              uvIndex={uvIndex}
-              aqLabel={aqLabel}
-              hourlyData={hourlyData}
-              getWeatherDisplay={getWeatherDisplay}
-            />
-            <VenueCardSun
-              sunData={sunData}
-              sunHours={sunHours}
-              burnTimeMins={burnTimeMins}
-              hourlyData={hourlyData}
-              displaySunrise={displaySunrise}
-              displaySunset={displaySunset}
-              sunshineMins={sunshineMins}
-              daylightHours={daylightHours}
-              venue={venue}
-              weather={weather}
-            />
-            <LiveSunTimeline
-              sunData={sunData}
-              hourlyData={hourlyData}
-              cloudcover={cloudcover}
-              displaySunrise={displaySunrise}
-              displaySunset={displaySunset}
-              peakStart={peakStartDecimal}
-              peakEnd={peakEndDecimal}
-            />
-            <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
-            
-            {/* COLLAPSIBLE DEEP DIVE (Hourly Comfort Forecast, Wind & Comfort Intelligence, UV & Pristine Air) */}
+            {/* Map Centre Action & Signal Line */}
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-2 text-slate-800">
+                <span className="text-xl">{verdict.icon}</span>
+                <span className="font-bold text-sm">{verdict.text}</span>
+              </div>
+              {onCenter && (
+                <button
+                  onClick={() => onCenter(venue)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-sky-50 text-sky-700 border border-sky-100 font-bold text-sm shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                  style={{ minWidth: 44, minHeight: 44 }}
+                  aria-label="Centre on map"
+                >
+                  <span>📍</span> Centre on map
+                </button>
+              )}
+            </div>
+
             <DetailedForecastAccordion
               lat={lat}
               lng={lng}
               venue={venue}
               uvIndex={uvIndex}
               aqLabel={aqLabel}
-            />
+            >
+              <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-sky-100/50">
 
-            {shielding && (
-              <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
-                <span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>Venue Shielding</span>
-                {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#0EA5E9" delay={0.1} />}
-                {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
-                {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={Math.min(100, shielding.shade)}    color="#F59E0B" delay={0.3} />}
-              </motion.div>
-            )}
-            {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
-              <BalconySunshineBlock
-                balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
-                outdoorSun={outdoorSun}
-                isRainStartingSoon={isRainStartingSoon}
-                minutesUntilRain={minutesUntilRain}
-                cloudcover={cloudcover}
-              />
-            )}
-            {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
-            {isHotelOrStay && venue?.roomTypes?.length > 0 && (
-              <div className="mt-2">
-                <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Room Intelligence</span>
-                {venue.roomTypes.map(room => (
-                  <RoomSunCard key={room.id} room={room} />
-                ))}
+                {/* Extracted advisory content from old VenueCardHeader */}
+                <div className="flex flex-col gap-1 mb-2">
+                  {Number.isFinite(directSunHours) && (
+                    <span className="font-black text-amber-500 text-lg">
+                      {directSunHours.toFixed(1)} hours direct sun today
+                    </span>
+                  )}
+                  {peakSunWindow && (
+                    <span className="font-bold text-amber-700 text-sm">
+                      ☀️ Peak sun: {peakSunWindow}
+                    </span>
+                  )}
+                  {(() => {
+                    const isOutdoor = !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
+                    if (!isOutdoor) return null;
+                    const quote = getWeatherGuaranteeQuote({
+                      bookingValue: venue?.bookingPrice || 120,
+                      rainProbability: weather?.precipProbability ?? 0,
+                      expectedRainMm: weather?.rainMm ?? 0,
+                      cloudCover: weather?.cloudCover ?? 0,
+                      isOutdoor,
+                    });
+                    if (!quote) return null;
+                    return (
+                      <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        marginTop: 4,
+                        padding: '4px 10px', borderRadius: 999,
+                        background: 'rgba(15,15,30,0.04)',
+                        border: `1px solid ${quote.riskColor}44`,
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: quote.riskColor, display: 'inline-block' }} />
+                        <span style={{ fontSize: 11, fontWeight: 700, color: quote.riskColor, letterSpacing: '0.04em' }}>
+                          {quote.riskBand} Rain Risk
+                        </span>
+                        <span style={{ fontSize: 11, color: '#64748B', marginLeft: 2 }}>
+                          · Guarantee available
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* ── SUNSTAY SCORE BADGE + BEST WINDOW ── */}
+                <SunstayScoreBadge score={score} bestWindow={bestWindow} />
+
+                {/* LIVE PREDICTIVE NOWCAST RADAR TRACKER */}
+                {rainArrivalMins !== null && rainArrivalMins <= 45 && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                    className="w-full flex items-center gap-3 p-3.5 rounded-2xl border"
+                    style={{
+                      background: 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)',
+                      borderColor: '#F59E0B',
+                      boxShadow: '0 4px 14px rgba(245,158,11,0.06)',
+                    }}
+                  >
+                    <div className="flex items-center justify-center text-xl bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex-shrink-0">
+                      🛰️
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block">
+                        Predictive Radar Alert
+                      </span>
+                      <p className="text-sm font-black text-slate-900 leading-tight mt-0.5">
+                        {rainArrivalLabel}
+                      </p>
+                      <span className="text-[11px] text-slate-700 font-medium block mt-0.5">
+                        Precipitation detected nearby. Consider covered or indoor seating.
+                      </span>
+                    </div>
+                    <motion.span
+                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
+                      animate={{ opacity: [1, 0.4, 1] }}
+                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      {rainArrivalMins === 0 ? 'Active' : 'Imminent'}
+                    </motion.span>
+                  </motion.div>
+                )}
+
+                <VenueCardWeather
+                  score={score}
+                  scoreLabel={scoreLabel}
+                  scoreMeaningLabel={scoreMeaningLabel}
+                  feelsLike={feelsLike}
+                  wind={wind}
+                  precipProb={precipProb}
+                  minTemp={minTemp}
+                  maxTemp={maxTemp}
+                  uvIndex={uvIndex}
+                  aqLabel={aqLabel}
+                  hourlyData={hourlyData}
+                  getWeatherDisplay={getWeatherDisplay}
+                />
+                <VenueCardSun
+                  sunData={sunData}
+                  sunHours={sunHours}
+                  burnTimeMins={burnTimeMins}
+                  hourlyData={hourlyData}
+                  displaySunrise={displaySunrise}
+                  displaySunset={displaySunset}
+                  sunshineMins={sunshineMins}
+                  daylightHours={daylightHours}
+                  venue={venue}
+                  weather={weather}
+                />
+                <LiveSunTimeline
+                  sunData={sunData}
+                  hourlyData={hourlyData}
+                  cloudcover={cloudcover}
+                  displaySunrise={displaySunrise}
+                  displaySunset={displaySunset}
+                  peakStart={peakStartDecimal}
+                  peakEnd={peakEndDecimal}
+                />
+                <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
+
+                {shielding && (
+                  <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
+                    <span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>Venue Shielding</span>
+                    {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#0EA5E9" delay={0.1} />}
+                    {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
+                    {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={Math.min(100, shielding.shade)}    color="#F59E0B" delay={0.3} />}
+                  </motion.div>
+                )}
+                {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
+                  <BalconySunshineBlock
+                    balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
+                    outdoorSun={outdoorSun}
+                    isRainStartingSoon={isRainStartingSoon}
+                    minutesUntilRain={minutesUntilRain}
+                    cloudcover={cloudcover}
+                  />
+                )}
+                {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
+                {isHotelOrStay && venue?.roomTypes?.length > 0 && (
+                  <div className="mt-2">
+                    <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Room Intelligence</span>
+                    {venue.roomTypes.map(room => (
+                      <RoomSunCard key={room.id} room={room} />
+                    ))}
+                  </div>
+                )}
+                <VenueCardActions
+                  verdict={verdict}
+                  safeTags={safeTags}
+                  safeVibes={safeVibes}
+                  isRainStartingSoon={isRainStartingSoon}
+                  minutesUntilRain={minutesUntilRain}
+                  liveFeaturesForVenue={liveFeaturesForVenue}
+                  heating={heating}
+                  actualHappyHour={actualHappyHour}
+                  isHotelOrStay={isHotelOrStay}
+                  cozyWeatherActive={cozyWeatherActive}
+                  setShowOwnerDashboard={setShowOwnerDashboard}
+                  setSelectedVenue={setSelectedVenue}
+                  venue={venue}
+                />
               </div>
-            )}
-            <VenueCardActions
-              verdict={verdict}
-              safeTags={safeTags}
-              safeVibes={safeVibes}
-              isRainStartingSoon={isRainStartingSoon}
-              minutesUntilRain={minutesUntilRain}
-              liveFeaturesForVenue={liveFeaturesForVenue}
-              heating={heating}
-              actualHappyHour={actualHappyHour}
-              isHotelOrStay={isHotelOrStay}
-              cozyWeatherActive={cozyWeatherActive}
-              setShowOwnerDashboard={setShowOwnerDashboard}
-              setSelectedVenue={setSelectedVenue}
-              venue={venue}
-            />
+            </DetailedForecastAccordion>
             <div style={{ height: 72 }} />
           </div>
-        </motion.div>
+        </motion.article>
       </motion.div>
     </AnimatePresence>
   );

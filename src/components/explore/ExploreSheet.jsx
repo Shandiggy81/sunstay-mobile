@@ -1,9 +1,10 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react';
+import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { X, ChevronUp, SlidersHorizontal, Map, List } from 'lucide-react';
 import VenueListCard from './VenueListCard';
 import VenueDetail from '../VenueDetail';
 import FiltersPanel from '../FiltersPanel';
 import { calculateLiveSunScore } from '../../utils/sunScore';
+import { Virtuoso } from 'react-virtuoso';
 
 const QUICK_FILTERS = [
     { id: 'full-sun', label: 'Sunny', icon: '☀️' },
@@ -61,6 +62,39 @@ const ExploreSheet = ({
     useEffect(() => {
         setSheetHeight(heightForMode(mode));
     }, [mode]);
+
+    const sortedVenues = useMemo(() => {
+        if (!venues || venues.length === 0) return [];
+        
+        const weatherInput = {
+            shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
+            apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
+            precipProbability: weather?.precipProbability ?? 0,
+            cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
+            windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
+            isDay: weather?.isDay ?? 1,
+        };
+        const baseScore = calculateLiveSunScore(weatherInput).score;
+        
+        const cozyNow =
+            (weather?.main?.feels_like ?? weather?.main?.temp ?? 20) <= 16 ||
+            (weather?.precipProbability ?? 0) >= 45 ||
+            String(weather?.weather?.[0]?.main || '').toLowerCase().includes('rain') ||
+            (weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6) >= 35;
+
+        return [...venues].sort((a, b) => {
+            const hasHeatA = a.tags?.includes('Fireplace') || a.tags?.includes('Heaters') || a.heating || a.fireplace;
+            const hasHeatB = b.tags?.includes('Fireplace') || b.tags?.includes('Heaters') || b.heating || b.fireplace;
+            
+            const outdoorOnlyA = a.tags?.includes('Beer Garden') || a.tags?.includes('Rooftop') || a.tags?.includes('Waterfront') || a.tags?.includes('Outdoor Seating');
+            const outdoorOnlyB = b.tags?.includes('Beer Garden') || b.tags?.includes('Rooftop') || b.tags?.includes('Waterfront') || b.tags?.includes('Outdoor Seating');
+            
+            const scoreA = baseScore + (cozyNow && hasHeatA ? 22 : 0) - (cozyNow && outdoorOnlyA && !hasHeatA ? 8 : 0);
+            const scoreB = baseScore + (cozyNow && hasHeatB ? 22 : 0) - (cozyNow && outdoorOnlyB && !hasHeatB ? 8 : 0);
+            
+            return scoreB - scoreA;
+        });
+    }, [venues, weather]);
 
     const resolveSnap = useCallback((startMode, deltaY, velocityY) => {
         if (startMode === 'full' || (startMode === 'list' && deltaY < -60)) {
@@ -171,9 +205,9 @@ const ExploreSheet = ({
                         })}
                     </div>
                 </div>
-                <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-gray-50 sheet-scroll-content" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="flex-1 min-h-0 sheet-scroll-content">
                     {venues.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 px-6">
+                        <div className="flex flex-col items-center justify-center py-16 px-6 overflow-y-auto h-full">
                             <span className="text-4xl mb-3">🔍</span>
                             <p className="text-gray-500 text-sm font-medium text-center">No venues match your filters</p>
                             <button
@@ -184,60 +218,21 @@ const ExploreSheet = ({
                             </button>
                         </div>
                     ) : (
-                        [...venues]
-                            .sort((a, b) => {
-                                const buildInput = () => ({
-                                    shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
-                                    apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
-                                    precipProbability: weather?.precipProbability ?? 0,
-                                    cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
-                                    windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
-                                    isDay: weather?.isDay ?? 1,
-                                });
-                                const cozyNow =
-                                    (weather?.main?.feels_like ?? weather?.main?.temp ?? 20) <= 16 ||
-                                    (weather?.precipProbability ?? 0) >= 45 ||
-                                    String(weather?.weather?.[0]?.main || '').toLowerCase().includes('rain') ||
-                                    (weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6) >= 35;
-                                const hasHeatA =
-                                    a.tags?.includes('Fireplace') ||
-                                    a.tags?.includes('Heaters') ||
-                                    a.heating ||
-                                    a.fireplace;
-                                const hasHeatB =
-                                    b.tags?.includes('Fireplace') ||
-                                    b.tags?.includes('Heaters') ||
-                                    b.heating ||
-                                    b.fireplace;
-                                const outdoorOnlyA =
-                                    a.tags?.includes('Beer Garden') ||
-                                    a.tags?.includes('Rooftop') ||
-                                    a.tags?.includes('Waterfront') ||
-                                    a.tags?.includes('Outdoor Seating');
-                                const outdoorOnlyB =
-                                    b.tags?.includes('Beer Garden') ||
-                                    b.tags?.includes('Rooftop') ||
-                                    b.tags?.includes('Waterfront') ||
-                                    b.tags?.includes('Outdoor Seating');
-                                const scoreA =
-                                    calculateLiveSunScore(buildInput()).score +
-                                    (cozyNow && hasHeatA ? 22 : 0) -
-                                    (cozyNow && outdoorOnlyA && !hasHeatA ? 8 : 0);
-                                const scoreB =
-                                    calculateLiveSunScore(buildInput()).score +
-                                    (cozyNow && hasHeatB ? 22 : 0) -
-                                    (cozyNow && outdoorOnlyB && !hasHeatB ? 8 : 0);
-                                return scoreB - scoreA;
-                            })
-                            .map(venue => (
-                            <VenueListCard
-                                key={venue.id}
-                                venue={venue}
-                                isSelected={selectedVenue?.id === venue.id}
-                                onClick={() => onVenueSelect(venue)}
-                                weather={weather}
-                            />
-                        ))
+                        <Virtuoso
+                            style={{ height: '100%', WebkitOverflowScrolling: 'touch' }}
+                            data={sortedVenues}
+                            className="overscroll-contain"
+                            itemContent={(index, venue) => (
+                                <div className="border-b border-gray-50 last:border-b-0">
+                                    <VenueListCard
+                                        venue={venue}
+                                        isSelected={selectedVenue?.id === venue.id}
+                                        onClick={() => onVenueSelect(venue)}
+                                        weather={weather}
+                                    />
+                                </div>
+                            )}
+                        />
                     )}
                 </div>
             </div>

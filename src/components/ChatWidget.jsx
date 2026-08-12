@@ -255,7 +255,7 @@ const ChatWidget = ({
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
           className="fixed bottom-24 right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
         >
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col" style={{ maxHeight: '85vh' }}>
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col" style={{ maxHeight: '85dvh' }}>
 
             {/* ── Header ── */}
             <div className={`bg-gradient-to-r ${mood.gradient} px-5 py-4 flex items-center justify-between flex-shrink-0`}>

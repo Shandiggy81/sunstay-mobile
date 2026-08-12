@@ -570,14 +570,12 @@ const VenueMap = forwardRef(({
             });
         };
 
-        map.current.on('data', syncMarkers);
-        map.current.on('move', syncMarkers);
+        map.current.on('idle', syncMarkers);
         map.current.on('moveend', syncMarkers);
 
         return () => {
             if (map.current) {
-                map.current.off('data', syncMarkers);
-                map.current.off('move', syncMarkers);
+                map.current.off('idle', syncMarkers);
                 map.current.off('moveend', syncMarkers);
             }
         };
