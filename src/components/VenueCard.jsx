@@ -384,7 +384,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const fallbackName = venue?.venueName ?? venue?.name ?? venue?.title ?? 'Unnamed venue';
   const displayName = fallbackName;
   const isHotelOrStay = checkIsAccommodation(venue);
-  const venueImage = venue?.image ?? venue?.imageUrl ?? venue?.photoUrl ?? venue?.photo;
+  const venueImage = venue?.image_url ?? venue?.imageUrl ?? venue?.image ?? venue?.hero_image ?? venue?.photoUrl ?? venue?.photo;
 
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;

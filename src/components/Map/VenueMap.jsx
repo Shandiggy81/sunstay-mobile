@@ -32,7 +32,8 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
     // Cozy filter active: highlight cozy venues differently
     if (cozyFilterActive) {
         const live = liveVenueFeatures?.[venue.id] || {};
-        if (live.fireplaceOn || live.heatersOn || live.roofClosed || venue.hasCozy) return 'cozy';
+        if (live.fireplaceOn || venue.fireplaceOn) return 'heater';
+        if (live.heatersOn || live.roofClosed || venue.hasCozy) return 'cozy';
     }
 
     const live = liveVenueFeatures?.[venue.id] || {};
@@ -43,7 +44,10 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
     const heatersOn    = !!live.heatersOn || !!live.fireplaceOn || !!venue.heatersOn || !!venue.fireplaceOn;
     const sunshineNow  = !!live.sunshineNow || !!venue.sunshineNow;
 
-    if (sunshineNow) return 'sunshine';
+    if (sunshineNow) {
+        if (venue.beerGarden) return 'sunny';
+        return 'sunshine';
+    }
     if (heatersOn)   return 'heater';
     if (condition.includes('rain') || condition.includes('drizzle') || precipProb >= 40) return 'rain';
     if (apparentTemp <= 11) return 'cold';
@@ -542,7 +546,17 @@ const VenueMap = forwardRef(({
 
                         if (existing) {
                             if (existing.pinKey !== pinKey) {
-                                updateMarkerEl(existing.el, pinKey);
+                                existing.marker.remove();
+                                const el = createMarkerEl(pinKey);
+                                el.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    onVenueSelectRef.current?.(venue);
+                                });
+                                existing.marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                                    .setLngLat([venueLng, venueLat])
+                                    .addTo(map.current);
+                                existing.el = el;
                                 existing.pinKey = pinKey;
                             }
                         } else {
@@ -570,6 +584,8 @@ const VenueMap = forwardRef(({
             });
         };
 
+        syncMarkers();
+
         map.current.on('idle', syncMarkers);
         map.current.on('moveend', syncMarkers);
 
@@ -579,7 +595,7 @@ const VenueMap = forwardRef(({
                 map.current.off('moveend', syncMarkers);
             }
         };
-    }, [mapLoaded, weather, liveKey]);
+    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {
