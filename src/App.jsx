@@ -322,8 +322,15 @@ const AppContent = () => {
 
     const cozyWeatherActive = useMemo(() => {
         if (!weather) return false;
-        if (weather.minTemp == null || weather.precipitation == null) return false;
-        return weather.minTemp < 8 || weather.precipitation > 0.5 || (weather.windSpeed || 0) > 15;
+        // fetchOpenMeteoWeather() (src/utils/weatherService.js) does not return
+        // top-level `minTemp`/`windSpeed` fields — read the actual nested shape:
+        // today's low lives at daily.temperature_2m_min[0] (°C), and wind speed
+        // lives at wind.speed (m/s), converted here to km/h for the threshold.
+        const minTemp = weather.daily?.temperature_2m_min?.[0];
+        const precipitation = weather.precipitation;
+        if (minTemp == null || precipitation == null) return false;
+        const windSpeedKmh = (weather.wind?.speed ?? 0) * 3.6;
+        return minTemp < 8 || precipitation > 0.5 || windSpeedKmh > 15;
     }, [weather]);
 
     // Derived booleans from the unified array — used by VenueMap & filteredVenues
