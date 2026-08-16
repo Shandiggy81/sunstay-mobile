@@ -175,7 +175,14 @@ VenueChip.displayName = 'VenueChip';
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
-    const { weather, getUVIndex } = useWeather();
+    const { weather, loading: weatherLoading, getUVIndex } = useWeather();
+
+    // Splash-screen readiness: weather is the only real async dependency here.
+    // demoVenues is a static import (always available synchronously) — this
+    // flag is kept explicit so the check stays correct once the async venue
+    // API (src/api/venues.js) is actually wired in.
+    const venuesReady = Array.isArray(demoVenues) && demoVenues.length > 0;
+    const appReady = !weatherLoading && venuesReady;
 
     const comfort = useMemo(() => {
         if (!weather) return { label: 'Loading', icon: '☁️', cozy: false };
@@ -452,10 +459,13 @@ const AppContent = () => {
     return (
         <>
             {!splashDone && (
-                <SplashScreen onComplete={() => {
-                    markSplashSeen();
-                    setSplashDone(true);
-                }} />
+                <SplashScreen
+                    isReady={appReady}
+                    onComplete={() => {
+                        markSplashSeen();
+                        setSplashDone(true);
+                    }}
+                />
             )}
 
             <NotificationCenter
@@ -549,8 +559,8 @@ const AppContent = () => {
                             {filteredVenues.length === 0 && (
                                 <div className="ss-venue-list-empty">
                                     <span>🔍</span>
-                                    <p>No exact match — showing all venues</p>
-                                    <button onClick={handleClearFilters}>Show all venues</button>
+                                    <p>No venues match your current filters.</p>
+                                    <button onClick={handleClearFilters}>Clear filters</button>
                                 </div>
                             )}
                         </div>
@@ -673,6 +683,13 @@ const AppContent = () => {
                                             weather={weather}
                                         />
                                     ))}
+                                    {filteredVenues.length === 0 && (
+                                        <div className="ss-venue-list-empty">
+                                            <span>🔍</span>
+                                            <p>No venues match your current filters.</p>
+                                            <button onClick={handleClearFilters}>Clear filters</button>
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
                         </>
