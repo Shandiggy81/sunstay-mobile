@@ -13,7 +13,7 @@ import {
     ChevronUp, ChevronDown, Search,
     Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
-import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
+import { demoVenues } from './data/demoVenues';
 import OwnerDashboard from './components/OwnerDashboard';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
@@ -256,7 +256,6 @@ const AppContent = () => {
             f !== FILTER_COZY &&
             f !== FILTER_SUNNY
         );
-        const categoryData  = FILTER_CATEGORIES;
 
         return demoVenues
             .filter(v => {
@@ -282,11 +281,13 @@ const AppContent = () => {
                     if (!hasRoomMatch) return false;
                 }
 
+                // Venue tags are stored using the same string values as
+                // FILTER_CATEGORIES[].id (e.g. 'Rooftop', 'Pet Friendly'),
+                // so match directly instead of looking up a non-existent
+                // `filter.tag` property (that lookup always returned
+                // undefined, so every tag filter used to match zero venues).
                 const vTags = v.tags || [];
-                const hasTagMatch = tagFilters.length === 0 || tagFilters.some(id => {
-                    const filter = categoryData.find(c => c.id === id);
-                    return filter ? vTags.includes(filter.tag) : false;
-                });
+                const hasTagMatch = tagFilters.length === 0 || tagFilters.some(id => vTags.includes(id));
                 return hasTagMatch;
             })
             // cozy-mode: was previously handled via separate activeFilter === 'Cozy'
