@@ -111,8 +111,50 @@ function visibleVenueSetKey(venues) {
     return venues.map((v) => String(v.id)).sort().join('|');
 }
 
+// ── Mini Sunstay Score badge (mirrors the list card + detail sheet ramp) ──
+const SCORE_BADGE_TIERS = [
+    { min: 75, bg: '#059669' }, // emerald — prime conditions
+    { min: 50, bg: '#D97706' }, // amber — good conditions
+    { min: 0,  bg: '#0284C7' }, // sky — worth a look
+];
+
+function getScoreBadgeColor(score) {
+    return (SCORE_BADGE_TIERS.find(t => score >= t.min) || SCORE_BADGE_TIERS[SCORE_BADGE_TIERS.length - 1]).bg;
+}
+
+function createScoreBadgeEl(score) {
+    const badge = document.createElement('div');
+    badge.className = 'ss-pin-score-badge';
+    badge.style.cssText = [
+        'position:absolute', 'top:-3px', 'right:-3px',
+        'min-width:18px', 'height:18px', 'padding:0 3px',
+        'border-radius:9px', 'border:2px solid #fff',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'font-size:9px', 'font-weight:800', 'color:#fff',
+        'box-shadow:0 1px 3px rgba(0,0,0,0.35)',
+        'pointer-events:none', 'line-height:1', 'z-index:20',
+        `background:${getScoreBadgeColor(score)}`,
+    ].join(';');
+    badge.textContent = String(score);
+    return badge;
+}
+
+function syncScoreBadge(el, score) {
+    let badge = el.querySelector('.ss-pin-score-badge');
+    if (Number.isFinite(score)) {
+        if (!badge) {
+            el.appendChild(createScoreBadgeEl(score));
+        } else {
+            badge.textContent = String(score);
+            badge.style.background = getScoreBadgeColor(score);
+        }
+    } else if (badge) {
+        badge.remove();
+    }
+}
+
 // ── Marker DOM helpers ──────────────────────────────────────────────────
-function createMarkerEl(pinKey) {
+function createMarkerEl(pinKey, score) {
     const { emoji, bg, border, color } = PIN_STATES[pinKey] || PIN_STATES.default;
 
     const el = document.createElement('div');
@@ -128,6 +170,7 @@ function createMarkerEl(pinKey) {
     }
 
     const inner = document.createElement('div');
+    inner.className = 'ss-pin-inner';
 
     inner.style.cssText = [
         'width:40px', 'height:40px', 'border-radius:50%',
@@ -148,11 +191,12 @@ function createMarkerEl(pinKey) {
     inner.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
 
     el.appendChild(inner);
+    syncScoreBadge(el, score);
     return el;
 }
 
-function updateMarkerEl(el, pinKey) {
-    const inner = el.querySelector('div:last-child');
+function updateMarkerEl(el, pinKey, score) {
+    const inner = el.querySelector('.ss-pin-inner');
     if (!inner) return;
 
     const { emoji, bg, border, color } = PIN_STATES[pinKey] || PIN_STATES.default;
@@ -163,7 +207,7 @@ function updateMarkerEl(el, pinKey) {
 
     const isSunny = pinKey === 'sunshine' || pinKey === 'sunny';
     const existingRing = el.querySelector('.animate-ping');
-    
+
     if (isSunny && !existingRing) {
         const ring = document.createElement('div');
         ring.className = 'absolute inset-0 rounded-full animate-ping';
@@ -172,6 +216,8 @@ function updateMarkerEl(el, pinKey) {
     } else if (!isSunny && existingRing) {
         existingRing.remove();
     }
+
+    syncScoreBadge(el, score);
 }
 
 function createClusterMarkerEl(count) {
@@ -1034,15 +1080,25 @@ const VenueMap = forwardRef(({
                             weatherColorFnRef.current,
                             cozyFilterActiveRef.current,
                         );
+                        const rawScore = typeof calculateSunstayScore === 'function'
+                            ? calculateSunstayScore(venue)
+                            : null;
+                        const score = Number.isFinite(rawScore) ? Math.round(rawScore) : null;
+
                         let existing = markersRef.current[markerId];
 
                         if (existing) {
                             if (existing.pinKey !== pinKey) {
-                                updateMarkerEl(existing.el, pinKey);
+                                updateMarkerEl(existing.el, pinKey, score);
                                 existing.pinKey = pinKey;
+                                existing.score = score;
+                            } else if (existing.score !== score) {
+                                // Score-only change — cheap in-place DOM update, no marker recreation.
+                                updateMarkerEl(existing.el, pinKey, score);
+                                existing.score = score;
                             }
                         } else {
-                            const el = createMarkerEl(pinKey);
+                            const el = createMarkerEl(pinKey, score);
                             el.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -1051,7 +1107,7 @@ const VenueMap = forwardRef(({
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(map.current);
-                            existing = { marker, el, pinKey, isCluster: false };
+                            existing = { marker, el, pinKey, score, isCluster: false };
                         }
                         newMarkers[markerId] = existing;
                     }
@@ -1077,7 +1133,7 @@ const VenueMap = forwardRef(({
                 map.current.off('moveend', syncMarkers);
             }
         };
-    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn]);
+    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {
