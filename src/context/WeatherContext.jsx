@@ -101,6 +101,10 @@ export const WeatherProvider = ({ children }) => {
         return { isActive, reason, label };
     }, [weather]);
 
+    const getUVIndex = useCallback(() => {
+        return weather?.uvi ?? 0;
+    }, [weather]);
+
     const getWeatherSeverity = useCallback(() => {
         if (!weather) return 'unknown';
         const windSpeed = (weather.wind?.speed ?? 0) * 3.6;
@@ -151,6 +155,7 @@ export const WeatherProvider = ({ children }) => {
         setOverrideType,
         refetch: fetchWeather,
         getWeatherSummary,
+        getUVIndex,
         getCozyModeMeta,
         getWeatherSeverity,
         getBestWindow,
