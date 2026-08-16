@@ -40,6 +40,10 @@ const HEATING_FILTER_MATCHERS = {
 };
 
 const venueMatchesWeatherTag = (venue, filterId) => {
+    // Venue tags use the same string values as FILTER_CATEGORIES[].id
+    // (e.g. 'Rooftop', 'Pet Friendly'). Match the id directly instead of
+    // looking up a non-existent `filter.tag` property — that always returned
+    // undefined, so every tag filter used to match zero venues.
     const needle = String(filterId).toLowerCase();
     const tags = venue.tags || [];
     if (tags.some(tag => String(tag).toLowerCase() === needle)) return true;
