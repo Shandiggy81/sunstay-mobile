@@ -663,6 +663,62 @@ const AppContent = () => {
                                     <h3>Venues</h3>
                                     <p>{matchingCount} results</p>
                                 </div>
+                                <div className="px-4 py-2.5 flex flex-col gap-2.5 bg-white/70 border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
+                                    <div className="relative flex items-center">
+                                        <Search size={16} className="absolute left-3.5 text-gray-400 pointer-events-none z-10" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search venues, suburbs…"
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            className="w-full pl-10 pr-9 py-2.5 min-h-[44px] rounded-xl border border-gray-200/80 bg-white/95 text-sm font-semibold text-gray-800 placeholder-gray-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all shadow-sm"
+                                            id="mobile-venue-search"
+                                        />
+                                        {searchQuery && (
+                                            <button
+                                                onClick={() => setSearchQuery('')}
+                                                className="absolute right-2.5 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 transition-colors"
+                                                aria-label="Clear search"
+                                            >
+                                                <X size={13} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleFilterToggle(FILTER_COZY)}
+                                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                cozyFilterActive
+                                                    ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
+                                                    : 'bg-white/90 text-gray-700 border-gray-200/80 hover:bg-gray-50'
+                                            }`}
+                                            aria-pressed={cozyFilterActive}
+                                        >
+                                            <span>🛋️</span>
+                                            <span>Cozy</span>
+                                        </button>
+                                        <button
+                                            onClick={() => handleFilterToggle(FILTER_SUNNY)}
+                                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                sunnyFilterActive
+                                                    ? 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm'
+                                                    : 'bg-white/90 text-gray-700 border-gray-200/80 hover:bg-gray-50'
+                                            }`}
+                                            aria-pressed={sunnyFilterActive}
+                                        >
+                                            <span>☀️</span>
+                                            <span>Sunny</span>
+                                        </button>
+                                        {activeFilters.length > 0 && (
+                                            <button
+                                                onClick={handleClearFilters}
+                                                className="min-h-[44px] px-3 py-2 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
+                                            >
+                                                Clear
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                                 <div className="ss-mobile-sheet-list" onPointerDownCapture={e => e.stopPropagation()}>
                                     {filteredVenues.map(venue => (
                                         <VenueListCard
