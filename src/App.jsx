@@ -1,4 +1,4 @@
-import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense, memo } from 'react';
+import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
@@ -6,7 +6,6 @@ import VenueCard from './components/VenueCard';
 import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
 import TopBar from './components/TopBar';
-import FilterSheet from './components/FilterSheet';
 import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -14,7 +13,6 @@ import {
     Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
 import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
-import OwnerDashboard from './components/OwnerDashboard';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
@@ -23,6 +21,9 @@ import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
 import MapErrorBoundary from './components/MapErrorBoundary';
+
+const FilterSheet = lazy(() => import('./components/FilterSheet'));
+const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
 
 // ── Filter ID constants (single source of truth) ──────────────────────
 export const FILTER_COZY  = 'cozy-mode';
@@ -479,13 +480,15 @@ const AppContent = () => {
 
                 <AnimatePresence>
                     {showOwnerDashboard && (
-                        <OwnerDashboard
-                            venue={selectedVenue}
-                            liveVenueFeatures={liveVenueFeatures}
-                            setLiveVenueFeatures={setLiveVenueFeatures}
-                            onClose={handleOwnerDashboardClose}
-                            onVenueUpdate={handleSelectedVenueUpdate}
-                        />
+                        <Suspense fallback={null}>
+                            <OwnerDashboard
+                                venue={selectedVenue}
+                                liveVenueFeatures={liveVenueFeatures}
+                                setLiveVenueFeatures={setLiveVenueFeatures}
+                                onClose={handleOwnerDashboardClose}
+                                onVenueUpdate={handleSelectedVenueUpdate}
+                            />
+                        </Suspense>
                     )}
                 </AnimatePresence>
 
@@ -614,18 +617,20 @@ const AppContent = () => {
                         />
                     )}
 
-                    <FilterSheet
-                        isOpen={mobileFilterOpen}
-                        onClose={closeMobileFilters}
-                        activeFilters={activeFilters}
-                        onToggleFilter={handleFilterToggle}
-                        onClearAll={handleClearFilters}
-                        customFilters={customFilters}
-                        newCustomFilter={newFilter}
-                        setNewCustomFilter={setNewFilter}
-                        onAddCustomFilter={addCustomFilter}
-                        resultCount={filteredVenues.length}
-                    />
+                    <Suspense fallback={null}>
+                        <FilterSheet
+                            isOpen={mobileFilterOpen}
+                            onClose={closeMobileFilters}
+                            activeFilters={activeFilters}
+                            onToggleFilter={handleFilterToggle}
+                            onClearAll={handleClearFilters}
+                            customFilters={customFilters}
+                            newCustomFilter={newFilter}
+                            setNewCustomFilter={setNewFilter}
+                            onAddCustomFilter={addCustomFilter}
+                            resultCount={filteredVenues.length}
+                        />
+                    </Suspense>
                 </main>
 
                 {!mobileMapExpanded && !selectedVenue && (
