@@ -6,6 +6,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
+import { useRainRadar } from '../../hooks/useRainRadar';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -618,6 +619,69 @@ const VenueMap = forwardRef(({
 
         return () => clearTimeout(t);
     }, [selectedVenue]);
+
+    // ── Rain Radar animation loop ────────────────────────────────────
+    const { radarFrames, error: radarError } = useRainRadar();
+
+    useEffect(() => {
+        if (!map.current || !radarFrames.length) return;
+
+        let animationInterval;
+        let currentFrameIndex = 0;
+
+        const setupRadar = () => {
+            radarFrames.forEach((frame) => {
+                if (!map.current.getSource(frame.id)) {
+                    map.current.addSource(frame.id, {
+                        type: 'raster',
+                        tiles: [frame.url],
+                        tileSize: 256
+                    });
+
+                    const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
+                    map.current.addLayer({
+                        id: frame.id,
+                        type: 'raster',
+                        source: frame.id,
+                        paint: {
+                            'raster-opacity': 0,
+                            'raster-fade-duration': 0
+                        }
+                    }, insertBefore);
+                }
+            });
+
+            animationInterval = setInterval(() => {
+                const prevFrame = radarFrames[currentFrameIndex];
+                if (map.current.getLayer(prevFrame.id)) {
+                    map.current.setPaintProperty(prevFrame.id, 'raster-opacity', 0);
+                }
+
+                currentFrameIndex = (currentFrameIndex + 1) % radarFrames.length;
+
+                const nextFrame = radarFrames[currentFrameIndex];
+                if (map.current.getLayer(nextFrame.id)) {
+                    map.current.setPaintProperty(nextFrame.id, 'raster-opacity', 0.6);
+                }
+            }, 500);
+        };
+
+        if (map.current.isStyleLoaded()) {
+            setupRadar();
+        } else {
+            map.current.once('load', setupRadar);
+        }
+
+        return () => {
+            clearInterval(animationInterval);
+            if (map.current && map.current.getStyle()) {
+                radarFrames.forEach(frame => {
+                    if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
+                    if (map.current.getSource(frame.id)) map.current.removeSource(frame.id);
+                });
+            }
+        };
+    }, [radarFrames]);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
