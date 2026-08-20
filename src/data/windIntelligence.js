@@ -447,7 +447,7 @@ export function getOptimalBookingTime(hourlyForecast) {
         endLabel: fmtHour((endHour.hour + 1) % 24),
         avgFeelsLike,
         avgWindLevel: startHour.windWarning.level,
-        reason: `Feels like ${avgFeelsLike}°C with ${startHour.windWarning.label.toLowerCase()} conditions`,
+        reason: `Feels like ${avgFeelsLike}°C with ${startHour.windWarning.label.toLowerCase()}`,
     };
 }
 
