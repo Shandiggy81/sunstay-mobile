@@ -9,4 +9,15 @@ export default defineConfig({
         open: true,
     },
     publicDir: 'public',
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    vendor: ['react', 'react-dom'],
+                    map: ['mapbox-gl'],
+                    ui: ['framer-motion'],
+                },
+            },
+        },
+    },
 })
