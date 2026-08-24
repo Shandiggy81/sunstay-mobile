@@ -246,6 +246,7 @@ const VenueMap = forwardRef(({
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
+    const [showRadar,    setShowRadar]    = useState(false);
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
@@ -621,10 +622,10 @@ const VenueMap = forwardRef(({
     }, [selectedVenue]);
 
     // ── Rain Radar animation loop ────────────────────────────────────
-    const { radarFrames, error: radarError } = useRainRadar();
+    const { radarFrames } = useRainRadar();
 
     useEffect(() => {
-        if (!map.current || !radarFrames.length) return;
+        if (!showRadar || !mapLoaded || !map.current || !radarFrames.length) return;
 
         let animationInterval;
         let currentFrameIndex = 0;
@@ -681,7 +682,7 @@ const VenueMap = forwardRef(({
                 });
             }
         };
-    }, [radarFrames]);
+    }, [radarFrames, showRadar, mapLoaded]);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
@@ -690,6 +691,27 @@ const VenueMap = forwardRef(({
                 ref={mapContainer}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
+
+            {/* Live Rain Radar — premium pill, above map layers, below app TopBar */}
+            {mapLoaded && !mapError && (
+                <button
+                    type="button"
+                    onClick={() => setShowRadar(!showRadar)}
+                    onTouchEnd={e => e.stopPropagation()}
+                    className={`absolute top-4 right-4 z-20 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all ${
+                        showRadar
+                            ? 'bg-blue-600/95 text-white border-2 border-blue-400'
+                            : 'bg-white/95 text-gray-800 border border-gray-200/80 hover:bg-gray-50'
+                    }`}
+                    style={{ touchAction: 'auto' }}
+                    aria-label={showRadar ? 'Hide live rain radar' : 'Show live rain radar'}
+                    aria-pressed={showRadar}
+                    title={showRadar ? 'Hide live rain radar' : 'Show live rain radar'}
+                >
+                    <span>🌧️</span>
+                    <span>{showRadar ? 'Radar Active' : 'Live Radar'}</span>
+                </button>
+            )}
 
             {/* FAB stack */}
             {mapLoaded && !mapError && (
