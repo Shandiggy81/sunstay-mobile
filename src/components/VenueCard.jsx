@@ -368,12 +368,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children
 
             {/* Hourly Comfort Forecast */}
             {lat && lng && (
-              <div className="rounded-xl overflow-hidden border" style={{ background: 'rgba(14,165,233,0.02)', borderColor: 'rgba(14,165,233,0.08)' }}>
-                <div className="px-3 pt-2 pb-1 flex items-center justify-between">
-                  <span className="text-[0.72rem] font-black uppercase tracking-widest text-slate-700">Hourly Comfort Forecast</span>
-                </div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark />
-              </div>
+              <HourlyForecastStrip lat={lat} lng={lng} dark />
             )}
 
             {/* Wind & Comfort Intelligence */}
@@ -559,7 +554,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           WebkitOverflowScrolling: 'touch',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'flex-end',
+          // Bottom-align a short sheet via the article's mt-auto. Avoid
+          // justify-content:flex-end here — it clips the top and blocks
+          // scrolling when the accordion grows past the viewport.
         }}
         onClick={onClose}
       >
@@ -578,7 +575,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid rgba(14,165,233,0.12)',
           }}
-          className="pointer-events-auto mt-auto w-full select-none"
+          className="pointer-events-auto mt-auto w-full select-none shrink-0"
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: '28px 28px 0 0', zIndex: 0 }}>

@@ -107,10 +107,10 @@ export default function HourlyForecastStrip({ lat, lng }) {
   if (loading) {
     return (
       <div style={{
-        background: '#12141c',
-        borderRadius: 16,
-        padding: '12px 0 4px',
-        margin: '12px 0 0',
+        background: '#1a1d27',
+        borderRadius: 12,
+        padding: '10px 0 4px',
+        margin: 0,
       }}>
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, paddingLeft: 12, paddingRight: 12, paddingTop: 4 }}>
           {Array.from({ length: 6 }).map((_, i) => <ShimmerCard key={i} />)}
@@ -123,10 +123,10 @@ export default function HourlyForecastStrip({ lat, lng }) {
   if (!hourly.length) {
     return (
       <div style={{
-        background: '#12141c',
-        borderRadius: 16,
-        padding: '12px 16px',
-        margin: '12px 0 0',
+        background: '#1a1d27',
+        borderRadius: 12,
+        padding: '10px 16px',
+        margin: 0,
         textAlign: 'center',
       }}>
         <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Forecast unavailable</span>
@@ -137,11 +137,11 @@ export default function HourlyForecastStrip({ lat, lng }) {
   // ── Render strip ──────────────────────────────────────────────
   return (
     <div style={{
-      background: '#12141c',
-      borderRadius: 16,
-      padding: '12px 0 8px',
-      margin: '12px 0 0',
-      border: '1px solid rgba(255,255,255,0.07)',
+      background: '#1a1d27',
+      borderRadius: 12,
+      padding: '10px 0 6px',
+      margin: 0,
+      border: '1px solid rgba(255,255,255,0.06)',
     }}>
       {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 12, paddingRight: 12, marginBottom: 8 }}>
