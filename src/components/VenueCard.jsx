@@ -463,12 +463,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
 
             {/* Hourly Comfort Forecast */}
             {lat && lng && (
-              <div className="rounded-2xl overflow-hidden border" style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.12)' }}>
-                <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
-                  <span className="text-[0.72rem] font-black uppercase tracking-widest text-slate-700">Hourly Comfort Forecast</span>
-                </div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark />
-              </div>
+              <HourlyForecastStrip lat={lat} lng={lng} dark />
             )}
 
             {/* Wind & Comfort Intelligence */}
