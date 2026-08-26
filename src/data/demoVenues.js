@@ -159,6 +159,7 @@ export const demoVenues = [
         heating: 'heated outdoor',
         hasCozy: true,
         notes: 'Real Good Company venue (brewery).',
+        image: '/images/venues/cbcobrewing.jpg',
     },
     {
         id: 'dv-05',
@@ -194,6 +195,7 @@ export const demoVenues = [
         hasCozy: true,
         notes: 'Real Sand Hill Road venue.',
         proTip: "The internal garden courtyard is perfectly shielded from Melbourne's south-westerly winds. 🌳",
+        image: '/images/venues/gardenstatehotel.jpg',
     },
     {
         id: 'dv-07',
@@ -210,6 +212,7 @@ export const demoVenues = [
         heating: 'heated outdoor',
         hasCozy: true,
         notes: 'Real Sand Hill Road venue.',
+        image: '/images/venues/welcometothornbury.jpg',
     },
     {
         id: 'dv-08',
@@ -226,6 +229,7 @@ export const demoVenues = [
         heating: 'fireplace',
         hasCozy: true,
         notes: 'Example ALH Group venue for outreach deck.',
+        image: '/images/venues/royalstandardhotel.jpg',
     },
     {
         id: 'dv-09',
@@ -240,6 +244,7 @@ export const demoVenues = [
         tags: ['Cozy', 'After Work', 'Rooftop', 'Wheelchair Accessible', 'Fireplace'],
         heating: 'fireplace',
         notes: 'Real Pacific Concepts venue.',
+        image: '/images/venues/cqcitybar.jpg',
     },
     {
         id: 'dv-10',
@@ -270,6 +275,7 @@ export const demoVenues = [
         heating: 'heated outdoor',
         hasCozy: true,
         notes: 'Example Dixon Hospitality venue for outreach deck.',
+        image: '/images/venues/goodheavensrooftop.jpg',
     },
     {
         id: 'dv-12',
@@ -286,6 +292,7 @@ export const demoVenues = [
         heating: 'fireplace',
         hasCozy: true,
         notes: 'Example Melbourne Pub Group venue for outreach deck.',
+        image: '/images/venues/railwayhotelwindsor.jpg',
     },
     {
         id: 'dv-13',
@@ -441,6 +448,7 @@ export const demoVenues = [
         tags: ['Hidden', 'Vines', 'Beer Garden', 'Pet Friendly', 'Heaters'],
         heating: 'heated outdoor',
         notes: 'Real Sand Hill Road venue.',
+        image: '/images/venues/thestandard.jpg',
     },
     {
         id: 'dv-25',
@@ -457,6 +465,7 @@ export const demoVenues = [
         price: '$$',
         capacity: 120,
         notes: 'Good Company venue with protected morning sun.',
+        image: '/images/venues/lalalandwindsor.jpg',
     },
     {
         id: 'dv-26',
@@ -473,6 +482,7 @@ export const demoVenues = [
         price: '$',
         capacity: 80,
         notes: 'Independent neighbourhood gem in Balaclava.',
+        image: '/images/venues/pausebar.jpg',
     },
     {
         id: 'dv-27',
