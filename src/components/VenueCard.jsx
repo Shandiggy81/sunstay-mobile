@@ -569,15 +569,12 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* 2. Premium Detail Sheet Header */}
-            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 100%)' }}>
-              {venueImage ? (
-                <img src={venueImage} alt={fallbackName} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center opacity-40 bg-slate-300">
-                  <span className="text-4xl mb-2">🏙️</span>
-                  <span className="text-sm font-bold text-slate-700">No Image Available</span>
-                </div>
-              )}
+            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(180deg, #7DD3FC 0%, #FB923C 100%)' }}>
+              <img
+                src={venueImage || '/sunny-mascot.jpg'}
+                alt={fallbackName}
+                className="absolute inset-0 w-full h-full object-cover object-center"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent pointer-events-none" />
               <motion.button
                 onClick={onClose}
