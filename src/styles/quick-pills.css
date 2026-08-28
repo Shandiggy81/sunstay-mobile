@@ -6,7 +6,10 @@
 .ss-quick-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0.35rem 0.85rem;
   border-radius: 9999px;
   font-size: 0.8rem;
