@@ -39,9 +39,9 @@ const FilterSheet = ({
                         <div className="ss-filter-sheet-head">
                             <h3>Filters</h3>
                             {safeActiveFilters.length > 0 && (
-                                <button onClick={onClearAll} className="ss-filter-sheet-clear">Clear all</button>
+                                <button type="button" onClick={onClearAll} className="ss-filter-sheet-clear">Clear all</button>
                             )}
-                            <button onClick={onClose} className="ss-filter-sheet-close">
+                            <button type="button" onClick={onClose} className="ss-filter-sheet-close" aria-label="Close filters">
                                 <X size={18} />
                             </button>
                         </div>
@@ -52,8 +52,10 @@ const FilterSheet = ({
                                 return (
                                     <button
                                         key={filter.id}
+                                        type="button"
                                         onClick={() => onToggleFilter(filter.id)}
                                         className={`ss-filter-chip ${isActive ? 'ss-filter-chip--active' : ''}`}
+                                        aria-pressed={isActive}
                                     >
                                         <div className="flex items-center gap-1.5">
                                             <span>{filter.icon}</span>

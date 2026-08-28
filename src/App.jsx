@@ -12,7 +12,7 @@ import {
     ChevronUp, ChevronDown, Search,
     Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
-import { demoVenues, FILTER_CATEGORIES } from './data/demoVenues';
+import { demoVenues } from './data/demoVenues';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
@@ -28,6 +28,22 @@ const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
 // ── Filter ID constants (single source of truth) ──────────────────────
 export const FILTER_COZY  = 'cozy-mode';
 export const FILTER_SUNNY = 'sunny-mode';
+
+// FilterSheet chips use FILTER_CATEGORIES[].id, which is also how venue.tags
+// are stored. Heating is a string on each venue (not an array).
+const HEATING_FILTER_MATCHERS = {
+    Fireplace: (heating) => heating.includes('fireplace'),
+    Heaters: (heating) => heating.includes('heat') && !heating.includes('no heat'),
+    'Indoor Warmth': (heating) => heating.includes('indoor'),
+};
+
+const venueMatchesWeatherTag = (venue, filterId) => {
+    const needle = String(filterId).toLowerCase();
+    const tags = venue.tags || [];
+    if (tags.some(tag => String(tag).toLowerCase() === needle)) return true;
+    const heatingMatcher = HEATING_FILTER_MATCHERS[filterId];
+    return heatingMatcher ? heatingMatcher(String(venue.heating || '').toLowerCase()) : false;
+};
 
 const EMPTY_LIVE_FEATURES = Object.freeze({});
 
@@ -151,6 +167,15 @@ const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
 });
 VenueListCard.displayName = 'VenueListCard';
 
+const FilterEmptyState = ({ onClear }) => (
+    <div className="ss-venue-list-empty">
+        <img src="/sunny-mascot.jpg" alt="" className="ss-venue-list-empty-mascot" />
+        <p>No venues match this weather vibe</p>
+        <p className="ss-venue-list-empty-sub">Try another filter, or clear to see every Melbourne spot.</p>
+        <button type="button" onClick={onClear}>Clear filters</button>
+    </div>
+);
+
 // ── VenueChip ──────────────────────────────────────────────────────────
 const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
     const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
@@ -243,94 +268,79 @@ const AppContent = () => {
     const sunnyFilterActive = activeFilters.includes(FILTER_SUNNY);
 
     // ── Unified venue filtering ────────────────────────────────────────
-    // filteredVenueIds feeds the map (pin visibility).
-    // filteredVenues feeds the sidebar list & result count.
-    // Both now use the same activeFilters array as their only source of truth.
-    const filteredVenueIds = useMemo(() => {
+    // One pass feeds the map pins, sidebar list, mobile sheet, and counts.
+    const filteredVenues = useMemo(() => {
         const filters = activeFilters || [];
-        const typeFilters   = filters.filter(f => f.startsWith('all-'));
+        const typeFilters = filters.filter(f => f.startsWith('all-'));
         const intentFilters = filters.filter(f => f.startsWith('sun-'));
-        // Exclude the special mode keys from tag matching
-        const tagFilters    = filters.filter(f =>
+        const tagFilters = filters.filter(f =>
             !f.startsWith('all-') &&
             !f.startsWith('sun-') &&
             f !== FILTER_COZY &&
             f !== FILTER_SUNNY
         );
-        const categoryData  = FILTER_CATEGORIES;
+        const query = searchQuery.trim().toLowerCase();
+        const liveFeatures = liveVenueFeatures || EMPTY_LIVE_FEATURES;
 
-        return demoVenues
-            .filter(v => {
-                const vType = v.typeCategory || 'Bar';
-                const hasTypeMatch = typeFilters.length === 0 || typeFilters.some(f => {
-                    if (f === 'all-bars'   && vType === 'Bar')       return true;
-                    if (f === 'all-hotels' && vType === 'Hotel')     return true;
-                    if (f === 'all-stays'  && vType === 'ShortStay') return true;
+        return demoVenues.filter(venue => {
+            const vType = venue.typeCategory || 'Bar';
+            const hasTypeMatch = typeFilters.length === 0 || typeFilters.some(f => {
+                if (f === 'all-bars'   && vType === 'Bar')       return true;
+                if (f === 'all-hotels' && vType === 'Hotel')     return true;
+                if (f === 'all-stays'  && vType === 'ShortStay') return true;
+                return false;
+            });
+            if (!hasTypeMatch) return false;
+
+            if (intentFilters.length > 0) {
+                const rooms = venue.roomTypes || [];
+                const hasRoomMatch = rooms.some(room => intentFilters.some(intentId => {
+                    if (intentId === 'sun-morning')   return room.sunProfile?.useCase === 'Morning coffee' && (room.hasBalcony || room.hasOutdoorArea);
+                    if (intentId === 'sun-sunset')    return room.sunProfile?.useCase === 'Sunset drinks' && (room.hasBalcony || room.hasOutdoorArea);
+                    if (intentId === 'sun-allday')    return room.sunScore >= 70 && (room.sunProfile?.summerHours >= 6 || room.sunProfile?.winterHours >= 4) && ['N','NE','NW'].includes(room.orientation);
+                    if (intentId === 'sun-shaded')    return room.sunProfile?.useCase === 'Shade retreat' || room.sunScore <= 40;
+                    if (intentId === 'sun-highfloor') return (room.floorLevel || 0) >= 8 && room.obstructionLevel === 'Open' && room.hasBalcony;
                     return false;
-                });
-                if (!hasTypeMatch) return false;
+                }));
+                if (!hasRoomMatch) return false;
+            }
 
-                if (intentFilters.length > 0) {
-                    const rooms = v.roomTypes || [];
-                    const hasRoomMatch = rooms.some(room => intentFilters.some(intentId => {
-                        if (intentId === 'sun-morning')   return room.sunProfile?.useCase === 'Morning coffee' && (room.hasBalcony || room.hasOutdoorArea);
-                        if (intentId === 'sun-sunset')    return room.sunProfile?.useCase === 'Sunset drinks' && (room.hasBalcony || room.hasOutdoorArea);
-                        if (intentId === 'sun-allday')    return room.sunScore >= 70 && (room.sunProfile?.summerHours >= 6 || room.sunProfile?.winterHours >= 4) && ['N','NE','NW'].includes(room.orientation);
-                        if (intentId === 'sun-shaded')    return room.sunProfile?.useCase === 'Shade retreat' || room.sunScore <= 40;
-                        if (intentId === 'sun-highfloor') return (room.floorLevel || 0) >= 8 && room.obstructionLevel === 'Open' && room.hasBalcony;
-                        return false;
-                    }));
-                    if (!hasRoomMatch) return false;
-                }
+            if (tagFilters.length > 0 && !tagFilters.some(id => venueMatchesWeatherTag(venue, id))) {
+                return false;
+            }
 
-                const vTags = v.tags || [];
-                const hasTagMatch = tagFilters.length === 0 || tagFilters.some(id => {
-                    const filter = categoryData.find(c => c.id === id);
-                    return filter ? vTags.includes(filter.tag) : false;
-                });
-                return hasTagMatch;
-            })
-            // cozy-mode: was previously handled via separate activeFilter === 'Cozy'
-            .filter(v => !cozyFilterActive || v.hasCozy)
-            .map(v => v.id);
-    }, [activeFilters, cozyFilterActive]);
-
-    const filteredVenues = useMemo(() => {
-        return demoVenues.filter((venue) => {
-            // cozy-mode filter (unified)
             if (cozyFilterActive) {
-                const liveState = liveVenueFeatures?.[venue.id] || {};
+                const liveState = liveFeatures[venue.id] || EMPTY_LIVE_FEATURES;
                 const hasLiveCozy = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
                 const hasStaticCozy =
                     (venue.shielding?.rainCover ?? 0) > 80 ||
-                    venue.tags?.some(t => ['cozy','covered','indoor'].includes(t.toLowerCase())) ||
+                    venue.tags?.some(t => ['cozy', 'covered', 'indoor'].includes(String(t).toLowerCase())) ||
                     venue.hasCozy;
                 if (!hasLiveCozy && !hasStaticCozy) return false;
             }
 
-            // sunny-mode filter (unified)
             if (sunnyFilterActive) {
-                const liveState = liveVenueFeatures?.[venue.id] || {};
-                const roofClosed = !!liveState.roofClosed;
+                const liveState = liveFeatures[venue.id] || EMPTY_LIVE_FEATURES;
                 const uvIndexValue = getUVIndex() || 0;
-                if (uvIndexValue < 4 || roofClosed) return false;
+                if (uvIndexValue < 4 || liveState.roofClosed) return false;
             }
 
-            // all other tag/type/intent filters via filteredVenueIds
-            if (activeFilters.filter(f => f !== FILTER_COZY && f !== FILTER_SUNNY).length > 0 &&
-                !filteredVenueIds.includes(venue.id)) return false;
-
-            if (searchQuery.trim()) {
-                const q = searchQuery.toLowerCase();
+            if (query) {
                 const matchesSearch =
-                    venue.venueName.toLowerCase().includes(q) ||
-                    venue.suburb?.toLowerCase().includes(q) ||
-                    venue.vibe?.toLowerCase().includes(q);
+                    venue.venueName.toLowerCase().includes(query) ||
+                    venue.suburb?.toLowerCase().includes(query) ||
+                    venue.vibe?.toLowerCase().includes(query);
                 if (!matchesSearch) return false;
             }
+
             return true;
         });
-    }, [cozyFilterActive, sunnyFilterActive, activeFilters, filteredVenueIds, liveVenueFeatures, searchQuery, getUVIndex]);
+    }, [activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, getUVIndex]);
+
+    const filteredVenueIds = useMemo(
+        () => filteredVenues.map(venue => venue.id),
+        [filteredVenues]
+    );
 
     // --- DEV DIAGNOSTICS ---
     useEffect(() => {
@@ -369,11 +379,7 @@ const AppContent = () => {
     // --- END DIAGNOSTICS ---
 
     const matchingCount = filteredVenues.length;
-
-    const stableFilteredIds = useMemo(
-        () => filteredVenues.map(v => v.id),
-        [filteredVenues]
-    );
+    const stableFilteredIds = filteredVenueIds;
 
     const handleVenueSelect = useCallback((venue) => {
         if (!venue) return;
@@ -400,6 +406,7 @@ const AppContent = () => {
 
     const handleClearFilters = useCallback(() => {
         setActiveFilters([]);
+        setSearchQuery('');
     }, []);
 
     const makeChatFilter = (filter) => () => {
@@ -407,15 +414,15 @@ const AppContent = () => {
         setSelectedVenue(null);
         setTimeout(() => setIsChatOpen(false), 1500);
     };
-    const handleFindWheelchair    = useCallback(makeChatFilter('wheelchair'), []);
-    const handleFindDogFriendly   = useCallback(makeChatFilter('pet-friendly'), []);
-    const handleFindSmoking       = useCallback(makeChatFilter('smoking'), []);
-    const handleFindFamily        = useCallback(makeChatFilter('pram-friendly'), []);
+    const handleFindWheelchair    = useCallback(makeChatFilter('Wheelchair Accessible'), []);
+    const handleFindDogFriendly   = useCallback(makeChatFilter('Pet Friendly'), []);
+    const handleFindSmoking       = useCallback(makeChatFilter('Smoking Area'), []);
+    const handleFindFamily        = useCallback(makeChatFilter('Pram Friendly'), []);
     const handleFindBusiness      = useCallback(makeChatFilter('Large Groups'), []);
     const handleFindSunny         = useCallback(makeChatFilter(FILTER_SUNNY), []);
-    const handleFindRooftop       = useCallback(makeChatFilter('rooftop'), []);
-    const handleFindIndoor        = useCallback(makeChatFilter('shade'), []);
-    const handleFindWindSheltered = useCallback(makeChatFilter('shade'), []);
+    const handleFindRooftop       = useCallback(makeChatFilter('Rooftop'), []);
+    const handleFindIndoor        = useCallback(makeChatFilter('Indoor Warmth'), []);
+    const handleFindWindSheltered = useCallback(makeChatFilter('Shaded'), []);
 
     const handleSurpriseMe = useCallback(() => {
         const randomVenue = demoVenues[Math.floor(Math.random() * demoVenues.length)];
@@ -550,11 +557,7 @@ const AppContent = () => {
                                 ))}
                             </AnimatePresence>
                             {filteredVenues.length === 0 && (
-                                <div className="ss-venue-list-empty">
-                                    <span>🔍</span>
-                                    <p>No exact match — showing all venues</p>
-                                    <button onClick={handleClearFilters}>Show all venues</button>
-                                </div>
+                                <FilterEmptyState onClear={handleClearFilters} />
                             )}
                         </div>
                     </aside>
@@ -734,6 +737,9 @@ const AppContent = () => {
                                             weather={weather}
                                         />
                                     ))}
+                                    {filteredVenues.length === 0 && (
+                                        <FilterEmptyState onClear={handleClearFilters} />
+                                    )}
                                 </div>
                             </motion.div>
                         </>
