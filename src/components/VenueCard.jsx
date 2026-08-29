@@ -1,5 +1,6 @@
 import React, { memo, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import WeatherWidget from './WeatherWidget';
@@ -269,52 +270,54 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
 // ── Collapsible Deep Dive Accordion ──────────────────────────────
 const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const panelId = `venue-forecast-details-${venue?.id ?? 'panel'}`;
 
   return (
     <div className="flex flex-col gap-2 mt-1 w-full">
-      <motion.button
-        type="button"
-        onClick={() => setIsExpanded(prev => !prev)}
-        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 select-none"
+      <div
+        className="w-full flex items-center justify-between px-3 py-2 rounded-2xl border select-none"
         style={{
           background: isExpanded ? 'rgba(14,165,233,0.10)' : 'rgba(14,165,233,0.04)',
           borderColor: isExpanded ? 'rgba(14,165,233,0.25)' : 'rgba(14,165,233,0.12)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
         }}
-        whileHover={{ scale: 1.01, background: 'rgba(14,165,233,0.08)' }}
-        whileTap={{ scale: 0.99 }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 pr-2">
           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/20 text-base flex-shrink-0">
             📊
           </span>
-          <div>
+          <div className="min-w-0">
             <span className="text-[14px] font-extrabold text-slate-900 block leading-tight">
               Detailed Forecast & Intelligence
             </span>
             <span className="text-[11px] font-semibold text-slate-500 block mt-0.5">
-              {isExpanded ? 'Tap to hide detailed forecast' : 'Tap for detailed forecast'}
+              {isExpanded ? 'Expanded forecast' : 'Tap the arrow for detailed forecast'}
             </span>
           </div>
         </div>
-        <motion.div
-          animate={{ rotate: isExpanded ? 180 : 0 }}
-          transition={{ duration: 0.28, ease: 'easeInOut' }}
-          className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-200/60 text-slate-700 flex-shrink-0"
+        <button
+          type="button"
+          onClick={() => setIsExpanded(prev => !prev)}
+          aria-expanded={isExpanded}
+          aria-controls={panelId}
+          aria-label={isExpanded ? 'Hide detailed forecast' : 'Show detailed forecast'}
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full bg-sky-500 text-white shadow-sm flex-shrink-0 cursor-pointer transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
         >
-          <span style={{ fontSize: 11, fontWeight: 'bold' }}>▼</span>
-        </motion.div>
-      </motion.button>
+          <ChevronDown
+            size={20}
+            strokeWidth={2.25}
+            className={`transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+          />
+        </button>
+      </div>
 
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.32, ease: 'easeInOut' }}
-            className="overflow-hidden flex flex-col gap-3 pt-1 pb-1"
-          >
+      <div
+        id={panelId}
+        aria-hidden={!isExpanded}
+        className={`grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] will-change-[grid-template-rows] ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+      >
+        <div className="min-h-0 overflow-hidden" inert={isExpanded ? undefined : true}>
+          <div className="flex flex-col gap-3 pt-1 pb-1">
             {/* Secondary Metrics (UV & Pristine Air) - removed from default view */}
             <div className="grid grid-cols-2 gap-2.5">
               <div
@@ -352,9 +355,9 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children
             {/* Wind & Comfort Intelligence */}
             <WindComfortPanel venue={venue} />
             {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -568,17 +571,25 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               <div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(14,165,233,0.35)' }} />
             </div>
 
-            {/* 2. Premium Detail Sheet Header */}
-            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(180deg, #7DD3FC 0%, #FB923C 100%)' }}>
+            {/* 2. Premium Detail Sheet Header — tap centres the venue on the map */}
+            <div
+              className="relative w-full rounded-2xl overflow-hidden mb-1 cursor-pointer transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-90"
+              style={{ height: '220px', background: 'linear-gradient(180deg, #7DD3FC 0%, #FB923C 100%)' }}
+              onClick={() => onCenter?.(venue)}
+              role={onCenter ? 'button' : undefined}
+              tabIndex={onCenter ? 0 : undefined}
+              onKeyDown={onCenter ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCenter(venue); } } : undefined}
+              aria-label={onCenter ? `Centre ${fallbackName} on map` : undefined}
+            >
               <img
                 src={venueImage || '/sunny-mascot.jpg'}
                 alt={fallbackName}
-                className="absolute inset-0 w-full h-full object-cover object-center"
+                className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent pointer-events-none" />
               <motion.button
-                onClick={onClose}
-                className="absolute top-3 left-3 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/20 rounded-full z-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-900"
+                onClick={(e) => { e.stopPropagation(); onClose(); }}
+                className="absolute top-3 left-3 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/20 rounded-full z-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-900 active:scale-[0.98] active:opacity-70"
                 style={{ width: 44, height: 44 }}
                 whileTap={{ scale: 0.92 }}
                 aria-label="Close venue details"
@@ -604,7 +615,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               {onCenter && (
                 <button
                   onClick={() => onCenter(venue)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-sky-50 text-sky-700 border border-sky-100 font-bold text-sm shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-sky-50 text-sky-700 border border-sky-100 font-bold text-sm shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-80"
                   style={{ minWidth: 44, minHeight: 44 }}
                   aria-label="Centre on map"
                 >
