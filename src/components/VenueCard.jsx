@@ -1,6 +1,6 @@
 import React, { memo, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { X, Wind, Sun, Armchair, Flame, ExternalLink, Navigation, Share2 } from 'lucide-react';
+import { X, Wind, Sun, Armchair, Flame, ExternalLink, Navigation, Share2, ChevronDown } from 'lucide-react';
 import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import WeatherWidget from './WeatherWidget';
@@ -366,6 +366,7 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
 const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, children, onOpen }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const forecastHeaderRef = useRef(null);
+  const panelId = `venue-forecast-details-${venue?.id ?? 'panel'}`;
 
   const handleToggleForecast = () => {
     const isOpening = !isExpanded;
@@ -387,58 +388,59 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
         } else {
           header.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-      }, 150); // wait for DOM expansion
+      }, 150); // wait for CSS grid expansion
     }
   };
 
   return (
     <div className="flex flex-col gap-2 mt-1 w-full">
-      <motion.button
+      <div
         ref={forecastHeaderRef}
-        type="button"
-        onClick={handleToggleForecast}
-        onPointerDown={e => e.stopPropagation()}
-        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 select-none"
+        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border select-none"
         style={{
           background: isExpanded ? 'rgba(14,165,233,0.10)' : 'rgba(14,165,233,0.04)',
           borderColor: isExpanded ? 'rgba(14,165,233,0.25)' : 'rgba(14,165,233,0.12)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
           scrollMarginTop: 8,
         }}
-        whileHover={{ scale: 1.01, background: 'rgba(14,165,233,0.08)' }}
-        whileTap={{ scale: 0.99 }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 pr-2">
           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/20 text-base flex-shrink-0">
             📊
           </span>
-          <div>
+          <div className="min-w-0">
             <span className="text-[14px] font-extrabold text-slate-900 block leading-tight">
               Detailed Forecast & Intelligence
             </span>
             <span className="text-[11px] font-semibold text-slate-500 block mt-0.5">
-              {isExpanded ? 'Tap to hide detailed forecast' : 'Tap for detailed forecast'}
+              {isExpanded ? 'Tap the arrow to hide forecast' : 'Tap the arrow for detailed forecast'}
             </span>
           </div>
         </div>
-        <motion.div
-          animate={{ rotate: isExpanded ? 180 : 0 }}
-          transition={{ duration: 0.28, ease: 'easeInOut' }}
-          className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-200/60 text-slate-700 flex-shrink-0"
+        <button
+          type="button"
+          onClick={handleToggleForecast}
+          onPointerDown={e => e.stopPropagation()}
+          aria-expanded={isExpanded}
+          aria-controls={panelId}
+          aria-label={isExpanded ? 'Hide detailed forecast' : 'Show detailed forecast'}
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full bg-slate-200/70 text-slate-700 flex-shrink-0 cursor-pointer transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
         >
-          <span style={{ fontSize: 11, fontWeight: 'bold' }}>▼</span>
-        </motion.div>
-      </motion.button>
+          <ChevronDown
+            size={20}
+            strokeWidth={2.25}
+            className={`transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] ${isExpanded ? 'rotate-180' : 'rotate-0'}`}
+          />
+        </button>
+      </div>
 
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.32, ease: 'easeInOut' }}
-            className="overflow-hidden flex flex-col gap-3 pt-1 pb-1"
-          >
+      <div
+        id={panelId}
+        aria-hidden={!isExpanded}
+        className={`grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] will-change-[grid-template-rows] ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+      >
+        <div className="min-h-0 overflow-hidden" inert={isExpanded ? undefined : true}>
+          <div className="flex flex-col gap-3 pt-1 pb-1">
             {/* Secondary Metrics (UV, Wind, & Pristine Air) */}
             <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 scrollbar-hide">
               <div className="flex items-center gap-3 p-3 rounded-2xl border bg-white border-slate-100 shadow-sm shrink-0 min-w-[140px]" style={{ minHeight: '44px' }}>
@@ -477,9 +479,9 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
             {/* Wind & Comfort Intelligence */}
             <WindComfortPanel venue={venue} />
             {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
