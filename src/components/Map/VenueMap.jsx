@@ -246,6 +246,7 @@ const VenueMap = forwardRef(({
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
+    const [showRadar,    setShowRadar]    = useState(false);
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
@@ -624,7 +625,26 @@ const VenueMap = forwardRef(({
     const { radarFrames, error: radarError } = useRainRadar();
 
     useEffect(() => {
-        if (!map.current || !radarFrames.length) return;
+        if (!map.current || !mapLoaded) return;
+
+        // Clean up any existing radar layers and sources
+        const cleanupRadar = () => {
+            if (map.current && map.current.getStyle()) {
+                radarFrames.forEach(frame => {
+                    try {
+                        if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
+                        if (map.current.getSource(frame.id)) map.current.removeSource(frame.id);
+                    } catch (e) {
+                        // ignore error if map is tearing down
+                    }
+                });
+            }
+        };
+
+        if (!showRadar || !radarFrames.length) {
+            cleanupRadar();
+            return;
+        }
 
         let animationInterval;
         let currentFrameIndex = 0;
@@ -653,14 +673,14 @@ const VenueMap = forwardRef(({
 
             animationInterval = setInterval(() => {
                 const prevFrame = radarFrames[currentFrameIndex];
-                if (map.current.getLayer(prevFrame.id)) {
+                if (map.current && map.current.getLayer(prevFrame?.id)) {
                     map.current.setPaintProperty(prevFrame.id, 'raster-opacity', 0);
                 }
 
                 currentFrameIndex = (currentFrameIndex + 1) % radarFrames.length;
 
                 const nextFrame = radarFrames[currentFrameIndex];
-                if (map.current.getLayer(nextFrame.id)) {
+                if (map.current && map.current.getLayer(nextFrame?.id)) {
                     map.current.setPaintProperty(nextFrame.id, 'raster-opacity', 0.6);
                 }
             }, 500);
@@ -673,15 +693,10 @@ const VenueMap = forwardRef(({
         }
 
         return () => {
-            clearInterval(animationInterval);
-            if (map.current && map.current.getStyle()) {
-                radarFrames.forEach(frame => {
-                    if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
-                    if (map.current.getSource(frame.id)) map.current.removeSource(frame.id);
-                });
-            }
+            if (animationInterval) clearInterval(animationInterval);
+            cleanupRadar();
         };
-    }, [radarFrames]);
+    }, [showRadar, radarFrames, mapLoaded]);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
@@ -769,6 +784,36 @@ const VenueMap = forwardRef(({
                             ☁️
                         </button>
                     )}
+
+                    {/* Rain Radar FAB */}
+                    <button
+                        onClick={() => setShowRadar(prev => !prev)}
+                        onTouchEnd={e => { e.stopPropagation(); }}
+                        title={showRadar ? 'Hide rain radar' : 'Show rain radar'}
+                        style={{
+                            width:               44,
+                            height:              44,
+                            borderRadius:        '50%',
+                            border:              showRadar ? '2px solid #2563EB' : '2px solid rgba(255,255,255,0.3)',
+                            background:          showRadar ? 'rgba(37,99,235,0.9)' : 'rgba(15,15,30,0.85)',
+                            backdropFilter:      'blur(8px)',
+                            WebkitBackdropFilter:'blur(8px)',
+                            color:               '#fff',
+                            fontSize:            20,
+                            cursor:              'pointer',
+                            display:             'flex',
+                            alignItems:          'center',
+                            justifyContent:      'center',
+                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
+                            transition:          'background 200ms ease, border-color 200ms ease',
+                            WebkitTapHighlightColor: 'transparent',
+                            touchAction:         'auto',
+                        }}
+                        aria-label={showRadar ? 'Hide rain radar' : 'Show rain radar'}
+                        aria-pressed={showRadar}
+                    >
+                        🌧️
+                    </button>
 
                     {/* Cozy weather indicator — shows when cozyWeatherActive */}
                     {cozyWeatherActive && (
