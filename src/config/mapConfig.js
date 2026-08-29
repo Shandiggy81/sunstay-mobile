@@ -7,33 +7,7 @@ if (!import.meta.env.VITE_MAPBOX_TOKEN) {
     console.warn('[Sunstay] VITE_MAPBOX_TOKEN is not set. Map will not load. Add it to your .env or Netlify environment variables.');
 }
 
-export const MAP_STYLE = {
-    version: 8,
-    sources: {
-        'carto-positron': {
-            type: 'raster',
-            tiles: [
-                'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-                'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
-            ],
-            tileSize: 256,
-            minzoom: 3,
-            maxzoom: 18,
-            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-        }
-    },
-    layers: [
-        {
-            id: 'carto-positron-layer',
-            type: 'raster',
-            source: 'carto-positron',
-            minzoom: 3,
-            maxzoom: 18
-        }
-    ]
-};
+export const MAP_STYLE = 'mapbox://styles/mapbox/light-v11';
 
 export const INITIAL_VIEW_STATE = {
     longitude: 144.9631,
