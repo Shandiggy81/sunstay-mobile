@@ -84,12 +84,40 @@ function getBoundsFromVenues(venues) {
     }
 }
 
+// ── Mini Sunstay Score badge (mirrors the list card + detail sheet ramp) ──
+const SCORE_BADGE_TIERS = [
+    { min: 75, bg: '#059669' }, // emerald — prime conditions
+    { min: 50, bg: '#D97706' }, // amber — good conditions
+    { min: 0,  bg: '#0284C7' }, // sky — worth a look
+];
+
+function getScoreBadgeColor(score) {
+    return (SCORE_BADGE_TIERS.find(t => score >= t.min) || SCORE_BADGE_TIERS[SCORE_BADGE_TIERS.length - 1]).bg;
+}
+
+function createScoreBadgeEl(score) {
+    const badge = document.createElement('div');
+    badge.className = 'ss-pin-score-badge';
+    badge.style.cssText = [
+        'position:absolute', 'top:-3px', 'right:-3px',
+        'min-width:18px', 'height:18px', 'padding:0 3px',
+        'border-radius:9px', 'border:2px solid #fff',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'font-size:9px', 'font-weight:800', 'color:#fff',
+        'box-shadow:0 1px 3px rgba(0,0,0,0.35)',
+        'pointer-events:none', 'line-height:1',
+        `background:${getScoreBadgeColor(score)}`,
+    ].join(';');
+    badge.textContent = String(score);
+    return badge;
+}
+
 // ── Marker DOM helpers ──────────────────────────────────────────────────
-function createMarkerEl(pinKey) {
+function createMarkerEl(pinKey, score) {
     const { emoji, bg, border } = PIN_STATES[pinKey] || PIN_STATES.default;
 
     const el = document.createElement('div');
-    el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center;';
+    el.style.cssText = 'width:40px; height:40px; position:relative; display:flex; align-items:center; justify-content:center;';
 
     const inner = document.createElement('div');
     const glow = pinKey === 'sunshine'
@@ -115,10 +143,18 @@ function createMarkerEl(pinKey) {
     inner.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
 
     el.appendChild(inner);
+
+    if (Number.isFinite(score)) {
+        el.appendChild(createScoreBadgeEl(score));
+    }
+
     return el;
 }
 
-function updateMarkerEl(el, pinKey) {
+// Cheap in-place update — mutates existing DOM nodes instead of recreating
+// the marker element, so score-only changes (which can happen on every
+// weather refresh) never trigger a Mapbox marker remove/recreate cycle.
+function updateMarkerEl(el, pinKey, score) {
     const inner = el.querySelector('div');
     if (!inner) return;
 
@@ -129,6 +165,18 @@ function updateMarkerEl(el, pinKey) {
     inner.style.filter = pinKey === 'sunshine'
         ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
         : 'none';
+
+    let badge = el.querySelector('.ss-pin-score-badge');
+    if (Number.isFinite(score)) {
+        if (!badge) {
+            el.appendChild(createScoreBadgeEl(score));
+        } else {
+            badge.textContent = String(score);
+            badge.style.background = getScoreBadgeColor(score);
+        }
+    } else if (badge) {
+        badge.remove();
+    }
 }
 
 function createClusterMarkerEl(count) {
@@ -543,12 +591,18 @@ const VenueMap = forwardRef(({
                             weatherColorFnRef.current,
                             cozyFilterActiveRef.current,
                         );
+                        const rawScore = typeof calculateSunstayScore === 'function'
+                            ? calculateSunstayScore(venue)
+                            : null;
+                        const score = Number.isFinite(rawScore) ? Math.round(rawScore) : null;
+
                         let existing = markersRef.current[markerId];
 
                         if (existing) {
                             if (existing.pinKey !== pinKey) {
+                                // Pin category changed (emoji/colour language) — full recreate.
                                 existing.marker.remove();
-                                const el = createMarkerEl(pinKey);
+                                const el = createMarkerEl(pinKey, score);
                                 el.addEventListener('click', (e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
@@ -559,9 +613,14 @@ const VenueMap = forwardRef(({
                                     .addTo(map.current);
                                 existing.el = el;
                                 existing.pinKey = pinKey;
+                                existing.score = score;
+                            } else if (existing.score !== score) {
+                                // Score-only change — cheap in-place DOM update, no marker recreation.
+                                updateMarkerEl(existing.el, pinKey, score);
+                                existing.score = score;
                             }
                         } else {
-                            const el = createMarkerEl(pinKey);
+                            const el = createMarkerEl(pinKey, score);
                             el.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -570,7 +629,7 @@ const VenueMap = forwardRef(({
                             const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(map.current);
-                            existing = { marker, el, pinKey, isCluster: false };
+                            existing = { marker, el, pinKey, score, isCluster: false };
                         }
                         newMarkers[markerId] = existing;
                     }
@@ -596,7 +655,7 @@ const VenueMap = forwardRef(({
                 map.current.off('moveend', syncMarkers);
             }
         };
-    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn]);
+    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {

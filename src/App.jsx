@@ -112,15 +112,36 @@ const getMarkerWeatherColor = (weather, venue) => {
     return 'sunny';
 };
 
+// ── Sunstay Score visual ramp ────────────────────────────────────────
+// Mirrors VenueCard.jsx's SunstayScoreBadge thresholds/emoji exactly, so the
+// score a user sees while scanning the list matches the one they see after
+// tapping into the detail sheet — same number, same colour, same meaning.
+const getSunstayScoreVisual = (score) => {
+    if (score >= 75) return { emoji: '☀️', color: '#10B981' }; // emerald — prime conditions
+    if (score >= 50) return { emoji: '🌤️', color: '#F59E0B' }; // amber — good conditions
+    return { emoji: '🌥️', color: '#0EA5E9' };                  // sky — worth a look
+};
+
 // ── VenueListCard ──────────────────────────────────────────────────────
-const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
-    const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
+const VenueListCard = memo(({ venue, isSelected, onClick, weather, calculateSunstayScore }) => {
     const profile = useMemo(() => getWindProfile(venue), [venue]);
     const temp = weather?.main?.temp;
     const feelsLike = temp != null
         ? Math.round(calculateApparentTemp(temp, weather?.wind?.speed, weather?.main?.humidity, profile.shelterFactor))
         : null;
     const comfort = feelsLike != null ? getComfortZone(feelsLike) : null;
+
+    // Per-venue Sunstay Score — the same weather-adjusted score used in the
+    // detail sheet's hero badge, surfaced here so the best-matched venues are
+    // identifiable at a glance without opening each card.
+    const sunstayScore = useMemo(() => {
+        const raw = typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null;
+        return Number.isFinite(raw) ? Math.round(raw) : null;
+    }, [calculateSunstayScore, venue]);
+    const scoreVisual = useMemo(
+        () => (sunstayScore != null ? getSunstayScoreVisual(sunstayScore) : null),
+        [sunstayScore]
+    );
 
     const isStay = venue.typeCategory === 'ShortStay';
     const isHotel = venue.typeCategory === 'Hotel';
@@ -135,7 +156,7 @@ const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
                 onClick(e);
             }}
             role="button"
-            aria-label={`Venue: ${venue.venueName}. ${isStay || isHotel ? venue.typeLabel : venue.vibe} in ${venue.suburb}.`}
+            aria-label={`Venue: ${venue.venueName}. ${isStay || isHotel ? venue.typeLabel : venue.vibe} in ${venue.suburb}.${sunstayScore != null ? ` Sunstay score ${sunstayScore} out of 100.` : ''}`}
             className={`ss-venue-list-card relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
@@ -147,10 +168,16 @@ const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
                 </div>
             </div>
             <div className="ss-vlc-right">
-                <div className="ss-vlc-badge" style={{ background: badge.color + '18', color: badge.color }}>
-                    <span>{badge.emoji}</span>
-                    <span>{badge.label}</span>
-                </div>
+                {scoreVisual && (
+                    <div
+                        className="ss-vlc-badge"
+                        style={{ background: scoreVisual.color + '18', color: scoreVisual.color }}
+                        title={`Sunstay Score: ${sunstayScore}/100`}
+                    >
+                        <span>{scoreVisual.emoji}</span>
+                        <span>{sunstayScore}</span>
+                    </div>
+                )}
                 {isStay && venue.nightlyPriceDemo ? (
                     <div className="ss-vlc-temp !bg-emerald-50 !text-emerald-700 !border-emerald-100 px-2 rounded-lg">
                         <span className="text-[9px] font-black uppercase tracking-tighter">Stay</span>
@@ -201,7 +228,7 @@ VenueChip.displayName = 'VenueChip';
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
-    const { weather, getUVIndex } = useWeather();
+    const { weather, getUVIndex, calculateSunstayScore } = useWeather();
 
     const comfort = useMemo(() => {
         if (!weather) return { label: 'Loading', icon: '☁️', cozy: false };
@@ -553,6 +580,7 @@ const AppContent = () => {
                                         isSelected={selectedVenue?.id === venue.id}
                                         onClick={() => handleVenueSelect(venue)}
                                         weather={weather}
+                                        calculateSunstayScore={calculateSunstayScore}
                                     />
                                 ))}
                             </AnimatePresence>
@@ -735,6 +763,7 @@ const AppContent = () => {
                                             isSelected={selectedVenue?.id === venue.id}
                                             onClick={() => { handleVenueSelect(venue); setMobileSheetState('peek'); }}
                                             weather={weather}
+                                            calculateSunstayScore={calculateSunstayScore}
                                         />
                                     ))}
                                     {filteredVenues.length === 0 && (
