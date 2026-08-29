@@ -268,18 +268,45 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
 
 // ── Collapsible Deep Dive Accordion ──────────────────────────────
 const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [showDetailedForecast, setShowDetailedForecast] = useState(false);
+  const forecastHeaderRef = useRef(null);
+
+  const handleToggleForecast = () => {
+    const isOpening = !showDetailedForecast;
+    setShowDetailedForecast(isOpening);
+    if (isOpening) {
+      setTimeout(() => {
+        const header = forecastHeaderRef.current;
+        if (!header) return;
+        // Scroll the sheet overlay only — never the window or the drag-transformed article.
+        const scroller = header.closest('[data-venue-card-scroller]');
+        if (scroller) {
+          const offset =
+            header.getBoundingClientRect().top -
+            scroller.getBoundingClientRect().top +
+            scroller.scrollTop -
+            8;
+          scroller.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
+        } else {
+          header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150); // wait for DOM expansion
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-2 mt-1 w-full">
+    <div className="flex flex-col gap-1.5 mt-1 w-full">
       <motion.button
+        ref={forecastHeaderRef}
         type="button"
-        onClick={() => setIsExpanded(prev => !prev)}
-        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 select-none"
+        onClick={handleToggleForecast}
+        onPointerDown={e => e.stopPropagation()}
+        className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border text-left cursor-pointer transition-all duration-200 select-none"
         style={{
-          background: isExpanded ? 'rgba(14,165,233,0.10)' : 'rgba(14,165,233,0.04)',
-          borderColor: isExpanded ? 'rgba(14,165,233,0.25)' : 'rgba(14,165,233,0.12)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          background: showDetailedForecast ? 'rgba(14,165,233,0.08)' : 'rgba(14,165,233,0.03)',
+          borderColor: showDetailedForecast ? 'rgba(14,165,233,0.18)' : 'rgba(14,165,233,0.10)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+          scrollMarginTop: 8,
         }}
         whileHover={{ scale: 1.01, background: 'rgba(14,165,233,0.08)' }}
         whileTap={{ scale: 0.99 }}
@@ -293,12 +320,12 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children
               Detailed Forecast & Intelligence
             </span>
             <span className="text-[11px] font-semibold text-slate-500 block mt-0.5">
-              {isExpanded ? 'Tap to hide detailed forecast' : 'Tap for detailed forecast'}
+              {showDetailedForecast ? 'Tap to hide detailed forecast' : 'Tap for detailed forecast'}
             </span>
           </div>
         </div>
         <motion.div
-          animate={{ rotate: isExpanded ? 180 : 0 }}
+          animate={{ rotate: showDetailedForecast ? 180 : 0 }}
           transition={{ duration: 0.28, ease: 'easeInOut' }}
           className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-200/60 text-slate-700 flex-shrink-0"
         >
@@ -307,19 +334,19 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children
       </motion.button>
 
       <AnimatePresence>
-        {isExpanded && (
+        {showDetailedForecast && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.32, ease: 'easeInOut' }}
-            className="overflow-hidden flex flex-col gap-3 pt-1 pb-1"
+            className="overflow-hidden flex flex-col gap-1.5 pt-0.5 pb-0.5"
           >
-            {/* Secondary Metrics (UV & Pristine Air) - removed from default view */}
-            <div className="grid grid-cols-2 gap-2.5">
+            {/* Secondary Metrics (UV & Pristine Air) */}
+            <div className="grid grid-cols-2 gap-1.5">
               <div
-                className="flex items-center gap-3 p-3.5 rounded-2xl border"
-                style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.14)' }}
+                className="flex items-center gap-2.5 p-2.5 rounded-xl border"
+                style={{ background: 'rgba(14,165,233,0.025)', borderColor: 'rgba(14,165,233,0.08)' }}
               >
                 <span className="text-xl flex-shrink-0">🔆</span>
                 <div className="min-w-0">
@@ -328,8 +355,8 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children
                 </div>
               </div>
               <div
-                className="flex items-center gap-3 p-3.5 rounded-2xl border"
-                style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.14)' }}
+                className="flex items-center gap-2.5 p-2.5 rounded-xl border"
+                style={{ background: 'rgba(14,165,233,0.025)', borderColor: 'rgba(14,165,233,0.08)' }}
               >
                 <span className="text-xl flex-shrink-0">🌿</span>
                 <div className="min-w-0">
@@ -341,12 +368,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children
 
             {/* Hourly Comfort Forecast */}
             {lat && lng && (
-              <div className="rounded-2xl overflow-hidden border" style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.12)' }}>
-                <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
-                  <span className="text-[0.72rem] font-black uppercase tracking-widest text-slate-700">Hourly Comfort Forecast</span>
-                </div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark />
-              </div>
+              <HourlyForecastStrip lat={lat} lng={lng} dark />
             )}
 
             {/* Wind & Comfort Intelligence */}
@@ -520,6 +542,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+        data-venue-card-scroller
         style={{
           position: 'fixed',
           inset: 0,
@@ -531,7 +554,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           WebkitOverflowScrolling: 'touch',
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'flex-end',
+          // Bottom-align a short sheet via the article's mt-auto. Avoid
+          // justify-content:flex-end here — it clips the top and blocks
+          // scrolling when the accordion grows past the viewport.
         }}
         onClick={onClose}
       >
@@ -550,7 +575,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid rgba(14,165,233,0.12)',
           }}
-          className="pointer-events-auto mt-auto w-full select-none"
+          className="pointer-events-auto mt-auto w-full select-none shrink-0"
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: '28px 28px 0 0', zIndex: 0 }}>
@@ -620,7 +645,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               uvIndex={uvIndex}
               aqLabel={aqLabel}
             >
-              <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-sky-100/50">
+              <div className="flex flex-col gap-2 mt-1.5 pt-2 border-t border-sky-100/40">
 
                 {/* Extracted advisory content from old VenueCardHeader */}
                 <div className="flex flex-col gap-1 mb-2">
