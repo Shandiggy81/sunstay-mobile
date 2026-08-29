@@ -424,7 +424,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
           aria-expanded={isExpanded}
           aria-controls={panelId}
           aria-label={isExpanded ? 'Hide detailed forecast' : 'Show detailed forecast'}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full bg-slate-200/70 text-slate-700 flex-shrink-0 cursor-pointer transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full bg-sky-500 text-white shadow-sm flex-shrink-0 cursor-pointer transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
         >
           <ChevronDown
             size={20}
