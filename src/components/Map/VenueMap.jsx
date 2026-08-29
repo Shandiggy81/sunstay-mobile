@@ -635,7 +635,8 @@ const VenueMap = forwardRef(({
                     map.current.addSource(frame.id, {
                         type: 'raster',
                         tiles: [frame.url],
-                        tileSize: 256
+                        tileSize: 256,
+                        maxzoom: 12
                     });
 
                     const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
