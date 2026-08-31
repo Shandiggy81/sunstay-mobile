@@ -10,17 +10,15 @@ import { useRainRadar } from '../../hooks/useRainRadar';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
-    sunshine: { emoji: '☀️',  bg: '#FEF08A', border: '#EAB308' },
-    heater:   { emoji: '🔥',  bg: '#ff6b35', border: '#c2410c' },
-    rain:     { emoji: '🌦️', bg: '#1e40af', border: '#1e3a8a' },
-    cold:     { emoji: '🥶',  bg: '#bfdbfe', border: '#60a5fa' },
-    sunny:    { emoji: '😎',  bg: '#fbbf24', border: '#d97706' },
-    default:  { emoji: '🌤️', bg: '#60a5fa', border: '#3b82f6' },
-    // cozy-specific override when cozyFilterActive
-    cozy:     { emoji: '🛋️', bg: '#fde68a', border: '#f59e0b' },
-    // windy override from weatherColorFn
-    windy:    { emoji: '💨',  bg: '#bfdbfe', border: '#60a5fa' },
-    cloudy:   { emoji: '☁️',  bg: '#d1d5db', border: '#9ca3af' },
+    sunshine: { emoji: '☀️',  bg: '#f59e0b', border: '#d97706', color: '#0f172a' },
+    heater:   { emoji: '🔥',  bg: '#ff6b35', border: '#c2410c', color: '#ffffff' },
+    rain:     { emoji: '🌦️', bg: '#e2e8f0', border: '#cbd5e1', color: '#64748b' },
+    cold:     { emoji: '🥶',  bg: '#e2e8f0', border: '#cbd5e1', color: '#64748b' },
+    sunny:    { emoji: '😎',  bg: '#f59e0b', border: '#d97706', color: '#0f172a' },
+    default:  { emoji: '🌤️', bg: '#e2e8f0', border: '#cbd5e1', color: '#64748b' },
+    cozy:     { emoji: '🛋️', bg: '#fde68a', border: '#f59e0b', color: '#0f172a' },
+    windy:    { emoji: '💨',  bg: '#e2e8f0', border: '#cbd5e1', color: '#64748b' },
+    cloudy:   { emoji: '☁️',  bg: '#e2e8f0', border: '#cbd5e1', color: '#64748b' },
 };
 
 function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive) {
@@ -86,32 +84,38 @@ function getBoundsFromVenues(venues) {
 
 // ── Marker DOM helpers ──────────────────────────────────────────────────
 function createMarkerEl(pinKey) {
-    const { emoji, bg, border } = PIN_STATES[pinKey] || PIN_STATES.default;
+    const { emoji, bg, border, color } = PIN_STATES[pinKey] || PIN_STATES.default;
 
     const el = document.createElement('div');
-    el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center;';
+    el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center; position:relative;';
+
+    const isSunny = pinKey === 'sunshine' || pinKey === 'sunny';
+
+    if (isSunny) {
+        const ring = document.createElement('div');
+        ring.className = 'absolute inset-0 rounded-full animate-ping';
+        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75; animation-duration: 2s; pointer-events: none;';
+        el.appendChild(ring);
+    }
 
     const inner = document.createElement('div');
-    const glow = pinKey === 'sunshine'
-        ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
-        : 'none';
 
     inner.style.cssText = [
         'width:40px', 'height:40px', 'border-radius:50%',
-        `background:${bg}`, `border:3px solid ${border}`,
+        `background:${bg}`, `border:2px solid ${border}`, `color:${color || '#0f172a'}`,
         'display:flex', 'align-items:center', 'justify-content:center',
         'font-size:20px', 'cursor:pointer',
-        'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
+        'box-shadow:0 2px 8px rgba(0,0,0,0.15)',
         'transition:transform 120ms ease, filter 120ms ease',
         'user-select:none', 'line-height:1',
         'will-change:transform',
         '-webkit-tap-highlight-color:transparent',
-        `filter:${glow}`,
+        'position:relative', 'z-index:10'
     ].join(';');
 
     inner.textContent = emoji;
 
-    inner.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; });
+    inner.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.15)'; });
     inner.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
 
     el.appendChild(inner);
@@ -119,16 +123,26 @@ function createMarkerEl(pinKey) {
 }
 
 function updateMarkerEl(el, pinKey) {
-    const inner = el.querySelector('div');
+    const inner = el.querySelector('div:last-child');
     if (!inner) return;
 
-    const { emoji, bg, border } = PIN_STATES[pinKey] || PIN_STATES.default;
+    const { emoji, bg, border, color } = PIN_STATES[pinKey] || PIN_STATES.default;
     inner.textContent = emoji;
     inner.style.background = bg;
     inner.style.borderColor = border;
-    inner.style.filter = pinKey === 'sunshine'
-        ? 'drop-shadow(0 0 8px rgba(234,179,8,0.9)) drop-shadow(0 0 16px rgba(254,240,138,0.6))'
-        : 'none';
+    inner.style.color = color || '#0f172a';
+
+    const isSunny = pinKey === 'sunshine' || pinKey === 'sunny';
+    const existingRing = el.querySelector('.animate-ping');
+    
+    if (isSunny && !existingRing) {
+        const ring = document.createElement('div');
+        ring.className = 'absolute inset-0 rounded-full animate-ping';
+        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75; animation-duration: 2s; pointer-events: none;';
+        el.insertBefore(ring, inner);
+    } else if (!isSunny && existingRing) {
+        existingRing.remove();
+    }
 }
 
 function createClusterMarkerEl(count) {

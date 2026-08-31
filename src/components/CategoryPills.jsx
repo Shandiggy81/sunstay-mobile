@@ -42,18 +42,11 @@ const CategoryPills = ({ activeCategory, onCategoryChange }) => {
               whileTap={{ scale: 0.91 }}
               whileHover={{ scale: 1.04 }}
               onClick={() => onCategoryChange(cat.id)}
-              style={isActive ? {
-                background: cat.activeGradient,
-                boxShadow: `0 4px 14px ${cat.activeShadow}`,
-                border: '1.5px solid transparent',
-                color: '#fff',
-              } : {
-                background: 'rgba(255,255,255,0.92)',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                border: '1.5px solid rgba(0,0,0,0.07)',
-                color: '#374151',
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11.5px] font-bold whitespace-nowrap flex-shrink-0 transition-colors"
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 min-h-[36px] font-semibold text-[12px] whitespace-nowrap flex-shrink-0 transition-colors ${
+                isActive
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
             >
               <span className="text-[13px] leading-none">{cat.icon}</span>
               <span style={{ letterSpacing: '0.01em' }}>{cat.label}</span>

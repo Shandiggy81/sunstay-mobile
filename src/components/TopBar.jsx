@@ -2,28 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sun, Cloud, Wind, CloudRain } from 'lucide-react';
 
-const BANNER_GRADIENT = 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)';
-
-const SunLogo = () => (
-    <div style={{width:56,height:56,borderRadius:'50%',
-    background:'linear-gradient(135deg,#F59E0B,#F97316)',
-    boxShadow:'0 2px 12px rgba(245,166,35,0.5)',
-    display:'flex',alignItems:'center',
-    justifyContent:'center',fontSize:30}}>😎</div>
-);
-
-const WeatherIcon = ({ condition, windSpeed }) => {
-    const safeCondition = String(condition || '').toLowerCase();
-    const safeWindSpeed = Number(windSpeed) || 0;
-    if (safeCondition.includes('rain') || safeCondition.includes('drizzle')) return <CloudRain size={16} className="text-white/90" />;
-    if (safeWindSpeed > 40) return <Wind size={16} className="text-white/90" />;
-    if (safeCondition.includes('cloud')) return <Cloud size={16} className="text-white/90" />;
-    return <Sun size={16} className="text-yellow-300" />;
-};
-
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen, comfort }) => {
-    const [logoFailed, setLogoFailed] = useState(false);
-
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
     const description = weather?.weather?.[0]?.description || '';
@@ -53,46 +32,31 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div
-                className="relative flex items-center gap-4 px-4 pr-[16px] py-3.5"
+                className="relative flex items-center gap-4 px-4 pr-[16px] py-3.5 bg-white/80 backdrop-blur-md border-b border-slate-100"
                 style={{
-                    background: BANNER_GRADIENT,
                     minHeight: 72,
-                    borderBottom: '1px solid rgba(255,255,255,0.2)'
                 }}
             >
                 {/* Logo */}
-                <div className="flex flex-col items-center gap-1 flex-shrink-0 relative z-10">
-                    {logoFailed ? <SunLogo /> : (
-                        <img
-                            src="/sunstay-logo.png"
-                            alt="Sunstay Logo"
-                            className="h-[56px] w-auto object-contain"
-                            style={{filter:'drop-shadow(0 2px 8px rgba(0,0,0,0.3))'}}
-                            onError={() => setLogoFailed(true)}
-                        />
-                    )}
-                    <span style={{color:'#fff',fontWeight:900,fontSize:10,
-                    letterSpacing:'2px',textTransform:'uppercase',
-                    textShadow:'0 1px 3px rgba(0,0,0,0.4)'}}>SUNSTAY</span>
+                <div className="flex flex-col items-center justify-center flex-shrink-0 relative z-10">
+                    <Sun size={32} className="text-amber-500" />
+                    <span className="text-slate-900 font-black text-[9px] tracking-[2px] uppercase mt-1">SUNSTAY</span>
                 </div>
 
                 {/* Centre weather display */}
                 <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 relative z-10">
-                    <span className="text-white font-bold text-[13px] tracking-[1.5px] uppercase">Melbourne</span>
+                    <span className="text-slate-900 font-bold text-[13px] tracking-tight uppercase">Melbourne</span>
                     {weather && (
-                        <span
-                            className="text-white font-black text-[32px] leading-none tracking-tight"
-                            style={{ textShadow: '0 2px 8px rgba(245,166,35,0.4)' }}
-                        >
+                        <span className="text-slate-900 font-black text-[32px] leading-none tracking-tight">
                             {temp}°C
                         </span>
                     )}
                     <div className="flex flex-col items-center gap-1">
-                        <span className="text-white/70 text-[11px] font-medium italic">
+                        <span className="text-slate-600 text-[11px] font-medium italic">
                             {weather ? descFormatted : 'Loading\u2026'}
                         </span>
                         {comfort && comfort.label !== 'Loading' && (
-                            <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full shadow-sm border border-white/10 font-medium tracking-wide">
+                            <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full shadow-sm border border-slate-200 font-medium tracking-wide">
                                 {comfort.icon} {comfort.label}
                             </span>
                         )}
@@ -103,18 +67,18 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 {weather && (
                     <>
                         <div
-                            className="h-[48px] w-[1px] bg-white/30 flex-shrink-0 relative z-10"
+                            className="h-[48px] w-[1px] bg-slate-200 flex-shrink-0 relative z-10"
                             style={{ alignSelf: 'center' }}
                         />
                         <div className="flex-shrink-0 flex flex-col gap-1.5 items-start pr-4 relative z-10">
-                            <span className="text-white text-[12px] leading-tight">
+                            <span className="text-slate-700 text-[12px] font-medium leading-tight">
                                 💨 {windSpeed} km/h
                             </span>
-                            <span className="text-white text-[12px] leading-tight">
+                            <span className="text-slate-700 text-[12px] font-medium leading-tight">
                                 🌧 {Math.round(rainChance)}%
                             </span>
                             {cloudLabel && (
-                                <span className="text-white text-[12px] leading-tight">
+                                <span className="text-slate-700 text-[12px] font-medium leading-tight">
                                     ☁️ {cloudLabel}
                                 </span>
                             )}
