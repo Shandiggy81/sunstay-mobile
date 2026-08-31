@@ -77,8 +77,8 @@ const LiveSkyCondition = ({ cloudcover, windGusts, precipProbability = 0 }) => {
   if (precipProbability > 85) sky = { label: 'Heavy Rain', emoji: '⛈️' };
   else if (precipProbability >= 50) sky = { label: 'Steady Rain', emoji: '🌧️' };
   return (
-    <div style={{ background: 'rgba(14,165,233,0.05)', border: '1px solid rgba(14,165,233,0.14)', borderRadius: '16px', padding: '14px 16px' }}>
-      <span style={{ color: '#1E293B', fontSize: '15px', fontWeight: 700 }}>{sky.emoji} {sky.label}</span>
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+      <span style={{ color: '#0f172a', fontSize: '15px', fontWeight: 700 }}>{sky.emoji} {sky.label}</span>
       {windGusts > 0 && (
         <p style={{ color: '#64748B', fontSize: '11px', marginTop: '6px' }}>Wind gusts peaking at {Math.round(windGusts)} km/h</p>
       )}
@@ -115,8 +115,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
   const cloudSoon = cloudPct >= 50 && cloudPct < 80;
   return (
     <motion.div
-      className="rounded-2xl p-4 flex flex-col gap-3"
-      style={{ background: isSunNow ? 'rgba(245,158,11,0.08)' : 'rgba(14,165,233,0.05)', border: `1px solid ${isSunNow ? 'rgba(245,158,11,0.30)' : 'rgba(14,165,233,0.14)'}`, boxShadow: isSunNow ? '0 0 24px rgba(245,158,11,0.12)' : 'none' }}
+      className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-3"
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 24 }}
@@ -174,7 +173,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
     roomIntelligence.balcony && { icon: '🪟', label: 'Private Balcony' },
   ].filter(Boolean);
   return (
-    <motion.div className="rounded-2xl p-3" style={{ background: 'rgba(14,165,233,0.06)', border: '1px solid rgba(14,165,233,0.18)' }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+    <motion.div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
       <span className="text-sky-600 text-[0.7rem] font-black uppercase tracking-widest block mb-2">🛎 Room Intelligence</span>
       <div className="grid grid-cols-2 gap-2">
         {items.map((item, i) => (
@@ -207,8 +206,7 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
 
   return (
     <motion.div
-      className="rounded-2xl px-5 py-4 flex items-center gap-4 w-full"
-      style={{ background: bg, border: `2px solid ${border}`, boxShadow: `0 4px 20px ${glow}` }}
+      className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 flex items-center gap-4 w-full"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 280, damping: 26, delay: 0.08 }}
@@ -267,7 +265,7 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
 };
 
 // ── Collapsible Deep Dive Accordion ──────────────────────────────
-const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children }) => {
+const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, children }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -315,25 +313,26 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, children
             transition={{ duration: 0.32, ease: 'easeInOut' }}
             className="overflow-hidden flex flex-col gap-3 pt-1 pb-1"
           >
-            {/* Secondary Metrics (UV & Pristine Air) - removed from default view */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div
-                className="flex items-center gap-3 p-3.5 rounded-2xl border"
-                style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.14)' }}
-              >
+            {/* Secondary Metrics (UV, Wind, & Pristine Air) */}
+            <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 scrollbar-hide">
+              <div className="flex items-center gap-3 p-3 rounded-2xl border bg-white border-slate-100 shadow-sm shrink-0 min-w-[140px]" style={{ minHeight: '44px' }}>
                 <span className="text-xl flex-shrink-0">🔆</span>
                 <div className="min-w-0">
                   <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">UV Index</span>
                   <span className="text-[15px] font-extrabold text-slate-900 block mt-0.5">{uvIndex ?? '–'}</span>
                 </div>
               </div>
-              <div
-                className="flex items-center gap-3 p-3.5 rounded-2xl border"
-                style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.14)' }}
-              >
+              <div className="flex items-center gap-3 p-3 rounded-2xl border bg-white border-slate-100 shadow-sm shrink-0 min-w-[140px]" style={{ minHeight: '44px' }}>
+                <span className="text-xl flex-shrink-0">🌬️</span>
+                <div className="min-w-0">
+                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">Wind</span>
+                  <span className="text-[15px] font-extrabold text-slate-900 block mt-0.5">{wind !== undefined ? `${Math.round(wind)} km/h` : '–'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-2xl border bg-white border-slate-100 shadow-sm shrink-0 min-w-[140px]" style={{ minHeight: '44px' }}>
                 <span className="text-xl flex-shrink-0">🌿</span>
                 <div className="min-w-0">
-                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">Pristine Air</span>
+                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">Air Quality</span>
                   <span className="text-[15px] font-extrabold text-slate-900 block mt-0.5 truncate">{aqLabel ?? '–'}</span>
                 </div>
               </div>
@@ -569,13 +568,16 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* 2. Premium Detail Sheet Header */}
-            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(180deg, #7DD3FC 0%, #FB923C 100%)' }}>
-              <img
-                src={venueImage || '/sunny-mascot.jpg'}
-                alt={fallbackName}
-                className="absolute inset-0 w-full h-full object-cover object-center"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent pointer-events-none" />
+            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 100%)' }}>
+              {venueImage ? (
+                <img src={venueImage} alt={fallbackName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center opacity-40 bg-slate-300">
+                  <span className="text-4xl mb-2">🏙️</span>
+                  <span className="text-sm font-bold text-slate-700">No Image Available</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none" />
               <motion.button
                 onClick={onClose}
                 className="absolute top-3 left-3 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/20 rounded-full z-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-900"
@@ -585,11 +587,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               >
                 <span className="text-white font-bold" style={{ fontSize: '20px' }}>✕</span>
               </motion.button>
-              <div className="absolute bottom-0 left-0 right-0 p-4 pb-3 flex flex-col pointer-events-none">
-                <h1 className="text-white font-extrabold text-2xl leading-tight truncate mb-0.5" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+              <div className="absolute bottom-0 left-0 p-4 flex flex-col pointer-events-none">
+                <h1 className="text-white font-bold text-2xl leading-tight truncate mb-0.5">
                   {fallbackName}
                 </h1>
-                <span className="text-white/90 font-medium text-sm truncate" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
+                <span className="text-white/90 font-medium text-sm truncate">
                   {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
                 </span>
               </div>
@@ -619,6 +621,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               venue={venue}
               uvIndex={uvIndex}
               aqLabel={aqLabel}
+              wind={wind}
             >
               <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-sky-100/50">
 
@@ -743,7 +746,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
 
                 {shielding && (
-                  <motion.div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
+                  <motion.div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
                     <span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>Venue Shielding</span>
                     {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#0EA5E9" delay={0.1} />}
                     {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
