@@ -16,6 +16,10 @@ import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
 import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
+import { seedVenues } from '../data/seedVenues.js';
+import { getVenueSunStatus, checkIfShaded, getSunWindow } from '../utils/solarMath.js';
+import { fetchVenueWeather } from '../utils/weatherApi.js';
+
 
 // ── Helpers ────────────────────────────────────────────────
 const ACCOMMODATION_VIBES = [
@@ -361,6 +365,24 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
 // ── Main VenueCard ────────────────────────────────────────────
 function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const [activeTab, setActiveTab] = useState('Overview');
+  const [testVenue, setTestVenue] = useState(seedVenues[0]);
+  const [localSunData, setLocalSunData] = useState(null);
+  const [sunWindow, setSunWindow] = useState(null);
+  const [liveWeather, setLiveWeather] = useState(null);
+
+  React.useEffect(() => {
+    if (testVenue) {
+      setLocalSunData(getVenueSunStatus(testVenue.lat, testVenue.lng));
+      setSunWindow(getSunWindow(testVenue.lat, testVenue.lng, testVenue.obstacle_height, testVenue.obstacle_distance));
+
+      const getWeather = async () => {
+        const weather = await fetchVenueWeather(testVenue.lat, testVenue.lng);
+        setLiveWeather(weather);
+      };
+      getWeather();
+    }
+  }, [testVenue]);
+
   const dragControls = useDragControls();
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -616,6 +638,19 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               )}
             </div>
 
+            {/* Venue Toggle Pills */}
+            <div className="flex gap-2 px-1 mb-3 mt-1 overflow-x-auto scrollbar-hide">
+              {seedVenues.map(sv => (
+                <button
+                  key={sv.id}
+                  onClick={() => setTestVenue(sv)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${testVenue?.id === sv.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  {sv.seating_type.charAt(0).toUpperCase() + sv.seating_type.slice(1)}
+                </button>
+              ))}
+            </div>
+
             {/* Tabbed Navigation */}
             <div className="flex gap-4 border-b border-slate-200 sticky top-0 bg-white z-20 pt-2 pb-0 mb-4 px-1" style={{ top: '-8px' }}>
               {['Overview', 'Sun Forecast', 'Amenities'].map(tab => (
@@ -735,33 +770,47 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
               {activeTab === 'Sun Forecast' && (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
-                  {!sunData ? (
-                    <div className="h-48 animate-pulse bg-slate-200 rounded-xl w-full" />
-                  ) : (
-                    <>
-                      <VenueCardSun
-                        sunData={sunData}
-                        sunHours={sunHours}
-                        burnTimeMins={burnTimeMins}
-                        hourlyData={hourlyData}
-                        displaySunrise={displaySunrise}
-                        displaySunset={displaySunset}
-                        sunshineMins={sunshineMins}
-                        daylightHours={daylightHours}
-                        venue={venue}
-                        weather={weather}
-                      />
-                      <LiveSunTimeline
-                        sunData={sunData}
-                        hourlyData={hourlyData}
-                        cloudcover={cloudcover}
-                        displaySunrise={displaySunrise}
-                        displaySunset={displaySunset}
-                        peakStart={peakStartDecimal}
-                        peakEnd={peakEndDecimal}
-                      />
-                    </>
+                  {localSunData && (
+                    <div className="flex flex-col gap-3">
+                      <h3 className="font-black text-slate-900 text-[15px]">Live 2D Solar Position</h3>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-600 font-bold">Altitude (Elevation Angle)</span>
+                        <span className="font-black text-slate-900">{localSunData.altitude.toFixed(1)}°</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-600 font-bold">Azimuth (Compass Angle)</span>
+                        <span className="font-black text-slate-900">{localSunData.azimuth.toFixed(1)}°</span>
+                      </div>
+                      {(() => {
+                        const isShaded = checkIfShaded(localSunData.altitude, testVenue.obstacle_height, testVenue.obstacle_distance);
+                        let statusText = '☀️ Direct Sun';
+                        let statusClass = 'bg-amber-50 text-amber-500 border border-amber-100';
+
+                        if (!localSunData.isSunUp) {
+                          statusText = '🌙 Night (Sun is Down)';
+                          statusClass = 'bg-slate-50 text-slate-500 border border-slate-200';
+                        } else if (isShaded) {
+                          statusText = '🏢 Shaded by Surroundings';
+                          statusClass = 'bg-slate-50 text-slate-500 border border-slate-200';
+                        } else if (liveWeather?.isRaining) {
+                          statusText = '🌧️ Raining Currently';
+                          statusClass = 'bg-slate-100 text-slate-600 border border-slate-200';
+                        } else if (liveWeather?.cloudCover > 75) {
+                          statusText = '☁️ Overcast (Geometrically clear)';
+                          statusClass = 'bg-slate-100 text-slate-600 border border-slate-200';
+                        } else if (sunWindow) {
+                          const timeStr = sunWindow.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                          statusText = `☀️ Direct Sun (Until ${timeStr})`;
+                        }
+                        return (
+                          <div className={`mt-1 p-3 rounded-xl font-bold text-sm text-center ${statusClass}`}>
+                            {statusText}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   )}
+
                   {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
                     <BalconySunshineBlock
                       balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
