@@ -360,6 +360,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
 
 // ── Main VenueCard ────────────────────────────────────────────
 function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
+  const [activeTab, setActiveTab] = useState('Overview');
   const dragControls = useDragControls();
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -615,180 +616,214 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               )}
             </div>
 
-            <DetailedForecastAccordion
-              lat={lat}
-              lng={lng}
-              venue={venue}
-              uvIndex={uvIndex}
-              aqLabel={aqLabel}
-              wind={wind}
-            >
-              <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-sky-100/50">
+            {/* Tabbed Navigation */}
+            <div className="flex gap-4 border-b border-slate-200 sticky top-0 bg-white z-20 pt-2 pb-0 mb-4 px-1" style={{ top: '-8px' }}>
+              {['Overview', 'Sun Forecast', 'Amenities'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`pb-2 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'text-slate-900 border-slate-900' : 'text-slate-500 border-transparent hover:text-slate-700'}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-                {/* Extracted advisory content from old VenueCardHeader */}
-                <div className="flex flex-col gap-1 mb-2">
-                  {Number.isFinite(directSunHours) && (
-                    <span className="font-black text-amber-500 text-lg">
-                      {directSunHours.toFixed(1)} hours direct sun today
-                    </span>
-                  )}
-                  {peakSunWindow && (
-                    <span className="font-bold text-amber-700 text-sm">
-                      ☀️ Peak sun: {peakSunWindow}
-                    </span>
-                  )}
-                  {(() => {
-                    const isOutdoor = !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
-                    if (!isOutdoor) return null;
-                    const quote = getWeatherGuaranteeQuote({
-                      bookingValue: venue?.bookingPrice || 120,
-                      rainProbability: weather?.precipProbability ?? 0,
-                      expectedRainMm: weather?.rainMm ?? 0,
-                      cloudCover: weather?.cloudCover ?? 0,
-                      isOutdoor,
-                    });
-                    if (!quote) return null;
-                    return (
-                      <div style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        marginTop: 4,
-                        padding: '4px 10px', borderRadius: 999,
-                        background: 'rgba(15,15,30,0.04)',
-                        border: `1px solid ${quote.riskColor}44`,
-                      }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: quote.riskColor, display: 'inline-block' }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, color: quote.riskColor, letterSpacing: '0.04em' }}>
-                          {quote.riskBand} Rain Risk
+            {/* Tab Content */}
+            <div className="flex flex-col gap-4 pb-24">
+              {activeTab === 'Overview' && (
+                <>
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-3">
+                    {Number.isFinite(directSunHours) && (
+                      <span className="font-black text-amber-500 text-lg">
+                        {directSunHours.toFixed(1)} hours direct sun today
+                      </span>
+                    )}
+                    {peakSunWindow && (
+                      <span className="font-bold text-amber-700 text-sm">
+                        ☀️ Peak sun: {peakSunWindow}
+                      </span>
+                    )}
+                    {(() => {
+                      const isOutdoor = !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
+                      if (!isOutdoor) return null;
+                      const quote = getWeatherGuaranteeQuote({
+                        bookingValue: venue?.bookingPrice || 120,
+                        rainProbability: weather?.precipProbability ?? 0,
+                        expectedRainMm: weather?.rainMm ?? 0,
+                        cloudCover: weather?.cloudCover ?? 0,
+                        isOutdoor,
+                      });
+                      if (!quote) return null;
+                      return (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 5,
+                          marginTop: 4,
+                          padding: '4px 10px', borderRadius: 999,
+                          background: 'rgba(15,15,30,0.04)',
+                          border: `1px solid ${quote.riskColor}44`,
+                        }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: quote.riskColor, display: 'inline-block' }} />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: quote.riskColor, letterSpacing: '0.04em' }}>
+                            {quote.riskBand} Rain Risk
+                          </span>
+                          <span style={{ fontSize: 11, color: '#64748B', marginLeft: 2 }}>
+                            · Guarantee available
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <SunstayScoreBadge score={score} bestWindow={bestWindow} />
+
+                  {rainArrivalMins !== null && rainArrivalMins <= 45 && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-2xl border"
+                      style={{
+                        background: 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)',
+                        borderColor: '#F59E0B',
+                        boxShadow: '0 4px 14px rgba(245,158,11,0.06)',
+                      }}
+                    >
+                      <div className="flex items-center justify-center text-xl bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex-shrink-0">
+                        🛰️
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block">
+                          Predictive Radar Alert
                         </span>
-                        <span style={{ fontSize: 11, color: '#64748B', marginLeft: 2 }}>
-                          · Guarantee available
+                        <p className="text-sm font-black text-slate-900 leading-tight mt-0.5">
+                          {rainArrivalLabel}
+                        </p>
+                        <span className="text-[11px] text-slate-700 font-medium block mt-0.5">
+                          Precipitation detected nearby. Consider covered or indoor seating.
                         </span>
                       </div>
-                    );
-                  })()}
-                </div>
+                      <motion.span
+                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
+                        animate={{ opacity: [1, 0.4, 1] }}
+                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                      >
+                        {rainArrivalMins === 0 ? 'Active' : 'Imminent'}
+                      </motion.span>
+                    </motion.div>
+                  )}
 
-                {/* ── SUNSTAY SCORE BADGE + BEST WINDOW ── */}
-                <SunstayScoreBadge score={score} bestWindow={bestWindow} />
+                  <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
 
-                {/* LIVE PREDICTIVE NOWCAST RADAR TRACKER */}
-                {rainArrivalMins !== null && rainArrivalMins <= 45 && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -6 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                    className="w-full flex items-center gap-3 p-3.5 rounded-2xl border"
-                    style={{
-                      background: 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)',
-                      borderColor: '#F59E0B',
-                      boxShadow: '0 4px 14px rgba(245,158,11,0.06)',
-                    }}
-                  >
-                    <div className="flex items-center justify-center text-xl bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex-shrink-0">
-                      🛰️
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block">
-                        Predictive Radar Alert
-                      </span>
-                      <p className="text-sm font-black text-slate-900 leading-tight mt-0.5">
-                        {rainArrivalLabel}
-                      </p>
-                      <span className="text-[11px] text-slate-700 font-medium block mt-0.5">
-                        Precipitation detected nearby. Consider covered or indoor seating.
-                      </span>
-                    </div>
-                    <motion.span
-                      className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
-                      animate={{ opacity: [1, 0.4, 1] }}
-                      transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                      {rainArrivalMins === 0 ? 'Active' : 'Imminent'}
-                    </motion.span>
-                  </motion.div>
-                )}
-
-                <VenueCardWeather
-                  score={score}
-                  scoreLabel={scoreLabel}
-                  scoreMeaningLabel={scoreMeaningLabel}
-                  feelsLike={feelsLike}
-                  wind={wind}
-                  precipProb={precipProb}
-                  minTemp={minTemp}
-                  maxTemp={maxTemp}
-                  uvIndex={uvIndex}
-                  aqLabel={aqLabel}
-                  hourlyData={hourlyData}
-                  getWeatherDisplay={getWeatherDisplay}
-                />
-                <VenueCardSun
-                  sunData={sunData}
-                  sunHours={sunHours}
-                  burnTimeMins={burnTimeMins}
-                  hourlyData={hourlyData}
-                  displaySunrise={displaySunrise}
-                  displaySunset={displaySunset}
-                  sunshineMins={sunshineMins}
-                  daylightHours={daylightHours}
-                  venue={venue}
-                  weather={weather}
-                />
-                <LiveSunTimeline
-                  sunData={sunData}
-                  hourlyData={hourlyData}
-                  cloudcover={cloudcover}
-                  displaySunrise={displaySunrise}
-                  displaySunset={displaySunset}
-                  peakStart={peakStartDecimal}
-                  peakEnd={peakEndDecimal}
-                />
-                <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
-
-                {shielding && (
-                  <motion.div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.44 }}>
-                    <span className="text-[0.7rem] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>Venue Shielding</span>
-                    {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#0EA5E9" delay={0.1} />}
-                    {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
-                    {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={Math.min(100, shielding.shade)}    color="#F59E0B" delay={0.3} />}
-                  </motion.div>
-                )}
-                {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
-                  <BalconySunshineBlock
-                    balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
-                    outdoorSun={outdoorSun}
+                  <VenueCardActions
+                    verdict={verdict}
+                    safeTags={safeTags}
+                    safeVibes={safeVibes}
                     isRainStartingSoon={isRainStartingSoon}
                     minutesUntilRain={minutesUntilRain}
-                    cloudcover={cloudcover}
+                    liveFeaturesForVenue={liveFeaturesForVenue}
+                    heating={heating}
+                    actualHappyHour={actualHappyHour}
+                    isHotelOrStay={isHotelOrStay}
+                    cozyWeatherActive={cozyWeatherActive}
+                    setShowOwnerDashboard={setShowOwnerDashboard}
+                    setSelectedVenue={setSelectedVenue}
+                    venue={venue}
                   />
-                )}
-                {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
-                {isHotelOrStay && venue?.roomTypes?.length > 0 && (
-                  <div className="mt-2">
-                    <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Room Intelligence</span>
-                    {venue.roomTypes.map(room => (
-                      <RoomSunCard key={room.id} room={room} />
-                    ))}
-                  </div>
-                )}
-                <VenueCardActions
-                  verdict={verdict}
-                  safeTags={safeTags}
-                  safeVibes={safeVibes}
-                  isRainStartingSoon={isRainStartingSoon}
-                  minutesUntilRain={minutesUntilRain}
-                  liveFeaturesForVenue={liveFeaturesForVenue}
-                  heating={heating}
-                  actualHappyHour={actualHappyHour}
-                  isHotelOrStay={isHotelOrStay}
-                  cozyWeatherActive={cozyWeatherActive}
-                  setShowOwnerDashboard={setShowOwnerDashboard}
-                  setSelectedVenue={setSelectedVenue}
-                  venue={venue}
-                />
-              </div>
-            </DetailedForecastAccordion>
-            <div style={{ height: 72 }} />
+                </>
+              )}
+
+              {activeTab === 'Sun Forecast' && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
+                  {!sunData ? (
+                    <div className="h-48 animate-pulse bg-slate-200 rounded-xl w-full" />
+                  ) : (
+                    <>
+                      <VenueCardSun
+                        sunData={sunData}
+                        sunHours={sunHours}
+                        burnTimeMins={burnTimeMins}
+                        hourlyData={hourlyData}
+                        displaySunrise={displaySunrise}
+                        displaySunset={displaySunset}
+                        sunshineMins={sunshineMins}
+                        daylightHours={daylightHours}
+                        venue={venue}
+                        weather={weather}
+                      />
+                      <LiveSunTimeline
+                        sunData={sunData}
+                        hourlyData={hourlyData}
+                        cloudcover={cloudcover}
+                        displaySunrise={displaySunrise}
+                        displaySunset={displaySunset}
+                        peakStart={peakStartDecimal}
+                        peakEnd={peakEndDecimal}
+                      />
+                    </>
+                  )}
+                  {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
+                    <BalconySunshineBlock
+                      balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
+                      outdoorSun={outdoorSun}
+                      isRainStartingSoon={isRainStartingSoon}
+                      minutesUntilRain={minutesUntilRain}
+                      cloudcover={cloudcover}
+                    />
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'Amenities' && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
+                  {!weather ? (
+                    <div className="h-32 animate-pulse bg-slate-200 rounded-xl w-full" />
+                  ) : (
+                    <VenueCardWeather
+                      score={score}
+                      scoreLabel={scoreLabel}
+                      scoreMeaningLabel={scoreMeaningLabel}
+                      feelsLike={feelsLike}
+                      wind={wind}
+                      precipProb={precipProb}
+                      minTemp={minTemp}
+                      maxTemp={maxTemp}
+                      uvIndex={uvIndex}
+                      aqLabel={aqLabel}
+                      hourlyData={hourlyData}
+                      getWeatherDisplay={getWeatherDisplay}
+                    />
+                  )}
+
+                  {shielding && (
+                    <motion.div className="flex flex-col gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+                      <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400">Venue Shielding</span>
+                      {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#0EA5E9" delay={0.1} />}
+                      {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
+                      {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={Math.min(100, shielding.shade)}    color="#F59E0B" delay={0.3} />}
+                    </motion.div>
+                  )}
+
+                  {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
+                  
+                  {isHotelOrStay && venue?.roomTypes?.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Room Intelligence</span>
+                      {venue.roomTypes.map(room => (
+                        <RoomSunCard key={room.id} room={room} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Sticky Bottom CTA */}
+            <div className="fixed bottom-0 left-0 w-full bg-slate-50 border-t border-slate-200 p-4 z-30" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+              <button className="w-full bg-amber-500 text-slate-900 font-bold rounded-xl py-3.5 text-[15px] shadow-sm flex items-center justify-center transition-transform active:scale-[0.98]">
+                Get Directions
+              </button>
+            </div>
           </div>
         </motion.article>
       </motion.div>
