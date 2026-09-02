@@ -365,23 +365,26 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
 // ── Main VenueCard ────────────────────────────────────────────
 function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
   const [activeTab, setActiveTab] = useState('Overview');
-  const [testVenue, setTestVenue] = useState(seedVenues[0]);
   const [localSunData, setLocalSunData] = useState(null);
   const [sunWindow, setSunWindow] = useState(null);
   const [liveWeather, setLiveWeather] = useState(null);
 
   React.useEffect(() => {
-    if (testVenue) {
-      setLocalSunData(getVenueSunStatus(testVenue.lat, testVenue.lng));
-      setSunWindow(getSunWindow(testVenue.lat, testVenue.lng, testVenue.obstacle_height, testVenue.obstacle_distance));
+    if (venue && venue.lat && venue.lng) {
+      // Use fallback obstacle data if venue doesn't have it
+      const obstacleHeight = venue.obstacle_height ?? 2;
+      const obstacleDistance = venue.obstacle_distance ?? 1;
+
+      setLocalSunData(getVenueSunStatus(venue.lat, venue.lng));
+      setSunWindow(getSunWindow(venue.lat, venue.lng, obstacleHeight, obstacleDistance));
 
       const getWeather = async () => {
-        const weather = await fetchVenueWeather(testVenue.lat, testVenue.lng);
+        const weather = await fetchVenueWeather(venue.lat, venue.lng);
         setLiveWeather(weather);
       };
       getWeather();
     }
-  }, [testVenue]);
+  }, [venue]);
 
   const dragControls = useDragControls();
   const mouseX = useMotionValue(0);
@@ -400,7 +403,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   function handlePointerLeave() { mouseX.set(0); mouseY.set(0); }
 
   const safeVenue = venue || {};
-  const { name, type, suburb, lat, lng, shielding, balconyData, heating, vibe = [], tags = [] } = safeVenue;
+  const { name, type, suburb, lat, lng, balconyData, heating, vibe = [], tags = [] } = safeVenue;
+  // shielding is a JSONB column — Supabase may return null instead of {} after migration
+  const shielding = safeVenue.shielding && typeof safeVenue.shielding === 'object' ? safeVenue.shielding : null;
   const safeTags = Array.isArray(tags) ? tags : [];
   const safeVibes = Array.isArray(vibe) ? vibe : (vibe ? [vibe] : []);
   const fallbackName = venue?.venueName ?? venue?.name ?? venue?.title ?? 'Unnamed venue';
@@ -571,6 +576,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             background: 'linear-gradient(160deg, #FFFFFF 0%, #F0F4F8 55%, #E8EEF4 100%)',
             boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid rgba(14,165,233,0.12)',
+            // Bug 5: cap height so inner content can overflow and scroll
+            maxHeight: '90dvh',
+            display: 'flex',
+            flexDirection: 'column',
           }}
           className="pointer-events-auto mt-auto w-full select-none"
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
@@ -580,7 +589,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
-          <div className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2">
+          <div
+            className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2"
+            style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1 }}
+          >
             {/* 1. Extracted Drag Handle for top of sheet */}
             <div
               className="flex justify-center pt-1 pb-3 md:hidden w-full"
@@ -636,19 +648,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   <span>📍</span> Centre on map
                 </button>
               )}
-            </div>
-
-            {/* Venue Toggle Pills */}
-            <div className="flex gap-2 px-1 mb-3 mt-1 overflow-x-auto scrollbar-hide">
-              {seedVenues.map(sv => (
-                <button
-                  key={sv.id}
-                  onClick={() => setTestVenue(sv)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${testVenue?.id === sv.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                  {sv.seating_type.charAt(0).toUpperCase() + sv.seating_type.slice(1)}
-                </button>
-              ))}
             </div>
 
             {/* Tabbed Navigation */}
@@ -775,14 +774,16 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       <h3 className="font-black text-slate-900 text-[15px]">Live 2D Solar Position</h3>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600 font-bold">Altitude (Elevation Angle)</span>
-                        <span className="font-black text-slate-900">{localSunData.altitude.toFixed(1)}°</span>
+                        <span className="font-black text-slate-900">{localSunData.altitude?.toFixed(1) ?? '–'}°</span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-slate-600 font-bold">Azimuth (Compass Angle)</span>
-                        <span className="font-black text-slate-900">{localSunData.azimuth.toFixed(1)}°</span>
+                        <span className="font-black text-slate-900">{localSunData.azimuth?.toFixed(1) ?? '–'}°</span>
                       </div>
                       {(() => {
-                        const isShaded = checkIfShaded(localSunData.altitude, testVenue.obstacle_height, testVenue.obstacle_distance);
+                        const obstacleHeight = venue.obstacle_height ?? 2;
+                        const obstacleDistance = venue.obstacle_distance ?? 1;
+                        const isShaded = checkIfShaded(localSunData.altitude, obstacleHeight, obstacleDistance);
                         let statusText = '☀️ Direct Sun';
                         let statusClass = 'bg-amber-50 text-amber-500 border border-amber-100';
 
@@ -844,22 +845,22 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     />
                   )}
 
-                  {shielding && (
+                    {shielding && (
                     <motion.div className="flex flex-col gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
                       <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400">Venue Shielding</span>
-                      {typeof shielding.windbreak === 'number' && <ShieldBar label="Windbreak" value={Math.min(100, shielding.windbreak)} color="#0EA5E9" delay={0.1} />}
-                      {typeof shielding.rainCover === 'number' && <ShieldBar label="Rain Cover" value={Math.min(100, shielding.rainCover)} color="#818CF8" delay={0.2} />}
-                      {typeof shielding.shade    === 'number' && <ShieldBar label="Shade"      value={Math.min(100, shielding.shade)}    color="#F59E0B" delay={0.3} />}
+                      {shielding?.windbreak != null && <ShieldBar label="Windbreak" value={Math.min(1, Math.max(0, Number(shielding.windbreak)))} color="#0EA5E9" delay={0.1} />}
+                      {shielding?.rainCover != null && <ShieldBar label="Rain Cover" value={Math.min(1, Math.max(0, Number(shielding.rainCover)))} color="#818CF8" delay={0.2} />}
+                      {shielding?.shade     != null && <ShieldBar label="Shade"      value={Math.min(1, Math.max(0, Number(shielding.shade)))}    color="#F59E0B" delay={0.3} />}
                     </motion.div>
-                  )}
+                    )}
 
                   {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
                   
-                  {isHotelOrStay && venue?.roomTypes?.length > 0 && (
+                  {isHotelOrStay && Array.isArray(venue?.roomTypes) && venue.roomTypes.length > 0 && (
                     <div className="mt-2">
                       <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Room Intelligence</span>
-                      {venue.roomTypes.map(room => (
-                        <RoomSunCard key={room.id} room={room} />
+                      {venue.roomTypes.map((room, i) => (
+                        <RoomSunCard key={room?.id ?? i} room={room} />
                       ))}
                     </div>
                   )}

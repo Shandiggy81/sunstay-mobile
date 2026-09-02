@@ -55,7 +55,19 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
 }
 
 const isFiniteCoord = (v) => Number.isFinite(Number(v));
-const isRenderableVenue = (v) => v?.id != null && isFiniteCoord(v.lng) && isFiniteCoord(v.lat);
+const isRenderableVenue = (v) => {
+    if (v?.id == null) return false;
+    const lng = Number(v.lng);
+    const lat = Number(v.lat);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
+    // Swap guard: catch Supabase lat/lng column transpositions early.
+    // Valid world coords: lat ∈ [-90, 90], lng ∈ [-180, 180].
+    if (lat > 90 || lat < -90 || lng < -180 || lng > 180) {
+        console.warn(`[VenueMap] Possible lat/lng swap for venue ${v.id}: lat=${lat}, lng=${lng}`);
+        return false;
+    }
+    return true;
+};
 
 const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
 
@@ -260,6 +272,7 @@ const VenueMap = forwardRef(({
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
+    const [radarOn,      setRadarOn]      = useState(false);
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
@@ -640,6 +653,18 @@ const VenueMap = forwardRef(({
     useEffect(() => {
         if (!map.current || !radarFrames.length) return;
 
+        if (!radarOn) {
+            if (map.current.getStyle()) {
+                radarFrames.forEach(frame => {
+                    try {
+                        if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
+                        if (map.current.getSource(frame.id)) map.current.removeSource(frame.id);
+                    } catch (e) { /* already removed */ }
+                });
+            }
+            return;
+        }
+
         let animationInterval;
         let currentFrameIndex = 0;
 
@@ -649,7 +674,8 @@ const VenueMap = forwardRef(({
                     map.current.addSource(frame.id, {
                         type: 'raster',
                         tiles: [frame.url],
-                        tileSize: 256
+                        tileSize: 256,
+                        maxzoom: 6,
                     });
 
                     const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
@@ -657,6 +683,7 @@ const VenueMap = forwardRef(({
                         id: frame.id,
                         type: 'raster',
                         source: frame.id,
+                        maxzoom: 7,
                         paint: {
                             'raster-opacity': 0,
                             'raster-fade-duration': 0
@@ -781,6 +808,38 @@ const VenueMap = forwardRef(({
                             aria-pressed={cloudOn}
                         >
                             ☁️
+                        </button>
+                    )}
+
+                    {/* Rain Radar FAB — Bug 2: was never added to the overlay stack */}
+                    {radarFrames.length > 0 && !radarError && (
+                        <button
+                            onClick={() => setRadarOn(prev => !prev)}
+                            onTouchEnd={e => { e.stopPropagation(); }}
+                            title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                            style={{
+                                width:               44,
+                                height:              44,
+                                borderRadius:        '50%',
+                                border:              radarOn ? '2px solid #38BDF8' : '2px solid rgba(255,255,255,0.3)',
+                                background:          radarOn ? 'rgba(56,189,248,0.85)' : 'rgba(15,15,30,0.85)',
+                                backdropFilter:      'blur(8px)',
+                                WebkitBackdropFilter:'blur(8px)',
+                                color:               '#fff',
+                                fontSize:            20,
+                                cursor:              'pointer',
+                                display:             'flex',
+                                alignItems:          'center',
+                                justifyContent:      'center',
+                                boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
+                                transition:          'background 200ms ease, border-color 200ms ease',
+                                WebkitTapHighlightColor: 'transparent',
+                                touchAction:         'auto',
+                            }}
+                            aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                            aria-pressed={radarOn}
+                        >
+                            🌧️
                         </button>
                     )}
 
