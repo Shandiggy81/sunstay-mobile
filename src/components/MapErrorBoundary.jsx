@@ -1,5 +1,11 @@
 import React from 'react';
 
+// Mapbox tokens are always prefixed 'pk.' — matches the same check already
+// used in VenueMap.jsx, so both components agree on what counts as valid.
+function isValidMapboxToken(token) {
+  return typeof token === 'string' && token.startsWith('pk.');
+}
+
 class MapErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -33,17 +39,34 @@ class MapErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       const accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
-      const staticMapUrl = `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/144.9631,-37.8136,11,0/800x600?access_token=${accessToken}`;
+      const hasValidToken = isValidMapboxToken(accessToken);
+
+      // Only ever build/render the Mapbox Static Images API URL when we have
+      // a real token — an undefined/invalid token previously still produced
+      // an `access_token=undefined` <img src>, which renders as a broken
+      // image link in the DOM. With no valid token, fall back to a solid
+      // gradient background instead.
+      const staticMapUrl = hasValidToken
+        ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/144.9631,-37.8136,11,0/800x600?access_token=${accessToken}`
+        : null;
 
       return (
-        <div className="absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-[32px] bg-orange-950/20 backdrop-blur-sm">
-          {/* Static Map Background Placeholder */}
-          <img 
-            src={staticMapUrl} 
-            alt="Map Preview" 
-            className="absolute inset-0 w-full h-full object-cover opacity-60 grayscale"
-          />
-          
+        <div
+          className={`absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-[32px] backdrop-blur-sm ${
+            hasValidToken ? 'bg-orange-950/20' : 'bg-gradient-to-br from-orange-950 to-slate-900'
+          }`}
+        >
+          {/* Static Map Background Placeholder — only rendered when a valid
+              Mapbox token is available, so we never emit a broken image
+              link into the DOM. */}
+          {hasValidToken && (
+            <img
+              src={staticMapUrl}
+              alt="Map Preview"
+              className="absolute inset-0 w-full h-full object-cover opacity-60 grayscale"
+            />
+          )}
+
           <div className="absolute inset-0 bg-gradient-to-b from-orange-950/40 via-transparent to-orange-950/60" />
 
           <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
