@@ -13,6 +13,7 @@ import {
     Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
 import { demoVenues } from './data/demoVenues';
+import { supabase } from './lib/supabase';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
@@ -46,18 +47,49 @@ const venueMatchesWeatherTag = (venue, filterId) => {
 };
 
 const EMPTY_LIVE_FEATURES = Object.freeze({});
+const VENUES_FETCH_TIMEOUT_MS = 8000;
+
+function normalizeVenueRow(row) {
+    if (!row || typeof row !== 'object') return row;
+
+    const parseJson = (value, fallback) => {
+        if (value == null || value === '') return fallback;
+        if (typeof value === 'string') {
+            try { return JSON.parse(value); } catch { return fallback; }
+        }
+        return value;
+    };
+
+    const tags = Array.isArray(row.tags) ? row.tags : [];
+    const happyHour = parseJson(row.happyHour, null);
+    const shielding = parseJson(row.shielding, null);
+    let roomTypes = parseJson(row.roomTypes, null);
+    if (roomTypes && !Array.isArray(roomTypes)) roomTypes = [roomTypes];
+
+    return {
+        ...row,
+        tags,
+        happyHour: happyHour || undefined,
+        shielding: shielding || undefined,
+        roomTypes: Array.isArray(roomTypes) ? roomTypes : undefined,
+        lat: Number(row.lat),
+        lng: Number(row.lng),
+        venueName: row.venueName || row.name || 'Unnamed venue',
+    };
+}
 
 const LoadingScreen = () => (
-    <div className="flex items-center justify-center h-screen bg-gradient-to-br from-amber-50 to-orange-100">
-        <motion.div
-            animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="text-center"
-        >
-            <div className="text-6xl mb-4">☀️</div>
+    <div className="fixed inset-0 z-[9990] flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-100">
+        <div className="text-center px-6">
+            <img
+                src="/sunny-mascot.jpg"
+                alt=""
+                className="mx-auto mb-5 h-28 w-28 rounded-full object-cover shadow-lg ring-4 ring-amber-200/80 animate-pulse"
+            />
+            <div className="mx-auto mb-4 h-8 w-8 rounded-full border-[3px] border-amber-200 border-t-amber-500 animate-spin" />
             <p className="text-gray-800 font-bold text-lg">Loading Sunstay…</p>
-            <p className="text-gray-500 text-sm">Finding your perfect spot</p>
-        </motion.div>
+            <p className="text-gray-500 text-sm">Finding Melbourne’s sunniest spots</p>
+        </div>
     </div>
 );
 
@@ -214,6 +246,8 @@ const AppContent = () => {
 
     const [selectedVenue, setSelectedVenue]           = useState(null);
     const [isChatOpen, setIsChatOpen]                 = useState(false);
+    const [venues, setVenues]                         = useState([]);
+    const [venuesLoading, setVenuesLoading]           = useState(true);
     // ── UNIFIED filter state: single source of truth ─────────────────
     // 'cozy-mode' replaces the old activeFilter === 'Cozy'
     // 'sunny-mode' replaces the old activeFilter === 'Sunny'
@@ -254,6 +288,48 @@ const AppContent = () => {
     const mapRef  = useRef(null);
     const listRef = useRef(null);
 
+    useEffect(() => {
+        let cancelled = false;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), VENUES_FETCH_TIMEOUT_MS);
+
+        const applyFallback = (reason) => {
+            if (cancelled) return;
+            console.warn('[Sunstay] venues fetch failed, using local demoVenues:', reason);
+            setVenues(demoVenues);
+        };
+
+        async function loadVenues() {
+            try {
+                if (!supabase) throw new Error('Supabase client unavailable');
+                const query = supabase.from('venues').select('*');
+                const { data, error } = typeof query.abortSignal === 'function'
+                    ? await query.abortSignal(controller.signal)
+                    : await query;
+                if (error) throw error;
+                const rows = Array.isArray(data) ? data.map(normalizeVenueRow) : [];
+                if (cancelled) return;
+                setVenues(rows.length > 0 ? rows : demoVenues);
+            } catch (err) {
+                if (err?.name === 'AbortError' || cancelled) {
+                    if (!cancelled) applyFallback('timed out');
+                    return;
+                }
+                applyFallback(err?.message ?? err);
+            } finally {
+                clearTimeout(timeoutId);
+                if (!cancelled) setVenuesLoading(false);
+            }
+        }
+
+        loadVenues();
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+            controller.abort();
+        };
+    }, []);
+
     const openMobileFilters  = useCallback((e) => { e?.stopPropagation(); setMobileFilterOpen(true); }, []);
     const closeMobileFilters = useCallback((e) => { e?.preventDefault(); e?.stopPropagation(); setMobileFilterOpen(false); }, []);
 
@@ -282,7 +358,7 @@ const AppContent = () => {
         const query = searchQuery.trim().toLowerCase();
         const liveFeatures = liveVenueFeatures || EMPTY_LIVE_FEATURES;
 
-        return demoVenues.filter(venue => {
+        return venues.filter(venue => {
             const vType = venue.typeCategory || 'Bar';
             const hasTypeMatch = typeFilters.length === 0 || typeFilters.some(f => {
                 if (f === 'all-bars'   && vType === 'Bar')       return true;
@@ -327,7 +403,7 @@ const AppContent = () => {
 
             if (query) {
                 const matchesSearch =
-                    venue.venueName.toLowerCase().includes(query) ||
+                    (venue.venueName || '').toLowerCase().includes(query) ||
                     venue.suburb?.toLowerCase().includes(query) ||
                     venue.vibe?.toLowerCase().includes(query);
                 if (!matchesSearch) return false;
@@ -335,7 +411,7 @@ const AppContent = () => {
 
             return true;
         });
-    }, [activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, getUVIndex]);
+    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, getUVIndex]);
 
     const filteredVenueIds = useMemo(
         () => filteredVenues.map(venue => venue.id),
@@ -347,18 +423,18 @@ const AppContent = () => {
         if (!import.meta.env.DEV) return;
 
         console.log("=== VENUE PIPELINE DIAGNOSTICS ===");
-        console.log(`1. Raw imported demoVenues count: ${demoVenues.length}`);
+        console.log(`1. Live venues count: ${venues.length}`);
 
-        const rawIds = demoVenues.map(v => v.id);
+        const rawIds = venues.map(v => v.id);
         const uniqueIds = new Set(rawIds);
-        console.log(`2. Unique IDs in demoVenues: ${uniqueIds.size}`);
+        console.log(`2. Unique IDs in venues: ${uniqueIds.size}`);
 
         // Find duplicates
         const duplicates = rawIds.filter((item, index) => rawIds.indexOf(item) !== index);
         if (duplicates.length > 0) console.log(`   Duplicate IDs found:`, duplicates);
 
         // Find invalid coordinates
-        const invalidCoords = demoVenues.filter(v => {
+        const invalidCoords = venues.filter(v => {
             const lat = Number(v.lat);
             const lng = Number(v.lng);
             return isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180;
@@ -369,13 +445,13 @@ const AppContent = () => {
         console.log(`4. filteredVenueIds count: ${filteredVenueIds.length}`);
         console.log(`5. Final filteredVenues count (list render): ${filteredVenues.length}`);
 
-        const removedByFilters = demoVenues.filter(v => !filteredVenues.includes(v));
+        const removedByFilters = venues.filter(v => !filteredVenues.includes(v));
         console.log(`   Removed by filters count: ${removedByFilters.length}`);
         if (removedByFilters.length > 0) {
             console.log(`   IDs removed:`, removedByFilters.map(v => v.id));
         }
         console.log("==================================");
-    }, [filteredVenues, filteredVenueIds, activeFilters]);
+    }, [venues, filteredVenues, filteredVenueIds, activeFilters]);
     // --- END DIAGNOSTICS ---
 
     const matchingCount = filteredVenues.length;
@@ -425,11 +501,12 @@ const AppContent = () => {
     const handleFindWindSheltered = useCallback(makeChatFilter('Shaded'), []);
 
     const handleSurpriseMe = useCallback(() => {
-        const randomVenue = demoVenues[Math.floor(Math.random() * demoVenues.length)];
+        if (!venues.length) return;
+        const randomVenue = venues[Math.floor(Math.random() * venues.length)];
         setActiveFilters([]);
         handleVenueSelect(randomVenue);
         setTimeout(() => setIsChatOpen(false), 1500);
-    }, [handleVenueSelect]);
+    }, [handleVenueSelect, venues]);
 
     const handleRecenter = useCallback(() => {
         mapRef.current?.flyTo({ center: [144.9631, -37.8136], zoom: 12, duration: 1200 });
@@ -465,6 +542,8 @@ const AppContent = () => {
                     setSplashDone(true);
                 }} />
             )}
+
+            {splashDone && venuesLoading && venues.length === 0 && <LoadingScreen />}
 
             <NotificationCenter
                 venue={selectedVenue}
@@ -582,7 +661,7 @@ const AppContent = () => {
                                 <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
                                     <VenueMap
                                         ref={mapRef}
-                                        venues={demoVenues}
+                                        venues={venues}
                                         onVenueSelect={handleVenueSelect}
                                         selectedVenue={selectedVenue}
                                         filteredVenueIds={stableFilteredIds}
@@ -771,7 +850,7 @@ const AppContent = () => {
                     className={`ss-footer-badge ${selectedVenue ? 'hidden' : ''}`}
                 >
                     <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
-                    Sales Demo · {demoVenues.length} Partner Venues
+                    Sales Demo · {venues.length} Partner Venues
                 </motion.div>
             </div>
         </>
