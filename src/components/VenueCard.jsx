@@ -368,6 +368,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const [localSunData, setLocalSunData] = useState(null);
   const [sunWindow, setSunWindow] = useState(null);
   const [liveWeather, setLiveWeather] = useState(null);
+  const [imageError, setImageError] = useState(false);
+
+  React.useEffect(() => {
+    setImageError(false);
+  }, [venue?.id]);
 
   React.useEffect(() => {
     if (venue && venue.lat && venue.lng) {
@@ -492,8 +497,62 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const fullVenueData = lookupName
     ? venues.find(v => { const c = String(v.name || v.venueName || '').toLowerCase(); return c && (lookupName.includes(c) || c.includes(lookupName)); })
     : null;
-  const actualHappyHour  = fullVenueData?.happyHour;
+  const actualHappyHour = venue?.happyHour ?? fullVenueData?.happyHour;
   const roomIntelligence = venue?.roomIntelligence || fullVenueData?.roomIntelligence;
+
+  // Dynamic Tab Pruning: only display tabs with valid, non-empty data
+  const availableTabs = useMemo(() => {
+    const tabs = ['Overview'];
+
+    const hasSunData = Boolean(
+      localSunData ||
+      sunData ||
+      balconyData ||
+      (isHotelOrStay && (outdoorSun?.balcony > 0 || outdoorSun?.pool > 0))
+    );
+    if (hasSunData) {
+      tabs.push('Sun Forecast');
+    }
+
+    const hasRooms = Boolean(
+      isHotelOrStay && (
+        (Array.isArray(venue?.roomTypes) && venue.roomTypes.length > 0) ||
+        roomIntelligence
+      )
+    );
+    if (hasRooms) {
+      tabs.push('Rooms');
+    }
+
+    const hasHappyHour = Boolean(
+      actualHappyHour && (
+        actualHappyHour.deal ||
+        (Array.isArray(actualHappyHour.days) && actualHappyHour.days.length > 0) ||
+        actualHappyHour.start
+      )
+    );
+    if (hasHappyHour) {
+      tabs.push('Happy Hour');
+    }
+
+    const hasAmenities = Boolean(
+      shielding ||
+      (safeTags && safeTags.length > 0) ||
+      weather
+    );
+    if (hasAmenities) {
+      tabs.push('Amenities');
+    }
+
+    return tabs;
+  }, [localSunData, sunData, balconyData, isHotelOrStay, outdoorSun, venue?.roomTypes, roomIntelligence, actualHappyHour, shielding, safeTags, weather]);
+
+  // Safety fallback: if activeTab was pruned out for this venue, reset to first available tab
+  React.useEffect(() => {
+    if (!availableTabs.includes(activeTab)) {
+      setActiveTab(availableTabs[0] || 'Overview');
+    }
+  }, [availableTabs, activeTab]);
 
   const verdict = useMemo(() => {
     const currentHour = new Date().getHours();
@@ -603,16 +662,50 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* 2. Premium Detail Sheet Header */}
-            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 100%)' }}>
-              {venueImage ? (
-                <img src={venueImage} alt={fallbackName} className="w-full h-full object-cover" />
+            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 45%, #0F766E 80%, #D97706 100%)' }}>
+              {venueImage && !imageError ? (
+                <img
+                  src={venueImage}
+                  alt={fallbackName}
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center opacity-40 bg-slate-300">
-                  <span className="text-4xl mb-2">🏙️</span>
-                  <span className="text-sm font-bold text-slate-700">No Image Available</span>
+                <div
+                  className="w-full h-full relative flex flex-col items-center justify-center overflow-hidden"
+                  style={{
+                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 40%, #0F766E 75%, #D97706 100%)',
+                  }}
+                >
+                  <div
+                    className="absolute w-52 h-52 rounded-full pointer-events-none"
+                    style={{
+                      background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(14,165,233,0.12) 50%, transparent 70%)',
+                      filter: 'blur(30px)',
+                    }}
+                  />
+                  <div className="relative z-10 w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg mb-2">
+                    <svg className="w-9 h-9 text-amber-300 drop-shadow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.3" />
+                      <path d="M12 2v2" />
+                      <path d="M12 20v2" />
+                      <path d="m4.93 4.93 1.41 1.41" />
+                      <path d="m17.66 17.66 1.41 1.41" />
+                      <path d="M2 12h2" />
+                      <path d="M20 12h2" />
+                      <path d="m6.34 17.66-1.41 1.41" />
+                      <path d="m19.07 4.93-1.41 1.41" />
+                    </svg>
+                  </div>
+                  <span className="relative z-10 text-[11px] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm">
+                    SunStay Melbourne
+                  </span>
+                  <span className="relative z-10 text-[10px] font-semibold text-slate-300/80 mt-0.5">
+                    {safeVenue?.suburb || 'Solar Intelligence'}
+                  </span>
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/30 to-transparent pointer-events-none" />
               <motion.button
                 onClick={onClose}
                 className="absolute top-3 left-3 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/20 rounded-full z-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-900"
@@ -650,13 +743,17 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               )}
             </div>
 
-            {/* Tabbed Navigation */}
-            <div className="flex gap-4 border-b border-slate-200 sticky top-0 bg-white z-20 pt-2 pb-0 mb-4 px-1" style={{ top: '-8px' }}>
-              {['Overview', 'Sun Forecast', 'Amenities'].map(tab => (
+            {/* Tabbed Navigation (Dynamically Pruned) */}
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide border-b border-slate-200 sticky top-0 bg-white z-20 pt-1 pb-0 mb-4 px-1" style={{ top: '-8px' }}>
+              {availableTabs.map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`pb-2 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'text-slate-900 border-slate-900' : 'text-slate-500 border-transparent hover:text-slate-700'}`}
+                  className={`min-h-[44px] px-3.5 py-2 text-sm font-black whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                    activeTab === tab
+                      ? 'text-amber-600 border-amber-500'
+                      : 'text-slate-500 border-transparent hover:text-slate-700'
+                  }`}
                 >
                   {tab}
                 </button>
@@ -824,6 +921,64 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 </div>
               )}
 
+              {activeTab === 'Rooms' && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
+                  {roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
+                  {Array.isArray(venue?.roomTypes) && venue.roomTypes.length > 0 && (
+                    <div className="flex flex-col gap-2.5">
+                      <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block px-1">
+                        Room Solar Profiles
+                      </span>
+                      {venue.roomTypes.map((room, i) => (
+                        <RoomSunCard key={room?.id ?? i} room={room} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'Happy Hour' && actualHappyHour && (
+                <div
+                  className="bg-white rounded-2xl border border-amber-200/80 shadow-sm p-5 flex flex-col gap-3.5"
+                  style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">🍸</span>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-800 block">
+                        Partner Deal · Happy Hour
+                      </span>
+                      <h4 className="text-base font-black text-slate-900 leading-tight">
+                        {actualHappyHour.deal || 'Daily Drink Specials'}
+                      </h4>
+                    </div>
+                  </div>
+
+                  {actualHappyHour.start && actualHappyHour.end && (
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 bg-white/80 backdrop-blur-sm px-3.5 py-2.5 rounded-xl border border-amber-200">
+                      <span>⏰ Hours</span>
+                      <span className="text-amber-900 font-black">{actualHappyHour.start} – {actualHappyHour.end}</span>
+                    </div>
+                  )}
+
+                  {Array.isArray(actualHappyHour.days) && actualHappyHour.days.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-bold text-slate-600">Available Days</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {actualHappyHour.days.map((day, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-black text-xs border border-amber-300"
+                          >
+                            {day}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeTab === 'Amenities' && (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
                   {!weather ? (
@@ -854,14 +1009,19 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     </motion.div>
                     )}
 
-                  {isHotelOrStay && roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
-                  
-                  {isHotelOrStay && Array.isArray(venue?.roomTypes) && venue.roomTypes.length > 0 && (
-                    <div className="mt-2">
-                      <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block mb-2 px-1">Room Intelligence</span>
-                      {venue.roomTypes.map((room, i) => (
-                        <RoomSunCard key={room?.id ?? i} room={room} />
-                      ))}
+                  {safeTags && safeTags.length > 0 && (
+                    <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100">
+                      <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400">Venue Features & Tags</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {safeTags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

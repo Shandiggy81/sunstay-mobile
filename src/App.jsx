@@ -168,11 +168,21 @@ const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
 VenueListCard.displayName = 'VenueListCard';
 
 const FilterEmptyState = ({ onClear }) => (
-    <div className="ss-venue-list-empty">
-        <img src="/sunny-mascot.jpg" alt="" className="ss-venue-list-empty-mascot" />
-        <p>No venues match this weather vibe</p>
-        <p className="ss-venue-list-empty-sub">Try another filter, or clear to see every Melbourne spot.</p>
-        <button type="button" onClick={onClear}>Clear filters</button>
+    <div className="ss-venue-list-empty flex flex-col items-center justify-center p-6 text-center">
+        <img src="/sunny-mascot.jpg" alt="" className="ss-venue-list-empty-mascot w-20 h-20 rounded-full mb-3 shadow-md" />
+        <p className="text-base font-black text-slate-900 mb-1">No venues match exactly.</p>
+        <p className="ss-venue-list-empty-sub text-xs text-slate-500 mb-4 max-w-xs">
+            Try adjusting your filters or search query to explore other Melbourne spots.
+        </p>
+        <button
+            type="button"
+            onClick={onClear}
+            className="min-h-[48px] px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
+            aria-label="Clear All Filters"
+        >
+            <span>✨</span>
+            <span>Clear All Filters</span>
+        </button>
     </div>
 );
 
@@ -596,6 +606,47 @@ const AppContent = () => {
                                 </Suspense>
                             </MapErrorBoundary>
                         </div>
+
+                        {/* Zero-Results Filter Overlay */}
+                        <AnimatePresence>
+                            {filteredVenues.length === 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-sm pointer-events-none"
+                                >
+                                    <motion.div
+                                        initial={{ scale: 0.92, y: 12, opacity: 0 }}
+                                        animate={{ scale: 1, y: 0, opacity: 1 }}
+                                        exit={{ scale: 0.92, y: 12, opacity: 0 }}
+                                        transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+                                        className="pointer-events-auto max-w-sm w-full bg-white/95 backdrop-blur-md rounded-3xl p-6 shadow-2xl border border-white/60 text-center flex flex-col items-center gap-3.5"
+                                    >
+                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 border border-amber-300 flex items-center justify-center text-3xl shadow-inner">
+                                            ☀️
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                                                No venues match exactly.
+                                            </h3>
+                                            <p className="text-xs text-slate-600 mt-1.5 font-medium leading-relaxed">
+                                                We couldn't find any Melbourne venues matching your selected filters and weather conditions.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleClearFilters}
+                                            className="w-full min-h-[48px] px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-950 font-black text-sm shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
+                                            aria-label="Clear All Filters"
+                                        >
+                                            <span>✨</span>
+                                            <span>Clear All Filters</span>
+                                        </button>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         <motion.button
                             className="ss-recenter-btn"
