@@ -811,37 +811,35 @@ const VenueMap = forwardRef(({
                         </button>
                     )}
 
-                    {/* Rain Radar FAB — Bug 2: was never added to the overlay stack */}
-                    {radarFrames.length > 0 && !radarError && (
-                        <button
-                            onClick={() => setRadarOn(prev => !prev)}
-                            onTouchEnd={e => { e.stopPropagation(); }}
-                            title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
-                            style={{
-                                width:               44,
-                                height:              44,
-                                borderRadius:        '50%',
-                                border:              radarOn ? '2px solid #38BDF8' : '2px solid rgba(255,255,255,0.3)',
-                                background:          radarOn ? 'rgba(56,189,248,0.85)' : 'rgba(15,15,30,0.85)',
-                                backdropFilter:      'blur(8px)',
-                                WebkitBackdropFilter:'blur(8px)',
-                                color:               '#fff',
-                                fontSize:            20,
-                                cursor:              'pointer',
-                                display:             'flex',
-                                alignItems:          'center',
-                                justifyContent:      'center',
-                                boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
-                                transition:          'background 200ms ease, border-color 200ms ease',
-                                WebkitTapHighlightColor: 'transparent',
-                                touchAction:         'auto',
-                            }}
-                            aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
-                            aria-pressed={radarOn}
-                        >
-                            🌧️
-                        </button>
-                    )}
+                    {/* Rain Radar FAB */}
+                    <button
+                        onClick={() => setRadarOn(prev => !prev)}
+                        onTouchEnd={e => { e.stopPropagation(); }}
+                        title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                        style={{
+                            width:               44,
+                            height:              44,
+                            borderRadius:        '50%',
+                            border:              radarOn ? '2px solid #38BDF8' : '2px solid rgba(255,255,255,0.3)',
+                            background:          radarOn ? 'rgba(56,189,248,0.85)' : 'rgba(15,15,30,0.85)',
+                            backdropFilter:      'blur(8px)',
+                            WebkitBackdropFilter:'blur(8px)',
+                            color:               '#fff',
+                            fontSize:            20,
+                            cursor:              'pointer',
+                            display:             'flex',
+                            alignItems:          'center',
+                            justifyContent:      'center',
+                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
+                            transition:          'background 200ms ease, border-color 200ms ease',
+                            WebkitTapHighlightColor: 'transparent',
+                            touchAction:         'auto',
+                        }}
+                        aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                        aria-pressed={radarOn}
+                    >
+                        🌧️
+                    </button>
 
                     {/* Cozy weather indicator — shows when cozyWeatherActive */}
                     {cozyWeatherActive && (
