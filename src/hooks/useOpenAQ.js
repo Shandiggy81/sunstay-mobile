@@ -3,23 +3,36 @@ import { useState, useEffect } from 'react';
 // In-memory cache: key = "lat,lng", value = { aqLabel, expiresAt }
 const _cache = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const FETCH_TIMEOUT_MS = 4000;
 
 export function useOpenAQ(lat, lng) {
   const [aqLabel, setAqLabel] = useState('–');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!lat || !lng) return;
-    let isMounted = true;
+    let cancelled = false;
 
     const cacheKey = `${lat},${lng}`;
     const cached = _cache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       setAqLabel(cached.aqLabel);
+      setError(false);
       return;
     }
 
     setLoading(true);
+    setError(false);
+
+    // Hard 4s timeout via AbortController — a stalled air-quality request
+    // must never leave this widget stuck on `loading: true` indefinitely.
+    let timedOut = false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, FETCH_TIMEOUT_MS);
 
     async function fetchAQ() {
       try {
@@ -32,7 +45,9 @@ export function useOpenAQ(lat, lng) {
           timezone: 'auto',
           forecast_days: '1',
         });
-        const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params}`);
+        const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params}`, {
+          signal: controller.signal,
+        });
         if (!res.ok) throw new Error('AQ fetch failed');
         const data = await res.json();
 
@@ -51,18 +66,32 @@ export function useOpenAQ(lat, lng) {
         }
 
         _cache.set(cacheKey, { aqLabel: label, expiresAt: Date.now() + CACHE_TTL_MS });
-        if (isMounted) setAqLabel(label);
+        if (!cancelled) {
+          setAqLabel(label);
+          setError(false);
+        }
       } catch (e) {
-        console.error('AQ Error:', e.message);
-        if (isMounted) setAqLabel('–');
+        if (cancelled) return;
+        // A cleanup-triggered abort (unmount / lat-lng changed) is not a
+        // real failure — only surface an error state for genuine timeouts
+        // or network/parse failures.
+        if (e?.name === 'AbortError' && !timedOut) return;
+        console.error('AQ Error:', e?.message);
+        setAqLabel('–');
+        setError(true);
       } finally {
-        if (isMounted) setLoading(false);
+        clearTimeout(timeoutId);
+        if (!cancelled) setLoading(false);
       }
     }
 
     fetchAQ();
-    return () => { isMounted = false; };
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [lat, lng]);
 
-  return { aqLabel, loading };
+  return { aqLabel, loading, error };
 }
