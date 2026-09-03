@@ -4,6 +4,7 @@ import React, {
 } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { CloudRain } from 'lucide-react';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
 import { useRainRadar } from '../../hooks/useRainRadar';
@@ -247,7 +248,8 @@ function isSuppressedMapError(msg) {
         lower.includes(HEATMAP_SOURCE_ID) ||
         lower.includes(HEATMAP_LAYER_ID) ||
         lower.includes(CLOUD_SOURCE_ID) ||
-        lower.includes(CLOUD_LAYER_ID)
+        lower.includes(CLOUD_LAYER_ID) ||
+        lower.includes('radar-')
     );
 }
 
@@ -278,6 +280,8 @@ const VenueMap = forwardRef(({
     const [mapError,     setMapError]     = useState(false);
 
     const { weather, calculateSunstayScore } = useWeather();
+    const { radarFrames, error: radarError } = useRainRadar();
+    const radarAvailable = radarFrames.length > 0 && !radarError;
 
     const safeVenues = useMemo(
         () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
@@ -647,11 +651,26 @@ const VenueMap = forwardRef(({
         return () => clearTimeout(t);
     }, [selectedVenue]);
 
-    // ── Rain Radar animation loop ────────────────────────────────────
-    const { radarFrames, error: radarError } = useRainRadar();
-
+    // ── Rain Radar animation loop (opt-in via FAB) ─────────────────
     useEffect(() => {
-        if (!map.current || !radarFrames.length) return;
+        if (!map.current || !mapLoaded) return;
+
+        const cleanupRadar = () => {
+            if (!map.current?.getStyle()) return;
+            radarFrames.forEach((frame) => {
+                try {
+                    if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
+                    if (map.current.getSource(frame.id)) map.current.removeSource(frame.id);
+                } catch {
+                    // Map may already be tearing down
+                }
+            });
+        };
+
+        if (!radarOn || !radarFrames.length) {
+            cleanupRadar();
+            return;
+        }
 
         if (!radarOn) {
             if (map.current.getStyle()) {
@@ -669,6 +688,7 @@ const VenueMap = forwardRef(({
         let currentFrameIndex = 0;
 
         const setupRadar = () => {
+            if (!map.current) return;
             radarFrames.forEach((frame) => {
                 if (!map.current.getSource(frame.id)) {
                     map.current.addSource(frame.id, {
@@ -693,15 +713,16 @@ const VenueMap = forwardRef(({
             });
 
             animationInterval = setInterval(() => {
+                if (!map.current) return;
                 const prevFrame = radarFrames[currentFrameIndex];
-                if (map.current.getLayer(prevFrame.id)) {
+                if (prevFrame && map.current.getLayer(prevFrame.id)) {
                     map.current.setPaintProperty(prevFrame.id, 'raster-opacity', 0);
                 }
 
                 currentFrameIndex = (currentFrameIndex + 1) % radarFrames.length;
 
                 const nextFrame = radarFrames[currentFrameIndex];
-                if (map.current.getLayer(nextFrame.id)) {
+                if (nextFrame && map.current.getLayer(nextFrame.id)) {
                     map.current.setPaintProperty(nextFrame.id, 'raster-opacity', 0.6);
                 }
             }, 500);
@@ -714,15 +735,10 @@ const VenueMap = forwardRef(({
         }
 
         return () => {
-            clearInterval(animationInterval);
-            if (map.current && map.current.getStyle()) {
-                radarFrames.forEach(frame => {
-                    if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
-                    if (map.current.getSource(frame.id)) map.current.removeSource(frame.id);
-                });
-            }
+            if (animationInterval) clearInterval(animationInterval);
+            cleanupRadar();
         };
-    }, [radarFrames]);
+    }, [radarOn, radarFrames, mapLoaded]);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
@@ -748,6 +764,46 @@ const VenueMap = forwardRef(({
                     }}
                     onTouchEnd={e => e.stopPropagation()}
                 >
+
+                    {/* Rain radar FAB */}
+                    <button
+                        type="button"
+                        onClick={() => radarAvailable && setRadarOn(prev => !prev)}
+                        onTouchEnd={e => { e.stopPropagation(); }}
+                        title={
+                            !radarAvailable
+                                ? 'Rain radar unavailable'
+                                : radarOn
+                                    ? 'Hide rain radar'
+                                    : 'Show rain radar'
+                        }
+                        disabled={!radarAvailable}
+                        style={{
+                            width:               44,
+                            height:              44,
+                            minWidth:           44,
+                            minHeight:          44,
+                            borderRadius:        '50%',
+                            border:              radarOn ? '2px solid #D97706' : '2px solid rgba(255,255,255,0.3)',
+                            background:          radarOn ? 'rgba(217,119,6,0.9)' : 'rgba(15,15,30,0.85)',
+                            backdropFilter:      'blur(8px)',
+                            WebkitBackdropFilter:'blur(8px)',
+                            color:               '#fff',
+                            cursor:              radarAvailable ? 'pointer' : 'not-allowed',
+                            opacity:             radarAvailable ? 1 : 0.45,
+                            display:             'flex',
+                            alignItems:         'center',
+                            justifyContent:     'center',
+                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
+                            transition:          'background 200ms ease, border-color 200ms ease',
+                            WebkitTapHighlightColor: 'transparent',
+                            touchAction:         'auto',
+                        }}
+                        aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
+                        aria-pressed={radarOn}
+                    >
+                        <CloudRain size={20} strokeWidth={2.25} />
+                    </button>
 
                     {/* Comfort Heatmap FAB */}
                     <button
@@ -888,6 +944,7 @@ const VenueMap = forwardRef(({
                     <div className="ss-map-caption-inner">
                         📍 Live Weather Pins &bull; {venues.length} venues
                         {cozyFilterActive && <span style={{ marginLeft: 6 }}>· 🛋️ Cozy filter on</span>}
+                        {radarOn && <span style={{ marginLeft: 6 }}>· 🌧️ Radar on</span>}
                     </div>
                 </div>
             )}
