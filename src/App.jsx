@@ -12,7 +12,7 @@ import {
     ChevronUp, ChevronDown, Search,
     Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
-import { demoVenues } from './data/demoVenues';
+import { useVenues } from './hooks/useVenues';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
@@ -202,6 +202,7 @@ VenueChip.displayName = 'VenueChip';
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
     const { weather, getUVIndex } = useWeather();
+    const { venues } = useVenues();
 
     const comfort = useMemo(() => {
         if (!weather) return { label: 'Loading', icon: '☁️', cozy: false };
@@ -282,7 +283,7 @@ const AppContent = () => {
         const query = searchQuery.trim().toLowerCase();
         const liveFeatures = liveVenueFeatures || EMPTY_LIVE_FEATURES;
 
-        return demoVenues.filter(venue => {
+        return venues.filter(venue => {
             const vType = venue.typeCategory || 'Bar';
             const hasTypeMatch = typeFilters.length === 0 || typeFilters.some(f => {
                 if (f === 'all-bars'   && vType === 'Bar')       return true;
@@ -335,7 +336,7 @@ const AppContent = () => {
 
             return true;
         });
-    }, [activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, getUVIndex]);
+    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, getUVIndex]);
 
     const filteredVenueIds = useMemo(
         () => filteredVenues.map(venue => venue.id),
@@ -347,18 +348,18 @@ const AppContent = () => {
         if (!import.meta.env.DEV) return;
 
         console.log("=== VENUE PIPELINE DIAGNOSTICS ===");
-        console.log(`1. Raw imported demoVenues count: ${demoVenues.length}`);
+        console.log(`1. Active venues count: ${venues.length}`);
 
-        const rawIds = demoVenues.map(v => v.id);
+        const rawIds = venues.map(v => v.id);
         const uniqueIds = new Set(rawIds);
-        console.log(`2. Unique IDs in demoVenues: ${uniqueIds.size}`);
+        console.log(`2. Unique IDs in venues: ${uniqueIds.size}`);
 
         // Find duplicates
         const duplicates = rawIds.filter((item, index) => rawIds.indexOf(item) !== index);
         if (duplicates.length > 0) console.log(`   Duplicate IDs found:`, duplicates);
 
         // Find invalid coordinates
-        const invalidCoords = demoVenues.filter(v => {
+        const invalidCoords = venues.filter(v => {
             const lat = Number(v.lat);
             const lng = Number(v.lng);
             return isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180;
@@ -369,13 +370,13 @@ const AppContent = () => {
         console.log(`4. filteredVenueIds count: ${filteredVenueIds.length}`);
         console.log(`5. Final filteredVenues count (list render): ${filteredVenues.length}`);
 
-        const removedByFilters = demoVenues.filter(v => !filteredVenues.includes(v));
+        const removedByFilters = venues.filter(v => !filteredVenues.includes(v));
         console.log(`   Removed by filters count: ${removedByFilters.length}`);
         if (removedByFilters.length > 0) {
             console.log(`   IDs removed:`, removedByFilters.map(v => v.id));
         }
         console.log("==================================");
-    }, [filteredVenues, filteredVenueIds, activeFilters]);
+    }, [venues, filteredVenues, filteredVenueIds, activeFilters]);
     // --- END DIAGNOSTICS ---
 
     const matchingCount = filteredVenues.length;
@@ -425,11 +426,11 @@ const AppContent = () => {
     const handleFindWindSheltered = useCallback(makeChatFilter('Shaded'), []);
 
     const handleSurpriseMe = useCallback(() => {
-        const randomVenue = demoVenues[Math.floor(Math.random() * demoVenues.length)];
+        const randomVenue = venues[Math.floor(Math.random() * venues.length)];
         setActiveFilters([]);
         handleVenueSelect(randomVenue);
         setTimeout(() => setIsChatOpen(false), 1500);
-    }, [handleVenueSelect]);
+    }, [handleVenueSelect, venues]);
 
     const handleRecenter = useCallback(() => {
         mapRef.current?.flyTo({ center: [144.9631, -37.8136], zoom: 12, duration: 1200 });
@@ -582,7 +583,7 @@ const AppContent = () => {
                                 <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
                                     <VenueMap
                                         ref={mapRef}
-                                        venues={demoVenues}
+                                        venues={venues}
                                         onVenueSelect={handleVenueSelect}
                                         selectedVenue={selectedVenue}
                                         filteredVenueIds={stableFilteredIds}
@@ -771,7 +772,7 @@ const AppContent = () => {
                     className={`ss-footer-badge ${selectedVenue ? 'hidden' : ''}`}
                 >
                     <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
-                    Sales Demo · {demoVenues.length} Partner Venues
+                    Sales Demo · {venues.length} Partner Venues
                 </motion.div>
             </div>
         </>

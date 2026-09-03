@@ -12,6 +12,7 @@
  */
 
 import { demoVenues } from '../data/demoVenues';
+import { supabase } from '../lib/supabase';
 
 /**
  * Calculate a sunshine score (0–100) for a venue based on its tags.
@@ -64,19 +65,31 @@ const calculateSunshineScore = (venue) => {
  * Fetch lightweight venue data for map markers.
  * Returns ONLY the fields needed for pin rendering: id, lat, lng, sunshineScore.
  *
- * Performance: ~200 bytes per venue vs ~2 KB for full details.
- * Designed to handle 1000+ venues without payload bloat.
- *
  * @returns {Promise<VenueBrief[]>}
  */
 export const fetchVenuesBrief = async () => {
-    // Simulate network latency (remove when using real API)
-    await new Promise(resolve => setTimeout(resolve, 50));
+    if (supabase) {
+        try {
+            const { data, error } = await supabase
+                .from('venues')
+                .select('id, lat, lng, tags, roomTypes');
+            if (!error && Array.isArray(data) && data.length > 0) {
+                return data.map(venue => ({
+                    id: venue.id,
+                    lat: Number(venue.lat),
+                    lng: Number(venue.lng),
+                    sunshineScore: calculateSunshineScore(venue),
+                }));
+            }
+        } catch (e) {
+            console.warn('[api/venues] fetchVenuesBrief error, falling back:', e?.message);
+        }
+    }
 
     return demoVenues.map(venue => ({
         id: venue.id,
-        lat: venue.lat,
-        lng: venue.lng,
+        lat: Number(venue.lat),
+        lng: Number(venue.lng),
         sunshineScore: calculateSunshineScore(venue),
     }));
 };
@@ -89,8 +102,25 @@ export const fetchVenuesBrief = async () => {
  * @returns {Promise<object | null>} full venue object or null if not found
  */
 export const fetchVenueDetails = async (id) => {
-    // Simulate network latency (remove when using real API)
-    await new Promise(resolve => setTimeout(resolve, 80));
+    if (supabase) {
+        try {
+            const { data, error } = await supabase
+                .from('venues')
+                .select('*')
+                .eq('id', id)
+                .maybeSingle();
+            if (!error && data) {
+                return {
+                    ...data,
+                    sunshineScore: calculateSunshineScore(data),
+                    _fetchedAt: new Date().toISOString(),
+                    _source: 'supabase',
+                };
+            }
+        } catch (e) {
+            console.warn('[api/venues] fetchVenueDetails error, falling back:', e?.message);
+        }
+    }
 
     const venue = demoVenues.find(v => v.id === id);
     if (!venue) return null;
@@ -98,7 +128,6 @@ export const fetchVenueDetails = async (id) => {
     return {
         ...venue,
         sunshineScore: calculateSunshineScore(venue),
-        // Enrich with computed fields a real API would provide
         _fetchedAt: new Date().toISOString(),
         _source: 'local-demo',
     };
