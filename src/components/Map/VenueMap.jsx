@@ -262,7 +262,6 @@ const VenueMap = forwardRef(({
     weatherColorFn    = null,   // (weather, venue) => pinKey string
     cozyWeatherActive = false,  // true when weather is cold/rainy
     cozyFilterActive  = false,  // true when user has 'Cozy' filter selected
-    isExpanded        = false,  // true when map is in fullscreen/expanded mode
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -308,13 +307,6 @@ const VenueMap = forwardRef(({
     useEffect(() => { weatherColorFnRef.current   = weatherColorFn;   }, [weatherColorFn]);
     useEffect(() => { cozyFilterActiveRef.current = cozyFilterActive; }, [cozyFilterActive]);
 
-    // Resize map when isExpanded changes so tiles fill the new container size
-    useEffect(() => {
-        if (!map.current || !mapLoaded) return;
-        const t = setTimeout(() => map.current?.resize(), 300);
-        return () => clearTimeout(t);
-    }, [isExpanded, mapLoaded]);
-
     // ── Imperative API ──────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
         flyTo: (opts) => map.current?.flyTo(opts),
@@ -345,6 +337,7 @@ const VenueMap = forwardRef(({
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
         let disposed = false;
+        let resizeObserver;
         const loadTimeout = setTimeout(() => { if (!disposed) setMapError(true); }, 15000);
 
         try {
@@ -357,10 +350,15 @@ const VenueMap = forwardRef(({
                 maxZoom:             18,
                 pitch:               0,
                 bearing:             0,
-                cooperativeGestures: false,
+                cooperativeGestures: true,
                 fadeDuration:        0,
                 maxTileCacheSize:    20,
             });
+
+            resizeObserver = new ResizeObserver(() => {
+                requestAnimationFrame(() => map.current?.resize());
+            });
+            resizeObserver.observe(mapContainer.current);
 
             map.current.on('load', () => {
                 if (disposed || !map.current) return;
@@ -393,6 +391,7 @@ const VenueMap = forwardRef(({
         return () => {
             disposed = true;
             clearTimeout(loadTimeout);
+            resizeObserver?.disconnect();
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
@@ -707,14 +706,16 @@ const VenueMap = forwardRef(({
             }, 500);
         };
 
+        const loadHandler = setupRadar;
         if (map.current.isStyleLoaded()) {
             setupRadar();
         } else {
-            map.current.once('load', setupRadar);
+            map.current.once('load', loadHandler);
         }
 
         return () => {
             clearInterval(animationInterval);
+            map.current?.off('load', loadHandler);
             if (map.current && map.current.getStyle()) {
                 radarFrames.forEach(frame => {
                     if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
@@ -729,7 +730,7 @@ const VenueMap = forwardRef(({
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <div
                 ref={mapContainer}
-                style={{ width: '100%', height: '100%', touchAction: 'none' }}
+                style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
             />
 
             {/* FAB stack */}

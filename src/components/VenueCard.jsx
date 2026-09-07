@@ -396,16 +396,19 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const mouseY = useMotionValue(0);
   const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [4, -4]), { stiffness: 200, damping: 25 });
   const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-4, 4]), { stiffness: 200, damping: 25 });
+  const cardRectRef = useRef(null);
 
   // Pull calculateSunstayScore + getBestWindow from context
   const { calculateSunstayScore, getBestWindow } = useWeather();
 
+  function handlePointerEnter(e) { cardRectRef.current = e.currentTarget.getBoundingClientRect(); }
   function handlePointerMove(e) {
-    const rect = e.currentTarget.getBoundingClientRect();
+    const rect = cardRectRef.current;
+    if (!rect) return;
     mouseX.set((e.clientX - rect.left) / rect.width - 0.5);
     mouseY.set((e.clientY - rect.top) / rect.height - 0.5);
   }
-  function handlePointerLeave() { mouseX.set(0); mouseY.set(0); }
+  function handlePointerLeave() { cardRectRef.current = null; mouseX.set(0); mouseY.set(0); }
 
   const safeVenue = venue || {};
   const { name, type, suburb, lat, lng, balconyData, heating, vibe = [], tags = [] } = safeVenue;
@@ -641,6 +644,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             flexDirection: 'column',
           }}
           className="pointer-events-auto mt-auto w-full select-none"
+          onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: '28px 28px 0 0', zIndex: 0 }}>

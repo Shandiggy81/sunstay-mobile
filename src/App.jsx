@@ -13,6 +13,7 @@ import {
     Wind, Sun, Cloud, X, Locate, ListFilter
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
+import { useVenueFeatures } from './hooks/useVenueFeatures';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
@@ -113,7 +114,7 @@ const getMarkerWeatherColor = (weather, venue) => {
 };
 
 // ── VenueListCard ──────────────────────────────────────────────────────
-const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
+const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
     const badge = useMemo(() => getWeatherBadge(weather, venue), [weather, venue]);
     const profile = useMemo(() => getWindProfile(venue), [venue]);
     const temp = weather?.main?.temp;
@@ -130,9 +131,9 @@ const VenueListCard = memo(({ venue, isSelected, onClick, weather }) => {
             layout
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.985 }}
-            onClick={(e) => {
+            onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                onClick(e);
+                onVenueSelect(venue);
             }}
             role="button"
             aria-label={`Venue: ${venue.venueName}. ${isStay || isHotel ? venue.typeLabel : venue.vibe} in ${venue.suburb}.`}
@@ -211,8 +212,9 @@ VenueChip.displayName = 'VenueChip';
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
-    const { weather, getUVIndex } = useWeather();
+    const { weather } = useWeather();
     const { venues } = useVenues();
+    const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
 
     const comfort = useMemo(() => {
         if (!weather) return { label: 'Loading', icon: '☁️', cozy: false };
@@ -231,7 +233,6 @@ const AppContent = () => {
     // All other tag IDs (from FILTER_CATEGORIES) are also held here.
     const [activeFilters, setActiveFilters]           = useState([]);
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
-    const [liveVenueFeatures, setLiveVenueFeatures]   = useState({});
 
     // NOTE: The old `activeFilter` string state ('All' | 'Cozy' | 'Sunny') has
     // been retired. Use activeFilters.includes(FILTER_COZY) and
@@ -332,7 +333,7 @@ const AppContent = () => {
 
             if (sunnyFilterActive) {
                 const liveState = liveFeatures[venue.id] || EMPTY_LIVE_FEATURES;
-                const uvIndexValue = getUVIndex() || 0;
+                const uvIndexValue = weather?.uvi ?? 0;
                 if (uvIndexValue < 4 || liveState.roofClosed) return false;
             }
 
@@ -346,7 +347,7 @@ const AppContent = () => {
 
             return true;
         });
-    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, getUVIndex]);
+    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, weather?.uvi]);
 
     const filteredVenueIds = useMemo(
         () => filteredVenues.map(venue => venue.id),
@@ -395,6 +396,7 @@ const AppContent = () => {
     const handleVenueSelect = useCallback((venue) => {
         if (!venue) return;
         setSelectedVenue(venue);
+        setMobileSheetState('peek');
         const lng = Number(venue.lng);
         const lat = Number(venue.lat);
         if (mapRef.current?.resizeAndFly && Number.isFinite(lng) && Number.isFinite(lat)) {
@@ -502,7 +504,7 @@ const AppContent = () => {
                             <OwnerDashboard
                                 venue={selectedVenue}
                                 liveVenueFeatures={liveVenueFeatures}
-                                setLiveVenueFeatures={setLiveVenueFeatures}
+                                setLiveVenueFeatures={updateLiveVenueFeature}
                                 onClose={handleOwnerDashboardClose}
                                 onVenueUpdate={handleSelectedVenueUpdate}
                             />
@@ -562,7 +564,7 @@ const AppContent = () => {
                                         key={venue.id}
                                         venue={venue}
                                         isSelected={selectedVenue?.id === venue.id}
-                                        onClick={() => handleVenueSelect(venue)}
+                                        onVenueSelect={handleVenueSelect}
                                         weather={weather}
                                     />
                                 ))}
@@ -785,7 +787,7 @@ const AppContent = () => {
                                             key={venue.id}
                                             venue={venue}
                                             isSelected={selectedVenue?.id === venue.id}
-                                            onClick={() => { handleVenueSelect(venue); setMobileSheetState('peek'); }}
+                                            onVenueSelect={handleVenueSelect}
                                             weather={weather}
                                         />
                                     ))}

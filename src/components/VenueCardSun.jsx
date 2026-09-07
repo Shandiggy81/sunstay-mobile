@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import BalconySunWidget from './BalconySunWidget';
 import SunshineScoreBadge from './SunshineScoreBadge';
@@ -23,7 +23,7 @@ function isAccommodation(venue) {
 }
 
 // ── Sub-components ─────────────────────────────────────────
-const GoldenWindowBar = ({ sunData }) => {
+const GoldenWindowBar = React.memo(({ sunData }) => {
   if (!sunData || typeof sunData.startHour !== 'number') return null;
   const START = 6, END = 21, TOTAL = END - START;
   const clampedStart = Math.max(START, sunData.startHour);
@@ -83,15 +83,16 @@ const GoldenWindowBar = ({ sunData }) => {
       </div>
     </div>
   );
-};
+});
+GoldenWindowBar.displayName = 'GoldenWindowBar';
 
 // ── Live score + best window strip ──────────────────────────
-const LiveScoreStrip = ({ venue, weather, calculateSunstayScore, getBestWindow }) => {
+const LiveScoreStrip = React.memo(({ venue, weather, calculateSunstayScore, getBestWindow }) => {
   // Guard: need at least a venue and the context functions
   if (!venue || typeof calculateSunstayScore !== 'function' || typeof getBestWindow !== 'function') return null;
 
-  const score = calculateSunstayScore(venue);
-  const window = getBestWindow(8);
+  const score = useMemo(() => calculateSunstayScore(venue), [venue, calculateSunstayScore]);
+  const window = useMemo(() => getBestWindow(8), [venue, getBestWindow]);
 
   // Choose colour based on score tier
   const scoreColor =
@@ -142,10 +143,11 @@ const LiveScoreStrip = ({ venue, weather, calculateSunstayScore, getBestWindow }
       )}
     </div>
   );
-};
+});
+LiveScoreStrip.displayName = 'LiveScoreStrip';
 
 // ── Main export ──────────────────────────────────────────────
-export default function VenueCardSun({
+const VenueCardSun = React.memo(function VenueCardSun({
   sunData,
   sunHours,
   burnTimeMins,
@@ -241,4 +243,7 @@ export default function VenueCardSun({
       )}
     </motion.div>
   );
-}
+});
+VenueCardSun.displayName = 'VenueCardSun';
+
+export default VenueCardSun;

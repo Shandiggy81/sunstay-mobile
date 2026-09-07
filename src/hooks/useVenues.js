@@ -22,6 +22,7 @@ export function useVenues() {
 
     useEffect(() => {
         let isMounted = true;
+        const controller = new AbortController();
 
         async function fetchLiveVenues() {
             if (!supabase) {
@@ -40,7 +41,8 @@ export function useVenues() {
             try {
                 const queryPromise = supabase
                     .from('venues')
-                    .select('*');
+                    .select('*')
+                    .abortSignal(controller.signal);
 
                 const response = await Promise.race([queryPromise, timeoutPromise]);
                 const { data, error: dbError } = response || {};
@@ -74,6 +76,7 @@ export function useVenues() {
 
         return () => {
             isMounted = false;
+            controller.abort();
         };
     }, []);
 
