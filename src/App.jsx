@@ -292,7 +292,6 @@ const AppContent = () => {
             f !== FILTER_SUNNY
         );
         const query = searchQuery.trim().toLowerCase();
-        const liveFeatures = liveVenueFeatures || EMPTY_LIVE_FEATURES;
 
         return venues.filter(venue => {
             const vType = venue.typeCategory || 'Bar';
@@ -322,7 +321,7 @@ const AppContent = () => {
             }
 
             if (cozyFilterActive) {
-                const liveState = liveFeatures[venue.id] || EMPTY_LIVE_FEATURES;
+                const liveState = liveVenueFeatures[venue.id] || EMPTY_LIVE_FEATURES;
                 const hasLiveCozy = liveState.fireplaceOn || liveState.heatersOn || liveState.roofClosed;
                 const hasStaticCozy =
                     (venue.shielding?.rainCover ?? 0) > 80 ||
@@ -332,7 +331,7 @@ const AppContent = () => {
             }
 
             if (sunnyFilterActive) {
-                const liveState = liveFeatures[venue.id] || EMPTY_LIVE_FEATURES;
+                const liveState = liveVenueFeatures[venue.id] || EMPTY_LIVE_FEATURES;
                 const uvIndexValue = weather?.uvi ?? 0;
                 if (uvIndexValue < 4 || liveState.roofClosed) return false;
             }
