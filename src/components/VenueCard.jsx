@@ -667,14 +667,14 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* 2. Premium Detail Sheet Header */}
-            <div className="relative w-full overflow-hidden shrink-0 bg-gray-900 rounded-t-2xl mb-1" style={{ height: '220px' }}>
+            <div className="relative w-full h-48 sm:h-56 overflow-hidden shrink-0 bg-gray-900 rounded-t-2xl mb-1">
               {/* Background image / gradient layer */}
               <div className="absolute inset-0 z-0">
                 {venueImage && !imageError ? (
                   <img
                     src={venueImage}
                     alt={fallbackName}
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover opacity-70"
                     onError={() => setImageError(true)}
                   />
                 ) : (
@@ -705,20 +705,19 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     </span>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/30 to-transparent pointer-events-none" />
               </div>
 
               {/* Foreground content */}
-              <div className="relative z-10 flex h-full flex-col p-4 pt-8 justify-end">
+              <div className="relative z-10 flex flex-col justify-between h-full p-4 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent">
                 <motion.button
                   onClick={onClose}
-                  className="absolute top-3 right-3 z-20 p-2 bg-black/40 rounded-full text-white backdrop-blur-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-white"
+                  className="self-end p-2 bg-black/40 rounded-full text-white backdrop-blur-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-white"
                   whileTap={{ scale: 0.92 }}
                   aria-label="Close venue details"
                 >
                   <X size={18} />
                 </motion.button>
-                <div className="flex flex-col gap-2 mt-4 pointer-events-none">
+                <div className="flex flex-col gap-2 pointer-events-none">
                   <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md truncate">{fallbackName}</h2>
                   <p className="text-sm text-white/90 font-medium truncate">
                     {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
