@@ -20,6 +20,7 @@ import { useWeather } from '../context/WeatherContext';
 import { seedVenues } from '../data/seedVenues.js';
 import { getVenueSunStatus, checkIfShaded, getSunWindow } from '../utils/solarMath.js';
 import { fetchVenueWeather } from '../utils/weatherApi.js';
+import { calculateHourlyExposure } from '../utils/solarCalculator.js';
 
 
 // ── Helpers ────────────────────────────────────────────────
@@ -191,6 +192,74 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
     </motion.div>
   );
 };
+
+const SolarExposureTimeline = memo(({ exposure }) => {
+  const [activeIndex, setActiveIndex] = useState(null);
+
+  if (!Array.isArray(exposure) || exposure.length === 0) return null;
+
+  const directHours = exposure.filter(hour => hour.hasDirectSun).length;
+  const peakIndex = exposure.reduce((bestIndex, hour, index, hours) => (
+    hour.hasDirectSun && hour.altitude > (hours[bestIndex]?.altitude ?? -Infinity)
+      ? index
+      : bestIndex
+  ), 0);
+  const activeHour = activeIndex === null ? null : exposure[activeIndex];
+  const statusLabel = activeHour
+    ? `${activeHour.label}: ${activeHour.hasDirectSun
+      ? activeIndex === peakIndex ? 'Direct Sun (Peak)' : 'Direct Sun'
+      : 'Shaded by building'}`
+    : 'Select an hour to see its direct sun status';
+
+  return (
+    <section
+      className="mt-1 rounded-2xl border border-amber-200/70 bg-amber-50/40 p-3.5"
+      aria-labelledby="solar-exposure-heading"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3 id="solar-exposure-heading" className="text-[10px] font-black uppercase tracking-widest text-amber-800">
+          Direct Sun · 8 AM–8 PM
+        </h3>
+        <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-1 text-[10px] font-black text-amber-700">
+          ☀️ {directHours} hrs today
+        </span>
+      </div>
+
+      <div className="mt-3 flex min-h-[44px] items-center gap-1.5" role="list" aria-label="Hourly direct sun exposure">
+        {exposure.map((hour, index) => {
+          const isActive = activeIndex === index;
+          return (
+            <button
+              key={hour.hour}
+              type="button"
+              role="listitem"
+              onClick={() => setActiveIndex(index)}
+              onFocus={() => setActiveIndex(index)}
+              onPointerDown={() => setActiveIndex(index)}
+              className={`h-2 min-w-0 flex-1 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
+                hour.hasDirectSun ? 'bg-amber-400' : 'bg-slate-200 dark:bg-slate-700'
+              } ${isActive ? 'scale-y-150 shadow-sm' : 'hover:scale-y-125'}`}
+              aria-label={`${hour.label}: ${hour.hasDirectSun ? 'Direct Sun' : 'Shaded'}`}
+              aria-pressed={isActive}
+            />
+          );
+        })}
+      </div>
+
+      <div className="mt-1.5 flex justify-between px-0.5 text-[9px] font-bold text-slate-500" aria-hidden="true">
+        <span>8 AM</span>
+        <span>12 PM</span>
+        <span>4 PM</span>
+        <span>8 PM</span>
+      </div>
+
+      <p className="mt-2 min-h-[18px] text-[11px] font-semibold text-slate-700" aria-live="polite">
+        {activeHour ? statusLabel : 'Tap an hour for its direct sun status'}
+      </p>
+    </section>
+  );
+});
+SolarExposureTimeline.displayName = 'SolarExposureTimeline';
 
 // ── Sunstay Score Hero Badge ────────────────────────────────────
 const SunstayScoreBadge = ({ score, bestWindow }) => {
@@ -458,6 +527,22 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const outdoorComfort = venue?.hasHeating || venue?.heating
     ? 'Heated & Covered'
     : 'Open Courtyard';
+  const outdoorAspect = String(
+    venue?.outdoorZone?.aspect
+      ?? venue?.outdoor_aspect
+      ?? venue?.outdoorAspect
+      ?? venue?.balcony_facing
+      ?? 'open',
+  ).toLowerCase().replace(/[^a-z]/g, '');
+  const solarExposure = useMemo(
+    () => calculateHourlyExposure(lat, lng, new Date(), {
+      aspect: ['north', 'south', 'east', 'west', 'open'].includes(outdoorAspect)
+        ? outdoorAspect
+        : 'open',
+      minAltitude: venue?.outdoorZone?.minAltitude ?? venue?.minAltitude ?? 15,
+    }),
+    [lat, lng, outdoorAspect, venue?.outdoorZone?.minAltitude, venue?.minAltitude],
+  );
   const heatingLabel = venue?.hasHeating || venue?.heating ? 'Heated Lamps' : 'Natural Breeze';
   const { burnTimeMins } = useOpenUV(lat, lng);
   const cloudcover = weather?.cloudCover
@@ -884,6 +969,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     </div>
                   </div>
 
+                  <SolarExposureTimeline exposure={solarExposure} />
+
                   {rainArrivalMins !== null && rainArrivalMins <= 45 && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.95, y: -6 }}
@@ -1106,7 +1193,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
             {/* Sticky Bottom CTA */}
             <div className="fixed bottom-0 left-0 w-full bg-slate-50 border-t border-slate-200 p-4 z-30" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-              <button className="w-full bg-amber-500 text-slate-900 font-bold rounded-xl py-3.5 text-[15px] shadow-sm flex items-center justify-center transition-transform active:scale-[0.98]">
+              <button className="w-full bg-amber-500 text-[#0F172A] font-bold rounded-xl py-3.5 text-[15px] shadow-sm flex items-center justify-center transition-transform active:scale-[0.98]">
                 Get Directions
               </button>
             </div>
