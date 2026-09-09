@@ -198,6 +198,43 @@ const CLOUD_LAYER_ID  = 'openweathermap-cloud-layer';
 
 const CLUSTER_SOURCE_ID = 'venues-cluster-src';
 const CLUSTER_LAYER_ID  = 'venues-cluster-lyr';
+const THREE_D_BUILDINGS_LAYER_ID = 'add-3d-buildings';
+
+function add3DBuildingsLayer(map) {
+    if (!map || map.getLayer('3d-buildings') || map.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
+        return false;
+    }
+
+    const styleLayers = map.getStyle()?.layers || [];
+    const firstLabelLayerId = styleLayers.find(
+        layer => layer.type === 'symbol' && layer.layout?.['text-field']
+    )?.id;
+
+    map.addLayer({
+        id: THREE_D_BUILDINGS_LAYER_ID,
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        type: 'fill-extrusion',
+        minzoom: 14,
+        paint: {
+            'fill-extrusion-color': '#e2e8f0',
+            'fill-extrusion-height': [
+                'interpolate', ['linear'], ['zoom'],
+                14, 0,
+                14.05, ['get', 'height'],
+            ],
+            'fill-extrusion-base': [
+                'interpolate', ['linear'], ['zoom'],
+                14, 0,
+                14.05, ['get', 'min_height'],
+            ],
+            'fill-extrusion-opacity': 0.85,
+        },
+    }, firstLabelLayerId);
+
+    return true;
+}
 
 function addOrUpdateCloudLayer(map) {
     if (!map || !WEATHER_API_KEY) return;
@@ -348,8 +385,8 @@ const VenueMap = forwardRef(({
                 zoom:                INITIAL_VIEW_STATE.zoom,
                 minZoom:             3,
                 maxZoom:             18,
-                pitch:               0,
-                bearing:             0,
+                pitch:               45,
+                bearing:             -17.6,
                 cooperativeGestures: false,
                 fadeDuration:        0,
                 maxTileCacheSize:    20,
@@ -363,6 +400,21 @@ const VenueMap = forwardRef(({
             map.current.on('load', () => {
                 if (disposed || !map.current) return;
                 clearTimeout(loadTimeout);
+                try {
+                    add3DBuildingsLayer(map.current);
+                } catch (e) {
+                    console.warn('[VenueMap] 3D buildings layer setup failed:', e?.message);
+                }
+                try {
+                    map.current.setLight({
+                        anchor: 'viewport',
+                        color: '#fffdf5',
+                        intensity: 0.45,
+                        position: [1.15, 210, 30],
+                    });
+                } catch (e) {
+                    console.warn('[VenueMap] directional light setup failed:', e?.message);
+                }
                 map.current.dragRotate.disable();
                 map.current.touchZoomRotate.disableRotation();
                 setMapLoaded(true);
@@ -395,6 +447,9 @@ const VenueMap = forwardRef(({
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
+            if (map.current?.getStyle() && map.current.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
+                map.current.removeLayer(THREE_D_BUILDINGS_LAYER_ID);
+            }
             map.current?.remove();
             map.current = null;
         };
