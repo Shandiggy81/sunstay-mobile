@@ -4,9 +4,9 @@ import React, {
 } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
-import { useRainRadar } from '../../hooks/useRainRadar';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -193,6 +193,7 @@ const HEATMAP_SOURCE_ID = 'comfort-heatmap-src';
 const HEATMAP_LAYER_ID  = 'comfort-heatmap-lyr';
 
 const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_KEY || '').trim();
+const XWEATHER_KEY = (import.meta.env.VITE_XWEATHER_KEY || '').trim();
 const CLOUD_SOURCE_ID = 'openweathermap-cloud';
 const CLOUD_LAYER_ID  = 'openweathermap-cloud-layer';
 
@@ -302,6 +303,7 @@ const VenueMap = forwardRef(({
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
+    const controllerRef    = useRef(null);
     const markersRef       = useRef({});
     const hasFlownToBounds = useRef(false);
     const rafRef           = useRef(null);
@@ -405,6 +407,17 @@ const VenueMap = forwardRef(({
                 } catch (e) {
                     console.warn('[VenueMap] 3D buildings layer setup failed:', e?.message);
                 }
+                if (XWEATHER_KEY && !controllerRef.current) {
+                    try {
+                        const account = new Account(XWEATHER_KEY);
+                        const controller = new MapboxMapController(map.current, { account });
+                        controller.addWeatherLayer('radar');
+                        controller.setWeatherLayerVisibility('radar', false);
+                        controllerRef.current = controller;
+                    } catch (e) {
+                        console.warn('[VenueMap] Xweather radar setup failed:', e?.message);
+                    }
+                }
                 try {
                     map.current.setLight({
                         anchor: 'viewport',
@@ -450,6 +463,8 @@ const VenueMap = forwardRef(({
             if (map.current?.getStyle() && map.current.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
                 map.current.removeLayer(THREE_D_BUILDINGS_LAYER_ID);
             }
+            controllerRef.current?.dispose?.();
+            controllerRef.current = null;
             map.current?.remove();
             map.current = null;
         };
@@ -701,85 +716,15 @@ const VenueMap = forwardRef(({
         return () => clearTimeout(t);
     }, [selectedVenue]);
 
-    // ── Rain Radar animation loop ────────────────────────────────────
-    const { radarFrames, error: radarError } = useRainRadar();
-
+    // ── Xweather radar visibility ───────────────────────────────────
     useEffect(() => {
-        if (!map.current || !radarFrames.length) return;
-
-        let animationInterval;
-        let currentFrameIndex = 0;
-
-        if (!showRadar) {
-            if (map.current.getStyle()) {
-                radarFrames.forEach(frame => {
-                    try {
-                        if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
-                        if (map.current.getSource(frame.id)) map.current.removeSource(frame.id);
-                    } catch (e) { /* already removed */ }
-                });
-            }
-            return;
+        if (!mapLoaded || !controllerRef.current) return;
+        try {
+            controllerRef.current.setWeatherLayerVisibility('radar', showRadar);
+        } catch (e) {
+            console.warn('[VenueMap] Xweather radar visibility update failed:', e?.message);
         }
-
-        const setupRadar = () => {
-            radarFrames.forEach((frame) => {
-                if (!map.current.getSource(frame.id)) {
-                    map.current.addSource(frame.id, {
-                        type: 'raster',
-                        tiles: [frame.url],
-                        tileSize: 256,
-                        maxzoom: 6,
-                    });
-
-                    const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
-                    map.current.addLayer({
-                        id: frame.id,
-                        type: 'raster',
-                        source: frame.id,
-                        maxzoom: 7,
-                        paint: {
-                            'raster-opacity': 0,
-                            'raster-fade-duration': 0
-                        }
-                    }, insertBefore);
-                }
-            });
-
-            animationInterval = setInterval(() => {
-                const prevFrame = radarFrames[currentFrameIndex];
-                if (map.current.getLayer(prevFrame.id)) {
-                    map.current.setPaintProperty(prevFrame.id, 'raster-opacity', 0);
-                }
-
-                currentFrameIndex = (currentFrameIndex + 1) % radarFrames.length;
-
-                const nextFrame = radarFrames[currentFrameIndex];
-                if (map.current.getLayer(nextFrame.id)) {
-                    map.current.setPaintProperty(nextFrame.id, 'raster-opacity', 0.6);
-                }
-            }, 500);
-        };
-
-        const loadHandler = setupRadar;
-        if (map.current.isStyleLoaded()) {
-            setupRadar();
-        } else {
-            map.current.once('load', loadHandler);
-        }
-
-        return () => {
-            // Stop the animation before removing its map resources.
-            clearInterval(animationInterval);
-            map.current?.off('load', loadHandler);
-            if (map.current && map.current.getStyle()) {
-                radarFrames.forEach(frame => {
-                    if (map.current.getLayer(frame.id)) map.current.removeLayer(frame.id);
-                    if (map.current.getSource(frame.id)) map.current.removeSource(frame.id);
-                });
-            }
-        };
-    }, [radarFrames, showRadar]);
+    }, [mapLoaded, showRadar]);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
