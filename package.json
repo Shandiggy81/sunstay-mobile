@@ -24,6 +24,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
     "@tailwindcss/postcss": "^4.1.18",
+    "@xweather/mapsgl": "^1.9.4",
     "axios": "^1.13.2",
     "framer-motion": "^12.24.12",
     "lucide-react": "^0.562.0",
