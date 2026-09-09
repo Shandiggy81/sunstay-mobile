@@ -1,6 +1,6 @@
 import React, { memo, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Wind, Sun, Armchair, Flame } from 'lucide-react';
 import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import WeatherWidget from './WeatherWidget';
@@ -400,7 +400,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const cardRectRef = useRef(null);
 
   // Pull calculateSunstayScore + getBestWindow from context
-  const { calculateSunstayScore, getBestWindow } = useWeather();
+  const { weather: weatherData, calculateSunstayScore, getBestWindow } = useWeather();
 
   function handlePointerEnter(e) { cardRectRef.current = e.currentTarget.getBoundingClientRect(); }
   function handlePointerMove(e) {
@@ -433,6 +433,32 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { weatherCode } = weather || {};
   const { aqLabel } = useOpenAQ(lat, lng);
+  const windSpeedValue = venue?.windSpeed ?? weatherData?.windSpeed ?? weather?.windSpeed ?? weather?.rawWeather?.windSpeed;
+  const windSpeedDisplay = windSpeedValue != null
+    ? (typeof windSpeedValue === 'number' ? `${Math.round(windSpeedValue)} km/h` : windSpeedValue)
+    : '18 km/h';
+  const windbreak = Number(shielding?.windbreak);
+  const windShelter = typeof venue?.windShelter === 'string'
+    ? venue.windShelter
+    : Number.isFinite(windbreak)
+      ? windbreak >= 70 ? 'Protected' : windbreak >= 40 ? 'Moderate Shelter' : 'Open Exposure'
+      : 'Moderate Shelter';
+  const uvValue = venue?.uvIndex ?? weatherData?.uvIndex ?? weather?.uvIndex ?? weather?.rawWeather?.uvIndex ?? uvIndex ?? 4;
+  const uvGuideline = Number(uvValue) >= 7 ? 'High' : Number(uvValue) >= 3 ? 'Moderate' : 'Low';
+  const seatingLayout = venue?.seating_type ?? venue?.seatingType ?? (
+    safeVibes.some(v => String(v).toLowerCase().includes('courtyard')) ? 'Courtyard' : 'Outdoor Seating'
+  );
+  const hasCoveredSeating = Boolean(
+    venue?.coveredOutdoor ??
+    venue?.covered_outdoor ??
+    venue?.hasCover ??
+    (Number.isFinite(Number(shielding?.rainCover)) && Number(shielding.rainCover) >= 60) ??
+    safeTags.some(tag => String(tag).toLowerCase().includes('covered'))
+  );
+  const outdoorComfort = venue?.hasHeating || venue?.heating
+    ? 'Heated & Covered'
+    : 'Open Courtyard';
+  const heatingLabel = venue?.hasHeating || venue?.heating ? 'Heated Lamps' : 'Natural Breeze';
   const { burnTimeMins } = useOpenUV(lat, lng);
   const cloudcover = weather?.cloudCover
     ?? (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null)
@@ -808,6 +834,55 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   </div>
 
                   <SunstayScoreBadge score={score} bestWindow={bestWindow} />
+
+                  {/* Microclimate Grid */}
+                  <div className="grid grid-cols-2 gap-2.5 my-3">
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Wind & Shelter</span>
+                        <Wind size={14} className="text-sky-600 shrink-0" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-slate-800 block truncate">{windSpeedDisplay}</span>
+                        <span className="text-[10px] font-medium text-slate-500 block truncate">{windShelter}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">UV & Solar</span>
+                        <Sun size={14} className="text-amber-500 shrink-0" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-slate-800 block truncate">UV {uvValue}</span>
+                        <span className="text-[10px] font-medium text-slate-500 block truncate">{uvGuideline}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Seating Layout</span>
+                        <Armchair size={14} className="text-slate-600 shrink-0" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-slate-800 block truncate">{seatingLayout}</span>
+                        <span className="text-[10px] font-medium text-slate-500 block truncate">
+                          {hasCoveredSeating ? 'Covered' : 'Open Air'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Heating / Cozy</span>
+                        <Flame size={14} className="text-orange-500 shrink-0" aria-hidden="true" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-slate-800 block truncate">{heatingLabel}</span>
+                        <span className="text-[10px] font-medium text-slate-500 block truncate">{outdoorComfort}</span>
+                      </div>
+                    </div>
+                  </div>
 
                   {rainArrivalMins !== null && rainArrivalMins <= 45 && (
                     <motion.div
