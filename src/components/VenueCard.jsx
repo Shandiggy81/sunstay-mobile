@@ -1,5 +1,6 @@
 import React, { memo, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import { X } from 'lucide-react';
 import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import WeatherWidget from './WeatherWidget';
@@ -666,66 +667,63 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* 2. Premium Detail Sheet Header */}
-            <div className="relative w-full rounded-2xl overflow-hidden mb-1" style={{ height: '220px', background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 45%, #0F766E 80%, #D97706 100%)' }}>
-              {venueImage && !imageError ? (
-                <img
-                  src={venueImage}
-                  alt={fallbackName}
-                  className="w-full h-full object-cover"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <div
-                  className="w-full h-full relative flex flex-col items-center justify-center overflow-hidden"
-                  style={{
-                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 40%, #0F766E 75%, #D97706 100%)',
-                  }}
-                >
-                  <div
-                    className="absolute w-52 h-52 rounded-full pointer-events-none"
-                    style={{
-                      background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(14,165,233,0.12) 50%, transparent 70%)',
-                      filter: 'blur(30px)',
-                    }}
+            <div className="relative w-full overflow-hidden shrink-0 bg-gray-900 rounded-t-2xl mb-1" style={{ height: '220px' }}>
+              {/* Background image / gradient layer */}
+              <div className="absolute inset-0 z-0">
+                {venueImage && !imageError ? (
+                  <img
+                    src={venueImage}
+                    alt={fallbackName}
+                    className="w-full h-full object-cover"
+                    onError={() => setImageError(true)}
                   />
-                  <div className="relative z-10 w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg mb-2">
-                    <svg className="w-9 h-9 text-amber-300 drop-shadow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.3" />
-                      <path d="M12 2v2" />
-                      <path d="M12 20v2" />
-                      <path d="m4.93 4.93 1.41 1.41" />
-                      <path d="m17.66 17.66 1.41 1.41" />
-                      <path d="M2 12h2" />
-                      <path d="M20 12h2" />
-                      <path d="m6.34 17.66-1.41 1.41" />
-                      <path d="m19.07 4.93-1.41 1.41" />
-                    </svg>
+                ) : (
+                  <div
+                    className="relative flex w-full h-full flex-col items-center justify-center overflow-hidden"
+                    style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 40%, #0F766E 75%, #D97706 100%)' }}
+                  >
+                    <div
+                      className="absolute w-52 h-52 rounded-full pointer-events-none"
+                      style={{
+                        background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(14,165,233,0.12) 50%, transparent 70%)',
+                        filter: 'blur(30px)',
+                      }}
+                    />
+                    <div className="relative z-10 w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg mb-2">
+                      <svg className="w-9 h-9 text-amber-300 drop-shadow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="4" fill="currentColor" fillOpacity="0.3" />
+                        <path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" />
+                        <path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" />
+                        <path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" />
+                      </svg>
+                    </div>
+                    <span className="relative z-10 text-[11px] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm">
+                      SunStay Melbourne
+                    </span>
+                    <span className="relative z-10 text-[10px] font-semibold text-slate-300/80 mt-0.5">
+                      {safeVenue?.suburb || 'Solar Intelligence'}
+                    </span>
                   </div>
-                  <span className="relative z-10 text-[11px] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm">
-                    SunStay Melbourne
-                  </span>
-                  <span className="relative z-10 text-[10px] font-semibold text-slate-300/80 mt-0.5">
-                    {safeVenue?.suburb || 'Solar Intelligence'}
-                  </span>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/30 to-transparent pointer-events-none" />
+              </div>
+
+              {/* Foreground content */}
+              <div className="relative z-10 flex h-full flex-col p-4 pt-8 justify-end">
+                <motion.button
+                  onClick={onClose}
+                  className="absolute top-3 right-3 z-20 p-2 bg-black/40 rounded-full text-white backdrop-blur-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-white"
+                  whileTap={{ scale: 0.92 }}
+                  aria-label="Close venue details"
+                >
+                  <X size={18} />
+                </motion.button>
+                <div className="flex flex-col gap-2 mt-4 pointer-events-none">
+                  <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md truncate">{fallbackName}</h2>
+                  <p className="text-sm text-white/90 font-medium truncate">
+                    {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
+                  </p>
                 </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/30 to-transparent pointer-events-none" />
-              <motion.button
-                onClick={onClose}
-                className="absolute top-3 left-3 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/20 rounded-full z-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-slate-900"
-                style={{ width: 44, height: 44 }}
-                whileTap={{ scale: 0.92 }}
-                aria-label="Close venue details"
-              >
-                <span className="text-white font-bold" style={{ fontSize: '20px' }}>✕</span>
-              </motion.button>
-              <div className="absolute bottom-0 left-0 p-4 flex flex-col pointer-events-none">
-                <h1 className="text-white font-bold text-2xl leading-tight truncate mb-0.5">
-                  {fallbackName}
-                </h1>
-                <span className="text-white/90 font-medium text-sm truncate">
-                  {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
-                </span>
               </div>
             </div>
 

@@ -271,7 +271,7 @@ const VenueMap = forwardRef(({
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
-    const [radarOn,      setRadarOn]      = useState(false);
+    const [showRadar,    setShowRadar]    = useState(false);
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
@@ -350,7 +350,7 @@ const VenueMap = forwardRef(({
                 maxZoom:             18,
                 pitch:               0,
                 bearing:             0,
-                cooperativeGestures: true,
+                cooperativeGestures: false,
                 fadeDuration:        0,
                 maxTileCacheSize:    20,
             });
@@ -652,7 +652,10 @@ const VenueMap = forwardRef(({
     useEffect(() => {
         if (!map.current || !radarFrames.length) return;
 
-        if (!radarOn) {
+        let animationInterval;
+        let currentFrameIndex = 0;
+
+        if (!showRadar) {
             if (map.current.getStyle()) {
                 radarFrames.forEach(frame => {
                     try {
@@ -663,9 +666,6 @@ const VenueMap = forwardRef(({
             }
             return;
         }
-
-        let animationInterval;
-        let currentFrameIndex = 0;
 
         const setupRadar = () => {
             radarFrames.forEach((frame) => {
@@ -714,6 +714,7 @@ const VenueMap = forwardRef(({
         }
 
         return () => {
+            // Stop the animation before removing its map resources.
             clearInterval(animationInterval);
             map.current?.off('load', loadHandler);
             if (map.current && map.current.getStyle()) {
@@ -723,7 +724,7 @@ const VenueMap = forwardRef(({
                 });
             }
         };
-    }, [radarFrames]);
+    }, [radarFrames, showRadar]);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
@@ -732,6 +733,23 @@ const VenueMap = forwardRef(({
                 ref={mapContainer}
                 style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
             />
+
+            {/* Prominent live radar toggle */}
+            {mapLoaded && !mapError && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); setShowRadar(!showRadar); }}
+                    className={`absolute top-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all ${
+                        showRadar
+                            ? 'bg-blue-600/95 text-white border-2 border-blue-400'
+                            : 'bg-white/95 text-gray-800 border border-gray-200/80 hover:bg-gray-50'
+                    }`}
+                    aria-label={showRadar ? 'Hide rain radar' : 'Show rain radar'}
+                    aria-pressed={showRadar}
+                >
+                    <span>🌧️</span>
+                    <span>{showRadar ? 'Radar Active' : 'Live Radar'}</span>
+                </button>
+            )}
 
             {/* FAB stack */}
             {mapLoaded && !mapError && (
@@ -811,36 +829,6 @@ const VenueMap = forwardRef(({
                             ☁️
                         </button>
                     )}
-
-                    {/* Rain Radar FAB */}
-                    <button
-                        onClick={() => setRadarOn(prev => !prev)}
-                        onTouchEnd={e => { e.stopPropagation(); }}
-                        title={radarOn ? 'Hide rain radar' : 'Show rain radar'}
-                        style={{
-                            width:               44,
-                            height:              44,
-                            borderRadius:        '50%',
-                            border:              radarOn ? '2px solid #38BDF8' : '2px solid rgba(255,255,255,0.3)',
-                            background:          radarOn ? 'rgba(56,189,248,0.85)' : 'rgba(15,15,30,0.85)',
-                            backdropFilter:      'blur(8px)',
-                            WebkitBackdropFilter:'blur(8px)',
-                            color:               '#fff',
-                            fontSize:            20,
-                            cursor:              'pointer',
-                            display:             'flex',
-                            alignItems:          'center',
-                            justifyContent:      'center',
-                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
-                            transition:          'background 200ms ease, border-color 200ms ease',
-                            WebkitTapHighlightColor: 'transparent',
-                            touchAction:         'auto',
-                        }}
-                        aria-label={radarOn ? 'Hide rain radar' : 'Show rain radar'}
-                        aria-pressed={radarOn}
-                    >
-                        🌧️
-                    </button>
 
                     {/* Cozy weather indicator — shows when cozyWeatherActive */}
                     {cozyWeatherActive && (
