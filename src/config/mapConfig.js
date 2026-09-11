@@ -7,7 +7,9 @@ if (!import.meta.env.VITE_MAPBOX_TOKEN) {
     console.warn('[Sunstay] VITE_MAPBOX_TOKEN is not set. Map will not load. Add it to your .env or Netlify environment variables.');
 }
 
-export const MAP_STYLE = 'mapbox://styles/mapbox/light-v11';
+// Mapbox Standard (v3) ships native 3D buildings and a real-time 3D lighting
+// model with cast shadows, replacing the legacy fill-extrusion + setLight setup.
+export const MAP_STYLE = 'mapbox://styles/mapbox/standard';
 
 export const INITIAL_VIEW_STATE = {
     longitude: 144.9631,

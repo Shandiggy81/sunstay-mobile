@@ -200,43 +200,11 @@ const CLOUD_LAYER_ID  = 'openweathermap-cloud-layer';
 
 const CLUSTER_SOURCE_ID = 'venues-cluster-src';
 const CLUSTER_LAYER_ID  = 'venues-cluster-lyr';
-const THREE_D_BUILDINGS_LAYER_ID = 'add-3d-buildings';
 
-function add3DBuildingsLayer(map) {
-    if (!map || map.getLayer('3d-buildings') || map.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
-        return false;
-    }
-
-    const styleLayers = map.getStyle()?.layers || [];
-    const firstLabelLayerId = styleLayers.find(
-        layer => layer.type === 'symbol' && layer.layout?.['text-field']
-    )?.id;
-
-    map.addLayer({
-        id: THREE_D_BUILDINGS_LAYER_ID,
-        source: 'composite',
-        'source-layer': 'building',
-        filter: ['==', 'extrude', 'true'],
-        type: 'fill-extrusion',
-        minzoom: 14,
-        paint: {
-            'fill-extrusion-color': '#e2e8f0',
-            'fill-extrusion-height': [
-                'interpolate', ['linear'], ['zoom'],
-                14, 0,
-                14.05, ['get', 'height'],
-            ],
-            'fill-extrusion-base': [
-                'interpolate', ['linear'], ['zoom'],
-                14, 0,
-                14.05, ['get', 'min_height'],
-            ],
-            'fill-extrusion-opacity': 0.85,
-        },
-    }, firstLabelLayerId);
-
-    return true;
-}
+// Mapbox Standard renders 3D buildings natively (no manual fill-extrusion layer),
+// and its 3D lighting model casts real ground shadows — see TimeOfDayLight below.
+const AMBIENT_LIGHT_ID     = 'sunstay-ambient';
+const DIRECTIONAL_LIGHT_ID = 'sunstay-sun';
 
 function addOrUpdateCloudLayer(map) {
     if (!map || !WEATHER_API_KEY) return;
@@ -316,8 +284,8 @@ function lerpColor(a, b, t) {
     return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
 
-// Translate a minutes-of-day value into Mapbox flat-light parameters using the
-// real Melbourne sun position from suncalc (computed for today's date).
+// Translate a minutes-of-day value into Mapbox v3 3D-lighting parameters using
+// the real Melbourne sun position from suncalc (computed for today's date).
 function computeSunLight(minutes, lat, lng) {
     const date = new Date();
     date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
@@ -326,17 +294,20 @@ function computeSunLight(minutes, lat, lng) {
     const azDeg  = rad2deg(azimuth);   // suncalc: 0 = due south, positive toward west
     const altDeg = rad2deg(altitude);  // suncalc: 0 = horizon, 90 = zenith
 
-    // Mapbox azimuthal angle with anchor 'map': 0 = due north, proceeding clockwise.
+    // Mapbox directional-light azimuth: 0 = due north, proceeding clockwise.
     const azimuthal = (azDeg + 180 + 360) % 360;
-    // Mapbox polar angle: 0 = directly overhead, 90 = at the horizon (long shadows).
-    const polar = Math.max(2, Math.min(90, 90 - altDeg));
+    // Mapbox directional-light polar angle: 0 = straight overhead (short shadows),
+    // 90 = at the horizon (long, raking shadows). Clamp so the sun stays above
+    // ground even at dawn/dusk, keeping shadows long instead of disappearing.
+    const polar = Math.max(5, Math.min(89, 90 - altDeg));
 
     // Daylight factor: 0 when the sun is at/below the horizon, 1 when it is high.
     const dayFactor = Math.max(0, Math.min(1, altDeg / 45));
     const color = lerpColor('#ffedd5', '#ffffff', dayFactor); // warm golden → crisp white
-    const intensity = 0.2 + 0.55 * dayFactor;                 // dim at dawn/dusk → peak midday
+    const intensity = 0.35 + 0.55 * dayFactor;                // dim at dawn/dusk → peak midday
+    const ambientIntensity = 0.4 + 0.15 * dayFactor;          // soft fill so shadows read
 
-    return { position: [1.15, azimuthal, polar], color, intensity, altDeg };
+    return { direction: [azimuthal, polar], color, intensity, ambientIntensity };
 }
 
 // Floating slider that scrubs the global 3D-building light. State is kept local
@@ -347,15 +318,35 @@ function TimeOfDayLight({ mapRef, mapLoaded }) {
 
     const applyLight = useCallback((mins) => {
         const map = mapRef.current;
-        if (!map || typeof map.setLight !== 'function') return;
+        if (!map || typeof map.setLights !== 'function') return;
         if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
-        const { position, color, intensity } = computeSunLight(
+        const { direction, color, intensity, ambientIntensity } = computeSunLight(
             mins, INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude,
         );
         try {
-            map.setLight({ anchor: 'map', position, color, intensity });
+            // Mapbox Standard 3D lighting: a directional "sun" with cast-shadows
+            // projects real ground shadows from the native 3D buildings, plus a
+            // soft ambient fill. Scrubbing the slider moves the sun and shadows.
+            map.setLights([
+                {
+                    id: AMBIENT_LIGHT_ID,
+                    type: 'ambient',
+                    properties: { color: '#ffffff', intensity: ambientIntensity },
+                },
+                {
+                    id: DIRECTIONAL_LIGHT_ID,
+                    type: 'directional',
+                    properties: {
+                        direction,
+                        color,
+                        intensity,
+                        'cast-shadows': true,
+                        'shadow-intensity': 0.9,
+                    },
+                },
+            ]);
         } catch (e) {
-            console.warn('[VenueMap] setLight failed:', e?.message);
+            console.warn('[VenueMap] setLights failed:', e?.message);
         }
     }, [mapRef]);
 
@@ -525,10 +516,13 @@ const VenueMap = forwardRef(({
             map.current.on('load', () => {
                 if (disposed || !map.current) return;
                 clearTimeout(loadTimeout);
+                // Hide Mapbox Standard's default POI labels so they don't compete
+                // with our custom venue markers. (Standard exposes basemap config
+                // properties instead of individual symbol layers.)
                 try {
-                    add3DBuildingsLayer(map.current);
+                    map.current.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
                 } catch (e) {
-                    console.warn('[VenueMap] 3D buildings layer setup failed:', e?.message);
+                    console.warn('[VenueMap] hide POI labels failed:', e?.message);
                 }
                 const initializeWeatherController = () => {
                     if (controllerRef.current) return;
@@ -547,16 +541,9 @@ const VenueMap = forwardRef(({
                     }
                 };
                 initializeWeatherController();
-                try {
-                    map.current.setLight({
-                        anchor: 'viewport',
-                        color: '#fffdf5',
-                        intensity: 0.45,
-                        position: [1.15, 210, 30],
-                    });
-                } catch (e) {
-                    console.warn('[VenueMap] directional light setup failed:', e?.message);
-                }
+                // Global 3D lighting (and its cast shadows) is owned by the
+                // TimeOfDayLight slider, which applies map.setLights() as soon as
+                // the map reports loaded — no legacy setLight() needed here.
                 map.current.dragRotate.disable();
                 map.current.touchZoomRotate.disableRotation();
                 setMapLoaded(true);
@@ -609,20 +596,11 @@ const VenueMap = forwardRef(({
             controllerRef.current = null;
             radarLayerAddedRef.current = false;
 
-            // Guard style inspection during teardown. React 19 StrictMode can
-            // unmount the component before the style finishes loading, and
-            // map.getStyle() throws "Style is not done loading" if called too
-            // early — so gate on isStyleLoaded() and swallow any late error.
+            // Tear down the map. map.remove() disposes every custom source/layer,
+            // so no getStyle()/getLayer() inspection is needed here — which also
+            // avoids the React 19 StrictMode "Style is not done loading" throw
+            // that fired when the component unmounted before the style loaded.
             if (map.current) {
-                if (map.current.isStyleLoaded && map.current.isStyleLoaded()) {
-                    try {
-                        if (map.current.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
-                            map.current.removeLayer(THREE_D_BUILDINGS_LAYER_ID);
-                        }
-                    } catch (err) {
-                        console.warn('Style cleanup skipped:', err);
-                    }
-                }
                 map.current.remove();
                 map.current = null;
             }
