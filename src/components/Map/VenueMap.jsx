@@ -478,9 +478,7 @@ const VenueMap = forwardRef(({
             }
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
-            if (map.current?.getStyle() && map.current.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
-                map.current.removeLayer(THREE_D_BUILDINGS_LAYER_ID);
-            }
+
             if (controllerRef.current) {
                 try {
                     controllerRef.current.dispose();
@@ -490,8 +488,24 @@ const VenueMap = forwardRef(({
             }
             controllerRef.current = null;
             radarLayerAddedRef.current = false;
-            map.current?.remove();
-            map.current = null;
+
+            // Guard style inspection during teardown. React 19 StrictMode can
+            // unmount the component before the style finishes loading, and
+            // map.getStyle() throws "Style is not done loading" if called too
+            // early — so gate on isStyleLoaded() and swallow any late error.
+            if (map.current) {
+                if (map.current.isStyleLoaded && map.current.isStyleLoaded()) {
+                    try {
+                        if (map.current.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
+                            map.current.removeLayer(THREE_D_BUILDINGS_LAYER_ID);
+                        }
+                    } catch (err) {
+                        console.warn('Style cleanup skipped:', err);
+                    }
+                }
+                map.current.remove();
+                map.current = null;
+            }
         };
     }, []);
 
