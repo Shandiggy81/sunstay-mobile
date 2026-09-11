@@ -304,6 +304,7 @@ const VenueMap = forwardRef(({
     const mapContainer     = useRef(null);
     const map              = useRef(null);
     const controllerRef    = useRef(null);
+    const radarLayerAddedRef = useRef(false);
     const markersRef       = useRef({});
     const hasFlownToBounds = useRef(false);
     const rafRef           = useRef(null);
@@ -407,17 +408,25 @@ const VenueMap = forwardRef(({
                 } catch (e) {
                     console.warn('[VenueMap] 3D buildings layer setup failed:', e?.message);
                 }
-                if (XWEATHER_KEY && !controllerRef.current) {
+                const isMobileDevice = typeof navigator !== 'undefined'
+                    && (navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+                const initializeWeatherController = () => {
+                    if (controllerRef.current) return;
+                    if (!XWEATHER_KEY) return;
                     try {
                         const account = new Account(XWEATHER_KEY);
                         const controller = new MapboxMapController(map.current, { account });
-                        controller.addWeatherLayer('radar');
-                        controller.setWeatherLayerVisibility('radar', false);
                         controllerRef.current = controller;
+                        if (!isMobileDevice) {
+                            controller.addWeatherLayer('radar');
+                            controller.setWeatherLayerVisibility('radar', false);
+                            radarLayerAddedRef.current = true;
+                        }
                     } catch (e) {
                         console.warn('[VenueMap] Xweather radar setup failed:', e?.message);
                     }
-                }
+                };
+                initializeWeatherController();
                 try {
                     map.current.setLight({
                         anchor: 'viewport',
@@ -448,6 +457,10 @@ const VenueMap = forwardRef(({
                 new mapboxgl.NavigationControl({ showCompass: false }),
                 'bottom-right'
             );
+            const canvas = map.current.getCanvas();
+            const handleWebglContextLost = (event) => event.preventDefault();
+            canvas.addEventListener('webglcontextlost', handleWebglContextLost, false);
+            map.current._sunstayWebglContextLostHandler = handleWebglContextLost;
         } catch {
             clearTimeout(loadTimeout);
             setMapError(true);
@@ -458,13 +471,25 @@ const VenueMap = forwardRef(({
             clearTimeout(loadTimeout);
             resizeObserver?.disconnect();
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
+            const canvas = map.current?.getCanvas();
+            const contextLostHandler = map.current?._sunstayWebglContextLostHandler;
+            if (canvas && contextLostHandler) {
+                canvas.removeEventListener('webglcontextlost', contextLostHandler, false);
+            }
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
             if (map.current?.getStyle() && map.current.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
                 map.current.removeLayer(THREE_D_BUILDINGS_LAYER_ID);
             }
-            controllerRef.current?.dispose?.();
+            if (controllerRef.current) {
+                try {
+                    controllerRef.current.dispose();
+                } catch (err) {
+                    console.warn('Error disposing MapsGL controller:', err);
+                }
+            }
             controllerRef.current = null;
+            radarLayerAddedRef.current = false;
             map.current?.remove();
             map.current = null;
         };
@@ -719,8 +744,15 @@ const VenueMap = forwardRef(({
     // ── Xweather radar visibility ───────────────────────────────────
     useEffect(() => {
         if (!mapLoaded || !controllerRef.current) return;
+
         try {
-            controllerRef.current.setWeatherLayerVisibility('radar', showRadar);
+            if (showRadar && !radarLayerAddedRef.current) {
+                controllerRef.current.addWeatherLayer('radar');
+                radarLayerAddedRef.current = true;
+            }
+            if (radarLayerAddedRef.current) {
+                controllerRef.current.setWeatherLayerVisibility('radar', showRadar);
+            }
         } catch (e) {
             console.warn('[VenueMap] Xweather radar visibility update failed:', e?.message);
         }
