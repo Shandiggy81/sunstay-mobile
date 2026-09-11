@@ -621,11 +621,26 @@ const VenueMap = forwardRef(({
             controllerRef.current = null;
             radarLayerAddedRef.current = false;
 
-            // Tear down the map. map.remove() disposes every custom source/layer,
-            // so no getStyle()/getLayer() inspection is needed here — which also
-            // avoids the React 19 StrictMode "Style is not done loading" throw
-            // that fired when the component unmounted before the style loaded.
+            // React 19 StrictMode can unmount this component before the style
+            // finishes loading, and map.getLayer()/getSource() throw "Style is
+            // not done loading" if touched too early — so guard style access with
+            // isStyleLoaded() + try/catch (preserved from the StrictMode fix).
+            // Mapbox Standard renders 3D buildings natively (no custom building
+            // layer to remove); we still defensively tear down this component's
+            // own analytical layers/sources before disposing the map.
             if (map.current) {
+                if (map.current.isStyleLoaded && map.current.isStyleLoaded()) {
+                    try {
+                        [CLOUD_LAYER_ID, HEATMAP_LAYER_ID, CLUSTER_LAYER_ID].forEach((id) => {
+                            if (map.current.getLayer(id)) map.current.removeLayer(id);
+                        });
+                        [CLOUD_SOURCE_ID, HEATMAP_SOURCE_ID, CLUSTER_SOURCE_ID].forEach((id) => {
+                            if (map.current.getSource(id)) map.current.removeSource(id);
+                        });
+                    } catch (err) {
+                        console.warn('Style cleanup skipped:', err);
+                    }
+                }
                 map.current.remove();
                 map.current = null;
             }
