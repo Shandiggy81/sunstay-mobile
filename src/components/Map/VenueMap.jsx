@@ -1,5 +1,5 @@
 import React, {
-    useEffect, useMemo, useRef, useState, useCallback,
+    useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback,
     forwardRef, useImperativeHandle, memo,
 } from 'react';
 import mapboxgl from 'mapbox-gl';
@@ -325,11 +325,17 @@ function computeSunLight(minutes, lat, lng) {
     return { direction: [azimuthal, polar], color, intensity, ambientIntensity };
 }
 
-// Floating slider that scrubs the global 3D-building light. State is kept local
-// so scrubbing re-renders only this control and injects light straight into the
-// map — it never bubbles into the parent VenueMap render.
+// Floating slider that scrubs the global 3D-building light. During drag, the
+// latest minutes live in a ref (no React re-render) and map.setLights is
+// coalesced to at most one update per display frame via rAF. The clock label
+// is written through a DOM ref. Minutes commit to React state on pointer-up /
+// cancel / blur so parent VenueMap re-renders cannot reset a mid-drag value.
 function TimeOfDayLight({ mapRef, mapLoaded }) {
-    const [minutes, setMinutes] = useState(13 * 60); // default 1:00 PM
+    const [minutes, setMinutes] = useState(13 * 60); // default 1:00 PM — committed
+    const minutesRef = useRef(minutes);
+    const lightRafRef = useRef(null);
+    const clockLabelRef = useRef(null);
+    const sliderRef = useRef(null);
 
     const applyLight = useCallback((mins) => {
         const map = mapRef.current;
@@ -365,26 +371,71 @@ function TimeOfDayLight({ mapRef, mapLoaded }) {
         }
     }, [mapRef]);
 
+    const cancelPendingLightRaf = useCallback(() => {
+        if (lightRafRef.current != null) {
+            cancelAnimationFrame(lightRafRef.current);
+            lightRafRef.current = null;
+        }
+    }, []);
+
+    const scheduleLight = useCallback((mins) => {
+        minutesRef.current = mins;
+        if (lightRafRef.current != null) return;
+        lightRafRef.current = requestAnimationFrame(() => {
+            lightRafRef.current = null;
+            applyLight(minutesRef.current);
+        });
+    }, [applyLight]);
+
+    const paintClock = (mins) => {
+        const label = formatClock(mins);
+        if (clockLabelRef.current) clockLabelRef.current.textContent = label;
+        if (sliderRef.current) sliderRef.current.setAttribute('aria-valuetext', label);
+    };
+
+    // If VenueMap re-renders mid-drag, React would reset the controlled input
+    // to the last committed `minutes`. Restore the live ref value (and clock)
+    // before paint so the thumb and readout stay with the finger.
+    useLayoutEffect(() => {
+        const live = minutesRef.current;
+        if (sliderRef.current && sliderRef.current.value !== String(live)) {
+            sliderRef.current.value = String(live);
+        }
+        paintClock(live);
+    });
+
     useEffect(() => {
         if (!mapLoaded) return undefined;
         const map = mapRef.current;
-        applyLight(minutes);
+        applyLight(minutesRef.current);
         // Mapbox Standard finishes wiring its own style/config lights shortly
         // after 'load'; re-apply once the map settles so our sun isn't overwritten.
         if (map && typeof map.once === 'function') {
-            const reapply = () => applyLight(minutes);
+            const reapply = () => applyLight(minutesRef.current);
             map.once('idle', reapply);
-            return () => { try { map.off('idle', reapply); } catch { /* noop */ } };
+            return () => {
+                cancelPendingLightRaf();
+                try { map.off('idle', reapply); } catch { /* noop */ }
+            };
         }
-        return undefined;
+        return () => { cancelPendingLightRaf(); };
         // Only (re)apply the baseline light when the map finishes loading.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapLoaded, applyLight]);
+    }, [mapLoaded, applyLight, cancelPendingLightRaf]);
 
-    const handleInput = (e) => {
+    useEffect(() => () => { cancelPendingLightRaf(); }, [cancelPendingLightRaf]);
+
+    const handleScrub = (e) => {
         const v = Number(e.target.value);
-        setMinutes(v);
-        applyLight(v);
+        minutesRef.current = v;
+        paintClock(v);
+        scheduleLight(v);
+    };
+
+    const commitMinutes = () => {
+        const v = minutesRef.current;
+        setMinutes((prev) => (prev === v ? prev : v));
+        paintClock(v);
     };
 
     return (
@@ -396,19 +447,28 @@ function TimeOfDayLight({ mapRef, mapLoaded }) {
                         <label htmlFor="tod-slider" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                             Time of day
                         </label>
-                        <span aria-live="polite" className="text-xs font-bold tabular-nums text-slate-800">
+                        <span
+                            ref={clockLabelRef}
+                            aria-live="polite"
+                            className="text-xs font-bold tabular-nums text-slate-800"
+                        >
                             {formatClock(minutes)}
                         </span>
                     </div>
                     <input
+                        ref={sliderRef}
                         id="tod-slider"
                         type="range"
                         min={DAY_START_MIN}
                         max={DAY_END_MIN}
                         step={5}
                         value={minutes}
-                        onChange={handleInput}
-                        onInput={handleInput}
+                        onChange={handleScrub}
+                        onInput={handleScrub}
+                        onPointerUp={commitMinutes}
+                        onPointerCancel={commitMinutes}
+                        onBlur={commitMinutes}
+                        onKeyUp={commitMinutes}
                         aria-label="Time of day for 3D building shadows"
                         aria-valuetext={formatClock(minutes)}
                         className="h-6 w-full cursor-pointer accent-amber-500 touch-pan-x"
