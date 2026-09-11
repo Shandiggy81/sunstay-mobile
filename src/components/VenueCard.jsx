@@ -445,20 +445,29 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   }, [venue?.id]);
 
   React.useEffect(() => {
-    if (venue && venue.lat && venue.lng) {
+    const venueLat = Number(venue?.lat);
+    const venueLng = Number(venue?.lng);
+    if (venue && Number.isFinite(venueLat) && Number.isFinite(venueLng)
+      && venueLat >= -90 && venueLat <= 90 && venueLng >= -180 && venueLng <= 180) {
       // Use fallback obstacle data if venue doesn't have it
       const obstacleHeight = venue.obstacle_height ?? 2;
       const obstacleDistance = venue.obstacle_distance ?? 1;
+      let cancelled = false;
 
-      setLocalSunData(getVenueSunStatus(venue.lat, venue.lng));
-      setSunWindow(getSunWindow(venue.lat, venue.lng, obstacleHeight, obstacleDistance));
+      setLocalSunData(getVenueSunStatus(venueLat, venueLng));
+      setSunWindow(getSunWindow(venueLat, venueLng, obstacleHeight, obstacleDistance));
 
       const getWeather = async () => {
-        const weather = await fetchVenueWeather(venue.lat, venue.lng);
-        setLiveWeather(weather);
+        const weather = await fetchVenueWeather(venueLat, venueLng);
+        if (!cancelled) setLiveWeather(weather);
       };
       getWeather();
+
+      return () => { cancelled = true; };
     }
+    setLocalSunData(null);
+    setSunWindow(null);
+    setLiveWeather(null);
   }, [venue]);
 
   const dragControls = useDragControls();
@@ -534,14 +543,21 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
       ?? venue?.balcony_facing
       ?? 'open',
   ).toLowerCase().replace(/[^a-z]/g, '');
+  const outdoorMinAltitude = venue?.outdoorZone?.minAltitude ?? venue?.minAltitude ?? 15;
+  const hasValidCoordinates = Number.isFinite(Number(lat))
+    && Number.isFinite(Number(lng))
+    && Number(lat) >= -90 && Number(lat) <= 90
+    && Number(lng) >= -180 && Number(lng) <= 180;
   const solarExposure = useMemo(
-    () => calculateHourlyExposure(lat, lng, new Date(), {
-      aspect: ['north', 'south', 'east', 'west', 'open'].includes(outdoorAspect)
-        ? outdoorAspect
-        : 'open',
-      minAltitude: venue?.outdoorZone?.minAltitude ?? venue?.minAltitude ?? 15,
-    }),
-    [lat, lng, outdoorAspect, venue?.outdoorZone?.minAltitude, venue?.minAltitude],
+    () => hasValidCoordinates
+      ? calculateHourlyExposure(Number(lat), Number(lng), new Date(), {
+          aspect: ['north', 'south', 'east', 'west', 'open'].includes(outdoorAspect)
+            ? outdoorAspect
+            : 'open',
+          minAltitude: outdoorMinAltitude,
+        })
+      : [],
+    [hasValidCoordinates, lat, lng, outdoorAspect, outdoorMinAltitude],
   );
   const heatingLabel = venue?.hasHeating || venue?.heating ? 'Heated Lamps' : 'Natural Breeze';
   const { burnTimeMins } = useOpenUV(lat, lng);
