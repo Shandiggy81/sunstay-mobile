@@ -8,6 +8,7 @@ import SunCalc from 'suncalc';
 import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
+import { motion } from 'framer-motion';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -330,7 +331,7 @@ function computeSunLight(minutes, lat, lng) {
 // coalesced to at most one update per display frame via rAF. The clock label
 // is written through a DOM ref. Minutes commit to React state on pointer-up /
 // cancel / blur so parent VenueMap re-renders cannot reset a mid-drag value.
-function TimeOfDayLight({ mapRef, mapLoaded }) {
+function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
     const [minutes, setMinutes] = useState(13 * 60); // default 1:00 PM — committed
     const minutesRef = useRef(minutes);
     const lightRafRef = useRef(null);
@@ -439,7 +440,19 @@ function TimeOfDayLight({ mapRef, mapLoaded }) {
     };
 
     return (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-[46px] z-40 w-[min(88vw,340px)] pointer-events-auto">
+        <motion.div
+            className={`absolute left-1/2 bottom-[46px] z-40 w-[min(88vw,340px)] ${
+                isVenueSelected ? 'pointer-events-none' : 'pointer-events-auto'
+            }`}
+            initial={false}
+            animate={isVenueSelected
+                ? { x: '-50%', y: 180, opacity: 0 }
+                : { x: '-50%', y: 0, opacity: 1 }
+            }
+            transition={{ type: 'spring', damping: 30, stiffness: 280 }}
+            aria-hidden={isVenueSelected}
+            inert={isVenueSelected || undefined}
+        >
             <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 px-4 py-2.5 shadow-lg backdrop-blur-md">
                 <span className="select-none text-xl leading-none" aria-hidden="true">🌇</span>
                 <div className="min-w-0 flex-1">
@@ -475,7 +488,7 @@ function TimeOfDayLight({ mapRef, mapLoaded }) {
                     />
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 }
 
@@ -997,7 +1010,7 @@ const VenueMap = forwardRef(({
 
             {/* Time-of-day light scrubber — casts dynamic shadows across 3D buildings */}
             {mapLoaded && !mapError && (
-                <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} />
+                <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} />
             )}
 
             {/* FAB stack */}
