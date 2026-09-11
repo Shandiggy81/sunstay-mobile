@@ -284,13 +284,28 @@ function lerpColor(a, b, t) {
     return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
 
+const MELBOURNE_TZ = 'Australia/Melbourne';
+
+// Build a Date whose Melbourne wall-clock time is today at `minutes`, regardless
+// of the viewer's own timezone — the slider represents Melbourne local time, so
+// the sun position must be computed for Melbourne (handles AEST/AEDT correctly).
+function melbourneDate(minutes) {
+    const now = new Date();
+    const [y, mo, d] = new Intl.DateTimeFormat('en-CA', {
+        timeZone: MELBOURNE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(now).split('-').map(Number);
+
+    const guessUTC = Date.UTC(y, mo - 1, d, Math.floor(minutes / 60), minutes % 60, 0);
+    const asUTC = new Date(guessUTC);
+    const melbMs = new Date(asUTC.toLocaleString('en-US', { timeZone: MELBOURNE_TZ })).getTime();
+    const utcMs  = new Date(asUTC.toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
+    return new Date(guessUTC - (melbMs - utcMs)); // shift by Melbourne's UTC offset
+}
+
 // Translate a minutes-of-day value into Mapbox v3 3D-lighting parameters using
 // the real Melbourne sun position from suncalc (computed for today's date).
 function computeSunLight(minutes, lat, lng) {
-    const date = new Date();
-    date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-
-    const { azimuth, altitude } = SunCalc.getPosition(date, lat, lng);
+    const { azimuth, altitude } = SunCalc.getPosition(melbourneDate(minutes), lat, lng);
     const azDeg  = rad2deg(azimuth);   // suncalc: 0 = due south, positive toward west
     const altDeg = rad2deg(altitude);  // suncalc: 0 = horizon, 90 = zenith
 
@@ -304,8 +319,8 @@ function computeSunLight(minutes, lat, lng) {
     // Daylight factor: 0 when the sun is at/below the horizon, 1 when it is high.
     const dayFactor = Math.max(0, Math.min(1, altDeg / 45));
     const color = lerpColor('#ffedd5', '#ffffff', dayFactor); // warm golden → crisp white
-    const intensity = 0.35 + 0.55 * dayFactor;                // dim at dawn/dusk → peak midday
-    const ambientIntensity = 0.4 + 0.15 * dayFactor;          // soft fill so shadows read
+    const intensity = 0.5 + 0.5 * dayFactor;                  // dim at dawn/dusk → peak midday
+    const ambientIntensity = 0.25 + 0.15 * dayFactor;         // low fill so shadows read strongly
 
     return { direction: [azimuthal, polar], color, intensity, ambientIntensity };
 }
@@ -341,7 +356,7 @@ function TimeOfDayLight({ mapRef, mapLoaded }) {
                         color,
                         intensity,
                         'cast-shadows': true,
-                        'shadow-intensity': 0.9,
+                        'shadow-intensity': 1,
                     },
                 },
             ]);
@@ -351,8 +366,18 @@ function TimeOfDayLight({ mapRef, mapLoaded }) {
     }, [mapRef]);
 
     useEffect(() => {
-        if (mapLoaded) applyLight(minutes);
-        // Only re-apply the baseline light when the map finishes loading.
+        if (!mapLoaded) return undefined;
+        const map = mapRef.current;
+        applyLight(minutes);
+        // Mapbox Standard finishes wiring its own style/config lights shortly
+        // after 'load'; re-apply once the map settles so our sun isn't overwritten.
+        if (map && typeof map.once === 'function') {
+            const reapply = () => applyLight(minutes);
+            map.once('idle', reapply);
+            return () => { try { map.off('idle', reapply); } catch { /* noop */ } };
+        }
+        return undefined;
+        // Only (re)apply the baseline light when the map finishes loading.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mapLoaded, applyLight]);
 
