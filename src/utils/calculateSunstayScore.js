@@ -10,7 +10,7 @@
  *   → high 80s, "Perfect Sun" / "Ideal Terrace"
  *
  *   calculateSunstayScore({ temperatureC: 12, windKmh: 10, rainProbability: 10 })
- *   → low 30s, "Too Cold"
+ *   → mid 40s, "Too Cold"
  *
  *   calculateSunstayScore({ temperatureC: 22, windKmh: 5, rainProbability: 70, exposure: 'OPEN' })
  *   → < 30, "Seek Shelter"
@@ -48,7 +48,7 @@ const TEMP_COLD_HARD_C = 14;
 const TEMP_HOT_HARD_C = 32;
 const TEMP_SWEET_BONUS = 8;           // points added inside the 19–24 band
 const TEMP_SHOULDER_PER_DEG = 2.4;    // 14–19 and 24–32 (linear)
-const TEMP_COLD_STEEP_PER_DEG = 7;    // < 14°C (too cold)
+const TEMP_COLD_STEEP_PER_DEG = 10;   // < 14°C (too cold)
 const TEMP_HOT_STEEP_PER_DEG = 8;     // > 32°C (sweltering)
 
 // Wind: progressive deduct above 20 km/h; severe above 35 km/h.
@@ -341,7 +341,8 @@ function pickLabel(ctx) {
   }
 
   if (wind > WIND_SOFT_KMH && wind <= WIND_SEVERE_KMH && score >= 50) {
-    return sheltered || !sunOnTerrace ? 'Breezy Shade' : 'Breezy Terrace';
+    const inShade = sheltered || oppositeFacing || (sunOnTerraceKnown && !sunOnTerrace);
+    return inShade ? 'Breezy Shade' : 'Breezy Terrace';
   }
 
   if (score >= 85) return sunOnTerrace || exposureNorm === 'OPEN' ? 'Perfect Sun' : 'Ideal Terrace';
