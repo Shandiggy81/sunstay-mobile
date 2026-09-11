@@ -1,9 +1,10 @@
 import React, {
-    useEffect, useMemo, useRef, useState,
+    useEffect, useMemo, useRef, useState, useCallback,
     forwardRef, useImperativeHandle, memo,
 } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import SunCalc from 'suncalc';
 import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
@@ -289,6 +290,119 @@ function isSuppressedMapError(msg) {
     );
 }
 
+// ── Time-of-day dynamic lighting ────────────────────────────────────────
+const DAY_START_MIN = 6 * 60;   // 6:00 AM
+const DAY_END_MIN   = 20 * 60;  // 8:00 PM
+
+const rad2deg = (r) => (r * 180) / Math.PI;
+
+function formatClock(mins) {
+    const h24 = Math.floor(mins / 60);
+    const m = mins % 60;
+    const period = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = ((h24 + 11) % 12) + 1;
+    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+
+function lerpColor(a, b, t) {
+    const ca = hexToRgb(a);
+    const cb = hexToRgb(b);
+    const c = ca.map((v, i) => Math.round(v + (cb[i] - v) * t));
+    return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+}
+
+// Translate a minutes-of-day value into Mapbox flat-light parameters using the
+// real Melbourne sun position from suncalc (computed for today's date).
+function computeSunLight(minutes, lat, lng) {
+    const date = new Date();
+    date.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+
+    const { azimuth, altitude } = SunCalc.getPosition(date, lat, lng);
+    const azDeg  = rad2deg(azimuth);   // suncalc: 0 = due south, positive toward west
+    const altDeg = rad2deg(altitude);  // suncalc: 0 = horizon, 90 = zenith
+
+    // Mapbox azimuthal angle with anchor 'map': 0 = due north, proceeding clockwise.
+    const azimuthal = (azDeg + 180 + 360) % 360;
+    // Mapbox polar angle: 0 = directly overhead, 90 = at the horizon (long shadows).
+    const polar = Math.max(2, Math.min(90, 90 - altDeg));
+
+    // Daylight factor: 0 when the sun is at/below the horizon, 1 when it is high.
+    const dayFactor = Math.max(0, Math.min(1, altDeg / 45));
+    const color = lerpColor('#ffedd5', '#ffffff', dayFactor); // warm golden → crisp white
+    const intensity = 0.2 + 0.55 * dayFactor;                 // dim at dawn/dusk → peak midday
+
+    return { position: [1.15, azimuthal, polar], color, intensity, altDeg };
+}
+
+// Floating slider that scrubs the global 3D-building light. State is kept local
+// so scrubbing re-renders only this control and injects light straight into the
+// map — it never bubbles into the parent VenueMap render.
+function TimeOfDayLight({ mapRef, mapLoaded }) {
+    const [minutes, setMinutes] = useState(13 * 60); // default 1:00 PM
+
+    const applyLight = useCallback((mins) => {
+        const map = mapRef.current;
+        if (!map || typeof map.setLight !== 'function') return;
+        if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
+        const { position, color, intensity } = computeSunLight(
+            mins, INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude,
+        );
+        try {
+            map.setLight({ anchor: 'map', position, color, intensity });
+        } catch (e) {
+            console.warn('[VenueMap] setLight failed:', e?.message);
+        }
+    }, [mapRef]);
+
+    useEffect(() => {
+        if (mapLoaded) applyLight(minutes);
+        // Only re-apply the baseline light when the map finishes loading.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapLoaded, applyLight]);
+
+    const handleInput = (e) => {
+        const v = Number(e.target.value);
+        setMinutes(v);
+        applyLight(v);
+    };
+
+    return (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-[46px] z-40 w-[min(88vw,340px)] pointer-events-auto">
+            <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 px-4 py-2.5 shadow-lg backdrop-blur-md">
+                <span className="select-none text-xl leading-none" aria-hidden="true">🌇</span>
+                <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center justify-between">
+                        <label htmlFor="tod-slider" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Time of day
+                        </label>
+                        <span aria-live="polite" className="text-xs font-bold tabular-nums text-slate-800">
+                            {formatClock(minutes)}
+                        </span>
+                    </div>
+                    <input
+                        id="tod-slider"
+                        type="range"
+                        min={DAY_START_MIN}
+                        max={DAY_END_MIN}
+                        step={5}
+                        value={minutes}
+                        onChange={handleInput}
+                        onInput={handleInput}
+                        aria-label="Time of day for 3D building shadows"
+                        aria-valuetext={formatClock(minutes)}
+                        className="h-6 w-full cursor-pointer accent-amber-500 touch-pan-x"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ══════════════════════════════════════════════════════════════════════
 const VenueMap = forwardRef(({
     venues = [],
@@ -484,9 +598,7 @@ const VenueMap = forwardRef(({
             }
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
-            if (map.current?.getStyle() && map.current.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
-                map.current.removeLayer(THREE_D_BUILDINGS_LAYER_ID);
-            }
+
             if (controllerRef.current) {
                 try {
                     controllerRef.current.dispose();
@@ -496,8 +608,24 @@ const VenueMap = forwardRef(({
             }
             controllerRef.current = null;
             radarLayerAddedRef.current = false;
-            map.current?.remove();
-            map.current = null;
+
+            // Guard style inspection during teardown. React 19 StrictMode can
+            // unmount the component before the style finishes loading, and
+            // map.getStyle() throws "Style is not done loading" if called too
+            // early — so gate on isStyleLoaded() and swallow any late error.
+            if (map.current) {
+                if (map.current.isStyleLoaded && map.current.isStyleLoaded()) {
+                    try {
+                        if (map.current.getLayer(THREE_D_BUILDINGS_LAYER_ID)) {
+                            map.current.removeLayer(THREE_D_BUILDINGS_LAYER_ID);
+                        }
+                    } catch (err) {
+                        console.warn('Style cleanup skipped:', err);
+                    }
+                }
+                map.current.remove();
+                map.current = null;
+            }
         };
     }, []);
 
@@ -787,6 +915,11 @@ const VenueMap = forwardRef(({
                     <span>🌧️</span>
                     <span>{showRadar ? 'Radar Active' : 'Live Radar'}</span>
                 </button>
+            )}
+
+            {/* Time-of-day light scrubber — casts dynamic shadows across 3D buildings */}
+            {mapLoaded && !mapError && (
+                <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} />
             )}
 
             {/* FAB stack */}
