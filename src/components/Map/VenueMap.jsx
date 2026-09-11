@@ -380,6 +380,13 @@ const VenueMap = forwardRef(({
         let resizeObserver;
         const loadTimeout = setTimeout(() => { if (!disposed) setMapError(true); }, 15000);
 
+        // Detect touch/mobile devices up front. MSAA antialiasing sharpens the
+        // 3D building edges but raises GPU memory pressure, which is a known
+        // trigger for WebGL context loss on iOS Safari — so it stays desktop-only
+        // to preserve the existing mobile stability work.
+        const isMobileDevice = typeof navigator !== 'undefined'
+            && (navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+
         try {
             map.current = new mapboxgl.Map({
                 container:           mapContainer.current,
@@ -390,6 +397,7 @@ const VenueMap = forwardRef(({
                 maxZoom:             18,
                 pitch:               45,
                 bearing:             -17.6,
+                antialias:           !isMobileDevice,
                 cooperativeGestures: false,
                 fadeDuration:        0,
                 maxTileCacheSize:    20,
@@ -408,8 +416,6 @@ const VenueMap = forwardRef(({
                 } catch (e) {
                     console.warn('[VenueMap] 3D buildings layer setup failed:', e?.message);
                 }
-                const isMobileDevice = typeof navigator !== 'undefined'
-                    && (navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
                 const initializeWeatherController = () => {
                     if (controllerRef.current) return;
                     if (!XWEATHER_KEY) return;
