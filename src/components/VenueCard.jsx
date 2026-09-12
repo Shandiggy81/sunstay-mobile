@@ -844,13 +844,13 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               <div className="relative z-10 flex flex-col justify-between h-full p-4 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent">
                 <motion.button
                   onClick={onClose}
-                  className="self-end p-2 bg-black/40 rounded-full text-white backdrop-blur-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-white"
+                  className="absolute top-3 right-3 z-20 flex min-h-11 min-w-11 items-center justify-center p-3 bg-white/90 text-slate-900 shadow-md backdrop-blur-md rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900"
                   whileTap={{ scale: 0.92 }}
                   aria-label="Close venue details"
                 >
                   <X size={18} />
                 </motion.button>
-                <div className="flex flex-col gap-2 pointer-events-none">
+                <div className="mt-auto flex flex-col gap-2 pointer-events-none">
                   <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md truncate">{fallbackName}</h2>
                   <p className="text-sm text-white/90 font-medium truncate">
                     {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}

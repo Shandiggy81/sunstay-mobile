@@ -577,7 +577,7 @@ const AppContent = () => {
                     {/* RIGHT: Map */}
                     <section className={`ss-map-area flex-1 h-full relative ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
                         <button
-                            className="ss-filters-fab"
+                            className="ss-filters-fab bottom-[132px]"
                             onClick={openMobileFilters}
                             disabled={mobileFilterOpen}
                             aria-expanded={mobileFilterOpen}
