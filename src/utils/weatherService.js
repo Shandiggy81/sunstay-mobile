@@ -43,7 +43,7 @@ export function wallClockHourKey(now, utcOffsetSeconds = MELBOURNE_OFFSET_SECOND
     return `${y}-${m}-${d}T${h}:00`;
 }
 
-function parseOpenMeteoLocalTime(iso, utcOffsetSeconds) {
+export function parseOpenMeteoLocalTime(iso, utcOffsetSeconds = MELBOURNE_OFFSET_SECONDS) {
     if (!iso) return null;
     if (/Z$|[+-]\d{2}:\d{2}$/.test(iso)) {
         const ms = Date.parse(iso);
@@ -52,6 +52,17 @@ function parseOpenMeteoLocalTime(iso, utcOffsetSeconds) {
     const asUtc = Date.parse(`${iso}Z`);
     if (!Number.isFinite(asUtc)) return null;
     return asUtc - utcOffsetSeconds * 1000;
+}
+
+/**
+ * Instant for an Open-Meteo hourly `time` string in the forecast timezone.
+ * @param {string} iso
+ * @param {number} [utcOffsetSeconds=36000]
+ * @returns {Date|null}
+ */
+export function openMeteoLocalTimeToDate(iso, utcOffsetSeconds = MELBOURNE_OFFSET_SECONDS) {
+    const ms = parseOpenMeteoLocalTime(iso, utcOffsetSeconds);
+    return ms == null ? null : new Date(ms);
 }
 
 /**
@@ -78,7 +89,121 @@ export function getCurrentHourlyIndex(hourly, utcOffsetSeconds = MELBOURNE_OFFSE
     return best;
 }
 
-export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
+export const OPEN_METEO_CACHE_TTL_MS = 30 * 60 * 1000;
+export const OPEN_METEO_FETCH_TIMEOUT_MS = 9000;
+export const OPEN_METEO_CACHE_PREFIX = 'sunstay_om_v1_';
+
+const openMeteoMemoryCache = new Map();
+
+/** Geographic cache key: nearby venues share a payload at 2 decimal places. */
+export function weatherCacheKey(lat, lon) {
+    const la = Number(lat);
+    const lo = Number(lon);
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+    return `${la.toFixed(2)}_${lo.toFixed(2)}`;
+}
+
+function openMeteoStorageKey(geoKey) {
+    return `${OPEN_METEO_CACHE_PREFIX}${geoKey}`;
+}
+
+function readLocalStorageEntry(geoKey) {
+    try {
+        if (typeof localStorage === 'undefined') return null;
+        const raw = localStorage.getItem(openMeteoStorageKey(geoKey));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.data || !Number.isFinite(parsed.timestamp)) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+function writeLocalStorageEntry(geoKey, entry) {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        localStorage.setItem(openMeteoStorageKey(geoKey), JSON.stringify(entry));
+    } catch {
+        // Quota / private mode — memory cache still works
+    }
+}
+
+export function readOpenMeteoCache(lat, lon, now = Date.now()) {
+    const geoKey = weatherCacheKey(lat, lon);
+    if (!geoKey) return null;
+
+    const mem = openMeteoMemoryCache.get(geoKey);
+    if (mem && now - mem.timestamp <= OPEN_METEO_CACHE_TTL_MS) return mem.data;
+    if (mem) openMeteoMemoryCache.delete(geoKey);
+
+    const stored = readLocalStorageEntry(geoKey);
+    if (stored && now - stored.timestamp <= OPEN_METEO_CACHE_TTL_MS) {
+        openMeteoMemoryCache.set(geoKey, stored);
+        return stored.data;
+    }
+    return null;
+}
+
+export function writeOpenMeteoCache(lat, lon, data, now = Date.now()) {
+    const geoKey = weatherCacheKey(lat, lon);
+    if (!geoKey || data == null) return;
+    const entry = { data, timestamp: now };
+    openMeteoMemoryCache.set(geoKey, entry);
+    writeLocalStorageEntry(geoKey, entry);
+}
+
+export function clearOpenMeteoWeatherCache() {
+    openMeteoMemoryCache.clear();
+    try {
+        if (typeof localStorage === 'undefined') return;
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i += 1) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(OPEN_METEO_CACHE_PREFIX)) keys.push(key);
+        }
+        keys.forEach((key) => localStorage.removeItem(key));
+    } catch {
+        // ignore
+    }
+}
+
+function timeoutReason() {
+    return typeof DOMException === 'function'
+        ? new DOMException('Open-Meteo request timed out', 'TimeoutError')
+        : Object.assign(new Error('Open-Meteo request timed out'), { name: 'TimeoutError' });
+}
+
+/**
+ * Combine a caller abort with a hard timeout. Uses a ref'd timer so Node
+ * scripts (verify) stay alive; AbortSignal.timeout() unrefs and can miss.
+ */
+export function openMeteoAbortSignal(userSignal, timeoutMs = OPEN_METEO_FETCH_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+        if (!controller.signal.aborted) controller.abort(timeoutReason());
+    }, timeoutMs);
+
+    const onUserAbort = () => {
+        clearTimeout(timer);
+        if (!controller.signal.aborted) {
+            controller.abort(userSignal?.reason ?? (typeof DOMException === 'function'
+                ? new DOMException('Aborted', 'AbortError')
+                : Object.assign(new Error('Aborted'), { name: 'AbortError' })));
+        }
+    };
+    if (userSignal) {
+        if (userSignal.aborted) onUserAbort();
+        else userSignal.addEventListener('abort', onUserAbort, { once: true });
+    }
+    controller.signal.addEventListener('abort', () => {
+        clearTimeout(timer);
+        userSignal?.removeEventListener?.('abort', onUserAbort);
+    }, { once: true });
+    return controller.signal;
+}
+
+const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
     const params = new URLSearchParams({
         latitude: String(lat),
         longitude: String(lon),
@@ -183,6 +308,16 @@ export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
         },
         daily,
     };
+};
+
+export const fetchOpenMeteoWeather = async (lat, lon, signal, options = {}) => {
+    const cached = readOpenMeteoCache(lat, lon);
+    if (cached) return cached;
+
+    const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : OPEN_METEO_FETCH_TIMEOUT_MS;
+    const data = await fetchOpenMeteoWeatherLive(lat, lon, openMeteoAbortSignal(signal, timeoutMs));
+    writeOpenMeteoCache(lat, lon, data);
+    return data;
 };
 
 export function mapWeatherCode(wmoCode) {

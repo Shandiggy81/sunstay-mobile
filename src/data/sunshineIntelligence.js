@@ -10,7 +10,7 @@
  */
 
 import SunCalc from 'suncalc';
-import { getWindProfile, calculateApparentTemp, getComfortZone } from './windIntelligence';
+import { getWindProfile, calculateApparentTemp, getComfortZone } from './windIntelligence.js';
 
 // ── Sun Position & Window ─────────────────────────────────────────
 

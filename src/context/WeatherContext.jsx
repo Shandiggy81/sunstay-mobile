@@ -1,16 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { storage } from '../utils/platform';
-import { calculateLiveSunScore } from '../utils/sunScore';
 import { fetchOpenMeteoWeather } from '../utils/weatherService';
 import { scoreVenueFromWeather } from '../utils/scoreFromOpenMeteo';
+import { computeBestWindow } from '../utils/getBestWindow';
 import { melbourneDate } from '../utils/sunPosition';
 
 const WeatherContext = createContext(null);
 
 const MELBOURNE_COORDS = { lat: -37.8136, lon: 144.9631 };
-const CACHE_EXPIRY = 900000;
-const CACHE_KEY = `sunstay_weather_v2_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
-const isAbortError = (error) => error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
+const isTimeoutError = (error) => error?.name === 'TimeoutError';
+const isAbortError = (error) =>
+    !isTimeoutError(error) && (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED');
 
 const DEMO_WEATHER = {
     main: { temp: 22, feels_like: 21, humidity: 55 },
@@ -21,6 +20,7 @@ const DEMO_WEATHER = {
     sys: { sunset: Date.now() / 1000 + 14400 },
     name: 'Melbourne (Demo)',
     source: 'demo',
+    unavailable: true,
     theme: 'sunny',
     isDay: true,
     shortwaveRadiation: 620,
@@ -38,26 +38,6 @@ export const useWeather = () => {
     return ctx;
 };
 
-const getCachedWeather = async () => {
-    try {
-        const raw = await storage.getItem(CACHE_KEY);
-        if (!raw) return null;
-        const { data, timestamp } = JSON.parse(raw);
-        if (Date.now() - timestamp > CACHE_EXPIRY) return null;
-        return data;
-    } catch {
-        return null;
-    }
-};
-
-const setCachedWeather = async (data) => {
-    try {
-        await storage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch {
-        // Storage write failure is non-fatal
-    }
-};
-
 export const WeatherProvider = ({ children }) => {
     const [weather, setWeather] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -71,28 +51,19 @@ export const WeatherProvider = ({ children }) => {
         setError(null);
 
         try {
-            // 1. Try cache first
-            const cached = await getCachedWeather();
-            if (cached) {
-                setWeather(cached);
-                setLoading(false);
-                return;
-            }
-
-            // 2. Fetch from Open-Meteo (primary source)
+            // Geo+TTL cache lives in weatherService (30 min, 2dp). Warm hits skip the network.
             const data = await fetchOpenMeteoWeather(
                 MELBOURNE_COORDS.lat,
                 MELBOURNE_COORDS.lon,
                 signal
             );
-            await setCachedWeather(data);
             setWeather(data);
         } catch (err) {
             if (isAbortError(err)) return;
 
             console.warn('[WeatherProvider] Open-Meteo fetch failed, falling back to demo data:', err.message);
             setWeather(DEMO_WEATHER);
-            setError(err.message);
+            setError(err.message || 'Weather temporarily unavailable');
         } finally {
             setLoading(false);
         }
@@ -140,53 +111,8 @@ export const WeatherProvider = ({ children }) => {
         return 'mild';
     }, [weather]);
 
-    const getBestWindow = useCallback((hoursAhead = 8) => {
-        const hourly = weather?.hourly;
-        if (!hourly || !hourly.shortwave_radiation?.length) {
-            return { type: 'UNKNOWN', label: '⚡ Checking conditions...', score: 0, startsInHours: null };
-        }
-
-        const tzOffsetSeconds = hourly._tzOffsetSeconds ?? 36000;
-        const nowUnix = Math.floor(Date.now() / 1000);
-        const fallbackHour = Math.floor((nowUnix + tzOffsetSeconds) / 3600) % 24;
-        const currentIndex = Number.isFinite(hourly._currentIndex)
-            ? hourly._currentIndex
-            : fallbackHour;
-
-        const inputForIndex = (i) => {
-            const safeIndex = Math.min(Math.max(i, 0), hourly.shortwave_radiation.length - 1);
-            const hourOfDay = safeIndex % 24;
-            return {
-                shortwaveRadiation: hourly.shortwave_radiation?.[safeIndex] ?? 0,
-                apparentTemp: hourly.temperature_2m?.[safeIndex] ?? 20,
-                precipProbability: hourly.precipitation_probability?.[safeIndex] ?? 0,
-                cloudCover: hourly.cloud_cover?.[safeIndex] ?? 0,
-                windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
-                isDay: hourOfDay >= 6 && hourOfDay <= 20 ? 1 : 0,
-                uvIndex: hourly.uv_index?.[safeIndex] ?? null,
-            };
-        };
-
-        const currentScore = calculateLiveSunScore(inputForIndex(currentIndex)).score;
-        let bestScore = currentScore;
-        let bestOffset = 0;
-
-        for (let offset = 1; offset <= hoursAhead; offset++) {
-            const slotIndex = Math.min(currentIndex + offset, hourly.shortwave_radiation.length - 1);
-            const scores = [slotIndex, slotIndex + 1, slotIndex + 2]
-                .filter(idx => idx < hourly.shortwave_radiation.length)
-                .map(idx => calculateLiveSunScore(inputForIndex(idx)).score);
-            const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
-            if (avgScore > bestScore) {
-                bestScore = avgScore;
-                bestOffset = offset;
-            }
-        }
-
-        if (bestScore >= 75) return { type: 'GREAT', label: '☀️ Great conditions', score: bestScore, startsInHours: bestOffset };
-        if (bestScore >= 50) return { type: 'GOOD', label: '🌤 Good conditions', score: bestScore, startsInHours: bestOffset };
-        if (bestScore >= 30) return { type: 'FAIR', label: '⛅ Fair conditions', score: bestScore, startsInHours: bestOffset };
-        return { type: 'POOR', label: '🌧 Poor conditions', score: bestScore, startsInHours: bestOffset };
+    const getBestWindow = useCallback((hoursAhead = 8, venue) => {
+        return computeBestWindow(weather, { hoursAhead, venue });
     }, [weather]);
 
     const setScorePreviewMinutes = useCallback((minutes) => {
@@ -198,12 +124,19 @@ export const WeatherProvider = ({ children }) => {
         });
     }, []);
 
+    const weatherUnavailable = Boolean(
+        error || weather?.unavailable || weather?.source === 'demo'
+    );
+
     const getSunstayScoreResult = useCallback((venue) => {
+        if (!weather || weatherUnavailable) {
+            return { score: null, label: 'Score unavailable', unavailable: true };
+        }
         if (previewMinutes == null) {
             return scoreVenueFromWeather(weather, venue);
         }
         return scoreVenueFromWeather(weather, venue, { at: melbourneDate(previewMinutes) });
-    }, [weather, previewMinutes]);
+    }, [weather, previewMinutes, weatherUnavailable]);
 
     const calculateSunstayScore = useCallback((venue) => {
         return getSunstayScoreResult(venue).score;
@@ -213,6 +146,7 @@ export const WeatherProvider = ({ children }) => {
         weather,
         loading,
         error,
+        unavailable: weatherUnavailable,
         overrideType,
         setOverrideType,
         refetch: fetchWeather,
