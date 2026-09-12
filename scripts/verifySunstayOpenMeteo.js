@@ -251,6 +251,26 @@ check('2h window starts now', twoHour.type, 'CURRENT_PEAK');
 const parsed = openMeteoLocalTimeToDate('2026-09-12T15:00', OFFSET);
 check('openMeteoLocalTimeToDate 15:00 AEST', parsed && wallClockHourKey(parsed, OFFSET), '2026-09-12T15:00');
 
+check(
+    'hoursAhead=0 cannot form a 2h block → UNKNOWN',
+    computeBestWindow(hourlyForecast({ temps: [22, 23, 22] }), { hoursAhead: 0, now: windowNow }).type,
+    'UNKNOWN',
+);
+const twoSlots = computeBestWindow(hourlyForecast({ temps: [22, 23] }), { hoursAhead: 1, now: windowNow });
+check('exactly 2 slots is a 2h CURRENT_PEAK', twoSlots.type === 'CURRENT_PEAK' && (twoSlots.end - twoSlots.start) / 3600000 === 2, true);
+
+const rainyHours = {
+    ...hourlyForecast({
+        temps: [21, 21, 21, 21],
+        rains: [80, 80, 80, 80],
+    }),
+    precipProbability: 80,
+};
+const openRain = computeBestWindow(rainyHours, { hoursAhead: 3, now: windowNow, venue: { tags: ['Sunny'], exposure: 'OPEN', lat: MELBOURNE.lat, lng: MELBOURNE.lon } });
+const coveredRain = computeBestWindow(rainyHours, { hoursAhead: 3, now: windowNow, venue: covered });
+check('optional venue is scored (OPEN rain < COVERED rain)', openRain.score < coveredRain.score, true);
+check('legacy GREAT/GOOD/FAIR/POOR types are gone', ['CURRENT_PEAK', 'FUTURE_WINDOW', 'UNKNOWN'].includes(laterPeak.type), true);
+
 console.log('Live Open-Meteo fetch');
 try {
     const live = await fetchOpenMeteoWeather(MELBOURNE.lat, MELBOURNE.lon);
