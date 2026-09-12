@@ -1,6 +1,6 @@
 import React, { memo, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { X, Wind, Sun, Armchair, Flame } from 'lucide-react';
+import { X, Wind, Sun, Armchair, Flame, ExternalLink, Navigation, Share2 } from 'lucide-react';
 import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import WeatherWidget from './WeatherWidget';
@@ -454,6 +454,116 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
     </div>
   );
 };
+
+function resolveVenueWebsiteUrl(venue) {
+  const raw = venue?.official_website_url || venue?.website_url || venue?.website || venue?.url;
+  if (typeof raw !== 'string') return null;
+  const url = raw.trim();
+  return url || null;
+}
+
+const footerActionClass =
+  'flex flex-1 items-center justify-center gap-1 min-h-[44px] px-2 rounded-xl text-[12px] font-bold leading-tight text-center transition-transform active:scale-[0.98]';
+
+function VenueCardFooterActions({ venue, canNavigate }) {
+  const [shareLabel, setShareLabel] = useState('Share');
+  const copiedTimerRef = useRef(null);
+  const websiteUrl = resolveVenueWebsiteUrl(venue);
+  const destLat = Number(venue?.lat);
+  const destLng = Number(venue?.lng);
+  const directionsUrl = canNavigate
+    ? `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`
+    : null;
+
+  React.useEffect(() => () => {
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+  }, []);
+
+  async function handleShare() {
+    if (!websiteUrl) return;
+    const title = venue?.name || venue?.venueName || '';
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share({
+          title,
+          text: 'Check out this spot on Sunstay!',
+          url: websiteUrl,
+        });
+        return;
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+    }
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function') {
+        await navigator.clipboard.writeText(websiteUrl);
+        setShareLabel('Copied!');
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = setTimeout(() => setShareLabel('Share'), 2000);
+      }
+    } catch {
+      // Soft fail when clipboard is unavailable.
+    }
+  }
+
+  return (
+    <div className="flex flex-row gap-2">
+      {websiteUrl ? (
+        <a
+          href={websiteUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${footerActionClass} bg-white text-slate-800 border border-slate-200`}
+        >
+          <ExternalLink size={14} aria-hidden="true" />
+          Website
+        </a>
+      ) : (
+        <span
+          className={`${footerActionClass} bg-white text-slate-800 border border-slate-200 opacity-40 pointer-events-none`}
+          aria-disabled="true"
+        >
+          <ExternalLink size={14} aria-hidden="true" />
+          Website
+        </span>
+      )}
+
+      {directionsUrl ? (
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${footerActionClass} bg-amber-500 text-[#0F172A] shadow-sm`}
+          aria-label="Get Directions"
+        >
+          <Navigation size={14} aria-hidden="true" />
+          Get Directions
+        </a>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className={`${footerActionClass} bg-amber-500 text-[#0F172A] shadow-sm opacity-40 cursor-not-allowed`}
+          aria-label="Get Directions unavailable"
+        >
+          <Navigation size={14} aria-hidden="true" />
+          Get Directions
+        </button>
+      )}
+
+      <button
+        type="button"
+        onClick={handleShare}
+        disabled={!websiteUrl}
+        className={`${footerActionClass} bg-white text-slate-800 border border-slate-200 disabled:opacity-40 disabled:pointer-events-none`}
+        aria-label={shareLabel === 'Copied!' ? 'Copied!' : 'Share venue'}
+      >
+        <Share2 size={14} aria-hidden="true" />
+        {shareLabel}
+      </button>
+    </div>
+  );
+}
 
 // ── Main VenueCard ────────────────────────────────────────────
 function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
@@ -1292,9 +1402,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
             {/* Sticky Bottom CTA */}
             <div className="fixed bottom-0 left-0 w-full bg-slate-50 border-t border-slate-200 p-4 z-30" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
-              <button className="w-full bg-amber-500 text-[#0F172A] font-bold rounded-xl py-3.5 text-[15px] shadow-sm flex items-center justify-center transition-transform active:scale-[0.98]">
-                Get Directions
-              </button>
+              <VenueCardFooterActions venue={safeVenue} canNavigate={hasValidCoordinates} />
             </div>
           </div>
         </motion.article>
