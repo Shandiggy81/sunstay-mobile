@@ -75,11 +75,14 @@ const isRenderableVenue = (v) => {
 const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
 
 // ── Bounds utility ──────────────────────────────────────────────────────
+const SINGLE_PIN_PAD = 0.008; // ~800m so a one-venue fitBounds stays readable
+
 function getBoundsFromVenues(venues) {
-    if (!Array.isArray(venues) || venues.length < 2) return null;
+    if (!Array.isArray(venues) || venues.length === 0) return null;
     try {
         let minLng = Infinity,  maxLng = -Infinity;
         let minLat = Infinity,  maxLat = -Infinity;
+        let count = 0;
         for (const v of venues) {
             const lng = Number(v.lng);
             const lat = Number(v.lat);
@@ -88,13 +91,24 @@ function getBoundsFromVenues(venues) {
             if (lng > maxLng) maxLng = lng;
             if (lat < minLat) minLat = lat;
             if (lat > maxLat) maxLat = lat;
+            count += 1;
         }
-        if (!Number.isFinite(minLng)) return null;
+        if (count === 0 || !Number.isFinite(minLng)) return null;
+        if (count === 1 || (minLng === maxLng && minLat === maxLat)) {
+            return new mapboxgl.LngLatBounds(
+                [minLng - SINGLE_PIN_PAD, minLat - SINGLE_PIN_PAD],
+                [maxLng + SINGLE_PIN_PAD, maxLat + SINGLE_PIN_PAD],
+            );
+        }
         return new mapboxgl.LngLatBounds([minLng, minLat], [maxLng, maxLat]);
     } catch (e) {
         console.warn('[VenueMap] getBoundsFromVenues error:', e?.message);
         return null;
     }
+}
+
+function visibleVenueSetKey(venues) {
+    return venues.map((v) => String(v.id)).sort().join('|');
 }
 
 // ── Marker DOM helpers ──────────────────────────────────────────────────
@@ -187,6 +201,28 @@ function createClusterMarkerEl(count) {
 function updateClusterMarkerEl(el, count) {
     const inner = el.querySelector('div');
     if (inner) inner.textContent = count;
+}
+
+function createUserLocationEl() {
+    const el = document.createElement('div');
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText = 'width:22px;height:22px;display:flex;align-items:center;justify-content:center;position:relative;pointer-events:none;';
+
+    const ring = document.createElement('div');
+    ring.className = 'absolute inset-0 rounded-full animate-ping';
+    ring.style.cssText = 'background:rgba(59,130,246,0.45);pointer-events:none;';
+
+    const dot = document.createElement('div');
+    dot.style.cssText = [
+        'width:12px', 'height:12px', 'border-radius:50%',
+        'background:#2563eb', 'border:2px solid #fff',
+        'box-shadow:0 0 0 2px rgba(37,99,235,0.28),0 1px 4px rgba(15,23,42,0.28)',
+        'position:relative', 'z-index:1',
+    ].join(';');
+
+    el.appendChild(ring);
+    el.appendChild(dot);
+    return el;
 }
 
 // ── Layer helpers ───────────────────────────────────────────────────────
@@ -497,7 +533,9 @@ const VenueMap = forwardRef(({
     const controllerRef    = useRef(null);
     const radarLayerAddedRef = useRef(false);
     const markersRef       = useRef({});
+    const userMarkerRef    = useRef(null);
     const hasFlownToBounds = useRef(false);
+    const filterBoundsKeyRef = useRef(null);
     const rafRef           = useRef(null);
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
@@ -538,6 +576,25 @@ const VenueMap = forwardRef(({
     useEffect(() => { weatherColorFnRef.current   = weatherColorFn;   }, [weatherColorFn]);
     useEffect(() => { cozyFilterActiveRef.current = cozyFilterActive; }, [cozyFilterActive]);
 
+    const placeUserMarker = useCallback((lng, lat) => {
+        const mapInst = map.current;
+        if (!mapInst) return;
+        try {
+            if (userMarkerRef.current) {
+                userMarkerRef.current.setLngLat([lng, lat]);
+                return;
+            }
+            userMarkerRef.current = new mapboxgl.Marker({
+                element: createUserLocationEl(),
+                anchor: 'center',
+            })
+                .setLngLat([lng, lat])
+                .addTo(mapInst);
+        } catch (e) {
+            console.warn('[VenueMap] user marker failed:', e?.message);
+        }
+    }, []);
+
     // ── Imperative API ──────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
         flyTo: (opts) => map.current?.flyTo(opts),
@@ -557,8 +614,25 @@ const VenueMap = forwardRef(({
             }, 300);
         },
 
+        locateUser: ({ lng, lat, zoom = 14, duration = 1100 } = {}) => {
+            const nLng = Number(lng);
+            const nLat = Number(lat);
+            if (!map.current || !Number.isFinite(nLng) || !Number.isFinite(nLat)) return;
+            try {
+                placeUserMarker(nLng, nLat);
+                map.current.flyTo({
+                    center:    [nLng, nLat],
+                    zoom,
+                    duration,
+                    essential: false,
+                });
+            } catch (e) {
+                console.warn('[VenueMap] locateUser failed:', e?.message);
+            }
+        },
+
         getMap: () => map.current,
-    }));
+    }), [placeUserMarker]);
 
     // ── Initialise map ONCE ─────────────────────────────────────────
     useEffect(() => {
@@ -671,6 +745,10 @@ const VenueMap = forwardRef(({
             }
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
+            if (userMarkerRef.current) {
+                try { userMarkerRef.current.remove(); } catch { /* noop */ }
+                userMarkerRef.current = null;
+            }
 
             if (controllerRef.current) {
                 try {
@@ -817,6 +895,41 @@ const VenueMap = forwardRef(({
             console.warn('[VenueMap] fitBounds failed:', e?.message);
         }
     }, [mapLoaded, safeVenues]);
+
+    // ── fitBounds when the filtered pin set changes (not on first load) ──
+    useEffect(() => {
+        if (!mapLoaded || !map.current) return;
+
+        const visibleVenues = filteredIdSet
+            ? safeVenues.filter((v) => filteredIdSet.has(String(v.id)))
+            : safeVenues;
+
+        // Wait for venues so async first load becomes the baseline, not a filter change.
+        if (safeVenues.length === 0) return;
+
+        const nextKey = visibleVenueSetKey(visibleVenues);
+        if (filterBoundsKeyRef.current === null) {
+            filterBoundsKeyRef.current = nextKey;
+            return;
+        }
+        if (nextKey === filterBoundsKeyRef.current) return;
+        filterBoundsKeyRef.current = nextKey;
+
+        if (visibleVenues.length === 0) return;
+
+        const bounds = getBoundsFromVenues(visibleVenues);
+        if (!bounds) return;
+        try {
+            map.current.fitBounds(bounds, {
+                padding:   50,
+                duration:  800,
+                maxZoom:   16,
+                essential: false,
+            });
+        } catch (e) {
+            console.warn('[VenueMap] filter fitBounds failed:', e?.message);
+        }
+    }, [mapLoaded, safeVenues, filteredIdSet]);
 
     // ── Sync clustered markers ───────────────────────────────────────
     useEffect(() => {
