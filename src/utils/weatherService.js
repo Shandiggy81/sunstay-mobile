@@ -89,7 +89,96 @@ export function getCurrentHourlyIndex(hourly, utcOffsetSeconds = MELBOURNE_OFFSE
     return best;
 }
 
-export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
+export const OPEN_METEO_CACHE_TTL_MS = 30 * 60 * 1000;
+export const OPEN_METEO_FETCH_TIMEOUT_MS = 9000;
+export const OPEN_METEO_CACHE_PREFIX = 'sunstay_om_v1_';
+
+const openMeteoMemoryCache = new Map();
+
+/** Geographic cache key: nearby venues share a payload at 2 decimal places. */
+export function weatherCacheKey(lat, lon) {
+    const la = Number(lat);
+    const lo = Number(lon);
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+    return `${la.toFixed(2)}_${lo.toFixed(2)}`;
+}
+
+function openMeteoStorageKey(geoKey) {
+    return `${OPEN_METEO_CACHE_PREFIX}${geoKey}`;
+}
+
+function readLocalStorageEntry(geoKey) {
+    try {
+        if (typeof localStorage === 'undefined') return null;
+        const raw = localStorage.getItem(openMeteoStorageKey(geoKey));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.data || !Number.isFinite(parsed.timestamp)) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
+function writeLocalStorageEntry(geoKey, entry) {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        localStorage.setItem(openMeteoStorageKey(geoKey), JSON.stringify(entry));
+    } catch {
+        // Quota / private mode — memory cache still works
+    }
+}
+
+export function readOpenMeteoCache(lat, lon, now = Date.now()) {
+    const geoKey = weatherCacheKey(lat, lon);
+    if (!geoKey) return null;
+
+    const mem = openMeteoMemoryCache.get(geoKey);
+    if (mem && now - mem.timestamp <= OPEN_METEO_CACHE_TTL_MS) return mem.data;
+    if (mem) openMeteoMemoryCache.delete(geoKey);
+
+    const stored = readLocalStorageEntry(geoKey);
+    if (stored && now - stored.timestamp <= OPEN_METEO_CACHE_TTL_MS) {
+        openMeteoMemoryCache.set(geoKey, stored);
+        return stored.data;
+    }
+    return null;
+}
+
+export function writeOpenMeteoCache(lat, lon, data, now = Date.now()) {
+    const geoKey = weatherCacheKey(lat, lon);
+    if (!geoKey || data == null) return;
+    const entry = { data, timestamp: now };
+    openMeteoMemoryCache.set(geoKey, entry);
+    writeLocalStorageEntry(geoKey, entry);
+}
+
+export function clearOpenMeteoWeatherCache() {
+    openMeteoMemoryCache.clear();
+    try {
+        if (typeof localStorage === 'undefined') return;
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i += 1) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(OPEN_METEO_CACHE_PREFIX)) keys.push(key);
+        }
+        keys.forEach((key) => localStorage.removeItem(key));
+    } catch {
+        // ignore
+    }
+}
+
+function openMeteoAbortSignal(userSignal, timeoutMs = OPEN_METEO_FETCH_TIMEOUT_MS) {
+    const timeoutSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+        ? AbortSignal.timeout(timeoutMs)
+        : null;
+    if (timeoutSignal && userSignal && typeof AbortSignal.any === 'function') {
+        return AbortSignal.any([userSignal, timeoutSignal]);
+    }
+    return timeoutSignal || userSignal;
+}
+
+const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
     const params = new URLSearchParams({
         latitude: String(lat),
         longitude: String(lon),
@@ -194,6 +283,15 @@ export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
         },
         daily,
     };
+};
+
+export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
+    const cached = readOpenMeteoCache(lat, lon);
+    if (cached) return cached;
+
+    const data = await fetchOpenMeteoWeatherLive(lat, lon, openMeteoAbortSignal(signal));
+    writeOpenMeteoCache(lat, lon, data);
+    return data;
 };
 
 export function mapWeatherCode(wmoCode) {
