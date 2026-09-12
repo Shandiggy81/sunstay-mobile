@@ -316,6 +316,30 @@ try {
     clearOpenMeteoWeatherCache();
 }
 
+clearOpenMeteoWeatherCache();
+globalThis.fetch = (_url, init) => new Promise((_, reject) => {
+    const signal = init?.signal;
+    if (signal?.aborted) {
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+        return;
+    }
+    signal?.addEventListener('abort', () => {
+        reject(signal.reason ?? new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+    }, { once: true });
+});
+const timeoutStarted = Date.now();
+try {
+    await fetchOpenMeteoWeather(-38.00, 145.00, undefined, { timeoutMs: 80 });
+    check('hanging fetch should throw', false, true);
+} catch (err) {
+    const elapsed = Date.now() - timeoutStarted;
+    check('hanging fetch times out', /timeout|abort/i.test(`${err?.name || ''} ${err?.message || ''}`), true);
+    check('timeout lands promptly', elapsed, (n) => n >= 50 && n <= 1500);
+} finally {
+    globalThis.fetch = originalFetch;
+    clearOpenMeteoWeatherCache();
+}
+
 console.log('Live Open-Meteo fetch');
 try {
     const live = await fetchOpenMeteoWeather(MELBOURNE.lat, MELBOURNE.lon);

@@ -168,14 +168,39 @@ export function clearOpenMeteoWeatherCache() {
     }
 }
 
-function openMeteoAbortSignal(userSignal, timeoutMs = OPEN_METEO_FETCH_TIMEOUT_MS) {
-    const timeoutSignal = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
-        ? AbortSignal.timeout(timeoutMs)
-        : null;
-    if (timeoutSignal && userSignal && typeof AbortSignal.any === 'function') {
-        return AbortSignal.any([userSignal, timeoutSignal]);
+function timeoutReason() {
+    return typeof DOMException === 'function'
+        ? new DOMException('Open-Meteo request timed out', 'TimeoutError')
+        : Object.assign(new Error('Open-Meteo request timed out'), { name: 'TimeoutError' });
+}
+
+/**
+ * Combine a caller abort with a hard timeout. Uses a ref'd timer so Node
+ * scripts (verify) stay alive; AbortSignal.timeout() unrefs and can miss.
+ */
+export function openMeteoAbortSignal(userSignal, timeoutMs = OPEN_METEO_FETCH_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+        if (!controller.signal.aborted) controller.abort(timeoutReason());
+    }, timeoutMs);
+
+    const onUserAbort = () => {
+        clearTimeout(timer);
+        if (!controller.signal.aborted) {
+            controller.abort(userSignal?.reason ?? (typeof DOMException === 'function'
+                ? new DOMException('Aborted', 'AbortError')
+                : Object.assign(new Error('Aborted'), { name: 'AbortError' })));
+        }
+    };
+    if (userSignal) {
+        if (userSignal.aborted) onUserAbort();
+        else userSignal.addEventListener('abort', onUserAbort, { once: true });
     }
-    return timeoutSignal || userSignal;
+    controller.signal.addEventListener('abort', () => {
+        clearTimeout(timer);
+        userSignal?.removeEventListener?.('abort', onUserAbort);
+    }, { once: true });
+    return controller.signal;
 }
 
 const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
@@ -285,11 +310,12 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
     };
 };
 
-export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
+export const fetchOpenMeteoWeather = async (lat, lon, signal, options = {}) => {
     const cached = readOpenMeteoCache(lat, lon);
     if (cached) return cached;
 
-    const data = await fetchOpenMeteoWeatherLive(lat, lon, openMeteoAbortSignal(signal));
+    const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : OPEN_METEO_FETCH_TIMEOUT_MS;
+    const data = await fetchOpenMeteoWeatherLive(lat, lon, openMeteoAbortSignal(signal, timeoutMs));
     writeOpenMeteoCache(lat, lon, data);
     return data;
 };
