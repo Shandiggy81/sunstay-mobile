@@ -25,6 +25,7 @@ import {
     isLiveScoreTimestamp,
 } from '../src/utils/scoreFromOpenMeteo.js';
 import { calculateSunstayScore } from '../src/utils/calculateSunstayScore.js';
+import { sortVenuesBySunstayScore } from '../src/utils/sortVenuesBySunstayScore.js';
 import { melbourneDate } from '../src/utils/sunPosition.js';
 
 const MELBOURNE = { lat: -37.8136, lon: 144.9631 };
@@ -113,6 +114,25 @@ check('input maps sun azimuth', input.sunAzimuthDeg, 0);
 
 const sameAsDirect = calculateSunstayScore(input);
 check('adapter result matches calculateSunstayScore', sameAsDirect.score, scoreVenueFromWeather(weather({ precipProbability: 22 }), { tags: ['Shaded'], balcony_facing: 'N' }, { sun: terraceSun }).score);
+
+console.log('List sort by active score');
+const sortInput = [
+    { id: 'mid', score: 40 },
+    { id: 'nullish', score: null },
+    { id: 'high', score: 92 },
+    { id: 'nan', score: Number.NaN },
+    { id: 'low', score: 11 },
+];
+let scoreCalls = 0;
+const sortedByScore = sortVenuesBySunstayScore(sortInput, (venue) => {
+    scoreCalls += 1;
+    return venue.score;
+});
+check('sorts descending and sinks unavailable', sortedByScore.map((v) => v.id).join(','), 'high,mid,low,nullish,nan');
+check('scores each venue once', scoreCalls, sortInput.length);
+check('does not mutate input', sortInput[0].id, 'mid');
+check('empty list is empty', sortVenuesBySunstayScore([], () => 1).length, 0);
+check('missing scoreFn sinks all, preserves order', sortVenuesBySunstayScore(sortInput).map((v) => v.id).join(','), 'mid,nullish,high,nan,low');
 
 console.log('Comfort header (sustained wind_speed_10m)');
 const mildBreeze = getComfortLevel({ apparentTemp: 21, precipProbability: 5, windKmh: 6 });

@@ -18,6 +18,7 @@ import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
 import { getSunData } from './utils/getSunData';
+import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
@@ -212,7 +213,7 @@ VenueChip.displayName = 'VenueChip';
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
-    const { weather } = useWeather();
+    const { weather, calculateSunstayScore, previewMinutes } = useWeather();
     const { venues } = useVenues();
     const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
 
@@ -347,6 +348,12 @@ const AppContent = () => {
             return true;
         });
     }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, weather?.uvi]);
+
+    // Filter first, then rank by settled TOD Sunstay score (high → low).
+    const sortedVenues = useMemo(
+        () => sortVenuesBySunstayScore(filteredVenues, calculateSunstayScore),
+        [filteredVenues, calculateSunstayScore, previewMinutes]
+    );
 
     const filteredVenueIds = useMemo(
         () => filteredVenues.map(venue => venue.id),
@@ -558,7 +565,7 @@ const AppContent = () => {
 
                         <div className="ss-venue-list" ref={listRef}>
                             <AnimatePresence mode="popLayout">
-                                {filteredVenues.map(venue => (
+                                {sortedVenues.map(venue => (
                                     <VenueListCard
                                         key={venue.id}
                                         venue={venue}
@@ -781,7 +788,7 @@ const AppContent = () => {
                                     </div>
                                 </div>
                                 <div className="ss-mobile-sheet-list" onPointerDownCapture={e => e.stopPropagation()}>
-                                    {filteredVenues.map(venue => (
+                                    {sortedVenues.map(venue => (
                                         <VenueListCard
                                             key={venue.id}
                                             venue={venue}
