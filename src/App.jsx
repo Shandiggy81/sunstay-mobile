@@ -221,7 +221,7 @@ const AppContent = () => {
         return getComfortLevel({
             apparentTemp: weather.apparentTemp,
             precipProbability: weather.precipProbability,
-            windGusts: weather.windGusts
+            windKmh: weather.windKmh
         });
     }, [weather]);
 
