@@ -10,7 +10,7 @@ import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
-    Wind, Sun, Cloud, X, Locate, ListFilter
+    Wind, Sun, Cloud, X, Locate, Crosshair, ListFilter
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
 import { useVenueFeatures } from './hooks/useVenueFeatures';
@@ -263,6 +263,8 @@ const AppContent = () => {
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
+    const [isLocating, setIsLocating]               = useState(false);
+    const [locateHint, setLocateHint]               = useState(null);
 
     const mapRef  = useRef(null);
     const listRef = useRef(null);
@@ -453,6 +455,56 @@ const AppContent = () => {
     const handleRecenter = useCallback(() => {
         mapRef.current?.flyTo({ center: [144.9631, -37.8136], zoom: 12, duration: 1200 });
     }, []);
+
+    const handleLocateMe = useCallback(() => {
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            console.warn('[Sunstay] Geolocation is not available');
+            setLocateHint('Location unavailable');
+            return;
+        }
+        setIsLocating(true);
+        setLocateHint(null);
+        try {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    setIsLocating(false);
+                    const lng = Number(pos?.coords?.longitude);
+                    const lat = Number(pos?.coords?.latitude);
+                    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+                        console.warn('[Sunstay] Locate Me returned invalid coordinates');
+                        setLocateHint('Could not find you');
+                        return;
+                    }
+                    try {
+                        if (mapRef.current?.locateUser) {
+                            mapRef.current.locateUser({ lng, lat, zoom: 14 });
+                        } else {
+                            mapRef.current?.flyTo?.({ center: [lng, lat], zoom: 14, duration: 1100 });
+                        }
+                    } catch (flyErr) {
+                        console.warn('[Sunstay] Locate Me fly failed:', flyErr?.message);
+                    }
+                },
+                (err) => {
+                    setIsLocating(false);
+                    const denied = err?.code === 1;
+                    setLocateHint(denied ? 'Location permission denied' : 'Could not find you');
+                    console.warn('[Sunstay] Locate Me failed:', err?.message || err);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+            );
+        } catch (e) {
+            setIsLocating(false);
+            setLocateHint('Could not find you');
+            console.warn('[Sunstay] Locate Me error:', e?.message);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!locateHint) return undefined;
+        const t = setTimeout(() => setLocateHint(null), 2800);
+        return () => clearTimeout(t);
+    }, [locateHint]);
 
     useEffect(() => {
         if (selectedVenue && listRef.current) {
@@ -657,12 +709,36 @@ const AppContent = () => {
                         </AnimatePresence>
 
                         <motion.button
+                            type="button"
+                            className="absolute bottom-[190px] right-32 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-blue-600 shadow-lg hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70"
+                            whileTap={{ scale: 0.9 }}
+                            onClick={handleLocateMe}
+                            disabled={isLocating}
+                            aria-label="Locate Me"
+                            title="Locate Me"
+                            id="locate-me"
+                        >
+                            <Locate size={18} className={isLocating ? 'animate-pulse' : undefined} />
+                        </motion.button>
+                        {locateHint && (
+                            <div
+                                role="status"
+                                className="pointer-events-none absolute bottom-[246px] right-32 z-50 max-w-[200px] rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
+                            >
+                                {locateHint}
+                            </div>
+                        )}
+
+                        <motion.button
+                            type="button"
                             className="ss-recenter-btn"
                             whileTap={{ scale: 0.9 }}
                             onClick={handleRecenter}
                             id="recenter-map"
+                            aria-label="Recenter Melbourne"
+                            title="Recenter Melbourne"
                         >
-                            <Locate size={18} />
+                            <Crosshair size={18} />
                         </motion.button>
                     </section>
 
