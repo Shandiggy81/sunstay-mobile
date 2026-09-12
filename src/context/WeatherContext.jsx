@@ -2,12 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { storage } from '../utils/platform';
 import { calculateLiveSunScore } from '../utils/sunScore';
 import { fetchOpenMeteoWeather } from '../utils/weatherService';
+import { scoreVenueFromWeather } from '../utils/scoreFromOpenMeteo';
 
 const WeatherContext = createContext(null);
 
 const MELBOURNE_COORDS = { lat: -37.8136, lon: 144.9631 };
 const CACHE_EXPIRY = 900000;
-const CACHE_KEY = `sunstay_weather_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
+const CACHE_KEY = `sunstay_weather_v2_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
 const isAbortError = (error) => error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
 
 const DEMO_WEATHER = {
@@ -20,6 +21,14 @@ const DEMO_WEATHER = {
     name: 'Melbourne (Demo)',
     source: 'demo',
     theme: 'sunny',
+    isDay: true,
+    shortwaveRadiation: 620,
+    windGusts: 12,
+    windKmh: 12.6,
+    precipitation: 0,
+    precipProbability: 8,
+    cloudCoverPct: 15,
+    apparentTemp: 21,
 };
 
 export const useWeather = () => {
@@ -100,7 +109,8 @@ export const WeatherProvider = ({ children }) => {
         const humidity = weather.main?.humidity ?? 0;
         const windSpeed = Math.round((weather.wind?.speed ?? 0) * 3.6);
         const uvi = weather.uvi ?? 0;
-        return { condition, temp, feelsLike, humidity, windSpeed, uvi, theme: weather.theme ?? 'sunny' };
+        const precipProbability = weather.precipProbability ?? 0;
+        return { condition, temp, feelsLike, humidity, windSpeed, uvi, precipProbability, theme: weather.theme ?? 'sunny' };
     }, [weather]);
 
     const getCozyModeMeta = useCallback(() => {
@@ -135,7 +145,10 @@ export const WeatherProvider = ({ children }) => {
 
         const tzOffsetSeconds = hourly._tzOffsetSeconds ?? 36000;
         const nowUnix = Math.floor(Date.now() / 1000);
-        const currentHour = Math.floor((nowUnix + tzOffsetSeconds) / 3600) % 24;
+        const fallbackHour = Math.floor((nowUnix + tzOffsetSeconds) / 3600) % 24;
+        const currentIndex = Number.isFinite(hourly._currentIndex)
+            ? hourly._currentIndex
+            : fallbackHour;
 
         const inputForIndex = (i) => {
             const safeIndex = Math.min(Math.max(i, 0), hourly.shortwave_radiation.length - 1);
@@ -151,12 +164,12 @@ export const WeatherProvider = ({ children }) => {
             };
         };
 
-        const currentScore = calculateLiveSunScore(inputForIndex(currentHour)).score;
+        const currentScore = calculateLiveSunScore(inputForIndex(currentIndex)).score;
         let bestScore = currentScore;
         let bestOffset = 0;
 
         for (let offset = 1; offset <= hoursAhead; offset++) {
-            const slotIndex = Math.min(currentHour + offset, hourly.shortwave_radiation.length - 1);
+            const slotIndex = Math.min(currentIndex + offset, hourly.shortwave_radiation.length - 1);
             const scores = [slotIndex, slotIndex + 1, slotIndex + 2]
                 .filter(idx => idx < hourly.shortwave_radiation.length)
                 .map(idx => calculateLiveSunScore(inputForIndex(idx)).score);
@@ -173,17 +186,13 @@ export const WeatherProvider = ({ children }) => {
         return { type: 'POOR', label: '🌧 Poor conditions', score: bestScore, startsInHours: bestOffset };
     }, [weather]);
 
+    const getSunstayScoreResult = useCallback((venue) => {
+        return scoreVenueFromWeather(weather, venue);
+    }, [weather]);
+
     const calculateSunstayScore = useCallback((venue) => {
-        if (!weather) return 75;
-        const { isActive: cozyActive } = getCozyModeMeta();
-        if (cozyActive && venue.tags?.some(t => ['Fireplace', 'Indoor Warmth', 'Cozy', 'Covered'].includes(t))) {
-            return 90;
-        }
-        const baseScore = venue.sunshineScore ?? 50;
-        const severity = getWeatherSeverity();
-        const penaltyMap = { mild: 0, moderate: -10, severe: -20, stormy: -35, unknown: 0 };
-        return Math.max(0, Math.min(100, baseScore + (penaltyMap[severity] ?? 0)));
-    }, [weather, getCozyModeMeta, getWeatherSeverity]);
+        return getSunstayScoreResult(venue).score;
+    }, [getSunstayScoreResult]);
 
     const value = {
         weather,
@@ -197,6 +206,7 @@ export const WeatherProvider = ({ children }) => {
         getWeatherSeverity,
         getBestWindow,
         calculateSunstayScore,
+        getSunstayScoreResult,
     };
 
     return (

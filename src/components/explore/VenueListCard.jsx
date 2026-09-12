@@ -2,19 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Flame, MapPin } from 'lucide-react';
 import { useWeather } from '../../context/WeatherContext';
-import { calculateLiveSunScore, getComfortTier } from '../../utils/sunScore';
+import { getComfortTier } from '../../utils/sunScore';
 import { getHappyHourBadge } from '../../utils/happyHour';
 
 const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
-    const { cozyMode } = useWeather();
-    const liveInput = {
-        shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
-        apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
-        precipProbability: weather?.precipProbability ?? 0,
-        cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
-        windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
-        isDay: weather?.isDay ?? 1,
-    };
+    const { cozyMode, calculateSunstayScore } = useWeather();
     const tags = venue.tags || [];
     const hasHeat =
         tags.includes('Fireplace') ||
@@ -22,8 +14,9 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
         venue?.heating ||
         venue?.fireplace;
     const isCozyPick = cozyMode?.isActive && hasHeat;
-    const baseScore = calculateLiveSunScore(liveInput).score;
-    const displayScore = Math.min(100, baseScore + (isCozyPick ? 22 : 0));
+    const displayScore = typeof calculateSunstayScore === 'function'
+        ? calculateSunstayScore(venue)
+        : 50;
     const tier = getComfortTier(displayScore);
     const scorePillStyle = {
         prime:    { bg: 'bg-amber-100',   text: 'text-amber-700',   icon: '☀️'  },

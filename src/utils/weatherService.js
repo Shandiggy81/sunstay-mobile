@@ -27,6 +27,57 @@ export const getThemeFromCondition = (condition) => {
     return 'sunny';
 };
 
+const MELBOURNE_OFFSET_SECONDS = 36000;
+
+/**
+ * Open-Meteo hourly `time` strings are timezone-naive wall clock for the
+ * requested zone (e.g. "2026-09-12T14:00" = 14:00 Australia/Melbourne).
+ * Shift `now` by the response offset and read UTC getters to rebuild that key.
+ */
+export function wallClockHourKey(now, utcOffsetSeconds = MELBOURNE_OFFSET_SECONDS) {
+    const shifted = new Date(now.getTime() + utcOffsetSeconds * 1000);
+    const y = shifted.getUTCFullYear();
+    const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(shifted.getUTCDate()).padStart(2, '0');
+    const h = String(shifted.getUTCHours()).padStart(2, '0');
+    return `${y}-${m}-${d}T${h}:00`;
+}
+
+function parseOpenMeteoLocalTime(iso, utcOffsetSeconds) {
+    if (!iso) return null;
+    if (/Z$|[+-]\d{2}:\d{2}$/.test(iso)) {
+        const ms = Date.parse(iso);
+        return Number.isFinite(ms) ? ms : null;
+    }
+    const asUtc = Date.parse(`${iso}Z`);
+    if (!Number.isFinite(asUtc)) return null;
+    return asUtc - utcOffsetSeconds * 1000;
+}
+
+/**
+ * Index of the hourly slot that contains `now`.
+ * @param {object} hourly - Open-Meteo hourly block (`time` + parallel arrays)
+ * @param {number} [utcOffsetSeconds=36000]
+ * @param {Date} [now]
+ * @returns {number}
+ */
+export function getCurrentHourlyIndex(hourly, utcOffsetSeconds = MELBOURNE_OFFSET_SECONDS, now = new Date()) {
+    const times = hourly?.time;
+    if (!Array.isArray(times) || times.length === 0) return 0;
+
+    const key = wallClockHourKey(now, utcOffsetSeconds);
+    const exact = times.indexOf(key);
+    if (exact >= 0) return exact;
+
+    let best = 0;
+    const nowMs = now.getTime();
+    for (let i = 0; i < times.length; i++) {
+        const ms = parseOpenMeteoLocalTime(times[i], utcOffsetSeconds);
+        if (ms != null && ms <= nowMs) best = i;
+    }
+    return best;
+}
+
 export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
     const params = new URLSearchParams({
         latitude: String(lat),
@@ -80,6 +131,17 @@ export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
     const current = data.current || {};
     const daily = data.daily || {};
     const hourly = data.hourly || {};
+    const utcOffsetSeconds = Number.isFinite(data.utc_offset_seconds)
+        ? data.utc_offset_seconds
+        : MELBOURNE_OFFSET_SECONDS;
+    const hourlyIndex = getCurrentHourlyIndex(hourly, utcOffsetSeconds);
+    const precipFromHour = hourly.precipitation_probability?.[hourlyIndex];
+    const rainingNow = (current.precipitation ?? 0) > 0;
+    const precipProbability = Number.isFinite(precipFromHour)
+        ? precipFromHour
+        : rainingNow ? 70 : 0;
+    const uvIndex = current.uv_index ?? hourly.uv_index?.[hourlyIndex] ?? 0;
+    const cloudCover = current.cloud_cover ?? hourly.cloud_cover?.[hourlyIndex] ?? 0;
 
     const wmoCode = current.weather_code ?? 0;
     const weatherDesc = getWeatherFromOpenMeteoCode(wmoCode);
@@ -96,8 +158,8 @@ export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
         },
         weather: [weatherDesc],
         wind: { speed: (current.wind_speed_10m ?? 0) / 3.6 }, // convert kmh → m/s
-        clouds: { all: current.cloud_cover ?? 0 },
-        uvi: current.uv_index ?? 0,
+        clouds: { all: cloudCover },
+        uvi: uvIndex,
         sys: {
             sunrise: sunriseUnix,
             sunset: sunsetUnix,
@@ -106,12 +168,18 @@ export const fetchOpenMeteoWeather = async (lat, lon, signal) => {
         source: 'open-meteo',
         theme: getThemeFromCondition(weatherDesc.description),
         isDay: current.is_day === 1,
-        shortwaveRadiation: current.shortwave_radiation ?? 0,
-        windGusts: current.wind_gusts_10m ?? 0,
+        shortwaveRadiation: current.shortwave_radiation ?? hourly.shortwave_radiation?.[hourlyIndex] ?? 0,
+        windGusts: current.wind_gusts_10m ?? hourly.wind_gusts_10m?.[hourlyIndex] ?? 0,
+        windKmh: current.wind_speed_10m ?? hourly.wind_speed_10m?.[hourlyIndex] ?? 0,
         precipitation: current.precipitation ?? 0,
+        precipProbability,
+        cloudCoverPct: cloudCover,
+        apparentTemp: current.apparent_temperature ?? current.temperature_2m ?? 20,
+        utcOffsetSeconds,
         hourly: {
             ...hourly,
-            _tzOffsetSeconds: 36000, // AEST = UTC+10
+            _tzOffsetSeconds: utcOffsetSeconds,
+            _currentIndex: hourlyIndex,
         },
         daily,
     };

@@ -87,11 +87,17 @@ const GoldenWindowBar = React.memo(({ sunData }) => {
 GoldenWindowBar.displayName = 'GoldenWindowBar';
 
 // ── Live score + best window strip ──────────────────────────
-const LiveScoreStrip = React.memo(({ venue, weather, calculateSunstayScore, getBestWindow }) => {
+const LiveScoreStrip = React.memo(({ venue, weather, calculateSunstayScore, getSunstayScoreResult, getBestWindow }) => {
   // Guard: need at least a venue and the context functions
-  if (!venue || typeof calculateSunstayScore !== 'function' || typeof getBestWindow !== 'function') return null;
+  if (!venue || typeof getBestWindow !== 'function') return null;
+  if (typeof getSunstayScoreResult !== 'function' && typeof calculateSunstayScore !== 'function') return null;
 
-  const score = useMemo(() => calculateSunstayScore(venue), [venue, calculateSunstayScore]);
+  const result = useMemo(() => {
+    if (typeof getSunstayScoreResult === 'function') return getSunstayScoreResult(venue);
+    const score = calculateSunstayScore(venue);
+    return { score, label: null };
+  }, [venue, calculateSunstayScore, getSunstayScoreResult]);
+  const score = result.score;
   const window = useMemo(() => getBestWindow(8), [venue, getBestWindow]);
 
   // Choose colour based on score tier
@@ -125,6 +131,11 @@ const LiveScoreStrip = React.memo(({ venue, weather, calculateSunstayScore, getB
           {score >= 75 ? '☀️' : score >= 50 ? '😎' : score >= 30 ? '🌤️' : '🥶'} {Math.round(score)}
           <span className="font-normal opacity-70" style={{ fontSize: '9px' }}>/100</span>
         </span>
+        {result.label && (
+          <span className="text-[10px] font-semibold" style={{ color: scoreColor }}>
+            {result.label}
+          </span>
+        )}
         {/* Static SunshineScoreBadge for the venue-level score */}
         {weather && <SunshineScoreBadge venue={venue} weather={weather} size="md" showLabel={false} />}
       </div>
@@ -160,6 +171,7 @@ const VenueCardSun = React.memo(function VenueCardSun({
   venue,
   weather,
   calculateSunstayScore,
+  getSunstayScoreResult,
   getBestWindow,
 }) {
   if (!hourlyData) return null;
@@ -194,6 +206,7 @@ const VenueCardSun = React.memo(function VenueCardSun({
         venue={venue}
         weather={weather}
         calculateSunstayScore={calculateSunstayScore}
+        getSunstayScoreResult={getSunstayScoreResult}
         getBestWindow={getBestWindow}
       />
 

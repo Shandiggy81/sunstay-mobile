@@ -262,7 +262,7 @@ const SolarExposureTimeline = memo(({ exposure }) => {
 SolarExposureTimeline.displayName = 'SolarExposureTimeline';
 
 // ── Sunstay Score Hero Badge ────────────────────────────────────
-const SunstayScoreBadge = ({ score, bestWindow }) => {
+const SunstayScoreBadge = ({ score, bestWindow, scoreLabel }) => {
   const pct = Math.round(Math.max(0, Math.min(100, score)));
 
   // Colour ramp: cold/poor → blue, mid → amber, high → emerald
@@ -273,7 +273,7 @@ const SunstayScoreBadge = ({ score, bestWindow }) => {
     : { bg: 'rgba(14,165,233,0.08)', border: 'rgba(14,165,233,0.28)', text: '#0C4A6E', fill: '#0EA5E9', glow: 'rgba(14,165,233,0.12)' };
 
   const emoji = pct >= 75 ? '☀️' : pct >= 50 ? '🌤️' : '🌥️';
-  const label = pct >= 75 ? 'Peak Comfort' : pct >= 50 ? 'Good Conditions' : 'Worth a Look';
+  const label = scoreLabel || (pct >= 75 ? 'Peak Comfort' : pct >= 50 ? 'Good Conditions' : 'Worth a Look');
 
   // Best window line (only show if there is a meaningful future window)
   const showWindow = bestWindow?.type === 'FUTURE_WINDOW' && bestWindow.startsInHours > 0;
@@ -477,8 +477,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-4, 4]), { stiffness: 200, damping: 25 });
   const cardRectRef = useRef(null);
 
-  // Pull calculateSunstayScore + getBestWindow from context
-  const { weather: weatherData, calculateSunstayScore, getBestWindow } = useWeather();
+  // Pull live cozy-index + best window from Open-Meteo-backed context
+  const { weather: weatherData, calculateSunstayScore, getSunstayScoreResult, getBestWindow } = useWeather();
 
   function handlePointerEnter(e) { cardRectRef.current = e.currentTarget.getBoundingClientRect(); }
   function handlePointerMove(e) {
@@ -503,8 +503,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
   const wind       = weather?.rawWeather?.wind ?? weather?.wind?.speed ?? 0;
-  // Use context-computed score (venue-adjusted) if available, fall back to prop score
-  const contextScore = typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null;
+  const scoreResult = typeof getSunstayScoreResult === 'function' ? getSunstayScoreResult(venue) : null;
+  const contextScore = scoreResult?.score
+    ?? (typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null);
   const score      = contextScore ?? weather?.score ?? weather?.rawWeather?.score ?? 70;
   const uvIndex    = weather?.rawWeather?.uvIndex ?? venue?.weatherNow?.uvIndex ?? 3;
   const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
@@ -705,7 +706,12 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
   }, [precipProb, precipProbability, wind, score, cloudcover]);
 
-  const scoreLabel = useMemo(() => { if (score > 75) return 'Perfect Now'; if (score >= 50) return 'Good Choice'; return 'Worth a Look'; }, [score]);
+  const scoreLabel = useMemo(() => {
+    if (scoreResult?.label) return scoreResult.label;
+    if (score > 75) return 'Perfect Now';
+    if (score >= 50) return 'Good Choice';
+    return 'Worth a Look';
+  }, [score, scoreResult?.label]);
   const scoreMeaningLabel = useMemo(() => { if (score >= 75) return 'Great conditions'; if (score >= 50) return 'Decent today'; return 'Not ideal'; }, [score]);
 
   const displaySunrise = useMemo(() => {
@@ -934,7 +940,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     })()}
                   </div>
 
-                  <SunstayScoreBadge score={score} bestWindow={bestWindow} />
+                  <SunstayScoreBadge score={score} bestWindow={bestWindow} scoreLabel={scoreLabel} />
 
                   {/* Microclimate Grid */}
                   <div className="grid grid-cols-2 gap-2.5 my-3">
