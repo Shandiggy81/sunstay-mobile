@@ -98,7 +98,7 @@ const LiveScoreStrip = React.memo(({ venue, weather, calculateSunstayScore, getS
     return { score, label: null };
   }, [venue, calculateSunstayScore, getSunstayScoreResult]);
   const score = result.score;
-  const window = useMemo(() => getBestWindow(8), [venue, getBestWindow]);
+  const window = useMemo(() => getBestWindow(8, venue), [venue, getBestWindow]);
 
   // Choose colour based on score tier
   const scoreColor =

@@ -731,9 +731,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   // Compute best window once per render (stable — getBestWindow reads from context weather)
   const bestWindow = useMemo(
-    () => typeof getBestWindow === 'function' ? getBestWindow(8) : null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [getBestWindow]
+    () => typeof getBestWindow === 'function' ? getBestWindow(8, venue) : null,
+    [getBestWindow, venue]
   );
 
   const blobA = isRain ? 'rgba(14,165,233,0.12)' : 'rgba(245,158,11,0.10)';
