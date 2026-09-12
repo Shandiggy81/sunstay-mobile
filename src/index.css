@@ -5961,14 +5961,12 @@ body,
   .ss-filters-fab {
     display: flex;
     position: absolute;
-    bottom: 32px;
+    /* bottom comes from Tailwind bottom-[132px] — clears TimeOfDayLight (bottom-[46px] + slider + gap) */
     right: 50%;
     transform: translateX(50%);
     width: auto;
     padding: 0 24px;
     height: 48px;
-    margin-bottom: 2rem !important;
-    /* Extra clearance for map controls */
     z-index: 50;
     align-items: center;
     gap: 6px;
