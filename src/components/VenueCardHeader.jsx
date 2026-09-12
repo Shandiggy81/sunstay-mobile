@@ -21,7 +21,7 @@ export default function VenueCardHeader({
   // triggered by VenueMap marker sync. getBestWindow is stable within the
   // WeatherProvider closure, so this memo has the same invalidation boundary
   // as the weather fetch cycle (~15 min).
-  const projection = useMemo(() => getBestWindow(), [getBestWindow]);
+  const projection = useMemo(() => getBestWindow(8, venue), [getBestWindow, venue]);
 
   // Only render the badge when we have a real result (not the fallback UNKNOWN state)
   const showProjection = projection.type === 'CURRENT_PEAK' || projection.type === 'FUTURE_WINDOW';

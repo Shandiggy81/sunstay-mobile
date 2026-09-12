@@ -43,7 +43,7 @@ export function wallClockHourKey(now, utcOffsetSeconds = MELBOURNE_OFFSET_SECOND
     return `${y}-${m}-${d}T${h}:00`;
 }
 
-function parseOpenMeteoLocalTime(iso, utcOffsetSeconds) {
+export function parseOpenMeteoLocalTime(iso, utcOffsetSeconds = MELBOURNE_OFFSET_SECONDS) {
     if (!iso) return null;
     if (/Z$|[+-]\d{2}:\d{2}$/.test(iso)) {
         const ms = Date.parse(iso);
@@ -52,6 +52,17 @@ function parseOpenMeteoLocalTime(iso, utcOffsetSeconds) {
     const asUtc = Date.parse(`${iso}Z`);
     if (!Number.isFinite(asUtc)) return null;
     return asUtc - utcOffsetSeconds * 1000;
+}
+
+/**
+ * Instant for an Open-Meteo hourly `time` string in the forecast timezone.
+ * @param {string} iso
+ * @param {number} [utcOffsetSeconds=36000]
+ * @returns {Date|null}
+ */
+export function openMeteoLocalTimeToDate(iso, utcOffsetSeconds = MELBOURNE_OFFSET_SECONDS) {
+    const ms = parseOpenMeteoLocalTime(iso, utcOffsetSeconds);
+    return ms == null ? null : new Date(ms);
 }
 
 /**

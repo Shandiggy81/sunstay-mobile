@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { storage } from '../utils/platform';
-import { calculateLiveSunScore } from '../utils/sunScore';
 import { fetchOpenMeteoWeather } from '../utils/weatherService';
 import { scoreVenueFromWeather } from '../utils/scoreFromOpenMeteo';
+import { computeBestWindow } from '../utils/getBestWindow';
 import { melbourneDate } from '../utils/sunPosition';
 
 const WeatherContext = createContext(null);
@@ -140,53 +140,8 @@ export const WeatherProvider = ({ children }) => {
         return 'mild';
     }, [weather]);
 
-    const getBestWindow = useCallback((hoursAhead = 8) => {
-        const hourly = weather?.hourly;
-        if (!hourly || !hourly.shortwave_radiation?.length) {
-            return { type: 'UNKNOWN', label: '⚡ Checking conditions...', score: 0, startsInHours: null };
-        }
-
-        const tzOffsetSeconds = hourly._tzOffsetSeconds ?? 36000;
-        const nowUnix = Math.floor(Date.now() / 1000);
-        const fallbackHour = Math.floor((nowUnix + tzOffsetSeconds) / 3600) % 24;
-        const currentIndex = Number.isFinite(hourly._currentIndex)
-            ? hourly._currentIndex
-            : fallbackHour;
-
-        const inputForIndex = (i) => {
-            const safeIndex = Math.min(Math.max(i, 0), hourly.shortwave_radiation.length - 1);
-            const hourOfDay = safeIndex % 24;
-            return {
-                shortwaveRadiation: hourly.shortwave_radiation?.[safeIndex] ?? 0,
-                apparentTemp: hourly.temperature_2m?.[safeIndex] ?? 20,
-                precipProbability: hourly.precipitation_probability?.[safeIndex] ?? 0,
-                cloudCover: hourly.cloud_cover?.[safeIndex] ?? 0,
-                windGusts: weather.windGusts ?? (weather.wind?.speed ?? 0) * 3.6,
-                isDay: hourOfDay >= 6 && hourOfDay <= 20 ? 1 : 0,
-                uvIndex: hourly.uv_index?.[safeIndex] ?? null,
-            };
-        };
-
-        const currentScore = calculateLiveSunScore(inputForIndex(currentIndex)).score;
-        let bestScore = currentScore;
-        let bestOffset = 0;
-
-        for (let offset = 1; offset <= hoursAhead; offset++) {
-            const slotIndex = Math.min(currentIndex + offset, hourly.shortwave_radiation.length - 1);
-            const scores = [slotIndex, slotIndex + 1, slotIndex + 2]
-                .filter(idx => idx < hourly.shortwave_radiation.length)
-                .map(idx => calculateLiveSunScore(inputForIndex(idx)).score);
-            const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
-            if (avgScore > bestScore) {
-                bestScore = avgScore;
-                bestOffset = offset;
-            }
-        }
-
-        if (bestScore >= 75) return { type: 'GREAT', label: '☀️ Great conditions', score: bestScore, startsInHours: bestOffset };
-        if (bestScore >= 50) return { type: 'GOOD', label: '🌤 Good conditions', score: bestScore, startsInHours: bestOffset };
-        if (bestScore >= 30) return { type: 'FAIR', label: '⛅ Fair conditions', score: bestScore, startsInHours: bestOffset };
-        return { type: 'POOR', label: '🌧 Poor conditions', score: bestScore, startsInHours: bestOffset };
+    const getBestWindow = useCallback((hoursAhead = 8, venue) => {
+        return computeBestWindow(weather, { hoursAhead, venue });
     }, [weather]);
 
     const setScorePreviewMinutes = useCallback((minutes) => {

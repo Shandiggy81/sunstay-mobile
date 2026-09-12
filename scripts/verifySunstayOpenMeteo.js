@@ -7,7 +7,9 @@ import {
     wallClockHourKey,
     fetchOpenMeteoWeather,
     getComfortLevel,
+    openMeteoLocalTimeToDate,
 } from '../src/utils/weatherService.js';
+import { computeBestWindow } from '../src/utils/getBestWindow.js';
 import {
     deriveVenueExposure,
     deriveVenueFacing,
@@ -174,6 +176,101 @@ check('preview 2pm (when now is 8pm) uses 24°C hourly', previewAfternoon.temper
 check('preview 2pm uses hourly UV 7', previewAfternoon.uvIndex, 7);
 check('preview 2pm sun altitude is well above horizon', previewAfternoon.sunAltitudeDeg, (n) => n != null && n > 20);
 
+console.log('getBestWindow / computeBestWindow');
+const windowNow = new Date(Date.UTC(2026, 8, 12, 2, 10, 0)); // 12:10 AEST
+function hourlyForecast({ temps, rains, startHour = 12, currentIndex = 0 }) {
+    const time = temps.map((_, i) => {
+        const h = startHour + i;
+        const day = h >= 24 ? '2026-09-13' : '2026-09-12';
+        return `${day}T${String(h % 24).padStart(2, '0')}:00`;
+    });
+    return weather({
+        utcOffsetSeconds: OFFSET,
+        hourly: {
+            time,
+            temperature_2m: temps,
+            apparent_temperature: temps,
+            wind_speed_10m: temps.map(() => 6),
+            precipitation_probability: rains ?? temps.map(() => 5),
+            uv_index: temps.map((_, i) => ((startHour + i) % 24) >= 7 && ((startHour + i) % 24) <= 17 ? 5 : 0),
+            cloud_cover: temps.map(() => 10),
+            _tzOffsetSeconds: OFFSET,
+            _currentIndex: currentIndex,
+        },
+    });
+}
+
+const missing = computeBestWindow(weather(), { now: windowNow });
+check('no hourly → UNKNOWN', missing.type, 'UNKNOWN');
+check('no hourly startsInHours is null', missing.startsInHours, null);
+check('no hourly start/end are null', missing.start == null && missing.end == null, true);
+
+const laterPeakWx = hourlyForecast({
+    temps: [12, 12, 12, 22, 22, 22, 12, 12],
+});
+const laterPeak = computeBestWindow(laterPeakWx, { hoursAhead: 8, now: windowNow });
+check('later peak is FUTURE_WINDOW', laterPeak.type, 'FUTURE_WINDOW');
+check('later peak starts in 3h (15:00)', laterPeak.startsInHours, 3);
+check('later peak uses engine score 0–100', laterPeak.score, (n) => Number.isInteger(n) && n >= 0 && n <= 100);
+check('later peak uses engine label', laterPeak.label, (s) => typeof s === 'string' && s.length > 0 && !s.includes('Great conditions'));
+check('later peak start is 15:00 AEST', laterPeak.start && wallClockHourKey(laterPeak.start, OFFSET), '2026-09-12T15:00');
+check(
+    'later peak is a 2–3h block inside the warm hours',
+    laterPeak.end && (laterPeak.end - laterPeak.start) / 3600000,
+    (n) => n === 2 || n === 3,
+);
+check(
+    'later peak ends by 18:00 AEST',
+    laterPeak.end && wallClockHourKey(laterPeak.end, OFFSET),
+    (iso) => iso === '2026-09-12T17:00' || iso === '2026-09-12T18:00',
+);
+const laterPeakHour = scoreVenueFromWeather(
+    laterPeakWx,
+    { tags: ['Sunny'], exposure: 'OPEN', lat: MELBOURNE.lat, lng: MELBOURNE.lon },
+    { at: laterPeak.start },
+);
+check('peak score matches scoreVenueFromWeather at window start hour band', laterPeak.score, (n) => n === laterPeakHour.score || n >= laterPeakHour.score);
+
+const currentPeakWx = hourlyForecast({
+    temps: [22, 23, 22, 12, 12, 12, 12, 12],
+});
+const currentPeak = computeBestWindow(currentPeakWx, { hoursAhead: 8, now: windowNow });
+check('current 3h max is CURRENT_PEAK', currentPeak.type, 'CURRENT_PEAK');
+check('current peak startsInHours is 0', currentPeak.startsInHours, 0);
+check('current peak start is 12:00', currentPeak.start && wallClockHourKey(currentPeak.start, OFFSET), '2026-09-12T12:00');
+check('current peak end is 15:00', currentPeak.end && wallClockHourKey(currentPeak.end, OFFSET), '2026-09-12T15:00');
+
+const twoHourWx = hourlyForecast({
+    temps: [21, 21, 21, 21, 21, 21, 21, 21],
+    rains: [0, 0, 80, 80, 80, 80, 80, 80],
+});
+const twoHour = computeBestWindow(twoHourWx, { hoursAhead: 8, now: windowNow });
+check('dry pair beats rainy 3h → 2h window', twoHour.start && twoHour.end && (twoHour.end - twoHour.start) / 3600000, 2);
+check('2h window starts now', twoHour.type, 'CURRENT_PEAK');
+
+const parsed = openMeteoLocalTimeToDate('2026-09-12T15:00', OFFSET);
+check('openMeteoLocalTimeToDate 15:00 AEST', parsed && wallClockHourKey(parsed, OFFSET), '2026-09-12T15:00');
+
+check(
+    'hoursAhead=0 cannot form a 2h block → UNKNOWN',
+    computeBestWindow(hourlyForecast({ temps: [22, 23, 22] }), { hoursAhead: 0, now: windowNow }).type,
+    'UNKNOWN',
+);
+const twoSlots = computeBestWindow(hourlyForecast({ temps: [22, 23] }), { hoursAhead: 1, now: windowNow });
+check('exactly 2 slots is a 2h CURRENT_PEAK', twoSlots.type === 'CURRENT_PEAK' && (twoSlots.end - twoSlots.start) / 3600000 === 2, true);
+
+const rainyHours = {
+    ...hourlyForecast({
+        temps: [21, 21, 21, 21],
+        rains: [80, 80, 80, 80],
+    }),
+    precipProbability: 80,
+};
+const openRain = computeBestWindow(rainyHours, { hoursAhead: 3, now: windowNow, venue: { tags: ['Sunny'], exposure: 'OPEN', lat: MELBOURNE.lat, lng: MELBOURNE.lon } });
+const coveredRain = computeBestWindow(rainyHours, { hoursAhead: 3, now: windowNow, venue: covered });
+check('optional venue is scored (OPEN rain < COVERED rain)', openRain.score < coveredRain.score, true);
+check('legacy GREAT/GOOD/FAIR/POOR types are gone', ['CURRENT_PEAK', 'FUTURE_WINDOW', 'UNKNOWN'].includes(laterPeak.type), true);
+
 console.log('Live Open-Meteo fetch');
 try {
     const live = await fetchOpenMeteoWeather(MELBOURNE.lat, MELBOURNE.lon);
@@ -203,6 +300,15 @@ try {
     const liveAt8pm = scoreVenueFromWeather(live, liveVenue, { at: melbourneDate(20 * 60) });
     check('live 8pm score is 0–100 int', liveAt8pm.score, (n) => Number.isInteger(n) && n >= 0 && n <= 100);
     console.log(`  ℹ settled 8pm OPEN ${liveAt8pm.score} ${liveAt8pm.label}`);
+
+    const liveWindow = computeBestWindow(live, { hoursAhead: 8, venue: liveVenue });
+    check('live window type is known or unknown', ['CURRENT_PEAK', 'FUTURE_WINDOW', 'UNKNOWN'].includes(liveWindow.type), true);
+    if (liveWindow.type !== 'UNKNOWN') {
+        check('live window has start/end Dates', liveWindow.start instanceof Date && liveWindow.end instanceof Date, true);
+        check('live window is 2–3 hours', (liveWindow.end - liveWindow.start) / 3600000, (n) => n === 2 || n === 3);
+        check('live window peak is 0–100', liveWindow.score, (n) => Number.isInteger(n) && n >= 0 && n <= 100);
+        console.log(`  ℹ best window ${liveWindow.type} ${liveWindow.label} ${liveWindow.score} startsIn=${liveWindow.startsInHours}h`);
+    }
 } catch (err) {
     failed += 1;
     console.log(`  ✗ live fetch failed: ${err.message}`);

@@ -4,10 +4,10 @@
  * Keeps the cozy-index module free of React and suncalc. Sun geometry comes
  * from getSunPositionForMap (0=N clockwise), matching calculateSunstayScore.
  */
-import { calculateSunstayScore } from './calculateSunstayScore';
-import { getSunPositionForMap } from './sunPosition';
-import { getVenueFacingBearing } from '../data/sunshineIntelligence';
-import { getCurrentHourlyIndex, wallClockHourKey } from './weatherService';
+import { calculateSunstayScore } from './calculateSunstayScore.js';
+import { getSunPositionForMap } from './sunPosition.js';
+import { getVenueFacingBearing } from '../data/sunshineIntelligence.js';
+import { getCurrentHourlyIndex, wallClockHourKey } from './weatherService.js';
 
 const MELBOURNE_COORDS = { lat: -37.8136, lng: 144.9631 };
 const FALLBACK_RESULT = { score: 75, label: 'Great Conditions' };
