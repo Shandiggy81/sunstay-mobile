@@ -197,10 +197,12 @@ export function mapWeatherCode(wmoCode) {
   return { label: 'Unknown', icon: '\uD83C\uDF24\uFE0F' };
 }
 
-export function getComfortLevel({ apparentTemp, precipProbability, windGusts }) {
+export function getComfortLevel({ apparentTemp, precipProbability, windKmh }) {
   if (precipProbability > 60) return { label: 'Wet', icon: '\uD83C\uDF27\uFE0F', cozy: true };
   if (apparentTemp < 12) return { label: 'Cold', icon: '\uD83E\uDDE5', cozy: true };
-  if (windGusts > 15) return { label: 'Windy', icon: '\uD83D\uDCA8', cozy: false };
+  // Windy only for sustained wind_speed_10m >= 20 km/h (same baseline as WIND_SOFT_KMH).
+  // Light breeze (~6 km/h) falls through to Comfortable/Mild — do not label it Windy.
+  if (windKmh >= 20) return { label: 'Windy', icon: '\uD83D\uDCA8', cozy: false };
   if (apparentTemp >= 18 && apparentTemp <= 28) return { label: 'Comfortable', icon: '\uD83D\uDE0A', cozy: false };
   if (apparentTemp > 28) return { label: 'Hot', icon: '\uD83E\uDD75', cozy: false };
   return { label: 'Mild', icon: '\uD83C\uDF24\uFE0F', cozy: false };

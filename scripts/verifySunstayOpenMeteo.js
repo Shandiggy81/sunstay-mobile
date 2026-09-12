@@ -6,6 +6,7 @@ import {
     getCurrentHourlyIndex,
     wallClockHourKey,
     fetchOpenMeteoWeather,
+    getComfortLevel,
 } from '../src/utils/weatherService.js';
 import {
     deriveVenueExposure,
@@ -101,6 +102,18 @@ check('input maps sun azimuth', input.sunAzimuthDeg, 0);
 
 const sameAsDirect = calculateSunstayScore(input);
 check('adapter result matches calculateSunstayScore', sameAsDirect.score, scoreVenueFromWeather(weather({ precipProbability: 22 }), { tags: ['Shaded'], balcony_facing: 'N' }, { sun: terraceSun }).score);
+
+console.log('Comfort header (sustained wind_speed_10m)');
+const mildBreeze = getComfortLevel({ apparentTemp: 21, precipProbability: 5, windKmh: 6 });
+check('6 km/h breeze is Comfortable, not Windy', mildBreeze.label, 'Comfortable');
+const justUnder = getComfortLevel({ apparentTemp: 21, precipProbability: 5, windKmh: 19.9 });
+check('19.9 km/h falls through (not Windy)', justUnder.label, 'Comfortable');
+const atBaseline = getComfortLevel({ apparentTemp: 21, precipProbability: 5, windKmh: 20 });
+check('20 km/h is Windy (WIND_SOFT_KMH)', atBaseline.label, 'Windy');
+const gustTrap = getComfortLevel({ apparentTemp: 21, precipProbability: 5, windKmh: 8, windGusts: 16 });
+check('gusts ignored when sustained is a breeze', gustTrap.label, 'Comfortable');
+const wetWins = getComfortLevel({ apparentTemp: 21, precipProbability: 70, windKmh: 25 });
+check('rain still wins over wind', wetWins.label, 'Wet');
 
 console.log('Live Open-Meteo fetch');
 try {
