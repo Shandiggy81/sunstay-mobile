@@ -477,7 +477,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-4, 4]), { stiffness: 200, damping: 25 });
   const cardRectRef = useRef(null);
 
-  // Pull live cozy-index + best window from Open-Meteo-backed context
+  // Pull live cozy-index + best window from Open-Meteo-backed context.
+  // getSunstayScoreResult already includes settled TOD previewMinutes.
   const { weather: weatherData, calculateSunstayScore, getSunstayScoreResult, getBestWindow } = useWeather();
 
   function handlePointerEnter(e) { cardRectRef.current = e.currentTarget.getBoundingClientRect(); }

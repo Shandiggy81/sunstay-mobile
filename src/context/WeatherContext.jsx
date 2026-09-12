@@ -3,6 +3,7 @@ import { storage } from '../utils/platform';
 import { calculateLiveSunScore } from '../utils/sunScore';
 import { fetchOpenMeteoWeather } from '../utils/weatherService';
 import { scoreVenueFromWeather } from '../utils/scoreFromOpenMeteo';
+import { melbourneDate } from '../utils/sunPosition';
 
 const WeatherContext = createContext(null);
 
@@ -62,6 +63,8 @@ export const WeatherProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [overrideType, setOverrideType] = useState(null);
+    // Settled TOD slider minutes (Melbourne wall-clock). null = live “now”.
+    const [previewMinutes, setPreviewMinutes] = useState(null);
 
     const fetchWeather = useCallback(async (signal) => {
         setLoading(true);
@@ -186,9 +189,21 @@ export const WeatherProvider = ({ children }) => {
         return { type: 'POOR', label: '🌧 Poor conditions', score: bestScore, startsInHours: bestOffset };
     }, [weather]);
 
+    const setScorePreviewMinutes = useCallback((minutes) => {
+        setPreviewMinutes((prev) => {
+            if (minutes == null || minutes === '') return null;
+            const n = Number(minutes);
+            if (!Number.isFinite(n)) return prev;
+            return n === prev ? prev : n;
+        });
+    }, []);
+
     const getSunstayScoreResult = useCallback((venue) => {
-        return scoreVenueFromWeather(weather, venue);
-    }, [weather]);
+        if (previewMinutes == null) {
+            return scoreVenueFromWeather(weather, venue);
+        }
+        return scoreVenueFromWeather(weather, venue, { at: melbourneDate(previewMinutes) });
+    }, [weather, previewMinutes]);
 
     const calculateSunstayScore = useCallback((venue) => {
         return getSunstayScoreResult(venue).score;
@@ -207,6 +222,8 @@ export const WeatherProvider = ({ children }) => {
         getBestWindow,
         calculateSunstayScore,
         getSunstayScoreResult,
+        previewMinutes,
+        setScorePreviewMinutes,
     };
 
     return (
