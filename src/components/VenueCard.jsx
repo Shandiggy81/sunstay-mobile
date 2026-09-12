@@ -507,7 +507,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const contextScore = scoreResult?.score
     ?? (typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null);
   const score      = contextScore ?? weather?.score ?? weather?.rawWeather?.score ?? 70;
-  const scoreLabel = scoreResult?.label;
   const uvIndex    = weather?.rawWeather?.uvIndex ?? venue?.weatherNow?.uvIndex ?? 3;
   const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
@@ -707,7 +706,12 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
   }, [precipProb, precipProbability, wind, score, cloudcover]);
 
-  const scoreLabel = useMemo(() => { if (score > 75) return 'Perfect Now'; if (score >= 50) return 'Good Choice'; return 'Worth a Look'; }, [score]);
+  const scoreLabel = useMemo(() => {
+    if (scoreResult?.label) return scoreResult.label;
+    if (score > 75) return 'Perfect Now';
+    if (score >= 50) return 'Good Choice';
+    return 'Worth a Look';
+  }, [score, scoreResult?.label]);
   const scoreMeaningLabel = useMemo(() => { if (score >= 75) return 'Great conditions'; if (score >= 50) return 'Decent today'; return 'Not ideal'; }, [score]);
 
   const displaySunrise = useMemo(() => {
