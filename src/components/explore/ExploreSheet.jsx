@@ -3,7 +3,7 @@ import { X, ChevronUp, SlidersHorizontal, Map, List } from 'lucide-react';
 import VenueListCard from './VenueListCard';
 import VenueDetail from '../VenueDetail';
 import FiltersPanel from '../FiltersPanel';
-import { calculateLiveSunScore } from '../../utils/sunScore';
+import { useWeather } from '../../context/WeatherContext';
 import { Virtuoso } from 'react-virtuoso';
 
 const QUICK_FILTERS = [
@@ -46,6 +46,7 @@ const ExploreSheet = ({
     externalFiltersOpen,
     onExternalFiltersClose,
 }) => {
+    const { calculateSunstayScore } = useWeather();
     const [filtersOpen, setFiltersOpen] = useState(false);
     const effectiveFiltersOpen = externalFiltersOpen || filtersOpen;
     const closeFilters = () => { setFiltersOpen(false); onExternalFiltersClose?.(); };
@@ -65,36 +66,11 @@ const ExploreSheet = ({
 
     const sortedVenues = useMemo(() => {
         if (!venues || venues.length === 0) return [];
-        
-        const weatherInput = {
-            shortwaveRadiation: weather?.shortwaveRadiation ?? 0,
-            apparentTemp: weather?.main?.feels_like ?? weather?.main?.temp ?? 20,
-            precipProbability: weather?.precipProbability ?? 0,
-            cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0,
-            windGusts: weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6,
-            isDay: weather?.isDay ?? 1,
-        };
-        const baseScore = calculateLiveSunScore(weatherInput).score;
-        
-        const cozyNow =
-            (weather?.main?.feels_like ?? weather?.main?.temp ?? 20) <= 16 ||
-            (weather?.precipProbability ?? 0) >= 45 ||
-            String(weather?.weather?.[0]?.main || '').toLowerCase().includes('rain') ||
-            (weather?.windGusts ?? (weather?.wind?.speed ?? 0) * 3.6) >= 35;
-
-        return [...venues].sort((a, b) => {
-            const hasHeatA = a.tags?.includes('Fireplace') || a.tags?.includes('Heaters') || a.heating || a.fireplace;
-            const hasHeatB = b.tags?.includes('Fireplace') || b.tags?.includes('Heaters') || b.heating || b.fireplace;
-            
-            const outdoorOnlyA = a.tags?.includes('Beer Garden') || a.tags?.includes('Rooftop') || a.tags?.includes('Waterfront') || a.tags?.includes('Outdoor Seating');
-            const outdoorOnlyB = b.tags?.includes('Beer Garden') || b.tags?.includes('Rooftop') || b.tags?.includes('Waterfront') || b.tags?.includes('Outdoor Seating');
-            
-            const scoreA = baseScore + (cozyNow && hasHeatA ? 22 : 0) - (cozyNow && outdoorOnlyA && !hasHeatA ? 8 : 0);
-            const scoreB = baseScore + (cozyNow && hasHeatB ? 22 : 0) - (cozyNow && outdoorOnlyB && !hasHeatB ? 8 : 0);
-            
-            return scoreB - scoreA;
-        });
-    }, [venues, weather]);
+        const scoreOf = (venue) => (
+            typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : 50
+        );
+        return [...venues].sort((a, b) => scoreOf(b) - scoreOf(a));
+    }, [venues, calculateSunstayScore]);
 
     const resolveSnap = useCallback((startMode, deltaY, velocityY) => {
         if (startMode === 'full' || (startMode === 'list' && deltaY < -60)) {

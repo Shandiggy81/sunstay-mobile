@@ -1,8 +1,8 @@
 /**
  * Sunstay cozy-index for outdoor hospitality venues (Melbourne context).
  *
- * Pure ES6 module — no React, no suncalc. Pairing / live weather scoring
- * lives in `sunScore.js` and is a different model; do not conflate the two.
+ * Pure ES6 module — no React, no suncalc. Live Open-Meteo pairing lives in
+ * `scoreFromOpenMeteo.js`. `sunScore.js` is a different radiation-based model.
  *
  * Examples:
  *   calculateSunstayScore({ temperatureC: 21, windKmh: 8, rainProbability: 5,
