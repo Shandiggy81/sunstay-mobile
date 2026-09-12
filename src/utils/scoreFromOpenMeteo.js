@@ -7,6 +7,7 @@
 import { calculateSunstayScore } from './calculateSunstayScore';
 import { getSunPositionForMap } from './sunPosition';
 import { getVenueFacingBearing } from '../data/sunshineIntelligence';
+import { getCurrentHourlyIndex, wallClockHourKey } from './weatherService';
 
 const MELBOURNE_COORDS = { lat: -37.8136, lng: 144.9631 };
 const FALLBACK_RESULT = { score: 75, label: 'Great Conditions' };
@@ -120,27 +121,103 @@ function sunPositionForVenue(venue, now) {
     return getSunPositionForMap(lat, lng, now);
 }
 
+function tzOffsetFromWeather(weather) {
+    return toFiniteNumber(weather?.hourly?._tzOffsetSeconds ?? weather?.utcOffsetSeconds, 36000) ?? 36000;
+}
+
+/**
+ * True when `at` falls in the live “now” hourly slot (or the same Melbourne
+ * wall-clock hour when hourly index metadata is missing).
+ * @param {object|null|undefined} weather
+ * @param {Date} at
+ * @returns {boolean}
+ */
+export function isLiveScoreTimestamp(weather, at) {
+    if (!(at instanceof Date) || Number.isNaN(at.getTime())) return true;
+    const tz = tzOffsetFromWeather(weather);
+    const hourly = weather?.hourly;
+    if (hourly?.time?.length && Number.isFinite(hourly._currentIndex)) {
+        return getCurrentHourlyIndex(hourly, tz, at) === hourly._currentIndex;
+    }
+    return wallClockHourKey(at, tz) === wallClockHourKey(new Date(), tz);
+}
+
+function overlayHourlyWeather(weather, idx) {
+    const hourly = weather.hourly;
+    const temp = toFiniteNumber(hourly.temperature_2m?.[idx]);
+    const apparent = toFiniteNumber(hourly.apparent_temperature?.[idx]);
+    const windKmh = toFiniteNumber(hourly.wind_speed_10m?.[idx]);
+    const precip = toFiniteNumber(hourly.precipitation_probability?.[idx]);
+    const uv = toFiniteNumber(hourly.uv_index?.[idx]);
+    const clouds = toFiniteNumber(hourly.cloud_cover?.[idx]);
+    const gusts = toFiniteNumber(hourly.wind_gusts_10m?.[idx]);
+
+    return {
+        ...weather,
+        main: {
+            ...weather.main,
+            temp: temp ?? weather.main?.temp,
+            feels_like: apparent ?? weather.main?.feels_like,
+        },
+        wind: {
+            ...weather.wind,
+            speed: windKmh != null ? windKmh / 3.6 : weather.wind?.speed,
+        },
+        windKmh: windKmh ?? weather.windKmh,
+        windGusts: gusts ?? weather.windGusts,
+        uvi: uv ?? weather.uvi,
+        precipProbability: precip ?? weather.precipProbability,
+        cloudCoverPct: clouds ?? weather.cloudCoverPct,
+        clouds: { all: clouds ?? weather.clouds?.all },
+        apparentTemp: apparent ?? weather.apparentTemp,
+    };
+}
+
+/**
+ * Weather object used for scoring at `at`. Live current-hour timestamps keep
+ * the original current fields so the result matches today’s live score.
+ * @param {object|null|undefined} weather
+ * @param {Date|null|undefined} at
+ * @returns {object|null|undefined}
+ */
+export function weatherForScoreTime(weather, at) {
+    if (!weather || !(at instanceof Date) || Number.isNaN(at.getTime())) return weather;
+    if (isLiveScoreTimestamp(weather, at)) return weather;
+    const hourly = weather.hourly;
+    if (!hourly?.time?.length) return weather;
+    const idx = getCurrentHourlyIndex(hourly, tzOffsetFromWeather(weather), at);
+    return overlayHourlyWeather(weather, idx);
+}
+
 /**
  * Build calculateSunstayScore input from live Open-Meteo weather + a venue.
  *
  * @param {object|null|undefined} weather
  * @param {object|null|undefined} venue
  * @param {object} [options]
+ * @param {Date} [options.at] - settled Melbourne instant; pulls hourly forecast + sun at that time
  * @param {Date} [options.now]
  * @param {{ azimuth?: number, altitude?: number }|null} [options.sun] - skip suncalc when provided
  * @returns {import('./calculateSunstayScore').SunstayScoreInput}
  */
 export function buildSunstayScoreInput(weather, venue, options = {}) {
-    const now = options.now instanceof Date ? options.now : new Date();
+    const explicitAt = options.at instanceof Date && !Number.isNaN(options.at.getTime())
+        ? options.at
+        : null;
+    const useLiveNow = !explicitAt || isLiveScoreTimestamp(weather, explicitAt);
+    const now = useLiveNow
+        ? (options.now instanceof Date ? options.now : new Date())
+        : explicitAt;
+    const scoredWeather = explicitAt ? weatherForScoreTime(weather, explicitAt) : weather;
     const sun = options.sun === null
         ? { azimuth: null, altitude: null }
         : options.sun ?? sunPositionForVenue(venue, now);
 
     return {
-        temperatureC: toFiniteNumber(weather?.main?.temp ?? weather?.apparentTemp ?? weather?.temp),
-        windKmh: windKmhFromWeather(weather),
-        rainProbability: rainProbabilityFromWeather(weather),
-        uvIndex: toFiniteNumber(weather?.uvi ?? weather?.uvIndex),
+        temperatureC: toFiniteNumber(scoredWeather?.main?.temp ?? scoredWeather?.apparentTemp ?? scoredWeather?.temp),
+        windKmh: windKmhFromWeather(scoredWeather),
+        rainProbability: rainProbabilityFromWeather(scoredWeather),
+        uvIndex: toFiniteNumber(scoredWeather?.uvi ?? scoredWeather?.uvIndex),
         sunAzimuthDeg: toFiniteNumber(sun?.azimuth ?? sun?.azimuthDeg),
         sunAltitudeDeg: toFiniteNumber(sun?.altitude ?? sun?.altitudeDeg),
         venueExposureFacing: deriveVenueFacing(venue),
@@ -152,6 +229,7 @@ export function buildSunstayScoreInput(weather, venue, options = {}) {
  * @param {object|null|undefined} weather
  * @param {object|null|undefined} venue
  * @param {object} [options]
+ * @param {Date} [options.at] - settled timestamp; hourly forecast + sun at that instant
  * @returns {{ score: number, label: string }}
  */
 export function scoreVenueFromWeather(weather, venue, options = {}) {

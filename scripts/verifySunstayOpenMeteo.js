@@ -13,8 +13,11 @@ import {
     deriveVenueFacing,
     buildSunstayScoreInput,
     scoreVenueFromWeather,
+    weatherForScoreTime,
+    isLiveScoreTimestamp,
 } from '../src/utils/scoreFromOpenMeteo.js';
 import { calculateSunstayScore } from '../src/utils/calculateSunstayScore.js';
+import { melbourneDate } from '../src/utils/sunPosition.js';
 
 const MELBOURNE = { lat: -37.8136, lon: 144.9631 };
 const OFFSET = 36000;
@@ -115,6 +118,62 @@ check('gusts ignored when sustained is a breeze', gustTrap.label, 'Comfortable')
 const wetWins = getComfortLevel({ apparentTemp: 21, precipProbability: 70, windKmh: 25 });
 check('rain still wins over wind', wetWins.label, 'Wet');
 
+console.log('Settled hour overlay');
+const at2pm = new Date(Date.UTC(2026, 8, 12, 4, 0, 0)); // 14:00 AEST
+const at8pm = new Date(Date.UTC(2026, 8, 12, 10, 0, 0)); // 20:00 AEST
+const hourlyWx = weather({
+    utcOffsetSeconds: OFFSET,
+    hourly: {
+        time: ['2026-09-12T14:00', '2026-09-12T20:00'],
+        temperature_2m: [24, 12],
+        apparent_temperature: [23, 11],
+        wind_speed_10m: [5, 8],
+        precipitation_probability: [5, 10],
+        uv_index: [7, 0],
+        cloud_cover: [10, 40],
+        _tzOffsetSeconds: OFFSET,
+        _currentIndex: 0,
+    },
+});
+check('14:00 is the live slot', isLiveScoreTimestamp(hourlyWx, at2pm), true);
+check('20:00 is not the live slot', isLiveScoreTimestamp(hourlyWx, at8pm), false);
+check('live slot weather is the same object', weatherForScoreTime(hourlyWx, at2pm), hourlyWx);
+const eveningWx = weatherForScoreTime(hourlyWx, at8pm);
+check('8pm overlays 12°C', eveningWx.main.temp, 12);
+check('8pm overlays UV 0', eveningWx.uvi, 0);
+check('8pm does not mutate live weather', hourlyWx.main.temp, 21);
+
+const afternoon = scoreVenueFromWeather(hourlyWx, openNorth, { at: at2pm, sun: terraceSun });
+const afternoonLive = scoreVenueFromWeather(hourlyWx, openNorth, { sun: terraceSun });
+check('current-hour at matches live score', afternoon.score, afternoonLive.score);
+check('current-hour at matches live label', afternoon.label, afternoonLive.label);
+
+const evening = scoreVenueFromWeather(hourlyWx, openNorth, { at: at8pm });
+check('8pm score differs from 2pm', evening.score !== afternoon.score, true);
+check('8pm is Too Cold from forecast temp', evening.label, 'Too Cold');
+
+const fromSlider = melbourneDate(14 * 60, at2pm);
+check(
+    'melbourneDate(14:00) wall-clock is 14:00 AEST',
+    wallClockHourKey(fromSlider, OFFSET),
+    '2026-09-12T14:00',
+);
+const fromSlider8 = melbourneDate(20 * 60, at2pm);
+check(
+    'melbourneDate(20:00) wall-clock is 20:00 AEST',
+    wallClockHourKey(fromSlider8, OFFSET),
+    '2026-09-12T20:00',
+);
+
+const eveningNowWx = {
+    ...hourlyWx,
+    hourly: { ...hourlyWx.hourly, _currentIndex: 1 },
+};
+const previewAfternoon = buildSunstayScoreInput(eveningNowWx, openNorth, { at: at2pm });
+check('preview 2pm (when now is 8pm) uses 24°C hourly', previewAfternoon.temperatureC, 24);
+check('preview 2pm uses hourly UV 7', previewAfternoon.uvIndex, 7);
+check('preview 2pm sun altitude is well above horizon', previewAfternoon.sunAltitudeDeg, (n) => n != null && n > 20);
+
 console.log('Live Open-Meteo fetch');
 try {
     const live = await fetchOpenMeteoWeather(MELBOURNE.lat, MELBOURNE.lon);
@@ -136,6 +195,14 @@ try {
     }
     console.log(`  ℹ live ${live.main.temp}°C, rain ${live.precipProbability}%, wind ${live.windKmh} km/h, UV ${live.uvi}`);
     console.log(`  ℹ OPEN ${liveOpen.score} ${liveOpen.label} | COVERED ${liveCovered.score} ${liveCovered.label}`);
+
+    const liveVenue = { tags: ['Sunny', 'Beer Garden'], lat: MELBOURNE.lat, lng: MELBOURNE.lon, balcony_facing: 'N' };
+    const liveAtNow = scoreVenueFromWeather(live, liveVenue, { at: new Date() });
+    check('at: now equals live score', liveAtNow.score, liveOpen.score);
+    check('at: now equals live label', liveAtNow.label, liveOpen.label);
+    const liveAt8pm = scoreVenueFromWeather(live, liveVenue, { at: melbourneDate(20 * 60) });
+    check('live 8pm score is 0–100 int', liveAt8pm.score, (n) => Number.isInteger(n) && n >= 0 && n <= 100);
+    console.log(`  ℹ settled 8pm OPEN ${liveAt8pm.score} ${liveAt8pm.label}`);
 } catch (err) {
     failed += 1;
     console.log(`  ✗ live fetch failed: ${err.message}`);

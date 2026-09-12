@@ -8,6 +8,7 @@ import SunCalc from 'suncalc';
 import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
+import { melbourneDate } from '../../utils/sunPosition';
 import { motion } from 'framer-motion';
 
 // ── Pin states ──────────────────────────────────────────────────────────
@@ -285,24 +286,6 @@ function lerpColor(a, b, t) {
     return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
 
-const MELBOURNE_TZ = 'Australia/Melbourne';
-
-// Build a Date whose Melbourne wall-clock time is today at `minutes`, regardless
-// of the viewer's own timezone — the slider represents Melbourne local time, so
-// the sun position must be computed for Melbourne (handles AEST/AEDT correctly).
-function melbourneDate(minutes) {
-    const now = new Date();
-    const [y, mo, d] = new Intl.DateTimeFormat('en-CA', {
-        timeZone: MELBOURNE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(now).split('-').map(Number);
-
-    const guessUTC = Date.UTC(y, mo - 1, d, Math.floor(minutes / 60), minutes % 60, 0);
-    const asUTC = new Date(guessUTC);
-    const melbMs = new Date(asUTC.toLocaleString('en-US', { timeZone: MELBOURNE_TZ })).getTime();
-    const utcMs  = new Date(asUTC.toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
-    return new Date(guessUTC - (melbMs - utcMs)); // shift by Melbourne's UTC offset
-}
-
 // Translate a minutes-of-day value into Mapbox v3 3D-lighting parameters using
 // the real Melbourne sun position from suncalc (computed for today's date).
 function computeSunLight(minutes, lat, lng) {
@@ -332,6 +315,7 @@ function computeSunLight(minutes, lat, lng) {
 // is written through a DOM ref. Minutes commit to React state on pointer-up /
 // cancel / blur so parent VenueMap re-renders cannot reset a mid-drag value.
 function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
+    const { setScorePreviewMinutes } = useWeather();
     const [minutes, setMinutes] = useState(13 * 60); // default 1:00 PM — committed
     const minutesRef = useRef(minutes);
     const lightRafRef = useRef(null);
@@ -437,6 +421,10 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         const v = minutesRef.current;
         setMinutes((prev) => (prev === v ? prev : v));
         paintClock(v);
+        // Score uses settled minutes only — never the rAF/scrub path.
+        if (typeof setScorePreviewMinutes === 'function') {
+            setScorePreviewMinutes(v);
+        }
     };
 
     return (

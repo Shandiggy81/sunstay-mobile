@@ -9,6 +9,29 @@
 
 import SunCalc from 'suncalc';
 
+export const MELBOURNE_TZ = 'Australia/Melbourne';
+
+/**
+ * Build a Date whose Melbourne wall-clock time is `now`'s Melbourne calendar
+ * day at `minutes` past midnight. The TOD slider is Melbourne-local, so sun
+ * geometry (and score-at-time) must use this path — not the viewer's TZ.
+ *
+ * @param {number} minutes - minutes past midnight (0–1439)
+ * @param {Date} [now]
+ * @returns {Date}
+ */
+export function melbourneDate(minutes, now = new Date()) {
+    const [y, mo, d] = new Intl.DateTimeFormat('en-CA', {
+        timeZone: MELBOURNE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(now).split('-').map(Number);
+
+    const guessUTC = Date.UTC(y, mo - 1, d, Math.floor(minutes / 60), minutes % 60, 0);
+    const asUTC = new Date(guessUTC);
+    const melbMs = new Date(asUTC.toLocaleString('en-US', { timeZone: MELBOURNE_TZ })).getTime();
+    const utcMs  = new Date(asUTC.toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
+    return new Date(guessUTC - (melbMs - utcMs));
+}
+
 export function getSunPositionForMap(lat, lng, date = new Date()) {
     try {
         const pos = SunCalc.getPosition(date, lat, lng);
