@@ -8,6 +8,12 @@ import {
     fetchOpenMeteoWeather,
     getComfortLevel,
     openMeteoLocalTimeToDate,
+    weatherCacheKey,
+    readOpenMeteoCache,
+    writeOpenMeteoCache,
+    clearOpenMeteoWeatherCache,
+    OPEN_METEO_CACHE_TTL_MS,
+    OPEN_METEO_FETCH_TIMEOUT_MS,
 } from '../src/utils/weatherService.js';
 import { computeBestWindow } from '../src/utils/getBestWindow.js';
 import {
@@ -270,6 +276,69 @@ const openRain = computeBestWindow(rainyHours, { hoursAhead: 3, now: windowNow, 
 const coveredRain = computeBestWindow(rainyHours, { hoursAhead: 3, now: windowNow, venue: covered });
 check('optional venue is scored (OPEN rain < COVERED rain)', openRain.score < coveredRain.score, true);
 check('legacy GREAT/GOOD/FAIR/POOR types are gone', ['CURRENT_PEAK', 'FUTURE_WINDOW', 'UNKNOWN'].includes(laterPeak.type), true);
+
+console.log('Open-Meteo geo cache');
+clearOpenMeteoWeatherCache();
+check('2dp key groups Melbourne CBD + nearby', weatherCacheKey(-37.8136, 144.9631), weatherCacheKey(-37.8144, 144.9644));
+check('2dp key differs ~1km south', weatherCacheKey(-37.81, 144.96) === weatherCacheKey(-37.82, 144.96), false);
+check('TTL is 30 minutes', OPEN_METEO_CACHE_TTL_MS, 30 * 60 * 1000);
+check('fetch timeout is 8–10s', OPEN_METEO_FETCH_TIMEOUT_MS, (n) => n >= 8000 && n <= 10000);
+
+const cachedPayload = { hourly: { time: ['cached'] }, source: 'open-meteo', marker: 'warm' };
+writeOpenMeteoCache(-37.8136, 144.9631, cachedPayload);
+check('warm cache hit for nearby coords', readOpenMeteoCache(-37.8141, 144.9642)?.marker, 'warm');
+check('expired cache misses', readOpenMeteoCache(-37.8136, 144.9631, Date.now() + OPEN_METEO_CACHE_TTL_MS + 1), null);
+
+clearOpenMeteoWeatherCache();
+const originalFetch = globalThis.fetch;
+let fetchCalls = 0;
+globalThis.fetch = async () => {
+    fetchCalls += 1;
+    return {
+        ok: true,
+        json: async () => ({
+            current: { temperature_2m: 21, weather_code: 0, wind_speed_10m: 8, cloud_cover: 10, is_day: 1 },
+            hourly: { time: ['2026-09-12T12:00'], precipitation_probability: [5], uv_index: [4], cloud_cover: [10] },
+            daily: { sunrise: ['2026-09-12T06:20'], sunset: ['2026-09-12T18:10'] },
+            utc_offset_seconds: OFFSET,
+        }),
+    };
+};
+try {
+    await fetchOpenMeteoWeather(-37.8136, 144.9631);
+    await fetchOpenMeteoWeather(-37.8142, 144.9641);
+    check('nearby coords share cache (1 live fetch)', fetchCalls, 1);
+    const fromCache = await fetchOpenMeteoWeather(-37.8139, 144.9638);
+    check('warm cache skips fetch', fetchCalls, 1);
+    check('cached payload source is open-meteo', fromCache.source, 'open-meteo');
+} finally {
+    globalThis.fetch = originalFetch;
+    clearOpenMeteoWeatherCache();
+}
+
+clearOpenMeteoWeatherCache();
+globalThis.fetch = (_url, init) => new Promise((_, reject) => {
+    const signal = init?.signal;
+    if (signal?.aborted) {
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+        return;
+    }
+    signal?.addEventListener('abort', () => {
+        reject(signal.reason ?? new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+    }, { once: true });
+});
+const timeoutStarted = Date.now();
+try {
+    await fetchOpenMeteoWeather(-38.00, 145.00, undefined, { timeoutMs: 80 });
+    check('hanging fetch should throw', false, true);
+} catch (err) {
+    const elapsed = Date.now() - timeoutStarted;
+    check('hanging fetch times out', /timeout|abort/i.test(`${err?.name || ''} ${err?.message || ''}`), true);
+    check('timeout lands promptly', elapsed, (n) => n >= 50 && n <= 1500);
+} finally {
+    globalThis.fetch = originalFetch;
+    clearOpenMeteoWeatherCache();
+}
 
 console.log('Live Open-Meteo fetch');
 try {

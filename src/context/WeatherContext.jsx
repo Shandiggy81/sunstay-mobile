@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { storage } from '../utils/platform';
 import { fetchOpenMeteoWeather } from '../utils/weatherService';
 import { scoreVenueFromWeather } from '../utils/scoreFromOpenMeteo';
 import { computeBestWindow } from '../utils/getBestWindow';
@@ -8,9 +7,9 @@ import { melbourneDate } from '../utils/sunPosition';
 const WeatherContext = createContext(null);
 
 const MELBOURNE_COORDS = { lat: -37.8136, lon: 144.9631 };
-const CACHE_EXPIRY = 900000;
-const CACHE_KEY = `sunstay_weather_v2_${MELBOURNE_COORDS.lat.toFixed(2)}_${MELBOURNE_COORDS.lon.toFixed(2)}`;
-const isAbortError = (error) => error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
+const isTimeoutError = (error) => error?.name === 'TimeoutError';
+const isAbortError = (error) =>
+    !isTimeoutError(error) && (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED');
 
 const DEMO_WEATHER = {
     main: { temp: 22, feels_like: 21, humidity: 55 },
@@ -21,6 +20,7 @@ const DEMO_WEATHER = {
     sys: { sunset: Date.now() / 1000 + 14400 },
     name: 'Melbourne (Demo)',
     source: 'demo',
+    unavailable: true,
     theme: 'sunny',
     isDay: true,
     shortwaveRadiation: 620,
@@ -38,26 +38,6 @@ export const useWeather = () => {
     return ctx;
 };
 
-const getCachedWeather = async () => {
-    try {
-        const raw = await storage.getItem(CACHE_KEY);
-        if (!raw) return null;
-        const { data, timestamp } = JSON.parse(raw);
-        if (Date.now() - timestamp > CACHE_EXPIRY) return null;
-        return data;
-    } catch {
-        return null;
-    }
-};
-
-const setCachedWeather = async (data) => {
-    try {
-        await storage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-    } catch {
-        // Storage write failure is non-fatal
-    }
-};
-
 export const WeatherProvider = ({ children }) => {
     const [weather, setWeather] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -71,28 +51,19 @@ export const WeatherProvider = ({ children }) => {
         setError(null);
 
         try {
-            // 1. Try cache first
-            const cached = await getCachedWeather();
-            if (cached) {
-                setWeather(cached);
-                setLoading(false);
-                return;
-            }
-
-            // 2. Fetch from Open-Meteo (primary source)
+            // Geo+TTL cache lives in weatherService (30 min, 2dp). Warm hits skip the network.
             const data = await fetchOpenMeteoWeather(
                 MELBOURNE_COORDS.lat,
                 MELBOURNE_COORDS.lon,
                 signal
             );
-            await setCachedWeather(data);
             setWeather(data);
         } catch (err) {
             if (isAbortError(err)) return;
 
             console.warn('[WeatherProvider] Open-Meteo fetch failed, falling back to demo data:', err.message);
             setWeather(DEMO_WEATHER);
-            setError(err.message);
+            setError(err.message || 'Weather temporarily unavailable');
         } finally {
             setLoading(false);
         }
@@ -153,12 +124,19 @@ export const WeatherProvider = ({ children }) => {
         });
     }, []);
 
+    const weatherUnavailable = Boolean(
+        error || weather?.unavailable || weather?.source === 'demo'
+    );
+
     const getSunstayScoreResult = useCallback((venue) => {
+        if (!weather || weatherUnavailable) {
+            return { score: null, label: 'Score unavailable', unavailable: true };
+        }
         if (previewMinutes == null) {
             return scoreVenueFromWeather(weather, venue);
         }
         return scoreVenueFromWeather(weather, venue, { at: melbourneDate(previewMinutes) });
-    }, [weather, previewMinutes]);
+    }, [weather, previewMinutes, weatherUnavailable]);
 
     const calculateSunstayScore = useCallback((venue) => {
         return getSunstayScoreResult(venue).score;
@@ -168,6 +146,7 @@ export const WeatherProvider = ({ children }) => {
         weather,
         loading,
         error,
+        unavailable: weatherUnavailable,
         overrideType,
         setOverrideType,
         refetch: fetchWeather,
