@@ -262,7 +262,30 @@ const SolarExposureTimeline = memo(({ exposure }) => {
 SolarExposureTimeline.displayName = 'SolarExposureTimeline';
 
 // ── Sunstay Score Hero Badge ────────────────────────────────────
-const SunstayScoreBadge = ({ score, bestWindow, scoreLabel }) => {
+const WeatherUnavailableChip = ({ label = 'Weather temporarily unavailable' }) => (
+  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 w-full">
+    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1.5 text-[12px] font-bold">
+      {label}
+    </span>
+  </div>
+);
+
+const SunstayScoreSkeleton = () => (
+  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 w-full" aria-hidden="true">
+    <div className="flex items-center gap-4">
+      <div className="h-[62px] w-[62px] rounded-full animate-pulse bg-slate-200" />
+      <div className="flex-1 flex flex-col gap-2">
+        <div className="h-3 w-28 animate-pulse bg-slate-200 rounded" />
+        <div className="h-5 w-40 animate-pulse bg-slate-200 rounded" />
+      </div>
+    </div>
+  </div>
+);
+
+const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
+  if (unavailable || !Number.isFinite(score)) {
+    return <WeatherUnavailableChip label="Score unavailable" />;
+  }
   const pct = Math.round(Math.max(0, Math.min(100, score)));
 
   // Colour ramp: cold/poor → blue, mid → amber, high → emerald
@@ -439,9 +462,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const [sunWindow, setSunWindow] = useState(null);
   const [liveWeather, setLiveWeather] = useState(null);
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   React.useEffect(() => {
     setImageError(false);
+    setImageLoaded(false);
   }, [venue?.id]);
 
   React.useEffect(() => {
@@ -479,7 +504,21 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   // Pull live cozy-index + best window from Open-Meteo-backed context.
   // getSunstayScoreResult already includes settled TOD previewMinutes.
-  const { weather: weatherData, calculateSunstayScore, getSunstayScoreResult, getBestWindow } = useWeather();
+  const {
+    weather: weatherData,
+    loading: weatherLoading,
+    error: weatherError,
+    unavailable: weatherUnavailableFlag,
+    calculateSunstayScore,
+    getSunstayScoreResult,
+    getBestWindow,
+  } = useWeather();
+  const weatherUnavailable = Boolean(
+    weatherUnavailableFlag
+    || weatherError
+    || weatherData?.unavailable
+    || weatherData?.source === 'demo'
+  );
 
   function handlePointerEnter(e) { cardRectRef.current = e.currentTarget.getBoundingClientRect(); }
   function handlePointerMove(e) {
@@ -500,14 +539,26 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const displayName = fallbackName;
   const isHotelOrStay = checkIsAccommodation(venue);
   const venueImage = venue?.image_url ?? venue?.imageUrl ?? venue?.image ?? venue?.hero_image ?? venue?.photoUrl ?? venue?.photo;
+  const showVenueImage = Boolean(venueImage) && !imageError;
+  const showHeroSkeleton = weatherLoading || (showVenueImage && !imageLoaded);
 
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
   const wind       = weather?.rawWeather?.wind ?? weather?.wind?.speed ?? 0;
-  const scoreResult = typeof getSunstayScoreResult === 'function' ? getSunstayScoreResult(venue) : null;
-  const contextScore = scoreResult?.score
-    ?? (typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null);
-  const score      = contextScore ?? weather?.score ?? weather?.rawWeather?.score ?? 70;
+  const scoreResult = (!weatherLoading && !weatherUnavailable && typeof getSunstayScoreResult === 'function')
+    ? getSunstayScoreResult(venue)
+    : (weatherUnavailable ? { score: null, label: 'Score unavailable', unavailable: true } : null);
+  const contextScore = scoreResult?.unavailable
+    ? null
+    : (Number.isFinite(scoreResult?.score)
+      ? scoreResult.score
+      : (!weatherUnavailable && typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null));
+  const fallbackScore = Number.isFinite(weather?.score)
+    ? weather.score
+    : (Number.isFinite(weather?.rawWeather?.score) ? weather.rawWeather.score : null);
+  const score = weatherLoading || weatherUnavailable
+    ? null
+    : (Number.isFinite(contextScore) ? contextScore : fallbackScore);
   const uvIndex    = weather?.rawWeather?.uvIndex ?? venue?.weatherNow?.uvIndex ?? 3;
   const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
@@ -688,6 +739,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   }, [availableTabs, activeTab]);
 
   const verdict = useMemo(() => {
+    if (weatherLoading) return { icon: '☁️', text: 'Checking conditions', color: '#94A3B8' };
+    if (weatherUnavailable) return { icon: '☁️', text: 'Weather temporarily unavailable', color: '#64748B' };
     const currentHour = new Date().getHours();
     const isNight = currentHour >= 20 || currentHour < 6;
     const cloudNow = Array.isArray(cloudcover) ? (cloudcover[currentHour] ?? cloudcover[0] ?? 0) : (typeof cloudcover === 'number' ? cloudcover : 50);
@@ -702,18 +755,24 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     if (wind > 30)       return { icon: '🌬️', text: 'High Wind — Sit Indoors', color: '#94A3B8' };
     if (cloudNow > 70)   return { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
     if (cloudNow > 40)   return { icon: '⛅',  text: 'Partly Cloudy — Some Sun Breaks', color: '#94A3B8' };
-    if (score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions', color: '#F59E0B' };
-    if (score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#0EA5E9' };
+    if (Number.isFinite(score) && score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions', color: '#F59E0B' };
+    if (Number.isFinite(score) && score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#0EA5E9' };
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
-  }, [precipProb, precipProbability, wind, score, cloudcover]);
+  }, [precipProb, precipProbability, wind, score, cloudcover, weatherLoading, weatherUnavailable]);
 
   const scoreLabel = useMemo(() => {
+    if (weatherUnavailable || !Number.isFinite(score)) return 'Score unavailable';
     if (scoreResult?.label) return scoreResult.label;
     if (score > 75) return 'Perfect Now';
     if (score >= 50) return 'Good Choice';
     return 'Worth a Look';
-  }, [score, scoreResult?.label]);
-  const scoreMeaningLabel = useMemo(() => { if (score >= 75) return 'Great conditions'; if (score >= 50) return 'Decent today'; return 'Not ideal'; }, [score]);
+  }, [score, scoreResult?.label, weatherUnavailable]);
+  const scoreMeaningLabel = useMemo(() => {
+    if (!Number.isFinite(score)) return 'Score unavailable';
+    if (score >= 75) return 'Great conditions';
+    if (score >= 50) return 'Decent today';
+    return 'Not ideal';
+  }, [score]);
 
   const displaySunrise = useMemo(() => {
     if (venue?.sunrise) return venue.sunrise;
@@ -800,17 +859,19 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* 2. Premium Detail Sheet Header */}
-            <div className="relative w-full h-48 sm:h-56 overflow-hidden shrink-0 bg-gray-900 rounded-t-2xl mb-1">
+            <div className="relative w-full h-48 sm:h-56 min-h-[12rem] sm:min-h-[14rem] overflow-hidden shrink-0 bg-slate-200 rounded-t-2xl mb-1">
               {/* Background image / gradient layer */}
               <div className="absolute inset-0 z-0">
-                {venueImage && !imageError ? (
+                {showVenueImage ? (
                   <img
                     src={venueImage}
                     alt={fallbackName}
-                    className="absolute inset-0 w-full h-full object-cover opacity-70"
-                    onError={() => setImageError(true)}
+                    className={`absolute inset-0 w-full h-full object-cover ${imageLoaded ? 'opacity-70' : 'opacity-0'}`}
+                    onLoad={() => setImageLoaded(true)}
+                    onError={() => { setImageError(true); setImageLoaded(false); }}
                   />
-                ) : (
+                ) : null}
+                {!showVenueImage && !showHeroSkeleton ? (
                   <div
                     className="relative flex w-full h-full flex-col items-center justify-center overflow-hidden"
                     style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 40%, #0F766E 75%, #D97706 100%)' }}
@@ -837,6 +898,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       {safeVenue?.suburb || 'Solar Intelligence'}
                     </span>
                   </div>
+                ) : null}
+                {showHeroSkeleton && (
+                  <div className="absolute inset-0 z-[1] animate-pulse bg-slate-200" aria-hidden="true" />
                 )}
               </div>
 
@@ -940,7 +1004,16 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     })()}
                   </div>
 
-                  <SunstayScoreBadge score={score} bestWindow={bestWindow} scoreLabel={scoreLabel} />
+                  {weatherLoading ? (
+                    <SunstayScoreSkeleton />
+                  ) : (
+                    <SunstayScoreBadge
+                      score={score}
+                      bestWindow={weatherUnavailable ? null : bestWindow}
+                      scoreLabel={scoreLabel}
+                      unavailable={weatherUnavailable || !Number.isFinite(score)}
+                    />
+                  )}
 
                   {/* Microclimate Grid */}
                   <div className="grid grid-cols-2 gap-2.5 my-3">
@@ -1166,7 +1239,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
               {activeTab === 'Amenities' && (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
-                  {!weather ? (
+                  {weatherLoading ? (
+                    <div className="h-32 animate-pulse bg-slate-200 rounded-xl w-full" />
+                  ) : weatherUnavailable ? (
+                    <WeatherUnavailableChip />
+                  ) : !weather ? (
                     <div className="h-32 animate-pulse bg-slate-200 rounded-xl w-full" />
                   ) : (
                     <VenueCardWeather

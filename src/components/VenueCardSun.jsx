@@ -98,6 +98,7 @@ const LiveScoreStrip = React.memo(({ venue, weather, calculateSunstayScore, getS
     return { score, label: null };
   }, [venue, calculateSunstayScore, getSunstayScoreResult]);
   const score = result.score;
+  const scoreUnavailable = result?.unavailable || !Number.isFinite(score);
   const window = useMemo(() => getBestWindow(8, venue), [venue, getBestWindow]);
 
   // Choose colour based on score tier
@@ -122,14 +123,18 @@ const LiveScoreStrip = React.memo(({ venue, weather, calculateSunstayScore, getS
         <span
           className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-black"
           style={{
-            background: `${scoreColor}18`,
-            color: scoreColor,
-            border: `1px solid ${scoreColor}40`,
+            background: scoreUnavailable ? 'rgba(100,116,139,0.12)' : `${scoreColor}18`,
+            color: scoreUnavailable ? '#475569' : scoreColor,
+            border: `1px solid ${scoreUnavailable ? 'rgba(100,116,139,0.28)' : `${scoreColor}40`}`,
             fontSize: '11px',
           }}
         >
-          {score >= 75 ? '☀️' : score >= 50 ? '😎' : score >= 30 ? '🌤️' : '🥶'} {Math.round(score)}
-          <span className="font-normal opacity-70" style={{ fontSize: '9px' }}>/100</span>
+          {scoreUnavailable
+            ? 'Score unavailable'
+            : `${score >= 75 ? '☀️' : score >= 50 ? '😎' : score >= 30 ? '🌤️' : '🥶'} ${Math.round(score)}`}
+          {!scoreUnavailable && (
+            <span className="font-normal opacity-70" style={{ fontSize: '9px' }}>/100</span>
+          )}
         </span>
         {result.label && (
           <span className="text-[10px] font-semibold" style={{ color: scoreColor }}>

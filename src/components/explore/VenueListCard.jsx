@@ -17,7 +17,8 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
     const displayScore = typeof calculateSunstayScore === 'function'
         ? calculateSunstayScore(venue)
         : 50;
-    const tier = getComfortTier(displayScore);
+    const scoreAvailable = Number.isFinite(displayScore);
+    const tier = scoreAvailable ? getComfortTier(displayScore) : 'moderate';
     const scorePillStyle = {
         prime:    { bg: 'bg-amber-100',   text: 'text-amber-700',   icon: '☀️'  },
         good:     { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: '🌤️' },
@@ -69,7 +70,7 @@ const VenueListCard = ({ venue, isSelected, onClick, weather }) => {
                     </div>
                     <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0 ${scorePillStyle.bg}`}>
                         <span className="text-[10px]">{scorePillStyle.icon}</span>
-                        <span className={`text-[10px] font-bold tabular-nums ${scorePillStyle.text}`}>{displayScore}</span>
+                        <span className={`text-[10px] font-bold tabular-nums ${scorePillStyle.text}`}>{scoreAvailable ? displayScore : 'N/A'}</span>
                     </div>
                 </div>
 
