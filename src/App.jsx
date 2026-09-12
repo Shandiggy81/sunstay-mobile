@@ -710,7 +710,7 @@ const AppContent = () => {
 
                         <motion.button
                             type="button"
-                            className="absolute bottom-[190px] right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-blue-600 shadow-lg hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70"
+                            className="absolute bottom-[190px] right-32 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-blue-600 shadow-lg hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70"
                             whileTap={{ scale: 0.9 }}
                             onClick={handleLocateMe}
                             disabled={isLocating}
@@ -723,7 +723,7 @@ const AppContent = () => {
                         {locateHint && (
                             <div
                                 role="status"
-                                className="pointer-events-none absolute bottom-[246px] right-4 z-50 max-w-[200px] rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
+                                className="pointer-events-none absolute bottom-[246px] right-32 z-50 max-w-[200px] rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
                             >
                                 {locateHint}
                             </div>
