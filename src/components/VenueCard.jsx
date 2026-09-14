@@ -907,7 +907,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
         style={{
           position: 'fixed',
           inset: 0,
-          top: '72px',
+          top: 'calc(132px + env(safe-area-inset-top, 0px))',
           zIndex: 9998,
           background: 'rgba(0,0,0,0.35)',
           backdropFilter: 'blur(6px)',
@@ -930,7 +930,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           style={{
             rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200,
             borderRadius: '28px 28px 0 0',
-            background: 'linear-gradient(160deg, #FFFFFF 0%, #F0F4F8 55%, #E8EEF4 100%)',
             boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid rgba(14,165,233,0.12)',
             // Bug 5: cap height so inner content can overflow and scroll
@@ -938,7 +937,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             display: 'flex',
             flexDirection: 'column',
           }}
-          className="pointer-events-auto mt-auto w-full select-none"
+          className="pointer-events-auto relative z-50 mt-auto w-full select-none overflow-hidden bg-slate-50"
           onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
@@ -947,10 +946,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
-          <div
-            className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2"
-            style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1 }}
-          >
+          <div className="relative z-20 shrink-0 bg-slate-50 px-4 [transform-style:flat]">
             {/* 1. Extracted Drag Handle for top of sheet */}
             <div
               className="flex justify-center pt-1 pb-3 md:hidden w-full"
@@ -960,7 +956,30 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               <div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(14,165,233,0.35)' }} />
             </div>
 
-            {/* 2. Premium Detail Sheet Header */}
+            {/* 2. Sticky title chrome — Title, Subtitle, Close */}
+            <div className="sticky top-0 z-20 bg-slate-50 pt-4 pb-2 flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-2xl font-bold text-slate-900 leading-tight truncate">{fallbackName}</h2>
+                <p className="text-sm text-slate-600 font-medium truncate">
+                  {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
+                </p>
+              </div>
+              <motion.button
+                onClick={onClose}
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3 bg-white text-slate-900 shadow-md rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900"
+                whileTap={{ scale: 0.92 }}
+                aria-label="Close venue details"
+              >
+                <X size={18} />
+              </motion.button>
+            </div>
+          </div>
+
+          <div
+            className="relative z-10 isolate min-h-0 px-4 pb-4 pt-2 flex flex-col gap-2 bg-slate-50 [transform-style:flat]"
+            style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1 }}
+          >
+            {/* Hero image */}
             <div className="relative w-full h-48 sm:h-56 min-h-[12rem] sm:min-h-[14rem] overflow-hidden shrink-0 bg-slate-200 rounded-t-2xl mb-1">
               {/* Background image / gradient layer */}
               <div className="absolute inset-0 z-0">
@@ -1005,28 +1024,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   <div className="absolute inset-0 z-[1] animate-pulse bg-slate-200" aria-hidden="true" />
                 )}
               </div>
-
-              {/* Foreground content */}
-              <div className="relative z-10 flex flex-col justify-between h-full p-4 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent">
-                <motion.button
-                  onClick={onClose}
-                  className="absolute top-3 right-3 z-20 flex min-h-11 min-w-11 items-center justify-center p-3 bg-white/90 text-slate-900 shadow-md backdrop-blur-md rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  whileTap={{ scale: 0.92 }}
-                  aria-label="Close venue details"
-                >
-                  <X size={18} />
-                </motion.button>
-                <div className="mt-auto flex flex-col gap-2 pointer-events-none">
-                  <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md truncate">{fallbackName}</h2>
-                  <p className="text-sm text-white/90 font-medium truncate">
-                    {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
-                  </p>
-                </div>
-              </div>
             </div>
 
             {/* Map Centre Action & Signal Line */}
-            <div className="flex items-center justify-between mb-2 px-1">
+            <div className="flex items-center justify-between gap-4 mb-2 px-1 shrink-0">
               <div className="flex items-center gap-2 text-slate-800">
                 <span className="text-xl">{verdict.icon}</span>
                 <span className="font-bold text-sm">{verdict.text}</span>
@@ -1044,7 +1045,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* Tabbed Navigation (Dynamically Pruned) */}
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide border-b border-slate-200 sticky top-0 bg-white z-20 pt-1 pb-0 mb-4 px-1" style={{ top: '-8px' }}>
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide border-b border-slate-200 bg-slate-50 pt-1 pb-0 mb-4 px-1 shrink-0">
               {availableTabs.map(tab => (
                 <button
                   key={tab}

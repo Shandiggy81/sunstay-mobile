@@ -28,14 +28,11 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             initial={{ y: -60, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.15, type: 'spring', damping: 24, stiffness: 240 }}
-            className="flex-shrink-0 z-40"
+            className="flex-shrink-0 z-40 min-h-[72px]"
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div
-                className="relative flex items-center gap-4 px-4 pr-[16px] py-3.5 bg-white/80 backdrop-blur-md border-b border-slate-100"
-                style={{
-                    minHeight: 72,
-                }}
+                className="relative flex min-h-[132px] items-center gap-4 px-4 pr-[16px] py-3.5 bg-white/80 backdrop-blur-md border-b border-slate-100"
             >
                 {/* Logo */}
                 <div className="flex flex-col items-center justify-center flex-shrink-0 relative z-10">
@@ -46,12 +43,10 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 {/* Centre weather display */}
                 <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 relative z-10">
                     <span className="text-slate-900 font-bold text-[13px] tracking-tight uppercase">Melbourne</span>
-                    {weather && (
-                        <span className="text-slate-900 font-black text-[32px] leading-none tracking-tight">
-                            {temp}°C
-                        </span>
-                    )}
-                    <div className="flex flex-col items-center gap-1">
+                    <span className="text-slate-900 font-black text-[32px] leading-none tracking-tight min-h-[32px]">
+                        {weather ? `${temp}°C` : '\u00a0'}
+                    </span>
+                    <div className="flex min-h-[40px] flex-col items-center gap-1">
                         <span className="text-slate-600 text-[11px] font-medium italic">
                             {weather ? descFormatted : 'Loading\u2026'}
                         </span>
