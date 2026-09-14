@@ -303,6 +303,7 @@ function isSuppressedMapError(msg) {
 // ── Time-of-day dynamic lighting ────────────────────────────────────────
 const DAY_START_MIN = 6 * 60;   // 6:00 AM
 const DAY_END_MIN   = 20 * 60;  // 8:00 PM
+const LIGHT_THROTTLE_MS = 100;  // skip per-frame setLights + shadows while scrubbing
 
 const rad2deg = (r) => (r * 180) / Math.PI;
 
@@ -351,16 +352,19 @@ function computeSunLight(minutes, lat, lng) {
 
 // Floating slider that scrubs the global 3D-building light. Local React
 // state drives the thumb + clock while dragging so the UI stays at input
-// rate. map.setLights is coalesced to one update per display frame via rAF
-// (no parent VenueMap / WeatherContext re-render). Score preview commits
-// only on pointer-up / cancel / blur / keyup.
+// rate. During scrub, map.setLights is throttled (~100ms) with cast-shadows
+// off so the pitched Standard map stays interactive. A full lights+shadows
+// pass runs once on settle. Score preview commits only on pointer-up /
+// cancel / blur / keyup — never the live scrub path.
 function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
     const { setScorePreviewMinutes } = useWeather();
     const [sliderMinutes, setSliderMinutes] = useState(13 * 60); // default 1:00 PM
     const minutesRef = useRef(sliderMinutes);
-    const lightRafRef = useRef(null);
+    const lightTimerRef = useRef(null);
+    const lastLightApplyAtRef = useRef(0);
+    const panPausedRef = useRef(false);
 
-    const applyLight = useCallback((mins) => {
+    const applyLight = useCallback((mins, { castShadows = true } = {}) => {
         const map = mapRef.current;
         if (!map || typeof map.setLights !== 'function') return;
         if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
@@ -368,9 +372,8 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
             mins, INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude,
         );
         try {
-            // Mapbox Standard 3D lighting: a directional "sun" with cast-shadows
-            // projects real ground shadows from the native 3D buildings, plus a
-            // soft ambient fill. Scrubbing the slider moves the sun and shadows.
+            // Mapbox Standard 3D lighting: a directional "sun" with optional
+            // cast-shadows from native 3D buildings, plus a soft ambient fill.
             map.setLights([
                 {
                     id: AMBIENT_LIGHT_ID,
@@ -384,8 +387,8 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
                         direction,
                         color,
                         intensity,
-                        'cast-shadows': true,
-                        'shadow-intensity': 1,
+                        'cast-shadows': castShadows,
+                        'shadow-intensity': castShadows ? 1 : 0,
                     },
                 },
             ]);
@@ -394,21 +397,48 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         }
     }, [mapRef]);
 
-    const cancelPendingLightRaf = useCallback(() => {
-        if (lightRafRef.current != null) {
-            cancelAnimationFrame(lightRafRef.current);
-            lightRafRef.current = null;
+    const cancelPendingLight = useCallback(() => {
+        if (lightTimerRef.current != null) {
+            clearTimeout(lightTimerRef.current);
+            lightTimerRef.current = null;
         }
     }, []);
 
-    const scheduleLight = useCallback((mins) => {
+    const scheduleScrubLight = useCallback((mins) => {
         minutesRef.current = mins;
-        if (lightRafRef.current != null) return;
-        lightRafRef.current = requestAnimationFrame(() => {
-            lightRafRef.current = null;
-            applyLight(minutesRef.current);
-        });
-    }, [applyLight]);
+        const run = () => {
+            lightTimerRef.current = null;
+            lastLightApplyAtRef.current = performance.now();
+            applyLight(minutesRef.current, { castShadows: false });
+        };
+        const elapsed = performance.now() - lastLightApplyAtRef.current;
+        if (elapsed >= LIGHT_THROTTLE_MS) {
+            cancelPendingLight();
+            run();
+            return;
+        }
+        if (lightTimerRef.current == null) {
+            lightTimerRef.current = setTimeout(run, LIGHT_THROTTLE_MS - elapsed);
+        }
+    }, [applyLight, cancelPendingLight]);
+
+    const pauseMapPan = useCallback(() => {
+        const map = mapRef.current;
+        if (!map?.dragPan || panPausedRef.current) return;
+        try {
+            map.dragPan.disable();
+            panPausedRef.current = true;
+        } catch { /* noop */ }
+    }, [mapRef]);
+
+    const resumeMapPan = useCallback(() => {
+        const map = mapRef.current;
+        if (!map?.dragPan || !panPausedRef.current) return;
+        try {
+            map.dragPan.enable();
+        } catch { /* noop */ }
+        panPausedRef.current = false;
+    }, [mapRef]);
 
     useEffect(() => {
         if (!mapLoaded) return undefined;
@@ -420,31 +450,51 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
             const reapply = () => applyLight(minutesRef.current);
             map.once('idle', reapply);
             return () => {
-                cancelPendingLightRaf();
+                cancelPendingLight();
+                resumeMapPan();
                 try { map.off('idle', reapply); } catch { /* noop */ }
             };
         }
-        return () => { cancelPendingLightRaf(); };
+        return () => {
+            cancelPendingLight();
+            resumeMapPan();
+        };
         // Only (re)apply the baseline light when the map finishes loading.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapLoaded, applyLight, cancelPendingLightRaf]);
+    }, [mapLoaded, applyLight, cancelPendingLight, resumeMapPan]);
 
-    useEffect(() => () => { cancelPendingLightRaf(); }, [cancelPendingLightRaf]);
+    useEffect(() => () => {
+        cancelPendingLight();
+        resumeMapPan();
+    }, [cancelPendingLight, resumeMapPan]);
 
     const handleScrub = (e) => {
         const v = Number(e.target.value);
         minutesRef.current = v;
         setSliderMinutes(v);
-        scheduleLight(v);
+        scheduleScrubLight(v);
     };
 
-    const commitMinutes = () => {
+    const settleScrub = () => {
+        cancelPendingLight();
         const v = minutesRef.current;
         setSliderMinutes((prev) => (prev === v ? prev : v));
-        // Score uses settled minutes only — never the rAF/scrub path.
+        lastLightApplyAtRef.current = performance.now();
+        applyLight(v, { castShadows: true });
+        // Score uses settled minutes only — never the live scrub path.
         if (typeof setScorePreviewMinutes === 'function') {
             setScorePreviewMinutes(v);
         }
+    };
+
+    const handleRangePointerDown = (e) => {
+        pauseMapPan();
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
+    };
+
+    const handleRangeRelease = () => {
+        settleScrub();
+        resumeMapPan();
     };
 
     const clock = formatClock(sliderMinutes);
@@ -485,11 +535,12 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
                         step={5}
                         value={sliderMinutes}
                         onChange={handleScrub}
-                        onInput={handleScrub}
-                        onPointerUp={commitMinutes}
-                        onPointerCancel={commitMinutes}
-                        onBlur={commitMinutes}
-                        onKeyUp={commitMinutes}
+                        onPointerDown={handleRangePointerDown}
+                        onFocus={pauseMapPan}
+                        onPointerUp={handleRangeRelease}
+                        onPointerCancel={handleRangeRelease}
+                        onBlur={handleRangeRelease}
+                        onKeyUp={settleScrub}
                         aria-label="Time of day for 3D building shadows"
                         aria-valuetext={clock}
                         className="h-6 w-full cursor-pointer accent-amber-500 touch-pan-x"
@@ -979,17 +1030,7 @@ const VenueMap = forwardRef(({
 
                         if (existing) {
                             if (existing.pinKey !== pinKey) {
-                                existing.marker.remove();
-                                const el = createMarkerEl(pinKey);
-                                el.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    onVenueSelectRef.current?.(venue);
-                                });
-                                existing.marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
-                                    .setLngLat([venueLng, venueLat])
-                                    .addTo(map.current);
-                                existing.el = el;
+                                updateMarkerEl(existing.el, pinKey);
                                 existing.pinKey = pinKey;
                             }
                         } else {
