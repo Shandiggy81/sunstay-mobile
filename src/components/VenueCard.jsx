@@ -19,7 +19,6 @@ import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
 import { seedVenues } from '../data/seedVenues.js';
 import { getVenueSunStatus, checkIfShaded, getSunWindow } from '../utils/solarMath.js';
-import { fetchVenueWeather } from '../utils/weatherApi.js';
 import { calculateHourlyExposure } from '../utils/solarCalculator.js';
 
 
@@ -570,7 +569,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const [activeTab, setActiveTab] = useState('Overview');
   const [localSunData, setLocalSunData] = useState(null);
   const [sunWindow, setSunWindow] = useState(null);
-  const [liveWeather, setLiveWeather] = useState(null);
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -587,22 +585,13 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
       // Use fallback obstacle data if venue doesn't have it
       const obstacleHeight = venue.obstacle_height ?? 2;
       const obstacleDistance = venue.obstacle_distance ?? 1;
-      let cancelled = false;
 
       setLocalSunData(getVenueSunStatus(venueLat, venueLng));
       setSunWindow(getSunWindow(venueLat, venueLng, obstacleHeight, obstacleDistance));
-
-      const getWeather = async () => {
-        const weather = await fetchVenueWeather(venueLat, venueLng);
-        if (!cancelled) setLiveWeather(weather);
-      };
-      getWeather();
-
-      return () => { cancelled = true; };
+      return;
     }
     setLocalSunData(null);
     setSunWindow(null);
-    setLiveWeather(null);
   }, [venue]);
 
   const dragControls = useDragControls();
@@ -629,6 +618,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     || weatherData?.unavailable
     || weatherData?.source === 'demo'
   );
+  const contextCloudCover = weatherData?.cloudCoverPct ?? weatherData?.clouds?.all;
+  const contextIsRaining = (Number(weatherData?.precipitation) || 0) > 0
+    || /rain|drizzle|thunder/i.test(String(weatherData?.weather?.[0]?.main ?? ''));
 
   function handlePointerEnter(e) { cardRectRef.current = e.currentTarget.getBoundingClientRect(); }
   function handlePointerMove(e) {
@@ -1258,10 +1250,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                         } else if (isShaded) {
                           statusText = '🏢 Shaded by Surroundings';
                           statusClass = 'bg-slate-50 text-slate-500 border border-slate-200';
-                        } else if (liveWeather?.isRaining) {
+                        } else if (contextIsRaining) {
                           statusText = '🌧️ Raining Currently';
                           statusClass = 'bg-slate-100 text-slate-600 border border-slate-200';
-                        } else if (liveWeather?.cloudCover > 75) {
+                        } else if (contextCloudCover > 75) {
                           statusText = '☁️ Overcast (Geometrically clear)';
                           statusClass = 'bg-slate-100 text-slate-600 border border-slate-200';
                         } else if (sunWindow) {
