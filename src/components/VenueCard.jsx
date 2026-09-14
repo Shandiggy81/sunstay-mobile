@@ -904,19 +904,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          top: 'calc(132px + env(safe-area-inset-top, 0px))',
-          zIndex: 9998,
-          background: 'rgba(0,0,0,0.35)',
-          backdropFilter: 'blur(6px)',
-          overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'flex-end',
-        }}
+        className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex flex-col overflow-hidden bg-black/50"
         onClick={onClose}
       >
         <motion.article
@@ -929,15 +917,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           transition={{ type: 'spring', damping: 30, stiffness: 280 }}
           style={{
             rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200,
-            borderRadius: '28px 28px 0 0',
             boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid rgba(14,165,233,0.12)',
-            // Bug 5: cap height so inner content can overflow and scroll
-            maxHeight: '90dvh',
-            display: 'flex',
-            flexDirection: 'column',
           }}
-          className="pointer-events-auto relative z-50 mt-auto w-full select-none overflow-hidden bg-slate-50"
+          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-3xl bg-white"
           onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
@@ -946,7 +929,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
-          <div className="relative z-20 shrink-0 bg-slate-50 px-4 [transform-style:flat]">
+          <div className="relative z-20 isolate shrink-0 overflow-hidden bg-white px-4 [transform-style:flat]">
             {/* 1. Extracted Drag Handle for top of sheet */}
             <div
               className="flex justify-center pt-1 pb-3 md:hidden w-full"
@@ -957,7 +940,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* 2. Sticky title chrome — Title, Subtitle, Close */}
-            <div className="sticky top-0 z-20 bg-slate-50 pt-4 pb-2 flex items-start justify-between gap-3">
+            <div className="sticky top-0 z-20 bg-white pt-4 pb-2 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <h2 className="text-2xl font-bold text-slate-900 leading-tight truncate">{fallbackName}</h2>
                 <p className="text-sm text-slate-600 font-medium truncate">
@@ -976,8 +959,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           </div>
 
           <div
-            className="relative z-10 isolate min-h-0 px-4 pb-4 pt-2 flex flex-col gap-2 bg-slate-50 [transform-style:flat]"
-            style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1 }}
+            className="relative z-10 isolate min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col gap-2 bg-white [transform-style:flat]"
           >
             {/* Hero image */}
             <div className="relative w-full h-48 sm:h-56 min-h-[12rem] sm:min-h-[14rem] overflow-hidden shrink-0 bg-slate-200 rounded-t-2xl mb-1">
@@ -1062,7 +1044,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* Tab Content */}
-            <div className="flex flex-col gap-4 pb-24">
+            <div className="flex flex-col gap-4 pb-4">
               {activeTab === 'Overview' && (
                 <>
                   <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-3">
@@ -1393,11 +1375,12 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               )}
             </div>
 
-            {/* Sticky Bottom CTA */}
-            <div className="fixed bottom-0 left-0 w-full bg-slate-50 border-t border-slate-200 p-4 z-30" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+          </div>
+
+            {/* Sticky Bottom CTA — in-flow so it cannot bleed into the TopBar */}
+            <div className="relative z-20 shrink-0 border-t border-slate-200 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <VenueCardFooterActions venue={safeVenue} canNavigate={hasValidCoordinates} />
             </div>
-          </div>
         </motion.article>
       </motion.div>
     </AnimatePresence>

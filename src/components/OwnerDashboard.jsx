@@ -263,7 +263,7 @@ function OwnerDashboardInner({
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'rgba(0,0,0,0.4)', cursor: 'pointer' }}
+      className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex cursor-pointer flex-col overflow-hidden bg-black/50"
       onClick={onClose}
       role="button"
       tabIndex={0}
@@ -283,14 +283,7 @@ function OwnerDashboardInner({
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}
         onClick={e => e.stopPropagation()}
-        style={{
-          position: 'absolute', left: 0, right: 0, bottom: 0, top: 48,
-          zIndex: 9999,
-          background: '#1a1a2e',
-          borderRadius: '16px 16px 0 0',
-          display: 'flex', flexDirection: 'column',
-          overflow: 'hidden',
-        }}
+        className="relative z-50 flex h-full min-h-0 flex-col overflow-hidden rounded-t-3xl bg-[#1a1a2e]"
       >
         {/* Drag Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, cursor: 'pointer' }} onClick={onClose}>
@@ -305,7 +298,8 @@ function OwnerDashboardInner({
           </div>
           <button
             onClick={onClose}
-            style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
           >
             <X size={16} color="#F1F5F9" />
           </button>
@@ -318,7 +312,7 @@ function OwnerDashboardInner({
         </div>
 
         {/* Scrollable Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 16, WebkitOverflowScrolling: 'touch' }}>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
 
           {/* Collapsed Static Schedule */}
           <section>
