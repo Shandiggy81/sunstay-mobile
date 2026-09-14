@@ -946,10 +946,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
-          <div
-            className="relative z-10 px-4 pb-4 pt-2 flex flex-col gap-2"
-            style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1 }}
-          >
+          <div className="relative z-20 shrink-0 bg-slate-50 px-4 [transform-style:flat]">
             {/* 1. Extracted Drag Handle for top of sheet */}
             <div
               className="flex justify-center pt-1 pb-3 md:hidden w-full"
@@ -976,7 +973,12 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 <X size={18} />
               </motion.button>
             </div>
+          </div>
 
+          <div
+            className="relative z-10 isolate min-h-0 px-4 pb-4 pt-2 flex flex-col gap-2 bg-slate-50 [transform-style:flat]"
+            style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1 }}
+          >
             {/* Hero image */}
             <div className="relative w-full h-48 sm:h-56 min-h-[12rem] sm:min-h-[14rem] overflow-hidden shrink-0 bg-slate-200 rounded-t-2xl mb-1">
               {/* Background image / gradient layer */}
@@ -1025,7 +1027,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* Map Centre Action & Signal Line */}
-            <div className="flex items-center justify-between gap-4 mb-2 px-1">
+            <div className="flex items-center justify-between gap-4 mb-2 px-1 shrink-0">
               <div className="flex items-center gap-2 text-slate-800">
                 <span className="text-xl">{verdict.icon}</span>
                 <span className="font-bold text-sm">{verdict.text}</span>
@@ -1043,7 +1045,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             </div>
 
             {/* Tabbed Navigation (Dynamically Pruned) */}
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide border-b border-slate-200 bg-slate-50 pt-1 pb-0 mb-4 px-1">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide border-b border-slate-200 bg-slate-50 pt-1 pb-0 mb-4 px-1 shrink-0">
               {availableTabs.map(tab => (
                 <button
                   key={tab}
