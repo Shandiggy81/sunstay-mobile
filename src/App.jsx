@@ -10,7 +10,7 @@ import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
-    Wind, Sun, Cloud, X, Locate, ListFilter
+    Wind, Sun, Cloud, X, Locate, Crosshair, ListFilter
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
 import { useVenueFeatures } from './hooks/useVenueFeatures';
@@ -18,6 +18,7 @@ import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
 import { getSunData } from './utils/getSunData';
+import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
@@ -44,6 +45,14 @@ const venueMatchesWeatherTag = (venue, filterId) => {
     if (tags.some(tag => String(tag).toLowerCase() === needle)) return true;
     const heatingMatcher = HEATING_FILTER_MATCHERS[filterId];
     return heatingMatcher ? heatingMatcher(String(venue.heating || '').toLowerCase()) : false;
+};
+
+const venueMatchesSearchQuery = (venue, query) => {
+    if (!query) return true;
+    const name = (venue.name || venue.venueName || '').toLowerCase();
+    const suburb = (venue.suburb || '').toLowerCase();
+    const vibe = (venue.vibe || '').toLowerCase();
+    return name.includes(query) || suburb.includes(query) || vibe.includes(query);
 };
 
 const EMPTY_LIVE_FEATURES = Object.freeze({});
@@ -169,23 +178,59 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
 VenueListCard.displayName = 'VenueListCard';
 
 const FilterEmptyState = ({ onClear }) => (
-    <div className="ss-venue-list-empty flex flex-col items-center justify-center p-6 text-center">
-        <img src="/sunny-mascot.jpg" alt="" className="ss-venue-list-empty-mascot w-20 h-20 rounded-full mb-3 shadow-md" />
-        <p className="text-base font-black text-slate-900 mb-1">No venues match exactly.</p>
-        <p className="ss-venue-list-empty-sub text-xs text-slate-500 mb-4 max-w-xs">
-            Try adjusting your filters or search query to explore other Melbourne spots.
+    <div className="ss-venue-list-empty flex min-h-[240px] flex-col items-center justify-center px-6 py-8 text-center">
+        <img
+            src="/sunny-mascot.jpg"
+            alt=""
+            className="ss-venue-list-empty-mascot mb-4 h-20 w-20 rounded-[20px] object-cover shadow-md"
+        />
+        <p className="mb-1.5 text-base font-black tracking-tight text-slate-900">
+            No venues match your search
+        </p>
+        <p className="ss-venue-list-empty-sub mb-5 max-w-[240px] text-xs leading-relaxed text-slate-500">
+            Try a different name or suburb, or clear filters to see Melbourne spots again.
         </p>
         <button
             type="button"
             onClick={onClear}
-            className="min-h-[48px] px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
-            aria-label="Clear All Filters"
+            className="flex min-h-[48px] cursor-pointer items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-sm font-black text-slate-950 shadow-md shadow-amber-500/25 transition-all hover:bg-amber-400 active:scale-95 touch-manipulation"
+            aria-label="Clear Filters"
         >
-            <span>✨</span>
-            <span>Clear All Filters</span>
+            <span aria-hidden="true">✨</span>
+            <span>Clear Filters</span>
         </button>
     </div>
 );
+
+const VenueSearchInput = memo(({ id, value, onChange }) => (
+    <div className="ss-search-wrap">
+        <Search size={15} className="ss-search-icon" aria-hidden="true" />
+        <input
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Search venues, suburbs…"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="ss-search-input"
+            id={id}
+            aria-label="Search venues"
+        />
+        {value ? (
+            <button
+                type="button"
+                onClick={() => onChange('')}
+                className="ss-search-clear"
+                aria-label="Clear search"
+            >
+                <X size={13} />
+            </button>
+        ) : null}
+    </div>
+));
+VenueSearchInput.displayName = 'VenueSearchInput';
 
 // ── VenueChip ──────────────────────────────────────────────────────────
 const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
@@ -212,7 +257,7 @@ VenueChip.displayName = 'VenueChip';
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
-    const { weather } = useWeather();
+    const { weather, calculateSunstayScore, previewMinutes } = useWeather();
     const { venues } = useVenues();
     const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
 
@@ -262,6 +307,8 @@ const AppContent = () => {
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
+    const [isLocating, setIsLocating]               = useState(false);
+    const [locateHint, setLocateHint]               = useState(null);
 
     const mapRef  = useRef(null);
     const listRef = useRef(null);
@@ -336,17 +383,17 @@ const AppContent = () => {
                 if (uvIndexValue < 4 || liveState.roofClosed) return false;
             }
 
-            if (query) {
-                const matchesSearch =
-                    venue.venueName.toLowerCase().includes(query) ||
-                    venue.suburb?.toLowerCase().includes(query) ||
-                    venue.vibe?.toLowerCase().includes(query);
-                if (!matchesSearch) return false;
-            }
+            if (!venueMatchesSearchQuery(venue, query)) return false;
 
             return true;
         });
     }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, weather?.uvi]);
+
+    // Filter first, then rank by settled TOD Sunstay score (high → low).
+    const sortedVenues = useMemo(
+        () => sortVenuesBySunstayScore(filteredVenues, calculateSunstayScore),
+        [filteredVenues, calculateSunstayScore, previewMinutes]
+    );
 
     const filteredVenueIds = useMemo(
         () => filteredVenues.map(venue => venue.id),
@@ -447,6 +494,56 @@ const AppContent = () => {
         mapRef.current?.flyTo({ center: [144.9631, -37.8136], zoom: 12, duration: 1200 });
     }, []);
 
+    const handleLocateMe = useCallback(() => {
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            console.warn('[Sunstay] Geolocation is not available');
+            setLocateHint('Location unavailable');
+            return;
+        }
+        setIsLocating(true);
+        setLocateHint(null);
+        try {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    setIsLocating(false);
+                    const lng = Number(pos?.coords?.longitude);
+                    const lat = Number(pos?.coords?.latitude);
+                    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+                        console.warn('[Sunstay] Locate Me returned invalid coordinates');
+                        setLocateHint('Could not find you');
+                        return;
+                    }
+                    try {
+                        if (mapRef.current?.locateUser) {
+                            mapRef.current.locateUser({ lng, lat, zoom: 14 });
+                        } else {
+                            mapRef.current?.flyTo?.({ center: [lng, lat], zoom: 14, duration: 1100 });
+                        }
+                    } catch (flyErr) {
+                        console.warn('[Sunstay] Locate Me fly failed:', flyErr?.message);
+                    }
+                },
+                (err) => {
+                    setIsLocating(false);
+                    const denied = err?.code === 1;
+                    setLocateHint(denied ? 'Location permission denied' : 'Could not find you');
+                    console.warn('[Sunstay] Locate Me failed:', err?.message || err);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+            );
+        } catch (e) {
+            setIsLocating(false);
+            setLocateHint('Could not find you');
+            console.warn('[Sunstay] Locate Me error:', e?.message);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!locateHint) return undefined;
+        const t = setTimeout(() => setLocateHint(null), 2800);
+        return () => clearTimeout(t);
+    }, [locateHint]);
+
     useEffect(() => {
         if (selectedVenue && listRef.current) {
             const el = listRef.current.querySelector(`#venue-list-${selectedVenue.id}`);
@@ -513,26 +610,17 @@ const AppContent = () => {
 
                 <main className="ss-main flex h-full w-full overflow-hidden">
                     {/* LEFT: Venue List */}
-                    <aside className="ss-sidebar w-full md:w-96 h-full overflow-y-auto flex flex-col bg-white border-r border-gray-200">
-                        <div className="ss-search-wrap">
-                            <Search size={15} className="ss-search-icon" />
-                            <input
-                                type="text"
-                                placeholder="Search venues, suburbs…"
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className="ss-search-input"
+                    <aside className="ss-sidebar w-full md:w-96 h-full overflow-hidden flex flex-col bg-white border-r border-gray-200">
+                        <div className="ss-search-pin px-3 pt-3 pb-1 flex-shrink-0">
+                            <VenueSearchInput
                                 id="venue-search"
+                                value={searchQuery}
+                                onChange={setSearchQuery}
                             />
-                            {searchQuery && (
-                                <button onClick={() => setSearchQuery('')} className="ss-search-clear">
-                                    <X size={13} />
-                                </button>
-                            )}
                         </div>
 
                         {/* Quick-filter pills: Cozy + Sunny (now toggle into activeFilters) */}
-                        <div className="ss-quick-filter-row flex gap-2 px-3 py-2">
+                        <div className="ss-quick-filter-row flex flex-shrink-0 gap-2 px-3 py-2">
                             <button
                                 onClick={() => handleFilterToggle(FILTER_COZY)}
                                 className={`ss-quick-pill ${cozyFilterActive ? 'ss-quick-pill--active' : ''}`}
@@ -551,14 +639,14 @@ const AppContent = () => {
 
                         <div className="ss-sidebar-count">
                             <span>{matchingCount} venue{matchingCount !== 1 ? 's' : ''}</span>
-                            {activeFilters.length > 0 && (
+                            {(activeFilters.length > 0 || searchQuery.trim()) && (
                                 <button onClick={handleClearFilters} className="ss-sidebar-clear">Clear all</button>
                             )}
                         </div>
 
                         <div className="ss-venue-list" ref={listRef}>
                             <AnimatePresence mode="popLayout">
-                                {filteredVenues.map(venue => (
+                                {sortedVenues.map(venue => (
                                     <VenueListCard
                                         key={venue.id}
                                         venue={venue}
@@ -622,40 +710,45 @@ const AppContent = () => {
                                         animate={{ scale: 1, y: 0, opacity: 1 }}
                                         exit={{ scale: 0.92, y: 12, opacity: 0 }}
                                         transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-                                        className="pointer-events-auto max-w-sm w-full bg-white/95 backdrop-blur-md rounded-3xl p-6 shadow-2xl border border-white/60 text-center flex flex-col items-center gap-3.5"
+                                        className="pointer-events-auto max-w-sm w-full rounded-3xl border border-white/60 bg-white/95 shadow-2xl backdrop-blur-md"
                                     >
-                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-200 border border-amber-300 flex items-center justify-center text-3xl shadow-inner">
-                                            ☀️
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                                                No venues match exactly.
-                                            </h3>
-                                            <p className="text-xs text-slate-600 mt-1.5 font-medium leading-relaxed">
-                                                We couldn't find any Melbourne venues matching your selected filters and weather conditions.
-                                            </p>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleClearFilters}
-                                            className="w-full min-h-[48px] px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-950 font-black text-sm shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer touch-manipulation"
-                                            aria-label="Clear All Filters"
-                                        >
-                                            <span>✨</span>
-                                            <span>Clear All Filters</span>
-                                        </button>
+                                        <FilterEmptyState onClear={handleClearFilters} />
                                     </motion.div>
                                 </motion.div>
                             )}
                         </AnimatePresence>
 
                         <motion.button
+                            type="button"
+                            className="absolute bottom-[190px] right-32 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-blue-600 shadow-lg hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70"
+                            whileTap={{ scale: 0.9 }}
+                            onClick={handleLocateMe}
+                            disabled={isLocating}
+                            aria-label="Locate Me"
+                            title="Locate Me"
+                            id="locate-me"
+                        >
+                            <Locate size={18} className={isLocating ? 'animate-pulse' : undefined} />
+                        </motion.button>
+                        {locateHint && (
+                            <div
+                                role="status"
+                                className="pointer-events-none absolute bottom-[246px] right-32 z-50 max-w-[200px] rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
+                            >
+                                {locateHint}
+                            </div>
+                        )}
+
+                        <motion.button
+                            type="button"
                             className="ss-recenter-btn"
                             whileTap={{ scale: 0.9 }}
                             onClick={handleRecenter}
                             id="recenter-map"
+                            aria-label="Recenter Melbourne"
+                            title="Recenter Melbourne"
                         >
-                            <Locate size={18} />
+                            <Crosshair size={18} />
                         </motion.button>
                     </section>
 
@@ -724,27 +817,12 @@ const AppContent = () => {
                                     <h3>Venues</h3>
                                     <p>{matchingCount} results</p>
                                 </div>
-                                <div className="px-4 py-2.5 flex flex-col gap-2.5 bg-white/70 border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
-                                    <div className="relative flex items-center">
-                                        <Search size={16} className="absolute left-3.5 text-gray-400 pointer-events-none z-10" />
-                                        <input
-                                            type="text"
-                                            placeholder="Search venues, suburbs…"
-                                            value={searchQuery}
-                                            onChange={e => setSearchQuery(e.target.value)}
-                                            className="w-full pl-10 pr-9 py-2.5 min-h-[44px] rounded-xl border border-gray-200/80 bg-white/95 text-sm font-semibold text-gray-800 placeholder-gray-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all shadow-sm"
-                                            id="mobile-venue-search"
-                                        />
-                                        {searchQuery && (
-                                            <button
-                                                onClick={() => setSearchQuery('')}
-                                                className="absolute right-2.5 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600 transition-colors"
-                                                aria-label="Clear search"
-                                            >
-                                                <X size={13} />
-                                            </button>
-                                        )}
-                                    </div>
+                                <div className="ss-mobile-sheet-search flex-shrink-0 px-4 py-2.5 flex flex-col gap-2.5 bg-white/70 border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
+                                    <VenueSearchInput
+                                        id="mobile-venue-search"
+                                        value={searchQuery}
+                                        onChange={setSearchQuery}
+                                    />
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => handleFilterToggle(FILTER_COZY)}
@@ -770,7 +848,7 @@ const AppContent = () => {
                                             <span>☀️</span>
                                             <span>Sunny</span>
                                         </button>
-                                        {activeFilters.length > 0 && (
+                                        {(activeFilters.length > 0 || searchQuery.trim()) && (
                                             <button
                                                 onClick={handleClearFilters}
                                                 className="min-h-[44px] px-3 py-2 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
@@ -781,7 +859,7 @@ const AppContent = () => {
                                     </div>
                                 </div>
                                 <div className="ss-mobile-sheet-list" onPointerDownCapture={e => e.stopPropagation()}>
-                                    {filteredVenues.map(venue => (
+                                    {sortedVenues.map(venue => (
                                         <VenueListCard
                                             key={venue.id}
                                             venue={venue}

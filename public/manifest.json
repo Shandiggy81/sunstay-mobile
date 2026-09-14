@@ -1,0 +1,29 @@
+{
+  "name": "Sunstay Global",
+  "short_name": "Sunstay",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#FFEA00",
+  "icons": [
+    {
+      "src": "/sun-badge.jpg",
+      "sizes": "320x320",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/sunny-mascot.jpg",
+      "sizes": "320x320",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/sunstay-logo.png",
+      "sizes": "239x320",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

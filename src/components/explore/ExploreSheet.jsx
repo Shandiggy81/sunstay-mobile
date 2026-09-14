@@ -4,6 +4,7 @@ import VenueListCard from './VenueListCard';
 import VenueDetail from '../VenueDetail';
 import FiltersPanel from '../FiltersPanel';
 import { useWeather } from '../../context/WeatherContext';
+import { sortVenuesBySunstayScore } from '../../utils/sortVenuesBySunstayScore';
 import { Virtuoso } from 'react-virtuoso';
 
 const QUICK_FILTERS = [
@@ -46,7 +47,7 @@ const ExploreSheet = ({
     externalFiltersOpen,
     onExternalFiltersClose,
 }) => {
-    const { calculateSunstayScore } = useWeather();
+    const { calculateSunstayScore, previewMinutes } = useWeather();
     const [filtersOpen, setFiltersOpen] = useState(false);
     const effectiveFiltersOpen = externalFiltersOpen || filtersOpen;
     const closeFilters = () => { setFiltersOpen(false); onExternalFiltersClose?.(); };
@@ -64,13 +65,10 @@ const ExploreSheet = ({
         setSheetHeight(heightForMode(mode));
     }, [mode]);
 
-    const sortedVenues = useMemo(() => {
-        if (!venues || venues.length === 0) return [];
-        const scoreOf = (venue) => (
-            typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : 50
-        );
-        return [...venues].sort((a, b) => scoreOf(b) - scoreOf(a));
-    }, [venues, calculateSunstayScore]);
+    const sortedVenues = useMemo(
+        () => sortVenuesBySunstayScore(venues, calculateSunstayScore),
+        [venues, calculateSunstayScore, previewMinutes]
+    );
 
     const resolveSnap = useCallback((startMode, deltaY, velocityY) => {
         if (startMode === 'full' || (startMode === 'list' && deltaY < -60)) {
