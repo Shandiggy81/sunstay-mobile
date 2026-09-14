@@ -23,6 +23,7 @@ export function useVenues() {
     useEffect(() => {
         let isMounted = true;
         const controller = new AbortController();
+        let timeoutId;
 
         async function fetchLiveVenues() {
             if (!supabase) {
@@ -33,10 +34,13 @@ export function useVenues() {
             setIsLoading(true);
             setError(null);
 
-            // 5-second timeout protection for mobile clients
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Supabase request timed out after 5000ms')), 5000)
-            );
+            // 5-second timeout: abort the in-flight Supabase request, don't just ignore it
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    controller.abort();
+                    reject(new Error('Supabase request timed out after 5000ms'));
+                }, 5000);
+            });
 
             try {
                 const queryPromise = supabase
@@ -66,6 +70,7 @@ export function useVenues() {
                     setError(err);
                 }
             } finally {
+                if (timeoutId) clearTimeout(timeoutId);
                 if (isMounted) {
                     setIsLoading(false);
                 }
@@ -76,6 +81,7 @@ export function useVenues() {
 
         return () => {
             isMounted = false;
+            if (timeoutId) clearTimeout(timeoutId);
             controller.abort();
         };
     }, []);
