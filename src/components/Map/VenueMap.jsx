@@ -451,13 +451,13 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
 
     return (
         <motion.div
-            className={`absolute left-1/2 bottom-[46px] z-40 w-[min(88vw,340px)] ${
+            className={`relative z-40 w-full max-w-[340px] ${
                 isVenueSelected ? 'pointer-events-none' : 'pointer-events-auto'
             }`}
             initial={false}
             animate={isVenueSelected
-                ? { x: '-50%', y: 180, opacity: 0 }
-                : { x: '-50%', y: 0, opacity: 1 }
+                ? { y: 180, opacity: 0 }
+                : { y: 0, opacity: 1 }
             }
             transition={{ type: 'spring', damping: 30, stiffness: 280 }}
             aria-hidden={isVenueSelected}
@@ -1093,22 +1093,20 @@ const VenueMap = forwardRef(({
                 </button>
             )}
 
-            {/* Time-of-day light scrubber — casts dynamic shadows across 3D buildings */}
+            {/* Time-of-day light scrubber — stacked in the bottom-center band, clear of the venue sheet + right FABs */}
             {mapLoaded && !mapError && (
-                <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} />
+                <div className="pointer-events-none absolute inset-x-0 z-40 bottom-[calc(env(safe-area-inset-bottom)+90px)] md:bottom-[46px]">
+                    <div className="absolute bottom-0 left-4 right-[6.75rem] flex justify-center">
+                        <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} />
+                    </div>
+                </div>
             )}
 
             {/* FAB stack */}
             {mapLoaded && !mapError && (
                 <div
+                    className="absolute top-20 right-4 z-20 flex flex-col gap-2"
                     style={{
-                        position:        'absolute',
-                        bottom:          80,
-                        right:           12,
-                        zIndex:          20,
-                        display:         'flex',
-                        flexDirection:   'column',
-                        gap:             8,
                         touchAction:     'auto',
                         pointerEvents:   'auto',
                     }}

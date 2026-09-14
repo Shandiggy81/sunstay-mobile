@@ -5975,10 +5975,8 @@ body,
 @media (max-width: 767px) {
   .ss-filters-fab {
     display: flex;
-    position: absolute;
-    /* bottom comes from Tailwind bottom-[132px] — clears TimeOfDayLight (bottom-[46px] + slider + gap) */
-    right: 50%;
-    transform: translateX(50%);
+    position: relative;
+    /* Positioned by the App.jsx bottom-center stack (clears TOD + venue sheet) */
     width: auto;
     padding: 0 24px;
     height: 48px;

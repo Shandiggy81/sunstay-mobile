@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWeather } from '../context/WeatherContext';
 
-const SunnyMascot = ({ onClick, isChatOpen, selectedVenue }) => {
+const SunnyMascot = ({
+    onClick,
+    isChatOpen,
+    selectedVenue,
+    className = 'fixed right-4 z-[1000] pointer-events-none bottom-[calc(env(safe-area-inset-bottom)+90px)]',
+}) => {
     const [isHovered, setIsHovered] = useState(false);
     const { weather, theme } = useWeather();
 
@@ -25,7 +30,7 @@ const SunnyMascot = ({ onClick, isChatOpen, selectedVenue }) => {
 
     return (
         <motion.div
-            className="fixed bottom-52 right-6 z-[1000] pointer-events-none"
+            className={className}
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', damping: 15, delay: 0.5 }}
