@@ -664,19 +664,6 @@ const AppContent = () => {
 
                     {/* RIGHT: Map */}
                     <section className={`ss-map-area flex-1 h-full relative ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-                        <button
-                            className="ss-filters-fab bottom-[132px]"
-                            onClick={openMobileFilters}
-                            disabled={mobileFilterOpen}
-                            aria-expanded={mobileFilterOpen}
-                        >
-                            <ListFilter size={18} />
-                            <span>Filters</span>
-                            {activeFilters.length > 0 && (
-                                <span className="ss-filters-fab-badge">{activeFilters.length}</span>
-                            )}
-                        </button>
-
                         <div className="ss-map-container">
                             <MapErrorBoundary>
                                 <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
@@ -718,38 +705,66 @@ const AppContent = () => {
                             )}
                         </AnimatePresence>
 
-                        <motion.button
-                            type="button"
-                            className="absolute bottom-[190px] right-32 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-blue-600 shadow-lg hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70"
-                            whileTap={{ scale: 0.9 }}
-                            onClick={handleLocateMe}
-                            disabled={isLocating}
-                            aria-label="Locate Me"
-                            title="Locate Me"
-                            id="locate-me"
-                        >
-                            <Locate size={18} className={isLocating ? 'animate-pulse' : undefined} />
-                        </motion.button>
-                        {locateHint && (
-                            <div
-                                role="status"
-                                className="pointer-events-none absolute bottom-[246px] right-32 z-50 max-w-[200px] rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
-                            >
-                                {locateHint}
+                        {/* Bottom-anchored map controls — clear of the collapsed venue sheet */}
+                        <div className="pointer-events-none absolute inset-x-0 z-50 bottom-[calc(env(safe-area-inset-bottom)+90px)] md:bottom-[46px]">
+                            {/* Bottom center: Filters stacked above the TOD slider (TOD lives in VenueMap at this baseline) */}
+                            <div className="pointer-events-auto absolute bottom-0 left-4 right-[6.75rem] flex flex-col items-center gap-3 pb-[5.5rem] md:hidden">
+                                <button
+                                    className="ss-filters-fab"
+                                    onClick={openMobileFilters}
+                                    disabled={mobileFilterOpen}
+                                    aria-expanded={mobileFilterOpen}
+                                >
+                                    <ListFilter size={18} />
+                                    <span>Filters</span>
+                                    {activeFilters.length > 0 && (
+                                        <span className="ss-filters-fab-badge">{activeFilters.length}</span>
+                                    )}
+                                </button>
                             </div>
-                        )}
 
-                        <motion.button
-                            type="button"
-                            className="ss-recenter-btn"
-                            whileTap={{ scale: 0.9 }}
-                            onClick={handleRecenter}
-                            id="recenter-map"
-                            aria-label="Recenter Melbourne"
-                            title="Recenter Melbourne"
-                        >
-                            <Crosshair size={18} />
-                        </motion.button>
+                            {/* Right column: Locate Me + Sunny mascot */}
+                            <div className="pointer-events-auto absolute right-4 bottom-0 flex flex-col items-end gap-3">
+                                {locateHint && (
+                                    <div
+                                        role="status"
+                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
+                                    >
+                                        {locateHint}
+                                    </div>
+                                )}
+                                <motion.button
+                                    type="button"
+                                    className="z-50 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-blue-600 shadow-lg hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70"
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={handleLocateMe}
+                                    disabled={isLocating}
+                                    aria-label="Locate Me"
+                                    title="Locate Me"
+                                    id="locate-me"
+                                >
+                                    <Locate size={18} className={isLocating ? 'animate-pulse' : undefined} />
+                                </motion.button>
+                                <motion.button
+                                    type="button"
+                                    className="ss-recenter-btn !relative !right-auto !bottom-auto"
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={handleRecenter}
+                                    id="recenter-map"
+                                    aria-label="Recenter Melbourne"
+                                    title="Recenter Melbourne"
+                                >
+                                    <Crosshair size={18} />
+                                </motion.button>
+                                {!selectedVenue && (
+                                    <SunnyMascot
+                                        onClick={toggleChat}
+                                        isChatOpen={isChatOpen}
+                                        className="relative z-50 pointer-events-none"
+                                    />
+                                )}
+                            </div>
+                        </div>
                     </section>
 
                     {selectedVenue && (
@@ -892,8 +907,6 @@ const AppContent = () => {
                     onFindIndoor={handleFindIndoor}
                     onFindWindSheltered={handleFindWindSheltered}
                 />
-
-                {!selectedVenue && <SunnyMascot onClick={toggleChat} isChatOpen={isChatOpen} />}
 
                 <motion.div
                     initial={{ y: 100, opacity: 0 }}
