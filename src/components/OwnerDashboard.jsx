@@ -18,7 +18,7 @@ const Spinner = () => (
 
 // ── Section Heading ─────────────────────────────────────────────────────
 const SectionHeading = ({ children, style = {} }) => (
-  <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, color: 'rgba(255,255,255,0.6)', marginBottom: 12, ...style }}>{children}</p>
+  <p className="tracking-wider text-xs font-semibold uppercase" style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 12, ...style }}>{children}</p>
 );
 
 // ── Inline Status ────────────────────────────────────────────────────────
@@ -263,7 +263,7 @@ function OwnerDashboardInner({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex cursor-pointer flex-col overflow-hidden bg-black/50"
+      className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex cursor-pointer flex-col overflow-hidden bg-black/30 backdrop-blur-sm"
       onClick={onClose}
       role="button"
       tabIndex={0}
@@ -283,7 +283,7 @@ function OwnerDashboardInner({
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}
         onClick={e => e.stopPropagation()}
-        className="relative z-50 flex h-full min-h-0 flex-col overflow-hidden rounded-t-3xl bg-[#1a1a2e]"
+        className="relative z-50 flex h-full min-h-0 flex-col overflow-hidden rounded-t-3xl bg-[#1a1a2e]/90 backdrop-blur-2xl border-t border-white/40 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
       >
         {/* Drag Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, cursor: 'pointer' }} onClick={onClose}>
@@ -293,7 +293,7 @@ function OwnerDashboardInner({
         {/* Top Bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div>
-            <h2 style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{venueName}</h2>
+            <h2 className="tracking-tight" style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{venueName}</h2>
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>Floor Ops Manager</span>
           </div>
           <button

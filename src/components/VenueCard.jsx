@@ -904,7 +904,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-        className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex flex-col overflow-hidden bg-black/50"
+        className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex flex-col overflow-hidden bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.article
@@ -920,7 +920,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid rgba(14,165,233,0.12)',
           }}
-          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-3xl bg-white"
+          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-3xl bg-white/90 backdrop-blur-2xl border-t border-white/40 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
           onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
@@ -942,7 +942,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             {/* 2. Sticky title chrome — Title, Subtitle, Close */}
             <div className="sticky top-0 z-20 bg-white pt-4 pb-2 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h2 className="text-2xl font-bold text-slate-900 leading-tight truncate">{fallbackName}</h2>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900 leading-tight truncate">{fallbackName}</h2>
                 <p className="text-sm text-slate-600 font-medium truncate">
                   {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
                 </p>
@@ -969,6 +969,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   <img
                     src={venueImage}
                     alt={fallbackName}
+                    loading="lazy"
+                    decoding="async"
                     className={`absolute inset-0 w-full h-full object-cover ${imageLoaded ? 'opacity-70' : 'opacity-0'}`}
                     onLoad={() => setImageLoaded(true)}
                     onError={() => { setImageError(true); setImageLoaded(false); }}
@@ -1104,7 +1106,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   <div className="grid grid-cols-2 gap-2.5 my-3">
                     <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Wind & Shelter</span>
+                        <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">Wind & Shelter</span>
                         <Wind size={14} className="text-sky-600 shrink-0" aria-hidden="true" />
                       </div>
                       <div>
@@ -1115,7 +1117,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
                     <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">UV & Solar</span>
+                        <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">UV & Solar</span>
                         <Sun size={14} className="text-amber-500 shrink-0" aria-hidden="true" />
                       </div>
                       <div>
@@ -1126,7 +1128,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
                     <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Seating Layout</span>
+                        <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">Seating Layout</span>
                         <Armchair size={14} className="text-slate-600 shrink-0" aria-hidden="true" />
                       </div>
                       <div>
@@ -1139,7 +1141,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
                     <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Heating / Cozy</span>
+                        <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">Heating / Cozy</span>
                         <Flame size={14} className="text-orange-500 shrink-0" aria-hidden="true" />
                       </div>
                       <div>
