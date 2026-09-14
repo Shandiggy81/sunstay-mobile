@@ -1,5 +1,5 @@
 import React, {
-    useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback,
+    useEffect, useMemo, useRef, useState, useCallback,
     forwardRef, useImperativeHandle, memo,
 } from 'react';
 import mapboxgl from 'mapbox-gl';
@@ -203,6 +203,10 @@ function updateClusterMarkerEl(el, count) {
     if (inner) inner.textContent = count;
 }
 
+// HTML markers sit on the map plane so they do not parallax when the 3D
+// camera pitches. Bottom-anchor treats each element like a pin on the ground.
+const MAP_SURFACE_MARKER = { pitchAlignment: 'map', anchor: 'bottom' };
+
 function createUserLocationEl() {
     const el = document.createElement('div');
     el.setAttribute('aria-hidden', 'true');
@@ -345,18 +349,16 @@ function computeSunLight(minutes, lat, lng) {
     return { direction: [azimuthal, polar], color, intensity, ambientIntensity };
 }
 
-// Floating slider that scrubs the global 3D-building light. During drag, the
-// latest minutes live in a ref (no React re-render) and map.setLights is
-// coalesced to at most one update per display frame via rAF. The clock label
-// is written through a DOM ref. Minutes commit to React state on pointer-up /
-// cancel / blur so parent VenueMap re-renders cannot reset a mid-drag value.
+// Floating slider that scrubs the global 3D-building light. Local React
+// state drives the thumb + clock while dragging so the UI stays at input
+// rate. map.setLights is coalesced to one update per display frame via rAF
+// (no parent VenueMap / WeatherContext re-render). Score preview commits
+// only on pointer-up / cancel / blur / keyup.
 function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
     const { setScorePreviewMinutes } = useWeather();
-    const [minutes, setMinutes] = useState(13 * 60); // default 1:00 PM — committed
-    const minutesRef = useRef(minutes);
+    const [sliderMinutes, setSliderMinutes] = useState(13 * 60); // default 1:00 PM
+    const minutesRef = useRef(sliderMinutes);
     const lightRafRef = useRef(null);
-    const clockLabelRef = useRef(null);
-    const sliderRef = useRef(null);
 
     const applyLight = useCallback((mins) => {
         const map = mapRef.current;
@@ -408,23 +410,6 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         });
     }, [applyLight]);
 
-    const paintClock = (mins) => {
-        const label = formatClock(mins);
-        if (clockLabelRef.current) clockLabelRef.current.textContent = label;
-        if (sliderRef.current) sliderRef.current.setAttribute('aria-valuetext', label);
-    };
-
-    // If VenueMap re-renders mid-drag, React would reset the controlled input
-    // to the last committed `minutes`. Restore the live ref value (and clock)
-    // before paint so the thumb and readout stay with the finger.
-    useLayoutEffect(() => {
-        const live = minutesRef.current;
-        if (sliderRef.current && sliderRef.current.value !== String(live)) {
-            sliderRef.current.value = String(live);
-        }
-        paintClock(live);
-    });
-
     useEffect(() => {
         if (!mapLoaded) return undefined;
         const map = mapRef.current;
@@ -449,19 +434,20 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
     const handleScrub = (e) => {
         const v = Number(e.target.value);
         minutesRef.current = v;
-        paintClock(v);
+        setSliderMinutes(v);
         scheduleLight(v);
     };
 
     const commitMinutes = () => {
         const v = minutesRef.current;
-        setMinutes((prev) => (prev === v ? prev : v));
-        paintClock(v);
+        setSliderMinutes((prev) => (prev === v ? prev : v));
         // Score uses settled minutes only — never the rAF/scrub path.
         if (typeof setScorePreviewMinutes === 'function') {
             setScorePreviewMinutes(v);
         }
     };
+
+    const clock = formatClock(sliderMinutes);
 
     return (
         <motion.div
@@ -485,21 +471,19 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
                             Time of day
                         </label>
                         <span
-                            ref={clockLabelRef}
                             aria-live="polite"
                             className="text-xs font-bold tabular-nums text-slate-800"
                         >
-                            {formatClock(minutes)}
+                            {clock}
                         </span>
                     </div>
                     <input
-                        ref={sliderRef}
                         id="tod-slider"
                         type="range"
                         min={DAY_START_MIN}
                         max={DAY_END_MIN}
                         step={5}
-                        value={minutes}
+                        value={sliderMinutes}
                         onChange={handleScrub}
                         onInput={handleScrub}
                         onPointerUp={commitMinutes}
@@ -507,7 +491,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
                         onBlur={commitMinutes}
                         onKeyUp={commitMinutes}
                         aria-label="Time of day for 3D building shadows"
-                        aria-valuetext={formatClock(minutes)}
+                        aria-valuetext={clock}
                         className="h-6 w-full cursor-pointer accent-amber-500 touch-pan-x"
                     />
                 </div>
@@ -586,7 +570,7 @@ const VenueMap = forwardRef(({
             }
             userMarkerRef.current = new mapboxgl.Marker({
                 element: createUserLocationEl(),
-                anchor: 'center',
+                ...MAP_SURFACE_MARKER,
             })
                 .setLngLat([lng, lat])
                 .addTo(mapInst);
@@ -966,7 +950,7 @@ const VenueMap = forwardRef(({
                                 e.preventDefault();
                                 map.current.easeTo({ center: coords, zoom: map.current.getZoom() + 2 });
                             });
-                            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                            const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat(coords)
                                 .addTo(map.current);
                             existing = { marker, el, count, isCluster: true };
@@ -1001,7 +985,7 @@ const VenueMap = forwardRef(({
                                     e.preventDefault();
                                     onVenueSelectRef.current?.(venue);
                                 });
-                                existing.marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                                existing.marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                     .setLngLat([venueLng, venueLat])
                                     .addTo(map.current);
                                 existing.el = el;
@@ -1014,7 +998,7 @@ const VenueMap = forwardRef(({
                                 e.preventDefault();
                                 onVenueSelectRef.current?.(venue);
                             });
-                            const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+                            const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(map.current);
                             existing = { marker, el, pinKey, isCluster: false };
