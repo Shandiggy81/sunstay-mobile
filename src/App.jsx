@@ -678,6 +678,20 @@ const AppContent = () => {
                                         cozyWeatherActive={cozyWeatherActive}
                                         cozyFilterActive={cozyFilterActive}
                                         isExpanded={mobileMapExpanded}
+                                        filtersControl={(
+                                            <button
+                                                className="ss-filters-fab min-h-11"
+                                                onClick={openMobileFilters}
+                                                disabled={mobileFilterOpen}
+                                                aria-expanded={mobileFilterOpen}
+                                            >
+                                                <ListFilter size={18} />
+                                                <span>Filters</span>
+                                                {activeFilters.length > 0 && (
+                                                    <span className="ss-filters-fab-badge">{activeFilters.length}</span>
+                                                )}
+                                            </button>
+                                        )}
                                     />
                                 </Suspense>
                             </MapErrorBoundary>
@@ -707,23 +721,7 @@ const AppContent = () => {
 
                         {/* Bottom-anchored map controls — clear of the collapsed venue sheet */}
                         <div className="pointer-events-none absolute inset-x-0 z-50 bottom-[calc(env(safe-area-inset-bottom)+90px)] md:bottom-[46px]">
-                            {/* Bottom center: Filters stacked above the TOD slider (TOD lives in VenueMap at this baseline) */}
-                            <div className="pointer-events-auto absolute bottom-0 left-4 right-[6.75rem] flex flex-col items-center gap-3 pb-[5.5rem] md:hidden">
-                                <button
-                                    className="ss-filters-fab"
-                                    onClick={openMobileFilters}
-                                    disabled={mobileFilterOpen}
-                                    aria-expanded={mobileFilterOpen}
-                                >
-                                    <ListFilter size={18} />
-                                    <span>Filters</span>
-                                    {activeFilters.length > 0 && (
-                                        <span className="ss-filters-fab-badge">{activeFilters.length}</span>
-                                    )}
-                                </button>
-                            </div>
-
-                            {/* Right column: Locate Me + Sunny mascot */}
+                            {/* Right column: Locate Me + Recenter + Sunny — Filters+TOD live in VenueMap */}
                             <div className="pointer-events-auto absolute right-4 bottom-0 flex flex-col items-end gap-3">
                                 {locateHint && (
                                     <div
@@ -747,7 +745,7 @@ const AppContent = () => {
                                 </motion.button>
                                 <motion.button
                                     type="button"
-                                    className="ss-recenter-btn !relative !right-auto !bottom-auto"
+                                    className="ss-recenter-btn !relative !right-auto !bottom-auto !h-11 !w-11 min-h-11 min-w-11"
                                     whileTap={{ scale: 0.9 }}
                                     onClick={handleRecenter}
                                     id="recenter-map"

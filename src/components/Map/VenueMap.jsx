@@ -511,6 +511,7 @@ const VenueMap = forwardRef(({
     weatherColorFn    = null,   // (weather, venue) => pinKey string
     cozyWeatherActive = false,  // true when weather is cold/rainy
     cozyFilterActive  = false,  // true when user has 'Cozy' filter selected
+    filtersControl    = null,   // Filters FAB — stacked above TOD, layout only
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -706,7 +707,7 @@ const VenueMap = forwardRef(({
 
             map.current.addControl(
                 new mapboxgl.NavigationControl({ showCompass: false }),
-                'bottom-right'
+                'top-right'
             );
             const canvas = map.current.getCanvas();
             const handleWebglContextLost = (event) => event.preventDefault();
@@ -1070,17 +1071,17 @@ const VenueMap = forwardRef(({
 
     // ── Render ──────────────────────────────────────────────────────
     return (
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div className="relative h-full w-full max-md:[&_.mapboxgl-ctrl-top-right]:hidden md:[&_.mapboxgl-ctrl-bottom-right]:bottom-2 [&_.mapboxgl-ctrl-bottom-right]:bottom-[calc(env(safe-area-inset-bottom)+90px)] [&_.mapboxgl-ctrl-bottom-right]:right-[6.75rem]">
             <div
                 ref={mapContainer}
                 style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
             />
 
-            {/* Prominent live radar toggle */}
+            {/* Prominent live radar toggle — md:right-14 clears native Mapbox zoom at top-right */}
             {mapLoaded && !mapError && (
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowRadar(!showRadar); }}
-                    className={`absolute top-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all ${
+                    className={`absolute top-4 right-4 z-50 flex min-h-11 items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all md:right-14 ${
                         showRadar
                             ? 'bg-blue-600/95 text-white border-2 border-blue-400'
                             : 'bg-white/95 text-gray-800 border border-gray-200/80 hover:bg-gray-50'
@@ -1093,14 +1094,19 @@ const VenueMap = forwardRef(({
                 </button>
             )}
 
-            {/* Time-of-day light scrubber — stacked in the bottom-center band, clear of the venue sheet + right FABs */}
-            {mapLoaded && !mapError && (
-                <div className="pointer-events-none absolute inset-x-0 z-40 bottom-[calc(env(safe-area-inset-bottom)+90px)] md:bottom-[46px]">
-                    <div className="absolute bottom-0 left-4 right-[6.75rem] flex justify-center">
+            {/* Bottom-center stack: Filters sits cleanly above the TOD slider */}
+            <div className="pointer-events-none absolute inset-x-0 z-40 bottom-[calc(env(safe-area-inset-bottom)+90px)] md:bottom-[46px]">
+                <div className="absolute bottom-0 left-4 right-[6.75rem] flex flex-col items-center gap-4">
+                    {filtersControl ? (
+                        <div className="pointer-events-auto md:hidden">
+                            {filtersControl}
+                        </div>
+                    ) : null}
+                    {mapLoaded && !mapError ? (
                         <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} />
-                    </div>
+                    ) : null}
                 </div>
-            )}
+            </div>
 
             {/* FAB stack */}
             {mapLoaded && !mapError && (
