@@ -263,7 +263,7 @@ function OwnerDashboardInner({
 
   return (
     <div
-      className="fixed inset-0 z-[110] cursor-pointer overflow-hidden bg-black/50 pt-[calc(132px+env(safe-area-inset-top,0px))]"
+      className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex cursor-pointer flex-col overflow-hidden bg-black/50"
       onClick={onClose}
       role="button"
       tabIndex={0}
@@ -283,7 +283,7 @@ function OwnerDashboardInner({
         exit={{ y: '100%' }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}
         onClick={e => e.stopPropagation()}
-        className="relative z-50 flex h-full flex-col overflow-hidden rounded-t-3xl bg-[#1a1a2e]"
+        className="relative z-50 flex h-full min-h-0 flex-col overflow-hidden rounded-t-3xl bg-[#1a1a2e]"
       >
         {/* Drag Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, cursor: 'pointer' }} onClick={onClose}>

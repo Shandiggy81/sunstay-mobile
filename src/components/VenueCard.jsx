@@ -904,7 +904,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-        className="fixed inset-0 z-[110] flex flex-col overflow-hidden bg-black/50 pt-[calc(132px+env(safe-area-inset-top,0px))]"
+        className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex flex-col overflow-hidden bg-black/50"
         onClick={onClose}
       >
         <motion.article
@@ -920,7 +920,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid rgba(14,165,233,0.12)',
           }}
-          className="pointer-events-auto relative z-50 mt-auto flex h-full w-full select-none flex-col overflow-hidden rounded-t-3xl bg-white"
+          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-3xl bg-white"
           onPointerEnter={handlePointerEnter}
           onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
         >
@@ -929,7 +929,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
-          <div className="relative z-20 shrink-0 bg-white px-4 [transform-style:flat]">
+          <div className="relative z-20 isolate shrink-0 overflow-hidden bg-white px-4 [transform-style:flat]">
             {/* 1. Extracted Drag Handle for top of sheet */}
             <div
               className="flex justify-center pt-1 pb-3 md:hidden w-full"
