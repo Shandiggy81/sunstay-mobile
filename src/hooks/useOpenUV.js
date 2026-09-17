@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
+import { shouldFetchRemote } from './shouldFetchRemote';
 
 // In-memory cache: key = "lat,lng", value = { burnTimeMins, expiresAt }
 const _cache = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour — UV index changes slowly
 const FETCH_TIMEOUT_MS = 4000;
 
-export function useOpenUV(lat, lng) {
+export function useOpenUV(lat, lng, { enabled = true } = {}) {
   const [burnTimeMins, setBurnTimeMins] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (!lat || !lng) return;
+    if (!shouldFetchRemote({ enabled, lat, lng })) return;
     if (!import.meta.env.VITE_OPENUV_API_KEY) return;
     let cancelled = false;
 
@@ -76,7 +77,7 @@ export function useOpenUV(lat, lng) {
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [lat, lng]);
+  }, [lat, lng, enabled]);
 
   return { burnTimeMins, loading, error };
 }

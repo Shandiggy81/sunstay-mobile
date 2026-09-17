@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
+import { shouldFetchRemote } from './shouldFetchRemote';
 
 // In-memory cache: key = "lat,lng", value = { aqLabel, expiresAt }
 const _cache = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const FETCH_TIMEOUT_MS = 4000;
 
-export function useOpenAQ(lat, lng) {
+export function useOpenAQ(lat, lng, { enabled = true } = {}) {
   const [aqLabel, setAqLabel] = useState('–');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (!lat || !lng) return;
+    if (!shouldFetchRemote({ enabled, lat, lng })) return;
     let cancelled = false;
 
     const cacheKey = `${lat},${lng}`;
@@ -91,7 +92,7 @@ export function useOpenAQ(lat, lng) {
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [lat, lng]);
+  }, [lat, lng, enabled]);
 
   return { aqLabel, loading, error };
 }

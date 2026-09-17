@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSunData } from '../utils/getSunData';
+import { shouldFetchRemote } from '../hooks/shouldFetchRemote';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -35,7 +36,7 @@ if (typeof document !== 'undefined' && !document.getElementById('ss-pulse-kf')) 
   document.head.appendChild(style);
 }
 
-export default function HourlyForecastStrip({ lat, lng }) {
+export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
   const [hourly, setHourly]                   = useState([]);
   const [loading, setLoading]                 = useState(true);
   const [sunshineMinsToday, setSunshineMinsToday] = useState(null);
@@ -45,8 +46,9 @@ export default function HourlyForecastStrip({ lat, lng }) {
   const hasCoords = Number.isFinite(latNum) && Number.isFinite(lngNum);
 
   useEffect(() => {
-    if (!hasCoords) {
+    if (!shouldFetchRemote({ enabled, lat, lng }) || !hasCoords) {
       setLoading(false);
+      if (!enabled) return;
       setHourly([]);
       return;
     }
@@ -101,7 +103,7 @@ export default function HourlyForecastStrip({ lat, lng }) {
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latNum, lngNum]);
+  }, [enabled, latNum, lngNum]);
 
   // ── Loading state ─────────────────────────────────────────────
   if (loading) {
