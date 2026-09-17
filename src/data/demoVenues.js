@@ -83,6 +83,8 @@ export const companyByName = Object.fromEntries(
 
 
 // ── Demo Venues ───────────────────────────────────────────────────
+// Hero photos are mapped onto `image` as `/images/venues/<slug>.jpg` when a
+// local asset exists; otherwise `image` is null and the UI uses a fallback.
 export const demoVenues = [
     {
         id: "dv-01",
