@@ -77,17 +77,7 @@ export default function VenueCardActions({
       {setShowOwnerDashboard && (
         <motion.button
           onClick={() => { setShowOwnerDashboard(true); setSelectedVenue(venue); }}
-          className="w-full flex items-center justify-center mt-2.5 mb-1 opacity-60 hover:opacity-100 transition-opacity"
-          style={{
-            padding: '4px 0',
-            fontSize: '0.7rem',
-            fontWeight: 500,
-            background: 'transparent',
-            color: '#64748B',
-            border: 'none',
-            textDecoration: 'underline',
-            letterSpacing: '0.03em',
-          }}
+          className="mt-2.5 mb-1 flex min-h-11 w-full cursor-pointer items-center justify-center rounded-xl border-none bg-transparent text-[11px] font-medium tracking-[0.03em] text-slate-500 underline underline-offset-2 transition-colors hover:text-slate-700 active:bg-slate-900/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           whileTap={{ scale: 0.98 }}
         >
           ⚙️ Manage this partner venue
