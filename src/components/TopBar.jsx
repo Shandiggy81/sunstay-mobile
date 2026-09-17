@@ -2,6 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sun, ListFilter } from 'lucide-react';
 
+const EM_DASH = '\u2013';
+
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen, comfort }) => {
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
@@ -28,58 +30,52 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             initial={{ y: -60, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.15, type: 'spring', damping: 24, stiffness: 240 }}
-            className="z-40 flex-shrink-0"
-            style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+            className="z-40 flex-shrink-0 pt-[env(safe-area-inset-top,0px)]"
         >
-            <div
-                className="relative flex min-h-[132px] items-center gap-3 px-4! py-3.5 pr-4! bg-white/80 backdrop-blur-md border-b border-slate-100"
-            >
+            {/* iOS-style translucent navigation material: blur + saturation lift
+                over a hairline separator, so map content reads through the bar. */}
+            <div className="relative flex min-h-[132px] items-center gap-3 border-b border-slate-900/[0.07] bg-white/72 px-4 py-3.5 backdrop-blur-xl backdrop-saturate-150">
                 {/* Logo */}
-                <div className="flex flex-col items-center justify-center flex-shrink-0 relative z-10">
-                    <Sun size={32} className="text-amber-500" />
-                    <span className="text-slate-900 font-black text-[9px] tracking-[2px] uppercase mt-1">SUNSTAY</span>
+                <div className="relative z-10 flex w-[52px] flex-shrink-0 flex-col items-center justify-center gap-1.5">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/15 ring-1 ring-inset ring-amber-500/25">
+                        <Sun size={24} strokeWidth={2.25} className="text-amber-600" aria-hidden="true" />
+                    </span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-700">Sunstay</span>
                 </div>
 
                 {/* Centre weather display */}
-                <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 relative z-10">
-                    <span className="text-slate-900 font-bold text-[13px] tracking-tight uppercase">Melbourne</span>
-                    <span className="text-slate-900 font-black text-[32px] leading-none tracking-tight min-h-[32px]">
+                <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Melbourne</span>
+                    <span className="min-h-[34px] text-[32px] font-bold leading-none tracking-[-0.03em] tabular-nums text-slate-900">
                         {weather ? `${temp}°C` : '\u00a0'}
                     </span>
-                    <div className="flex min-h-[40px] flex-col items-center gap-1">
-                        <span className="text-slate-600 text-[11px] font-medium italic">
+                    <div className="flex min-h-[42px] flex-col items-center gap-1.5">
+                        <span className="max-w-[160px] truncate text-[13px] font-medium text-slate-600">
                             {weather ? descFormatted : 'Loading\u2026'}
                         </span>
                         {comfort && comfort.label !== 'Loading' && (
-                            <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full shadow-sm border border-slate-200 font-medium tracking-wide">
-                                {comfort.icon} {comfort.label}
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-900/[0.08]">
+                                <span aria-hidden="true">{comfort.icon}</span>
+                                {comfort.label}
                             </span>
                         )}
                     </div>
                 </div>
 
-                {/* Right side stats with divider */}
-                {weather && (
-                    <>
-                        <div
-                            className="h-[48px] w-[1px] bg-slate-200 flex-shrink-0 relative z-10"
-                            style={{ alignSelf: 'center' }}
-                        />
-                        <div className="relative z-10 flex flex-shrink-0 flex-col items-start gap-1.5">
-                            <span className="text-[12px] font-medium leading-tight text-slate-700">
-                                💨 {windSpeed} km/h
-                            </span>
-                            <span className="text-[12px] font-medium leading-tight text-slate-700">
-                                🌧 {Math.round(rainChance)}%
-                            </span>
-                            {cloudLabel && (
-                                <span className="text-[12px] font-medium leading-tight text-slate-700">
-                                    ☁️ {cloudLabel}
-                                </span>
-                            )}
-                        </div>
-                    </>
-                )}
+                {/* Right side stats with divider — always rendered (with dashes
+                    before weather resolves) so the bar never reflows on load. */}
+                <div className="relative z-10 h-[52px] w-px flex-shrink-0 self-center bg-slate-900/10" aria-hidden="true" />
+                <div className="relative z-10 flex w-[78px] flex-shrink-0 flex-col items-start gap-2">
+                    <span className="whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
+                        <span aria-hidden="true">💨</span> {weather ? `${windSpeed} km/h` : EM_DASH}
+                    </span>
+                    <span className="whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
+                        <span aria-hidden="true">🌧</span> {weather ? `${Math.round(rainChance)}%` : EM_DASH}
+                    </span>
+                    <span className="whitespace-nowrap text-[13px] font-medium leading-none text-slate-700">
+                        <span aria-hidden="true">☁️</span> {cloudLabel ?? EM_DASH}
+                    </span>
+                </div>
 
                 {typeof onFiltersOpen === 'function' && (
                     <button
@@ -88,11 +84,11 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                             e.stopPropagation();
                             onFiltersOpen(e);
                         }}
-                        className="relative z-10 flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-full border border-slate-200/80 bg-white/80 px-3 text-slate-800 shadow-sm backdrop-blur-md touch-manipulation"
+                        className="relative z-10 flex h-11 w-11 min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-slate-800 shadow-[0_1px_3px_rgba(15,23,42,0.12)] ring-1 ring-inset ring-slate-900/[0.08] backdrop-blur-xl transition-colors touch-manipulation active:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
                         aria-label="Open filters"
+                        title="Open filters"
                     >
-                        <ListFilter size={16} aria-hidden="true" />
-                        <span className="hidden text-[11px] font-bold sm:inline">Filters</span>
+                        <ListFilter size={18} strokeWidth={2.25} aria-hidden="true" />
                     </button>
                 )}
             </div>
