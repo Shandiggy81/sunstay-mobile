@@ -140,7 +140,6 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
 
     return (
         <motion.div
-            layout
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.985 }}
             onClick={() => {
@@ -180,6 +179,10 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
 });
 VenueListCard.displayName = 'VenueListCard';
 
+const SafeAreaListFooter = () => (
+    <div aria-hidden="true" style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
+);
+
 const LiveVenueList = memo(function LiveVenueList({
     venues,
     selectedVenue,
@@ -189,6 +192,7 @@ const LiveVenueList = memo(function LiveVenueList({
     className,
     virtuosoRef,
     onPointerDownCapture,
+    safeAreaFooter = false,
 }) {
     if (venues.length === 0) {
         return (
@@ -203,8 +207,10 @@ const LiveVenueList = memo(function LiveVenueList({
             <Virtuoso
                 ref={virtuosoRef}
                 data={venues}
-                style={{ height: '100%', WebkitOverflowScrolling: 'touch' }}
+                computeItemKey={(_index, venue) => venue.id}
+                style={{ flex: 1, minHeight: 0, height: '100%', WebkitOverflowScrolling: 'touch' }}
                 className="overscroll-contain"
+                components={safeAreaFooter ? { Footer: SafeAreaListFooter } : undefined}
                 itemContent={(_index, venue) => (
                     <div className="pb-2">
                         <VenueListCard
@@ -362,6 +368,7 @@ const AppContent = () => {
 
     const openMobileFilters  = useCallback((e) => { e?.stopPropagation(); setMobileFilterOpen(true); }, []);
     const closeMobileFilters = useCallback((e) => { e?.preventDefault(); e?.stopPropagation(); setMobileFilterOpen(false); }, []);
+    const stopSheetPointer   = useCallback((e) => { e.stopPropagation(); }, []);
 
     const cozyWeatherActive = useMemo(() => {
         if (!weather) return false;
@@ -595,8 +602,8 @@ const AppContent = () => {
         if (!selectedVenue) return undefined;
         const index = sortedVenues.findIndex((v) => v.id === selectedVenue.id);
         if (index < 0) return undefined;
-        sidebarVirtuosoRef.current?.scrollToIndex?.({ index, align: 'nearest' });
-        mobileVirtuosoRef.current?.scrollToIndex?.({ index, align: 'nearest' });
+        sidebarVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
+        mobileVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         return undefined;
     }, [selectedVenue, sortedVenues]);
 
@@ -694,17 +701,19 @@ const AppContent = () => {
                             )}
                         </div>
 
-                        <LiveVenueList
-                            className="ss-venue-list"
-                            virtuosoRef={sidebarVirtuosoRef}
-                            venues={sortedVenues}
-                            selectedVenue={selectedVenue}
-                            onVenueSelect={handleVenueSelect}
-                            weather={weather}
-                            empty={filteredVenues.length === 0 ? (
-                                <FilterEmptyState onClear={handleClearFilters} />
-                            ) : null}
-                        />
+                        {!isMobile ? (
+                            <LiveVenueList
+                                className="ss-venue-list"
+                                virtuosoRef={sidebarVirtuosoRef}
+                                venues={sortedVenues}
+                                selectedVenue={selectedVenue}
+                                onVenueSelect={handleVenueSelect}
+                                weather={weather}
+                                empty={filteredVenues.length === 0 ? (
+                                    <FilterEmptyState onClear={handleClearFilters} />
+                                ) : null}
+                            />
+                        ) : null}
                     </aside>
 
                     {/* RIGHT: Map */}
@@ -920,7 +929,8 @@ const AppContent = () => {
                                 <LiveVenueList
                                     className="ss-mobile-sheet-list"
                                     virtuosoRef={mobileVirtuosoRef}
-                                    onPointerDownCapture={e => e.stopPropagation()}
+                                    onPointerDownCapture={stopSheetPointer}
+                                    safeAreaFooter
                                     venues={sortedVenues}
                                     selectedVenue={selectedVenue}
                                     onVenueSelect={handleVenueSelect}

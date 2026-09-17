@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SEARCH_DEBOUNCE_MS, createDebouncer } from './debounce.js';
+import { SEARCH_DEBOUNCE_MS, createDebouncer, searchDebounceWait } from './debounce.js';
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -8,6 +8,12 @@ describe('search debounce', () => {
     it('keeps the settle delay in the 150–300ms band', () => {
         assert.ok(SEARCH_DEBOUNCE_MS >= 150);
         assert.ok(SEARCH_DEBOUNCE_MS <= 300);
+    });
+
+    it('flushes immediately when the query is cleared', () => {
+        assert.equal(searchDebounceWait('', SEARCH_DEBOUNCE_MS), 0);
+        assert.equal(searchDebounceWait('   ', SEARCH_DEBOUNCE_MS), 0);
+        assert.equal(searchDebounceWait('cafe', SEARCH_DEBOUNCE_MS), SEARCH_DEBOUNCE_MS);
     });
 
     it('does not fire on each keystroke, only after typing settles', async () => {
