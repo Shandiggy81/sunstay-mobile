@@ -1,6 +1,7 @@
 import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
-import { MicroclimateProvider, useVenueMicroclimate } from './context/MicroclimateContext';
+import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions } from './context/MicroclimateContext';
+import { boundsOfVenues } from './utils/microclimate';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
 import VenueCard from './components/VenueCard';
@@ -366,6 +367,15 @@ const AppContent = () => {
     const { weather, loading: weatherLoading, calculateSunstayScore, previewMinutes } = useWeather();
     const { venues } = useVenues();
     const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
+    const { setFallbackBbox } = useMicroclimateActions();
+
+    // Seed the microclimate fetch from the loaded venues so the list has
+    // readings before the map reports a viewport — and still has them if the
+    // map never loads. A live viewport supersedes this.
+    useEffect(() => {
+        const bbox = boundsOfVenues(venues);
+        if (bbox) setFallbackBbox(bbox);
+    }, [venues, setFallbackBbox]);
 
     // Splash-screen readiness: weather is the remaining async dependency.
     // useVenues starts with demoVenues so the list is available immediately.

@@ -154,6 +154,51 @@ export function resolveComfortHint(entry) {
     return trimmed === '' ? null : trimmed;
 }
 
+// A bbox of exactly zero area matches nothing, and a single venue produces
+// one. Pad by roughly a kilometre so a lone venue still resolves.
+const MIN_BBOX_SPAN_DEG = 0.01;
+
+/**
+ * Bounding box covering a set of venues, for scoping the RPC when no map
+ * viewport is available.
+ *
+ * @param {Array<{lat:*, lng:*}>|null|undefined} venues
+ * @returns {{minLng:number,minLat:number,maxLng:number,maxLat:number}|null}
+ */
+export function boundsOfVenues(venues) {
+    if (!Array.isArray(venues) || venues.length === 0) return null;
+
+    let minLng = Infinity;
+    let minLat = Infinity;
+    let maxLng = -Infinity;
+    let maxLat = -Infinity;
+    let seen = 0;
+
+    for (const venue of venues) {
+        const lat = asFiniteNumber(venue?.lat);
+        const lng = asFiniteNumber(venue?.lng);
+        if (lat == null || lng == null) continue;
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        seen += 1;
+    }
+
+    if (seen === 0) return null;
+
+    const padLat = Math.max(0, (MIN_BBOX_SPAN_DEG - (maxLat - minLat)) / 2);
+    const padLng = Math.max(0, (MIN_BBOX_SPAN_DEG - (maxLng - minLng)) / 2);
+
+    return {
+        minLng: minLng - padLng,
+        minLat: minLat - padLat,
+        maxLng: maxLng + padLng,
+        maxLat: maxLat + padLat,
+    };
+}
+
 /**
  * Label the time a reading applies to, for captions like
  * "Microclimate at 2:30 PM".

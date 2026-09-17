@@ -30,28 +30,33 @@ const EMPTY_READING = Object.freeze({
     confidence: null,
 });
 
+const sameBbox = (a, b) => Boolean(
+    a && b
+    && a.minLng === b.minLng
+    && a.minLat === b.minLat
+    && a.maxLng === b.maxLng
+    && a.maxLat === b.maxLat,
+);
+
 export const MicroclimateProvider = ({ children }) => {
-    const [bbox, setBboxState] = useState(null);
+    const [viewportBbox, setViewportBbox] = useState(null);
+    // Covers the loaded venues. Used until the map reports a viewport, and
+    // when the map never loads at all — a missing Mapbox token or a device
+    // without WebGL should not take the list's microclimate down with it.
+    const [fallbackBbox, setFallbackBboxState] = useState(null);
     // null means "whatever the server resolved for now"; a number is the
     // Melbourne wall-clock minute the user has scrubbed to.
     const [todMinutes, setTodMinutesState] = useState(null);
 
+    const bbox = viewportBbox ?? fallbackBbox;
     const { byId, isLoading, error, source, count } = useVenuesInBbox(bbox);
 
     const setBbox = useCallback((next) => {
-        setBboxState((prev) => {
-            if (!next) return prev;
-            if (
-                prev
-                && prev.minLng === next.minLng
-                && prev.minLat === next.minLat
-                && prev.maxLng === next.maxLng
-                && prev.maxLat === next.maxLat
-            ) {
-                return prev;
-            }
-            return next;
-        });
+        setViewportBbox((prev) => (!next || sameBbox(prev, next) ? prev : next));
+    }, []);
+
+    const setFallbackBbox = useCallback((next) => {
+        setFallbackBboxState((prev) => (!next || sameBbox(prev, next) ? prev : next));
     }, []);
 
     const setTodMinutes = useCallback((minutes) => {
@@ -64,7 +69,10 @@ export const MicroclimateProvider = ({ children }) => {
     }, []);
 
     // Stable for the provider's lifetime, so writers never re-render.
-    const actions = useMemo(() => ({ setBbox, setTodMinutes }), [setBbox, setTodMinutes]);
+    const actions = useMemo(
+        () => ({ setBbox, setFallbackBbox, setTodMinutes }),
+        [setBbox, setFallbackBbox, setTodMinutes],
+    );
 
     const state = useMemo(
         () => ({ byId, todMinutes, isLoading, error, source, count }),
@@ -91,7 +99,11 @@ export const useMicroclimateActions = () => {
     return ctx ?? NOOP_ACTIONS;
 };
 
-const NOOP_ACTIONS = Object.freeze({ setBbox: () => {}, setTodMinutes: () => {} });
+const NOOP_ACTIONS = Object.freeze({
+    setBbox: () => {},
+    setFallbackBbox: () => {},
+    setTodMinutes: () => {},
+});
 
 /**
  * Reader side: the whole viewport payload.

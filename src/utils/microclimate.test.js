@@ -11,6 +11,7 @@ import {
     describeWindExposure,
     resolveComfortHint,
     formatReadingTime,
+    boundsOfVenues,
     readMicroclimate,
 } from './microclimate.js';
 
@@ -193,6 +194,45 @@ describe('formatReadingTime', () => {
     it('says "now" when the slider has not been touched', () => {
         assert.equal(formatReadingTime(null), 'now');
         assert.equal(formatReadingTime(undefined), 'now');
+    });
+});
+
+describe('boundsOfVenues', () => {
+    it('covers every venue supplied', () => {
+        const bbox = boundsOfVenues([
+            { lat: -37.7730, lng: 144.9268 },
+            { lat: -37.8677, lng: 144.9788 },
+            { lat: -37.8059, lng: 144.8934 },
+        ]);
+        assert.ok(bbox.minLat <= -37.8677);
+        assert.ok(bbox.maxLat >= -37.7730);
+        assert.ok(bbox.minLng <= 144.8934);
+        assert.ok(bbox.maxLng >= 144.9788);
+    });
+
+    it('pads a single venue so the box has area', () => {
+        const bbox = boundsOfVenues([{ lat: -37.8136, lng: 144.9631 }]);
+        assert.ok(bbox.maxLat > bbox.minLat, 'latitude span is non-zero');
+        assert.ok(bbox.maxLng > bbox.minLng, 'longitude span is non-zero');
+        assert.ok(bbox.minLat < -37.8136 && bbox.maxLat > -37.8136, 'venue sits inside');
+    });
+
+    it('skips rows with unusable coordinates', () => {
+        const bbox = boundsOfVenues([
+            { lat: -37.81, lng: 144.96 },
+            { lat: null, lng: 144.96 },
+            { lat: 'x', lng: 'y' },
+            { lat: 999, lng: 999 },
+        ]);
+        assert.ok(bbox.minLat < -37.8 && bbox.maxLat > -37.82);
+        assert.ok(bbox.maxLat < 90, 'the out-of-range row did not widen the box');
+    });
+
+    it('returns null when there is nothing usable', () => {
+        assert.equal(boundsOfVenues([]), null);
+        assert.equal(boundsOfVenues(null), null);
+        assert.equal(boundsOfVenues(undefined), null);
+        assert.equal(boundsOfVenues([{ lat: null, lng: null }]), null);
     });
 });
 

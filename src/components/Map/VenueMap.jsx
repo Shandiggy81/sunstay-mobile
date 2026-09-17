@@ -532,6 +532,15 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         resumeMapPan();
     }, [cancelPendingLight, resumeMapPan]);
 
+    // Publish the slider's opening position once it mounts. Without this the
+    // readouts would describe the server's "now" while the thumb shows
+    // something else — they only agree when the device is already on
+    // Melbourne time, since localTimeToSliderMinutes reads the device clock
+    // but every downstream consumer treats minutes as Melbourne wall-clock.
+    useEffect(() => {
+        setTodMinutes(minutesRef.current);
+    }, [setTodMinutes]);
+
     const handleScrub = (e) => {
         const v = Number(e.target.value);
         minutesRef.current = v;
