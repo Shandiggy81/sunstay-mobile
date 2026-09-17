@@ -3792,7 +3792,9 @@ body,
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 8px 12px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px 0;
 }
 
 

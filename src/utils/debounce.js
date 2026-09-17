@@ -1,6 +1,11 @@
 /** Settle delay before search drives filter / score / GeoJSON / fitBounds. */
 export const SEARCH_DEBOUNCE_MS = 200;
 
+/** Empty / cleared queries apply immediately so Clear does not lag pins. */
+export function searchDebounceWait(query, delay = SEARCH_DEBOUNCE_MS) {
+    return String(query ?? '').trim() ? delay : 0;
+}
+
 /**
  * Leading-edge-off debouncer: rapid calls collapse to one invocation of `fn`
  * after `wait` ms of quiet. Used so keystrokes do not refit the map.
