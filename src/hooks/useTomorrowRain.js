@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { shouldFetchRemote } from './shouldFetchRemote';
 
 // In-memory cache: key = "lat,lng", value = { result, expiresAt }
 const _cache = new Map();
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes high-accuracy nowcasting
 const FETCH_TIMEOUT_MS = 4000;
 
-export function useTomorrowRain(lat, lng) {
+export function useTomorrowRain(lat, lng, { enabled = true } = {}) {
   const [isRainStartingSoon, setIsRainStartingSoon] = useState(false);
   const [minutesUntilRain, setMinutesUntilRain]     = useState(0);
   const [rainArrivalMins, setRainArrivalMins]       = useState(null);
@@ -14,7 +15,7 @@ export function useTomorrowRain(lat, lng) {
   const [error, setError]                           = useState(false);
 
   useEffect(() => {
-    if (!lat || !lng) return;
+    if (!shouldFetchRemote({ enabled, lat, lng })) return;
     let cancelled = false;
 
     const apiKey = import.meta.env.VITE_TOMORROW_API_KEY;
@@ -119,7 +120,7 @@ export function useTomorrowRain(lat, lng) {
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [lat, lng]);
+  }, [lat, lng, enabled]);
 
   return { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel, loading, error };
 }
