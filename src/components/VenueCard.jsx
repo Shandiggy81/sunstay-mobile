@@ -1000,15 +1000,13 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             className="relative z-10 isolate min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col gap-2 bg-white [transform-style:flat]"
           >
             {/* Hero image */}
-            <div className="relative w-full h-48 sm:h-56 min-h-[12rem] sm:min-h-[14rem] overflow-hidden shrink-0 bg-slate-200 rounded-t-2xl mb-1">
+            <div className="relative w-full aspect-video min-h-[12rem] sm:min-h-[14rem] overflow-hidden shrink-0 bg-slate-200 rounded-t-2xl mb-1">
               {/* Background image / gradient layer */}
               <div className="absolute inset-0 z-0">
                 {showVenueImage ? (
                   <img
                     src={venueImage}
                     alt={fallbackName}
-                    loading="lazy"
-                    decoding="async"
                     className={`absolute inset-0 w-full h-full object-cover ${imageLoaded ? 'opacity-70' : 'opacity-0'}`}
                     onLoad={() => setImageLoaded(true)}
                     onError={() => { setImageError(true); setImageLoaded(false); }}
