@@ -15,19 +15,14 @@ const Float = ({ children, delay = 0, range = 4, duration = 4, className = '' })
 const StatChip = ({ icon, label, value, delay = 0, className = 'flex-1 min-w-0' }) => (
   <Float delay={delay} range={3} duration={4.5} className={className}>
     <motion.div
-      className="flex flex-col items-center justify-center rounded-2xl w-full"
-      style={{
-        padding: '12px 8px',
-        background: 'rgba(14,165,233,0.07)',
-        border: '1px solid rgba(14,165,233,0.18)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.8)'
-      }}
-      whileHover={{ scale: 1.04, background: 'rgba(14,165,233,0.11)' }}
+      className="flex flex-col items-center justify-center w-full bg-white rounded-2xl border border-slate-100 shadow-sm min-h-[44px]"
+      style={{ padding: '12px 8px' }}
+      whileHover={{ scale: 1.04 }}
       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
     >
       <span className="text-xl mb-1">{icon}</span>
-      <span className="leading-none" style={{ fontSize: '15px', fontWeight: 800, color: '#1E293B' }}>{value}</span>
-      <span className="uppercase tracking-widest font-black mt-1" style={{ fontSize: '10px', color: '#475569' }}>{label}</span>
+      <span className="leading-none text-[15px] font-bold text-slate-900">{value}</span>
+      <span className="uppercase tracking-widest font-semibold mt-1 text-[10px] text-slate-500">{label}</span>
     </motion.div>
   </Float>
 );
@@ -84,20 +79,19 @@ export default function VenueCardWeather({
 
       {hourlyData && (
         <motion.div
-          className="rounded-2xl overflow-hidden"
-          style={{ background: 'rgba(14,165,233,0.04)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(14,165,233,0.12)' }}
+          className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 overflow-hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
           <div className="flex items-center justify-between mb-3">
             {/* Section label — dark for legibility on light card bg */}
-            <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#334155' }}>Live Sun Exposure</span>
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Live Sun Exposure</span>
             <span
               className="text-[10px] font-bold px-2 py-0.5 rounded-full"
               style={{
-                background: ['Brilliant Sun','Mostly Sunny'].includes(getWeatherDisplay.label) ? 'rgba(16,185,129,0.12)' : 'rgba(148,163,184,0.12)',
-                color: ['Brilliant Sun','Mostly Sunny'].includes(getWeatherDisplay.label) ? '#059669' : '#475569',
+                background: ['Brilliant Sun','Mostly Sunny'].includes(getWeatherDisplay.label) ? 'rgba(245,158,11,0.12)' : 'rgba(148,163,184,0.12)',
+                color: ['Brilliant Sun','Mostly Sunny'].includes(getWeatherDisplay.label) ? '#B45309' : '#475569',
                 border: '1px solid rgba(0,0,0,0.06)',
               }}
             >
@@ -108,9 +102,9 @@ export default function VenueCardWeather({
             <SparkLine data={buildSpark('direct_normal_irradiance', 24)} color="#F59E0B" label="Solar Intensity" unit=" W/m²" />
           </div>
           <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-            <div className="flex items-center justify-between cursor-pointer" onClick={() => setGraphExpanded(g => !g)}>
+            <div className="flex items-center justify-between cursor-pointer min-h-[44px]" onClick={() => setGraphExpanded(g => !g)}>
               {/* Expandable section label — dark for legibility */}
-              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#475569' }}>Temp / Cloud / Wind</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Temp / Cloud / Wind</span>
               <motion.div animate={{ rotate: graphExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}>
                 <ChevronDown size={13} color="#475569" />
               </motion.div>
@@ -132,7 +126,7 @@ export default function VenueCardWeather({
                     <SparkLine data={buildSpark('cloud_cover').length ? buildSpark('cloud_cover') : buildSpark('cloudcover')} color="#94A3B8" label="Cloud" unit="%" />
                   </div>
                   <div className="flex gap-4">
-                    <SparkLine data={buildSpark('wind_speed_10m').length ? buildSpark('wind_speed_10m') : buildSpark('windspeed_10m')} color="#0EA5E9" label="Wind" unit=" km/h" />
+                    <SparkLine data={buildSpark('wind_speed_10m').length ? buildSpark('wind_speed_10m') : buildSpark('windspeed_10m')} color="#64748B" label="Wind" unit=" km/h" />
                   </div>
                 </motion.div>
               )}
