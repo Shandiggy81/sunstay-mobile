@@ -1119,21 +1119,25 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               </div>
               {onCenter && (
                 <button
+                  type="button"
                   onClick={() => onCenter(venue)}
-                  className="flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-sky-500/20 bg-sky-500/10 px-4 text-[14px] font-semibold text-sky-800 transition-colors active:bg-sky-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2"
+                  className="flex h-11 w-11 min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-sky-500/20 bg-sky-500/10 text-sky-800 transition-colors active:bg-sky-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2"
                   aria-label="Centre on map"
+                  title="Centre on map"
                 >
-                  <Crosshair size={15} strokeWidth={2.5} aria-hidden="true" />
-                  Centre
+                  <Crosshair size={18} strokeWidth={2.25} aria-hidden="true" />
                 </button>
               )}
             </div>
 
-            {/* Tabbed Navigation (Dynamically Pruned) — iOS segmented control */}
+            {/* Tabbed Navigation (Dynamically Pruned) — iOS segmented control.
+                Up to three sections share the width evenly like a static segmented
+                control; beyond that the track scrolls horizontally (Apple Maps /
+                Airbnb style) so long labels such as "Sun Forecast" never clip. */}
             <div
               role="tablist"
               aria-label="Venue detail sections"
-              className="mb-4 flex shrink-0 gap-1 overflow-x-auto rounded-2xl bg-slate-900/[0.05] p-1 scrollbar-hide"
+              className="mb-4 flex shrink-0 gap-1 overflow-x-auto overscroll-x-contain rounded-2xl bg-slate-900/[0.05] p-1 scrollbar-hide"
             >
               {availableTabs.map(tab => {
                 const isActiveTab = activeTab === tab;
@@ -1146,7 +1150,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     aria-selected={isActiveTab}
                     aria-controls={`venue-tabpanel-${tabSlug(tab)}`}
                     onClick={() => setActiveTab(tab)}
-                    className={`min-h-11 flex-1 cursor-pointer whitespace-nowrap rounded-xl px-3.5 text-[14px] font-semibold tracking-[-0.01em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+                    className={`min-h-11 shrink-0 cursor-pointer whitespace-nowrap rounded-xl px-3.5 text-[14px] font-semibold tracking-[-0.01em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+                      availableTabs.length <= 3 ? 'flex-1' : 'flex-none'
+                    } ${
                       isActiveTab
                         ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]'
                         : 'text-slate-600 active:bg-white/50'
