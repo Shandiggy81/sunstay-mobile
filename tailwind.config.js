@@ -45,7 +45,7 @@ export default {
                 }
             },
             fontFamily: {
-                sans: ['Inter', 'system-ui', 'sans-serif'],
+                sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
             },
             backdropBlur: {
                 xs: '2px',

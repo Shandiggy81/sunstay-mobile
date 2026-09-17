@@ -102,7 +102,7 @@ const ShieldBar = ({ label, value, color, delay = 0 }) => (
     <div className="h-1.5 rounded-full" style={{ background: 'rgba(0,0,0,0.07)' }}>
       <motion.div
         className="h-full rounded-full"
-        style={{ background: color, boxShadow: `0 0 6px ${color.includes('0EA5E9') ? 'rgba(14,165,233,0.35)' : 'rgba(245,158,11,0.35)'}` }}
+        style={{ background: color, boxShadow: `0 0 6px ${color === '#F59E0B' ? 'rgba(245,158,11,0.35)' : 'rgba(100,116,139,0.30)'}` }}
         initial={{ width: 0 }}
         animate={{ width: `${value * 100}%` }}
         transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay }}
@@ -148,9 +148,9 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
         {balconyData.views && <span className="font-medium">{balconyData.views}</span>}
       </div>
       {rainSoon && (
-        <motion.div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.22)' }} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-slate-50 border border-slate-200" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
           <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1.4, repeat: Infinity }}>🌧️</motion.span>
-          <span className="font-bold text-[12px]" style={{ color: '#0369A1' }}>
+          <span className="font-bold text-[12px] text-slate-700">
             {minutesUntilRain === 0 ? 'Rain falling now — head inside' : `Rain approaching in ${minutesUntilRain} mins — grab a spot now`}
           </span>
         </motion.div>
@@ -181,7 +181,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
   ].filter(Boolean);
   return (
     <motion.div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-      <span className="text-sky-600 text-[0.7rem] font-black uppercase tracking-widest block mb-2">🛎 Room Intelligence</span>
+      <span className="text-slate-500 text-[11px] font-semibold uppercase tracking-widest block mb-2">🛎 Room Intelligence</span>
       <div className="grid grid-cols-2 gap-2">
         {items.map((item, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -289,12 +289,12 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
   }
   const pct = Math.round(Math.max(0, Math.min(100, score)));
 
-  // Colour ramp: cold/poor → blue, mid → amber, high → emerald
-  const { bg, border, text, fill, glow } = pct >= 75
-    ? { bg: 'rgba(16,185,129,0.09)', border: 'rgba(16,185,129,0.35)', text: '#065F46', fill: '#10B981', glow: 'rgba(16,185,129,0.15)' }
+  // Colour ramp within the Sunstay palette: high → amber accent, mid → soft amber, low → slate
+  const { text, fill } = pct >= 75
+    ? { text: '#B45309', fill: '#F59E0B' }
     : pct >= 50
-    ? { bg: 'rgba(245,158,11,0.09)', border: 'rgba(245,158,11,0.35)', text: '#92400E', fill: '#F59E0B', glow: 'rgba(245,158,11,0.15)' }
-    : { bg: 'rgba(14,165,233,0.08)', border: 'rgba(14,165,233,0.28)', text: '#0C4A6E', fill: '#0EA5E9', glow: 'rgba(14,165,233,0.12)' };
+    ? { text: '#92400E', fill: '#FBBF24' }
+    : { text: '#334155', fill: '#64748B' };
 
   const emoji = pct >= 75 ? '☀️' : pct >= 50 ? '🌤️' : '🌥️';
   const label = scoreLabel || (pct >= 75 ? 'Peak Comfort' : pct >= 50 ? 'Good Conditions' : 'Worth a Look');
@@ -349,7 +349,7 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
         {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && (
           <motion.span
             className="text-[12px] font-bold leading-tight mt-0.5"
-            style={{ color: '#065F46' }}
+            style={{ color: '#B45309' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.45 }}
@@ -396,16 +396,11 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
     <div className="flex flex-col gap-2 mt-1 w-full">
       <div
         ref={forecastHeaderRef}
-        className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border select-none"
-        style={{
-          background: isExpanded ? 'rgba(14,165,233,0.10)' : 'rgba(14,165,233,0.04)',
-          borderColor: isExpanded ? 'rgba(14,165,233,0.25)' : 'rgba(14,165,233,0.12)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          scrollMarginTop: 8,
-        }}
+        className={`w-full flex items-center justify-between px-4 py-3.5 bg-white rounded-2xl border shadow-sm select-none ${isExpanded ? 'border-amber-200' : 'border-slate-100'}`}
+        style={{ scrollMarginTop: 8 }}
       >
         <div className="flex items-center gap-3 min-w-0 pr-2">
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-sky-500/10 border border-sky-500/20 text-base flex-shrink-0">
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/20 text-base flex-shrink-0">
             📊
           </span>
           <div className="min-w-0">
@@ -424,7 +419,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
           aria-expanded={isExpanded}
           aria-controls={panelId}
           aria-label={isExpanded ? 'Hide detailed forecast' : 'Show detailed forecast'}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full bg-sky-500 text-white shadow-sm flex-shrink-0 cursor-pointer transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0 cursor-pointer transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
         >
           <ChevronDown
             size={20}
@@ -468,9 +463,9 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
 
             {/* Hourly Comfort Forecast */}
             {lat && lng && (
-              <div className="rounded-2xl overflow-hidden border" style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.12)' }}>
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
-                  <span className="text-[0.72rem] font-black uppercase tracking-widest text-slate-700">Hourly Comfort Forecast</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-600">Hourly Comfort Forecast</span>
                 </div>
                 <HourlyForecastStrip lat={lat} lng={lng} dark enabled={isExpanded} />
               </div>
@@ -882,18 +877,18 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     const isNight = currentHour >= 20 || currentHour < 6;
     const cloudNow = Array.isArray(cloudcover) ? (cloudcover[currentHour] ?? cloudcover[0] ?? 0) : (typeof cloudcover === 'number' ? cloudcover : 50);
     if (isNight) {
-      if (precipProbability >= 30) return { icon: '🌧️', text: 'Rainy night', color: '#0EA5E9' };
+      if (precipProbability >= 30) return { icon: '🌧️', text: 'Rainy night', color: '#475569' };
       if (cloudNow > 40) return { icon: '☁️', text: 'Cloudy night', color: '#64748B' };
       return { icon: '🌙', text: 'Clear night', color: '#64748B' };
     }
-    if (precipProb > 85) return { icon: '⛈️', text: 'Heavy Rain — Check Cover', color: '#0EA5E9' };
-    if (precipProb >= 50) return { icon: '🌧️', text: 'Steady Rain — Check Cover', color: '#0EA5E9' };
-    if (precipProb > 30) return { icon: '🌧️', text: 'Wet Conditions — Check Cover', color: '#0EA5E9' };
+    if (precipProb > 85) return { icon: '⛈️', text: 'Heavy Rain — Check Cover', color: '#475569' };
+    if (precipProb >= 50) return { icon: '🌧️', text: 'Steady Rain — Check Cover', color: '#475569' };
+    if (precipProb > 30) return { icon: '🌧️', text: 'Wet Conditions — Check Cover', color: '#475569' };
     if (wind > 30)       return { icon: '🌬️', text: 'High Wind — Sit Indoors', color: '#94A3B8' };
     if (cloudNow > 70)   return { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
     if (cloudNow > 40)   return { icon: '⛅',  text: 'Partly Cloudy — Some Sun Breaks', color: '#94A3B8' };
     if (Number.isFinite(score) && score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions', color: '#F59E0B' };
-    if (Number.isFinite(score) && score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#0EA5E9' };
+    if (Number.isFinite(score) && score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#475569' };
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
   }, [precipProb, precipProbability, wind, score, cloudcover, weatherLoading, weatherUnavailable]);
 
@@ -932,8 +927,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     [getBestWindow, venue]
   );
 
-  const blobA = isRain ? 'rgba(14,165,233,0.12)' : 'rgba(245,158,11,0.10)';
-  const blobB = isRain ? 'rgba(99,102,241,0.07)' : 'rgba(14,165,233,0.08)';
+  const blobA = isRain ? 'rgba(100,116,139,0.10)' : 'rgba(245,158,11,0.10)';
+  const blobB = isRain ? 'rgba(148,163,184,0.08)' : 'rgba(245,158,11,0.06)';
   const liveFeaturesForVenue = venue?.id ? liveVenueFeatures?.[venue.id] : null;
 
   return (
@@ -953,8 +948,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           transition={{ type: 'spring', damping: 30, stiffness: 280 }}
           style={{
             ...(enableTilt ? { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200 } : null),
-            boxShadow: '0 -8px 60px rgba(0,0,0,0.12), 0 -2px 12px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
-            border: '1px solid rgba(14,165,233,0.12)',
+            boxShadow: '0 -8px 60px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,1)',
+            border: '1px solid #f1f5f9', /* slate-100 */
           }}
           className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-3xl bg-white/90 backdrop-blur-2xl border-t border-white/40 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
           onPointerEnter={enableTilt ? handlePointerEnter : undefined}
@@ -973,17 +968,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               onPointerDown={e => dragControls.start(e)}
               style={{ touchAction: 'none' }}
             >
-              <div style={{ width: 44, height: 5, borderRadius: 999, background: 'rgba(14,165,233,0.35)' }} />
+              <div style={{ width: 44, height: 5, borderRadius: 999, background: '#cbd5e1' /* slate-300 */ }} />
             </div>
 
-            {/* 2. Sticky title chrome — Title, Subtitle, Close */}
-            <div className="sticky top-0 z-20 bg-white pt-4 pb-2 flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900 leading-tight truncate">{fallbackName}</h2>
-                <p className="text-sm text-slate-600 font-medium truncate">
-                  {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
-                </p>
-              </div>
+            {/* 2. Sticky chrome — Close only; the title lives on the hero scrim */}
+            <div className="sticky top-0 z-20 bg-white pt-1 pb-2 flex items-start justify-end gap-3">
               <motion.button
                 onClick={onClose}
                 className="flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3 bg-white text-slate-900 shadow-md rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -1000,7 +989,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             className="relative z-10 isolate min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col gap-2 bg-white [transform-style:flat]"
           >
             {/* Hero image */}
-            <div className="relative w-full h-48 sm:h-56 min-h-[12rem] sm:min-h-[14rem] overflow-hidden shrink-0 bg-slate-200 rounded-t-2xl mb-1">
+            <div className="relative w-full h-48 sm:h-56 min-h-[12rem] sm:min-h-[14rem] overflow-hidden shrink-0 bg-slate-900 rounded-2xl mb-1">
               {/* Background image / gradient layer */}
               <div className="absolute inset-0 z-0">
                 {showVenueImage ? (
@@ -1009,7 +998,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     alt={fallbackName}
                     loading="lazy"
                     decoding="async"
-                    className={`absolute inset-0 w-full h-full object-cover ${imageLoaded ? 'opacity-70' : 'opacity-0'}`}
+                    className={`absolute inset-0 w-full h-full object-cover ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                     onLoad={() => setImageLoaded(true)}
                     onError={() => { setImageError(true); setImageLoaded(false); }}
                   />
@@ -1022,7 +1011,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     <div
                       className="absolute w-52 h-52 rounded-full pointer-events-none"
                       style={{
-                        background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(14,165,233,0.12) 50%, transparent 70%)',
+                        background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(148,163,184,0.12) 50%, transparent 70%)',
                         filter: 'blur(30px)',
                       }}
                     />
@@ -1046,6 +1035,19 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   <div className="absolute inset-0 z-[1] animate-pulse bg-slate-200" aria-hidden="true" />
                 )}
               </div>
+
+              {/* Dark scrim so the pinned title reads crisply over any photo */}
+              <div className="absolute inset-0 z-[2] bg-gradient-to-t from-slate-900 to-transparent pointer-events-none" aria-hidden="true" />
+
+              {/* Venue title — crisp bold white, pinned bottom-left */}
+              <div className="absolute bottom-0 left-0 right-0 z-[3] p-4 pb-3 flex flex-col pointer-events-none">
+                <h2 className="text-white font-bold tracking-tight text-2xl leading-tight truncate mb-0.5">
+                  {fallbackName}
+                </h2>
+                <p className="text-white/90 font-medium text-sm truncate">
+                  {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
+                </p>
+              </div>
             </div>
 
             {/* Map Centre Action & Signal Line */}
@@ -1057,7 +1059,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               {onCenter && (
                 <button
                   onClick={() => onCenter(venue)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-sky-50 text-sky-700 border border-sky-100 font-bold text-sm shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-slate-700 border border-slate-100 font-bold text-sm shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
                   style={{ minWidth: 44, minHeight: 44 }}
                   aria-label="Centre on map"
                 >
@@ -1155,7 +1157,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
                       <div className="flex items-center justify-between gap-2">
                         <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">Wind & Shelter</span>
-                        <Wind size={14} className="text-sky-600 shrink-0" aria-hidden="true" />
+                        <Wind size={14} className="text-slate-600 shrink-0" aria-hidden="true" />
                       </div>
                       <div>
                         <span className="text-xs font-semibold text-slate-800 block truncate">{windSpeedDisplay}</span>
@@ -1190,7 +1192,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
                       <div className="flex items-center justify-between gap-2">
                         <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">Heating / Cozy</span>
-                        <Flame size={14} className="text-orange-500 shrink-0" aria-hidden="true" />
+                        <Flame size={14} className="text-amber-500 shrink-0" aria-hidden="true" />
                       </div>
                       <div>
                         <span className="text-xs font-semibold text-slate-800 block truncate">{heatingLabel}</span>
@@ -1400,8 +1402,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     {shielding && (
                     <motion.div className="flex flex-col gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
                       <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400">Venue Shielding</span>
-                      {shielding?.windbreak != null && <ShieldBar label="Windbreak" value={Math.min(1, Math.max(0, Number(shielding.windbreak)))} color="#0EA5E9" delay={0.1} />}
-                      {shielding?.rainCover != null && <ShieldBar label="Rain Cover" value={Math.min(1, Math.max(0, Number(shielding.rainCover)))} color="#818CF8" delay={0.2} />}
+                      {shielding?.windbreak != null && <ShieldBar label="Windbreak" value={Math.min(1, Math.max(0, Number(shielding.windbreak)))} color="#64748B" delay={0.1} />}
+                      {shielding?.rainCover != null && <ShieldBar label="Rain Cover" value={Math.min(1, Math.max(0, Number(shielding.rainCover)))} color="#94A3B8" delay={0.2} />}
                       {shielding?.shade     != null && <ShieldBar label="Shade"      value={Math.min(1, Math.max(0, Number(shielding.shade)))}    color="#F59E0B" delay={0.3} />}
                     </motion.div>
                     )}
