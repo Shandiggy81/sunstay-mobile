@@ -17,48 +17,36 @@ A premium, weather-driven mobile web app for discovering Melbourne's best outdoo
 ### Prerequisites
 
 - Node.js 16+ and npm
-- Mapbox access token ([Get one here](https://account.mapbox.com/))
-- OpenWeather API key ([Get one here](https://openweathermap.org/api))
+- Mapbox public access token for live map functionality ([Get one here](https://account.mapbox.com/))
+- Optional OpenWeather/OpenAQ/OpenUV/Tomorrow.io/Supabase values for related integrations
 
 ### Installation
 
-1. **Navigate to the project directory**:
-
-   ```bash
-   cd sunstay-app
-   ```
-
-2. **Install dependencies** (already done):
+1. **Install dependencies**:
 
    ```bash
    npm install
    ```
 
-3. **Add your API keys**:
+2. **Create a local environment file**:
 
-   **Mapbox Token** - Open `src/config/mapConfig.js`:
-
-   ```javascript
-   export const MAPBOX_TOKEN = 'your_mapbox_token_here';
+   ```bash
+   cp .env.example .env
    ```
 
-   **OpenWeather API Key** - Open `src/context/WeatherContext.jsx`:
+   Set only the `VITE_` variables needed for the features you are testing. Do not hardcode API keys in source files.
 
-   ```javascript
-   const WEATHER_API_KEY = 'your_openweather_api_key_here';
-   ```
-
-4. **Start the development server**:
+3. **Start the development server**:
 
    ```bash
    npm run dev
    ```
 
-5. **Open your browser** to the URL shown (typically `http://localhost:5173`)
+4. **Open your browser** to the URL shown (typically `http://localhost:5173`)
 
 ## 🎨 Tech Stack
 
-- **Framework**: React 18 with Vite
+- **Framework**: React with Vite (`react` is `^19.2.3` in `package.json`)
 - **Styling**: Tailwind CSS
 - **Animation**: Framer Motion
 - **Map**: Mapbox GL JS
@@ -83,8 +71,7 @@ sunstay-mobile/
 │   │   └── venues.js              # Brevity Fetch API (brief/detail)
 │   ├── components/
 │   │   ├── Map/
-│   │   │   └── VenueMap.js        # GL-optimized map (SymbolLayer)
-│   │   ├── MapView.jsx            # Original Mapbox integration
+│   │   │   └── VenueMap.jsx       # Mapbox GL map and venue markers
 │   │   ├── VenueCard.jsx          # Glassmorphism venue details
 │   │   ├── WeatherBackground.jsx  # Dynamic background
 │   │   └── SunnyMascot.jsx        # Animated FAB
@@ -145,7 +132,7 @@ The `src/utils/platform.js` module auto-detects the runtime and provides:
 | Maps | `mapbox-gl` | `@rnmapbox/maps` |
 | Detection | `typeof window` | `Platform.OS` |
 
-All new modules (`useWeather`, `BookingSummary`, `bookingSlice`, `venues` API) use `PlatformStorage`, making them portable across platforms without code changes.
+Some modules use the `src/utils/platform.js` storage abstraction where browser/local storage access is needed.
 
 ### Melbourne Test Coordinates
 
@@ -158,18 +145,17 @@ Longitude: 144.9631
 
 ### WeatherContext
 
-- Fetches live weather from OpenWeather API
+- Fetches primary live weather from Open-Meteo via `fetchOpenMeteoWeather`
 - **15-minute cache** with coordinate rounding (2 decimals) to batch nearby venues
 - Calculates dynamic theme (sunny/rainy/cloudy)
 - Computes Sunstay Score (0-100) for each venue
 - Manages "Fireplace Mode" for rainy days
 
-### VenueMap (New — Optimized)
+### VenueMap
 
-- **GL-native symbol layer** instead of DOM markers
-- Handles 1000+ venues efficiently
-- Memoized sunshine overlay (camera-pan stable)
-- Click handling via GL events
+- Mapbox GL map component in `src/components/Map/VenueMap.jsx`
+- Uses a GeoJSON source for clustering plus DOM marker elements for visible venue/cluster markers
+- Supports weather/cloud overlays when optional keys are configured
 
 ### BookingSummary (New)
 
@@ -196,13 +182,6 @@ Longitude: 144.9631
 - Premium tag badges
 - Glowing "Book Now" CTA
 
-### MapView (Original)
-
-- Custom emoji pill markers
-- Smooth fly-to animations
-- 2D Mapbox integration
-- Interactive venue selection
-
 ### SunnyMascot
 
 - Floating action button
@@ -216,11 +195,26 @@ Longitude: 144.9631
 - **Rainy**: Deep blue/cozy tones, Fireplace Mode activated
 - **Cloudy**: Gray/slate gradients
 
+## 🔐 Environment variables and production safety
+
+This is a React/Vite app. Every variable prefixed with `VITE_` is compiled into the browser bundle and can be viewed by users. Never put any secret, unrestricted credential, service-role key, or provider key intended to remain confidential in VITE_* variables.
+
+Variables currently consumed by source code are documented in [`.env.example`](./.env.example) and [API_SETUP.md](./API_SETUP.md):
+
+| Variable | Current use | Safety note |
+| --- | --- | --- |
+| `VITE_MAPBOX_TOKEN` | Live map behavior and static map fallback. | Use a public `pk.` token and restrict allowed URLs/domains in Mapbox. |
+| `VITE_OPENWEATHER_KEY` | Optional OpenWeather cloud tile layer. | Currently client-side and vulnerable to quota abuse; move server-side before production scale. |
+| `VITE_OPENAQ_API_KEY` | Optional OpenAQ air-quality provider. | Currently client-side and vulnerable to quota abuse; move server-side before production scale. |
+| `VITE_OPENUV_API_KEY` | Optional OpenUV UV/safe-exposure hook. | Currently client-side and vulnerable to quota abuse; move server-side before production scale. |
+| `VITE_TOMORROW_API_KEY` | Optional Tomorrow.io rain-nowcasting hook. | Currently client-side and vulnerable to quota abuse; move server-side before production scale. |
+| `VITE_SUPABASE_URL` | Optional Supabase browser client URL. | Public by design; production requires Supabase RLS. |
+| `VITE_SUPABASE_ANON_KEY` | Optional Supabase browser anon key. | Public by design; production requires RLS and authenticated owner-write policies. Never use `SUPABASE_SERVICE_ROLE_KEY` in Vite/browser code. |
+
 ## 📝 Notes
 
-- The app uses placeholder API keys by default
-- Replace with your actual keys before testing
-- Weather data is cached for 15 minutes (previously refreshed every 30 minutes)
+- Do not hardcode API keys in source files. Use `.env`/Netlify environment variables.
+- Weather data is cached for 15 minutes in `WeatherContext` where supported.
 - All 22+ venues are geocoded with accurate Melbourne coordinates
 
 ## 🚢 Deployment
@@ -232,6 +226,15 @@ npm run build
 ```
 
 The optimized build will be in the `dist/` folder.
+
+Before deploying, verify:
+
+- Required Netlify environment variables for enabled production features are set.
+- `VITE_MAPBOX_TOKEN` is a public `pk.` token and Mapbox allowed URLs are restricted.
+- Supabase RLS is enabled and authenticated owner-write policies are tested before production use.
+- No secret, unrestricted credential, service-role key, or provider key intended to remain confidential is present in any `VITE_*` variable.
+- Quota-sensitive weather/AQ/UV provider keys are moved server-side before production scale, or the client-side exposure is explicitly accepted for a limited demo.
+- `npm run build` passes before deploy.
 
 ---
 
