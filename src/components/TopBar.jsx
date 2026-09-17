@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sun, ListFilter } from 'lucide-react';
 
-const EM_DASH = '\u2013';
+const STAT_PLACEHOLDER = '\u2013';
 
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen, comfort }) => {
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
@@ -67,13 +67,13 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 <div className="relative z-10 h-[52px] w-px flex-shrink-0 self-center bg-slate-900/10" aria-hidden="true" />
                 <div className="relative z-10 flex w-[78px] flex-shrink-0 flex-col items-start gap-2">
                     <span className="whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
-                        <span aria-hidden="true">💨</span> {weather ? `${windSpeed} km/h` : EM_DASH}
+                        <span aria-hidden="true">💨</span> {weather ? `${windSpeed} km/h` : STAT_PLACEHOLDER}
                     </span>
                     <span className="whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
-                        <span aria-hidden="true">🌧</span> {weather ? `${Math.round(rainChance)}%` : EM_DASH}
+                        <span aria-hidden="true">🌧</span> {weather ? `${Math.round(rainChance)}%` : STAT_PLACEHOLDER}
                     </span>
                     <span className="whitespace-nowrap text-[13px] font-medium leading-none text-slate-700">
-                        <span aria-hidden="true">☁️</span> {cloudLabel ?? EM_DASH}
+                        <span aria-hidden="true">☁️</span> {cloudLabel ?? STAT_PLACEHOLDER}
                     </span>
                 </div>
 
