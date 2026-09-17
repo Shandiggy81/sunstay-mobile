@@ -9,6 +9,12 @@ import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
 import { melbourneDate } from '../../utils/sunPosition';
+import {
+    TOD_DAY_START_MIN as DAY_START_MIN,
+    TOD_DAY_END_MIN as DAY_END_MIN,
+    TOD_SLIDER_STEP_MIN,
+    localTimeToSliderMinutes,
+} from '../../utils/todMinutes';
 import { motion } from 'framer-motion';
 
 // ── Pin states ──────────────────────────────────────────────────────────
@@ -301,8 +307,6 @@ function isSuppressedMapError(msg) {
 }
 
 // ── Time-of-day dynamic lighting ────────────────────────────────────────
-const DAY_START_MIN = 6 * 60;   // 6:00 AM
-const DAY_END_MIN   = 20 * 60;  // 8:00 PM
 const LIGHT_THROTTLE_MS = 100;  // skip per-frame setLights + shadows while scrubbing
 
 const rad2deg = (r) => (r * 180) / Math.PI;
@@ -358,7 +362,7 @@ function computeSunLight(minutes, lat, lng) {
 // cancel / blur / keyup — never the live scrub path.
 function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
     const { setScorePreviewMinutes } = useWeather();
-    const [sliderMinutes, setSliderMinutes] = useState(13 * 60); // default 1:00 PM
+    const [sliderMinutes, setSliderMinutes] = useState(() => localTimeToSliderMinutes());
     const minutesRef = useRef(sliderMinutes);
     const lightTimerRef = useRef(null);
     const lastLightApplyAtRef = useRef(0);
@@ -532,7 +536,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
                         type="range"
                         min={DAY_START_MIN}
                         max={DAY_END_MIN}
-                        step={5}
+                        step={TOD_SLIDER_STEP_MIN}
                         value={sliderMinutes}
                         onChange={handleScrub}
                         onPointerDown={handleRangePointerDown}
