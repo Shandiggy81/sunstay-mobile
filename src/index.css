@@ -2,11 +2,16 @@
 
 @import "tailwindcss";
 
-/* Base styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Base styles.
+   This reset lives inside Tailwind's `base` layer on purpose. Unlayered rules
+   outrank every `@layer`, so a bare `* { margin: 0; padding: 0 }` silently beat
+   the `p-*` / `m-*` utilities and they applied nowhere in the app. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 body {
