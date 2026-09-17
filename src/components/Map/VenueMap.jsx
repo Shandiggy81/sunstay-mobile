@@ -1183,7 +1183,7 @@ const VenueMap = forwardRef(({
         <div className="relative h-full w-full max-lg:[&_.mapboxgl-ctrl-top-right]:hidden lg:[&_.mapboxgl-ctrl-bottom-right]:bottom-2 [&_.mapboxgl-ctrl-bottom-right]:bottom-[calc(env(safe-area-inset-bottom)+90px)] [&_.mapboxgl-ctrl-bottom-right]:right-[6.75rem]">
             <div
                 ref={mapContainer}
-                style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
+                style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
 
             {/* Dedicated rain-radar overlay toggle (RainViewer/Xweather). Visible even while Mapbox loads. lg:right-14 clears native zoom. */}
