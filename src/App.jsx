@@ -19,6 +19,9 @@ import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning }
 import { getComfortLevel } from './utils/weatherService';
 import { getSunData } from './utils/getSunData';
 import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
+import { SEARCH_DEBOUNCE_MS } from './utils/debounce';
+import { useDebouncedValue } from './hooks/useDebouncedValue';
+import { Virtuoso } from 'react-virtuoso';
 import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
@@ -162,7 +165,6 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calcula
 
     return (
         <motion.div
-            layout
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.985 }}
             onClick={() => {
@@ -207,6 +209,54 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calcula
     );
 });
 VenueListCard.displayName = 'VenueListCard';
+
+const SafeAreaListFooter = () => (
+    <div aria-hidden="true" style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
+);
+
+const LiveVenueList = memo(function LiveVenueList({
+    venues,
+    selectedVenue,
+    onVenueSelect,
+    weather,
+    empty,
+    className,
+    virtuosoRef,
+    onPointerDownCapture,
+    safeAreaFooter = false,
+}) {
+    if (venues.length === 0) {
+        return (
+            <div className={className} onPointerDownCapture={onPointerDownCapture}>
+                {empty}
+            </div>
+        );
+    }
+
+    return (
+        <div className={className} onPointerDownCapture={onPointerDownCapture}>
+            <Virtuoso
+                ref={virtuosoRef}
+                data={venues}
+                computeItemKey={(_index, venue) => venue.id}
+                style={{ flex: 1, minHeight: 0, height: '100%', WebkitOverflowScrolling: 'touch' }}
+                className="overscroll-contain"
+                components={safeAreaFooter ? { Footer: SafeAreaListFooter } : undefined}
+                itemContent={(_index, venue) => (
+                    <div className="pb-2">
+                        <VenueListCard
+                            venue={venue}
+                            isSelected={selectedVenue?.id === venue.id}
+                            onVenueSelect={onVenueSelect}
+                            weather={weather}
+                        />
+                    </div>
+                )}
+            />
+        </div>
+    );
+});
+LiveVenueList.displayName = 'LiveVenueList';
 
 const FilterEmptyState = ({ onClear }) => (
     <div className="ss-venue-list-empty flex min-h-[240px] flex-col items-center justify-center px-6 py-8 text-center">
@@ -343,14 +393,18 @@ const AppContent = () => {
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
+    // Immediate input; filter/score/GeoJSON/fitBounds wait until typing settles.
+    const settledSearchQuery = useDebouncedValue(searchQuery, SEARCH_DEBOUNCE_MS);
     const [isLocating, setIsLocating]               = useState(false);
     const [locateHint, setLocateHint]               = useState(null);
 
     const mapRef  = useRef(null);
-    const listRef = useRef(null);
+    const sidebarVirtuosoRef = useRef(null);
+    const mobileVirtuosoRef = useRef(null);
 
     const openMobileFilters  = useCallback((e) => { e?.stopPropagation(); setMobileFilterOpen(true); }, []);
     const closeMobileFilters = useCallback((e) => { e?.preventDefault(); e?.stopPropagation(); setMobileFilterOpen(false); }, []);
+    const stopSheetPointer   = useCallback((e) => { e.stopPropagation(); }, []);
 
     const cozyWeatherActive = useMemo(() => {
         if (!weather) return false;
@@ -381,7 +435,7 @@ const AppContent = () => {
             f !== FILTER_COZY &&
             f !== FILTER_SUNNY
         );
-        const query = searchQuery.trim().toLowerCase();
+        const query = settledSearchQuery.trim().toLowerCase();
 
         return venues.filter(venue => {
             const vType = venue.typeCategory || 'Bar';
@@ -430,7 +484,7 @@ const AppContent = () => {
 
             return true;
         });
-    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, searchQuery, weather?.uvi]);
+    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, settledSearchQuery, weather?.uvi]);
 
     // Filter first, then rank by settled TOD Sunstay score (high → low).
     const sortedVenues = useMemo(
@@ -588,11 +642,13 @@ const AppContent = () => {
     }, [locateHint]);
 
     useEffect(() => {
-        if (selectedVenue && listRef.current) {
-            const el = listRef.current.querySelector(`#venue-list-${selectedVenue.id}`);
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    }, [selectedVenue]);
+        if (!selectedVenue) return undefined;
+        const index = sortedVenues.findIndex((v) => v.id === selectedVenue.id);
+        if (index < 0) return undefined;
+        sidebarVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
+        mobileVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
+        return undefined;
+    }, [selectedVenue, sortedVenues]);
 
     const selectedLiveFeatureState = selectedVenue?.id ? liveVenueFeatures?.[selectedVenue.id] : null;
     const selectedVenueLiveFeatures = useMemo(() => {
@@ -608,6 +664,21 @@ const AppContent = () => {
     );
 
     const selectedVenueScore = weather?.score ?? weather?.rawWeather?.score ?? 70;
+
+    const filtersControl = useMemo(() => (
+        <button
+            className="ss-filters-fab min-h-11"
+            onClick={openMobileFilters}
+            disabled={mobileFilterOpen}
+            aria-expanded={mobileFilterOpen}
+        >
+            <ListFilter size={18} />
+            <span>Filters</span>
+            {activeFilters.length > 0 && (
+                <span className="ss-filters-fab-badge">{activeFilters.length}</span>
+            )}
+        </button>
+    ), [openMobileFilters, mobileFilterOpen, activeFilters.length]);
 
     return (
         <>
@@ -676,23 +747,19 @@ const AppContent = () => {
                             )}
                         </div>
 
-                        <div className="ss-venue-list" ref={listRef}>
-                            <AnimatePresence mode="popLayout">
-                                {sortedVenues.map(venue => (
-                                    <VenueListCard
-                                        key={venue.id}
-                                        venue={venue}
-                                        isSelected={selectedVenue?.id === venue.id}
-                                        onVenueSelect={handleVenueSelect}
-                                        weather={weather}
-                                        calculateSunstayScore={calculateSunstayScore}
-                                    />
-                                ))}
-                            </AnimatePresence>
-                            {filteredVenues.length === 0 && (
-                                <FilterEmptyState onClear={handleClearFilters} />
-                            )}
-                        </div>
+                        {!isMobile ? (
+                            <LiveVenueList
+                                className="ss-venue-list"
+                                virtuosoRef={sidebarVirtuosoRef}
+                                venues={sortedVenues}
+                                selectedVenue={selectedVenue}
+                                onVenueSelect={handleVenueSelect}
+                                weather={weather}
+                                empty={filteredVenues.length === 0 ? (
+                                    <FilterEmptyState onClear={handleClearFilters} />
+                                ) : null}
+                            />
+                        ) : null}
                     </aside>
 
                     {/* RIGHT: Map */}
@@ -711,20 +778,7 @@ const AppContent = () => {
                                         cozyWeatherActive={cozyWeatherActive}
                                         cozyFilterActive={cozyFilterActive}
                                         isExpanded={mobileMapExpanded}
-                                        filtersControl={(
-                                            <button
-                                                className="ss-filters-fab min-h-11"
-                                                onClick={openMobileFilters}
-                                                disabled={mobileFilterOpen}
-                                                aria-expanded={mobileFilterOpen}
-                                            >
-                                                <ListFilter size={18} />
-                                                <span>Filters</span>
-                                                {activeFilters.length > 0 && (
-                                                    <span className="ss-filters-fab-badge">{activeFilters.length}</span>
-                                                )}
-                                            </button>
-                                        )}
+                                        filtersControl={filtersControl}
                                     />
                                 </Suspense>
                             </MapErrorBoundary>
@@ -918,21 +972,19 @@ const AppContent = () => {
                                         )}
                                     </div>
                                 </div>
-                                <div className="ss-mobile-sheet-list" onPointerDownCapture={e => e.stopPropagation()}>
-                                    {sortedVenues.map(venue => (
-                                        <VenueListCard
-                                            key={venue.id}
-                                            venue={venue}
-                                            isSelected={selectedVenue?.id === venue.id}
-                                            onVenueSelect={handleVenueSelect}
-                                            weather={weather}
-                                            calculateSunstayScore={calculateSunstayScore}
-                                        />
-                                    ))}
-                                    {filteredVenues.length === 0 && (
+                                <LiveVenueList
+                                    className="ss-mobile-sheet-list"
+                                    virtuosoRef={mobileVirtuosoRef}
+                                    onPointerDownCapture={stopSheetPointer}
+                                    safeAreaFooter
+                                    venues={sortedVenues}
+                                    selectedVenue={selectedVenue}
+                                    onVenueSelect={handleVenueSelect}
+                                    weather={weather}
+                                    empty={filteredVenues.length === 0 ? (
                                         <FilterEmptyState onClear={handleClearFilters} />
-                                    )}
-                                </div>
+                                    ) : null}
+                                />
                             </motion.div>
                         </>
                     )}
