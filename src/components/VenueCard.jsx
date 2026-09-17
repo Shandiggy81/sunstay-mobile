@@ -17,6 +17,8 @@ import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
 import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
+import { useVenueMicroclimate, useMicroclimateState } from '../context/MicroclimateContext';
+import { formatReadingTime } from '../utils/microclimate';
 import { seedVenues } from '../data/seedVenues.js';
 import { getVenueSunStatus, checkIfShaded, getSunWindow } from '../utils/solarMath.js';
 import { calculateHourlyExposure } from '../utils/solarCalculator.js';
@@ -33,6 +35,81 @@ const CARD =
 // these micro-labels above 7:1 contrast on white.
 const MICRO_LABEL =
   'text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600';
+
+// ── Live microclimate panel ────────────────────────────────
+// Surfaces the three readings that come back from the venues_in_bbox RPC:
+// sun_now (resolved against the venue's hourly curve at the slider time),
+// effective_wind and comfort_hint. Rendered only when the venue actually has
+// a profile row, so venues outside the seeded set are unchanged.
+const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) {
+  if (!reading?.available) return null;
+
+  const pct = reading.sunFraction == null ? 0 : Math.round(reading.sunFraction * 100);
+  const isEstimate = reading.confidence != null && reading.confidence < 0.5;
+
+  return (
+    <div className="my-1 rounded-2xl border border-amber-500/15 bg-gradient-to-br from-amber-50 to-white p-3.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className={MICRO_LABEL}>Microclimate at {atLabel}</span>
+        {reading.isLiveSun ? (
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
+            Live
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex items-baseline gap-2">
+        <span className="text-[26px] font-bold leading-none tabular-nums tracking-[-0.02em] text-slate-900">
+          {reading.sunPercent}
+        </span>
+        {reading.sunLabel ? (
+          <span className="truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-700">
+            {reading.sunLabel}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Same 0–100 scale as the number above, so the bar is a redundant
+          encoding rather than a second thing to interpret. */}
+      <div
+        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-900/[0.08]"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Sun availability at ${atLabel}`}
+      >
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-[width] duration-200 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      {(reading.windLabel || reading.comfortHint) && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          {reading.windLabel ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/10 px-2.5 py-1 text-[12px] font-semibold text-sky-700">
+              <Wind size={12} aria-hidden="true" />
+              {reading.windLabel}
+            </span>
+          ) : null}
+          {reading.comfortHint ? (
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-600">
+              {reading.comfortHint}
+            </span>
+          ) : null}
+        </div>
+      )}
+
+      {isEstimate ? (
+        <p className="mt-2.5 text-[11px] font-medium leading-snug text-slate-500">
+          Modelled from street geometry, not measured on site.
+        </p>
+      ) : null}
+    </div>
+  );
+});
 
 // ── Helpers ────────────────────────────────────────────────
 const ACCOMMODATION_VIBES = [
@@ -656,6 +733,13 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     setSunWindow(null);
   }, [venue]);
 
+  // Server-side microclimate for this venue, read at the time-of-day slider's
+  // position. Empty until the viewport fetch lands, and empty for venues with
+  // no profile row, in which case the panel below does not render.
+  const microclimate = useVenueMicroclimate(venue?.id);
+  const { todMinutes } = useMicroclimateState();
+  const microclimateAtLabel = useMemo(() => formatReadingTime(todMinutes), [todMinutes]);
+
   const dragControls = useDragControls();
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -1224,6 +1308,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     wind={wind}
                     onOpen={() => setForecastOpen(true)}
                   />
+
+                  <MicroclimatePanel reading={microclimate} atLabel={microclimateAtLabel} />
 
                   {/* Microclimate Grid — fixed cell height + truncation keeps the
                       grid stable whether a field resolves, falls back, or is long. */}
