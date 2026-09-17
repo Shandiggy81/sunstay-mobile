@@ -2,11 +2,16 @@
 
 @import "tailwindcss";
 
-/* Base styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Base styles.
+   This reset lives inside Tailwind's `base` layer on purpose. Unlayered rules
+   outrank every `@layer`, so a bare `* { margin: 0; padding: 0 }` silently beat
+   the `p-*` / `m-*` utilities and they applied nowhere in the app. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 body {
@@ -1493,27 +1498,6 @@ body,
   font-size: 8px;
   font-weight: 600;
   color: #9ca3af;
-}
-
-.hourly-expand-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  padding: 6px 0;
-  margin-top: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #6b7280;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.hourly-expand-btn:hover {
-  color: #374151;
 }
 
 /* Hour Detail Card */
