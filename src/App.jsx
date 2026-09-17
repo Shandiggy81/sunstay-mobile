@@ -1,5 +1,6 @@
 import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
+import { MicroclimateProvider, useVenueMicroclimate } from './context/MicroclimateContext';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
 import VenueCard from './components/VenueCard';
@@ -142,6 +143,10 @@ const getSunstayScoreVisual = (score) => {
 // ── VenueListCard ──────────────────────────────────────────────────────
 const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calculateSunstayScore }) => {
     const profile = useMemo(() => getWindProfile(venue), [venue]);
+    // Server-side microclimate for this venue at the time-of-day slider's
+    // position. Absent until the bbox fetch lands, and absent for venues with
+    // no profile row, so every use below is guarded.
+    const micro = useVenueMicroclimate(venue.id);
     const temp = weather?.main?.temp;
     const feelsLike = temp != null
         ? Math.round(calculateApparentTemp(temp, weather?.wind?.speed, weather?.main?.humidity, profile.shelterFactor))
@@ -178,7 +183,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calcula
                 onVenueSelect(venue);
             }}
             role="button"
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''}${sunstayScore != null ? ` Sunstay score ${sunstayScore} out of 100.` : ''}`}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''}${micro.sunLabel ? ` ${micro.sunLabel}, ${micro.sunPercent} sun.` : ''}${sunstayScore != null ? ` Sunstay score ${sunstayScore} out of 100.` : ''}`}
             className={`ss-venue-list-card relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
@@ -186,6 +191,22 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calcula
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
                 {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
+                {micro.sunLabel ? (
+                    <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                        <Sun size={12} className="shrink-0 text-amber-500" aria-hidden="true" />
+                        <span className="truncate text-[11.5px] font-semibold tracking-[-0.01em] text-slate-600">
+                            <span className="tabular-nums">{micro.sunPercent}</span>
+                            <span className="text-slate-400"> · </span>
+                            {micro.sunLabel}
+                            {micro.windLabel ? (
+                                <>
+                                    <span className="text-slate-400"> · </span>
+                                    {micro.windLabel}
+                                </>
+                            ) : null}
+                        </span>
+                    </div>
+                ) : null}
             </div>
             <div className="ss-vlc-right">
                 {scoreVisual && (
@@ -1058,10 +1079,15 @@ class ErrorBoundary extends Component {
     }
 }
 
+// <AppContent /> is constructed here, so MicroclimateProvider's own state
+// updates (viewport bbox, slider scrub) reuse the same element and React skips
+// re-rendering the tree. Only components reading a microclimate value update.
 const App = () => (
     <ErrorBoundary>
         <WeatherProvider>
-            <AppContent />
+            <MicroclimateProvider>
+                <AppContent />
+            </MicroclimateProvider>
         </WeatherProvider>
     </ErrorBoundary>
 );

@@ -8,6 +8,7 @@ import SunCalc from 'suncalc';
 import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
+import { useMicroclimateActions } from '../../context/MicroclimateContext';
 import { melbourneDate } from '../../utils/sunPosition';
 import {
     TOD_DAY_START_MIN as DAY_START_MIN,
@@ -418,6 +419,9 @@ function computeSunLight(minutes, lat, lng) {
 // cancel / blur / keyup — never the live scrub path.
 function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
     const { setScorePreviewMinutes } = useWeather();
+    // Writer-only: publishing the scrub position re-renders the microclimate
+    // readouts, not this component or the map.
+    const { setTodMinutes } = useMicroclimateActions();
     const [sliderMinutes, setSliderMinutes] = useState(() => localTimeToSliderMinutes());
     const minutesRef = useRef(sliderMinutes);
     const lightTimerRef = useRef(null);
@@ -533,6 +537,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         minutesRef.current = v;
         setSliderMinutes(v);
         scheduleScrubLight(v);
+        // Microclimate is a local lookup against the venue's hourly curve, so
+        // unlike the score it can follow the thumb without a refetch.
+        setTodMinutes(v);
     };
 
     const settleScrub = () => {
@@ -545,6 +552,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         if (typeof setScorePreviewMinutes === 'function') {
             setScorePreviewMinutes(v);
         }
+        setTodMinutes(v);
     };
 
     const handleRangePointerDown = (e) => {
@@ -642,6 +650,7 @@ const VenueMap = forwardRef(({
     const [mapError,     setMapError]     = useState(false);
 
     const { weather, calculateSunstayScore } = useWeather();
+    const { setBbox } = useMicroclimateActions();
 
     const safeVenues = useMemo(
         () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
@@ -1148,6 +1157,40 @@ const VenueMap = forwardRef(({
             }
         };
     }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore]);
+
+    // ── viewport bbox → microclimate fetch ──────────────────────────
+    // Reported on settle rather than on every move frame; the hook debounces
+    // again and ignores responses from a viewport the user has already left.
+    useEffect(() => {
+        if (!mapLoaded || !map.current) return undefined;
+        const instance = map.current;
+
+        const publishBounds = () => {
+            try {
+                const bounds = instance.getBounds();
+                if (!bounds) return;
+                setBbox({
+                    minLng: bounds.getWest(),
+                    minLat: bounds.getSouth(),
+                    maxLng: bounds.getEast(),
+                    maxLat: bounds.getNorth(),
+                });
+            } catch (e) {
+                console.warn('[VenueMap] could not read viewport bounds:', e?.message);
+            }
+        };
+
+        publishBounds();
+        instance.on('moveend', publishBounds);
+        instance.on('zoomend', publishBounds);
+
+        return () => {
+            try {
+                instance.off('moveend', publishBounds);
+                instance.off('zoomend', publishBounds);
+            } catch { /* noop */ }
+        };
+    }, [mapLoaded, setBbox]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {
