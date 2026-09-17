@@ -2919,10 +2919,10 @@ body,
 
 .ss-venue-list {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   padding-right: 4px;
 }
 
@@ -3790,11 +3790,9 @@ body,
 
 .ss-mobile-sheet-list {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   padding: 8px 12px calc(24px + env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 
