@@ -210,7 +210,7 @@ const LiveVenueList = memo(function LiveVenueList({
                 computeItemKey={(_index, venue) => venue.id}
                 style={{ flex: 1, minHeight: 0, height: '100%', WebkitOverflowScrolling: 'touch' }}
                 className="overscroll-contain"
-                components={safeAreaFooter ? { Footer: SafeAreaListFooter } : undefined}
+                components={safeAreaFooter ? { Footer: SafeAreaListFooter } : {}}
                 itemContent={(_index, venue) => (
                     <div className="pb-2">
                         <VenueListCard
