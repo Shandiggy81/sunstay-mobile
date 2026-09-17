@@ -904,7 +904,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-        className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex flex-col overflow-hidden bg-black/30 backdrop-blur-sm"
+        className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.article
@@ -932,7 +932,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           <div className="relative z-20 isolate shrink-0 overflow-hidden bg-white px-4 [transform-style:flat]">
             {/* 1. Extracted Drag Handle for top of sheet */}
             <div
-              className="flex justify-center pt-1 pb-3 md:hidden w-full"
+              className="flex w-full justify-center pt-1 pb-3 lg:hidden"
               onPointerDown={e => dragControls.start(e)}
               style={{ touchAction: 'none' }}
             >

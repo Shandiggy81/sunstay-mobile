@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -263,7 +262,7 @@ function OwnerDashboardInner({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 top-[calc(132px+env(safe-area-inset-top,0px))] z-[110] flex cursor-pointer flex-col overflow-hidden bg-black/30 backdrop-blur-sm"
+      className="absolute inset-0 z-[110] flex cursor-pointer flex-col overflow-hidden bg-black/30 backdrop-blur-sm"
       onClick={onClose}
       role="button"
       tabIndex={0}
@@ -477,12 +476,8 @@ function OwnerDashboardInner({
   );
 }
 
-// ── Public export: Portal wrapper ──────────────────────────────────
+// ── Public export — fills ss-main under TopBar (no guessed 132px offset) ──
 export default function OwnerDashboard(props) {
-  return createPortal(
-    <AnimatePresence>
-      {props.venue && <OwnerDashboardInner key="owner-dashboard-inner" {...props} />}
-    </AnimatePresence>,
-    document.body
-  );
+  if (!props.venue) return null;
+  return <OwnerDashboardInner key="owner-dashboard-inner" {...props} />;
 }

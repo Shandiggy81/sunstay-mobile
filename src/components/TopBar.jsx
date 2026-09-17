@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Sun, Cloud, Wind, CloudRain } from 'lucide-react';
+import { Sun, ListFilter } from 'lucide-react';
 
 const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen, comfort }) => {
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
@@ -28,11 +28,11 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             initial={{ y: -60, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.15, type: 'spring', damping: 24, stiffness: 240 }}
-            className="flex-shrink-0 z-40 min-h-[72px]"
+            className="z-40 flex-shrink-0"
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div
-                className="relative flex min-h-[132px] items-center gap-4 px-4 pr-[16px] py-3.5 bg-white/80 backdrop-blur-md border-b border-slate-100"
+                className="relative flex min-h-[132px] items-center gap-3 px-4 py-3.5 pr-4 bg-white/80 backdrop-blur-md border-b border-slate-100"
             >
                 {/* Logo */}
                 <div className="flex flex-col items-center justify-center flex-shrink-0 relative z-10">
@@ -65,20 +65,35 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                             className="h-[48px] w-[1px] bg-slate-200 flex-shrink-0 relative z-10"
                             style={{ alignSelf: 'center' }}
                         />
-                        <div className="flex-shrink-0 flex flex-col gap-1.5 items-start pr-4 relative z-10">
-                            <span className="text-slate-700 text-[12px] font-medium leading-tight">
+                        <div className="relative z-10 flex flex-shrink-0 flex-col items-start gap-1.5">
+                            <span className="text-[12px] font-medium leading-tight text-slate-700">
                                 💨 {windSpeed} km/h
                             </span>
-                            <span className="text-slate-700 text-[12px] font-medium leading-tight">
+                            <span className="text-[12px] font-medium leading-tight text-slate-700">
                                 🌧 {Math.round(rainChance)}%
                             </span>
                             {cloudLabel && (
-                                <span className="text-slate-700 text-[12px] font-medium leading-tight">
+                                <span className="text-[12px] font-medium leading-tight text-slate-700">
                                     ☁️ {cloudLabel}
                                 </span>
                             )}
                         </div>
                     </>
+                )}
+
+                {typeof onFiltersOpen === 'function' && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onFiltersOpen(e);
+                        }}
+                        className="relative z-10 flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center gap-1.5 rounded-full border border-slate-200/80 bg-white/80 px-3 text-slate-800 shadow-sm backdrop-blur-md touch-manipulation"
+                        aria-label="Open filters"
+                    >
+                        <ListFilter size={16} aria-hidden="true" />
+                        <span className="hidden text-[11px] font-bold sm:inline">Filters</span>
+                    </button>
                 )}
             </div>
 
