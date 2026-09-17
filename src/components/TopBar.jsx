@@ -32,7 +32,7 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
             <div
-                className="relative flex min-h-[132px] items-center gap-3 px-4 py-3.5 pr-4 bg-white/80 backdrop-blur-md border-b border-slate-100"
+                className="relative flex min-h-[132px] items-center gap-3 px-4! py-3.5 pr-4! bg-white/80 backdrop-blur-md border-b border-slate-100"
             >
                 {/* Logo */}
                 <div className="flex flex-col items-center justify-center flex-shrink-0 relative z-10">
