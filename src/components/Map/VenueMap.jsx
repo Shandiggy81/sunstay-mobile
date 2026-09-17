@@ -1186,17 +1186,21 @@ const VenueMap = forwardRef(({
                 style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
             />
 
-            {/* Dedicated rain-radar overlay toggle (on/off). lg:right-14 clears native Mapbox zoom. */}
-            {mapLoaded && !mapError && (
+            {/* Dedicated rain-radar overlay toggle — visible even while Mapbox loads. lg:right-14 clears native zoom. */}
+            {!mapError && (
                 <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); setShowRadar(!showRadar); }}
+                    onTouchEnd={e => e.stopPropagation()}
                     className={`absolute top-4 right-4 z-50 flex min-h-11 items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all lg:right-14 ${
                         showRadar
                             ? 'bg-blue-600/95 text-white border-2 border-blue-400'
                             : 'bg-white/95 text-gray-800 border border-gray-200/80 hover:bg-gray-50'
                     }`}
+                    style={{ touchAction: 'auto' }}
                     aria-label={showRadar ? 'Hide rain radar' : 'Show rain radar'}
                     aria-pressed={showRadar}
+                    title={showRadar ? 'Hide live rain radar' : 'Show live rain radar'}
                 >
                     <span>🌧️</span>
                     <span>{showRadar ? 'Radar Active' : 'Live Radar'}</span>

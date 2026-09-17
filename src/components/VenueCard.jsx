@@ -363,17 +363,44 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
 // ── Collapsible Deep Dive Accordion ──────────────────────────────
 const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, children }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const forecastHeaderRef = useRef(null);
+
+  const handleToggleForecast = () => {
+    const isOpening = !isExpanded;
+    setIsExpanded(isOpening);
+    if (isOpening) {
+      setTimeout(() => {
+        const header = forecastHeaderRef.current;
+        if (!header) return;
+        // Scroll the sheet overlay only — never the window or the drag-transformed article.
+        const scroller = header.closest('[data-venue-card-scroller]');
+        if (scroller) {
+          const offset =
+            header.getBoundingClientRect().top -
+            scroller.getBoundingClientRect().top +
+            scroller.scrollTop -
+            8;
+          scroller.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
+        } else {
+          header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150); // wait for DOM expansion
+    }
+  };
 
   return (
     <div className="flex flex-col gap-2 mt-1 w-full">
       <motion.button
+        ref={forecastHeaderRef}
         type="button"
-        onClick={() => setIsExpanded(prev => !prev)}
+        onClick={handleToggleForecast}
+        onPointerDown={e => e.stopPropagation()}
         className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-left cursor-pointer transition-all duration-200 select-none"
         style={{
           background: isExpanded ? 'rgba(14,165,233,0.10)' : 'rgba(14,165,233,0.04)',
           borderColor: isExpanded ? 'rgba(14,165,233,0.25)' : 'rgba(14,165,233,0.12)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          scrollMarginTop: 8,
         }}
         whileHover={{ scale: 1.01, background: 'rgba(14,165,233,0.08)' }}
         whileTap={{ scale: 0.99 }}
@@ -436,12 +463,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
 
             {/* Hourly Comfort Forecast */}
             {lat && lng && (
-              <div className="rounded-2xl overflow-hidden border" style={{ background: 'rgba(14,165,233,0.04)', borderColor: 'rgba(14,165,233,0.12)' }}>
-                <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
-                  <span className="text-[0.72rem] font-black uppercase tracking-widest text-slate-700">Hourly Comfort Forecast</span>
-                </div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark />
-              </div>
+              <HourlyForecastStrip lat={lat} lng={lng} dark />
             )}
 
             {/* Wind & Comfort Intelligence */}
@@ -959,6 +981,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           </div>
 
           <div
+            data-venue-card-scroller
             className="relative z-10 isolate min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col gap-2 bg-white [transform-style:flat]"
           >
             {/* Hero image */}
