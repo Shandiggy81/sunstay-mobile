@@ -1182,7 +1182,7 @@ const VenueMap = forwardRef(({
                 style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
             />
 
-            {/* Prominent live radar toggle — lg:right-14 clears native Mapbox zoom at top-right */}
+            {/* Dedicated rain-radar overlay toggle (on/off). lg:right-14 clears native Mapbox zoom. */}
             {mapLoaded && !mapError && (
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowRadar(!showRadar); }}
