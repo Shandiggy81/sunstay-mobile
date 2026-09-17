@@ -1112,17 +1112,17 @@ const VenueMap = forwardRef(({
 
     // ── Render ──────────────────────────────────────────────────────
     return (
-        <div className="relative h-full w-full max-md:[&_.mapboxgl-ctrl-top-right]:hidden md:[&_.mapboxgl-ctrl-bottom-right]:bottom-2 [&_.mapboxgl-ctrl-bottom-right]:bottom-[calc(env(safe-area-inset-bottom)+90px)] [&_.mapboxgl-ctrl-bottom-right]:right-[6.75rem]">
+        <div className="relative h-full w-full max-lg:[&_.mapboxgl-ctrl-top-right]:hidden lg:[&_.mapboxgl-ctrl-bottom-right]:bottom-2 [&_.mapboxgl-ctrl-bottom-right]:bottom-[calc(env(safe-area-inset-bottom)+90px)] [&_.mapboxgl-ctrl-bottom-right]:right-[6.75rem]">
             <div
                 ref={mapContainer}
                 style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
             />
 
-            {/* Prominent live radar toggle — md:right-14 clears native Mapbox zoom at top-right */}
+            {/* Prominent live radar toggle — lg:right-14 clears native Mapbox zoom at top-right */}
             {mapLoaded && !mapError && (
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowRadar(!showRadar); }}
-                    className={`absolute top-4 right-4 z-50 flex min-h-11 items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all md:right-14 ${
+                    className={`absolute top-4 right-4 z-50 flex min-h-11 items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all lg:right-14 ${
                         showRadar
                             ? 'bg-blue-600/95 text-white border-2 border-blue-400'
                             : 'bg-white/95 text-gray-800 border border-gray-200/80 hover:bg-gray-50'
@@ -1136,10 +1136,10 @@ const VenueMap = forwardRef(({
             )}
 
             {/* Bottom-center stack: Filters sits cleanly above the TOD slider */}
-            <div className="pointer-events-none absolute inset-x-0 z-40 bottom-[calc(env(safe-area-inset-bottom)+90px)] md:bottom-[46px]">
+            <div className="pointer-events-none absolute inset-x-0 z-40 bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]">
                 <div className="absolute bottom-0 left-4 right-[6.75rem] flex flex-col items-center gap-4">
                     {filtersControl ? (
-                        <div className="pointer-events-auto md:hidden">
+                        <div className="pointer-events-auto lg:hidden">
                             {filtersControl}
                         </div>
                     ) : null}

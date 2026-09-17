@@ -2637,6 +2637,8 @@ body,
   position: relative;
   width: 100%;
   height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -2787,6 +2789,7 @@ body,
 
 .ss-main {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2796,7 +2799,8 @@ body,
   z-index: 1;
 }
 
-@media (min-width: 768px) {
+/* Desktop split layout lives at lg (1024px) — same gate as Tailwind `lg:` */
+@media (min-width: 1024px) {
   .ss-main {
     flex-direction: row;
     padding: 0 16px 12px;
@@ -2810,7 +2814,7 @@ body,
   display: none;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .ss-sidebar {
     width: 360px;
     flex-shrink: 0;
@@ -3148,7 +3152,7 @@ body,
   color: #1f2937;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
 
   .ss-mobile-sheet-handle,
   .ss-mobile-sheet,
@@ -3166,6 +3170,8 @@ body,
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  height: auto;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -3191,6 +3197,7 @@ body,
 
 .ss-map-container {
   flex: 1;
+  min-height: 0;
   border-radius: 20px;
   overflow: hidden;
   box-shadow:
@@ -3639,7 +3646,7 @@ body,
   transition: all 0.3s ease;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .ss-map-expand-btn {
     display: none;
   }
@@ -3828,20 +3835,20 @@ body,
     flex-direction: column;
     gap: 0;
     padding: 0;
-    height: 100%;
+    min-height: 0;
   }
 
-  /* Hide desktop sidebar */
+  /* Hide desktop sidebar until lg */
   .ss-sidebar {
     display: none;
   }
 
-  /* Map fills viewport below header */
+  /* Map fills remaining space beneath TopBar via flex — no guessed header offset */
   .ss-map-area {
-    height: calc(100dvh - 140px);
-    flex: none;
+    flex: 1;
+    min-height: 0;
+    height: auto;
     position: relative;
-    transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .ss-map-area--expanded {
@@ -5972,7 +5979,7 @@ body,
   display: none;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .ss-filters-fab {
     display: flex;
     position: relative;

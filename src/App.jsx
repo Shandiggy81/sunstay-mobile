@@ -296,9 +296,9 @@ const AppContent = () => {
         setNewFilter('');
     }, [customFilters, newFilter]);
 
-    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+    const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        const handleResize = () => setIsMobile(window.innerWidth < 1024);
         window.addEventListener('resize', handleResize, { passive: true });
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -582,7 +582,7 @@ const AppContent = () => {
                 score={selectedVenueScore}
             />
 
-            <div className={`ss-app-root ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
+            <div className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
                 <WeatherBackground />
 
                 <TopBar
@@ -594,23 +594,9 @@ const AppContent = () => {
                     comfort={comfort}
                 />
 
-                <AnimatePresence>
-                    {showOwnerDashboard && (
-                        <Suspense fallback={null}>
-                            <OwnerDashboard
-                                venue={selectedVenue}
-                                liveVenueFeatures={liveVenueFeatures}
-                                setLiveVenueFeatures={updateLiveVenueFeature}
-                                onClose={handleOwnerDashboardClose}
-                                onVenueUpdate={handleSelectedVenueUpdate}
-                            />
-                        </Suspense>
-                    )}
-                </AnimatePresence>
-
-                <main className="ss-main flex h-full w-full overflow-hidden">
-                    {/* LEFT: Venue List */}
-                    <aside className="ss-sidebar w-full md:w-96 h-full overflow-hidden flex flex-col bg-white border-r border-gray-200">
+                <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
+                    {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
+                    <aside className="ss-sidebar hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96">
                         <div className="ss-search-pin px-3 pt-3 pb-1 flex-shrink-0">
                             <VenueSearchInput
                                 id="venue-search"
@@ -663,8 +649,8 @@ const AppContent = () => {
                     </aside>
 
                     {/* RIGHT: Map */}
-                    <section className={`ss-map-area flex-1 h-full relative ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-                        <div className="ss-map-container">
+                    <section className={`ss-map-area relative flex min-h-0 flex-1 flex-col ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
+                        <div className="ss-map-container min-h-0 flex-1">
                             <MapErrorBoundary>
                                 <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
                                     <VenueMap
@@ -720,7 +706,7 @@ const AppContent = () => {
                         </AnimatePresence>
 
                         {/* Bottom-anchored map controls — clear of the collapsed venue sheet */}
-                        <div className="pointer-events-none absolute inset-x-0 z-50 bottom-[calc(env(safe-area-inset-bottom)+90px)] md:bottom-[46px]">
+                        <div className="pointer-events-none absolute inset-x-0 z-50 bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]">
                             {/* Right column: Locate Me + Recenter + Sunny — Filters+TOD live in VenueMap */}
                             <div className="pointer-events-auto absolute right-4 bottom-0 flex flex-col items-end gap-3">
                                 {locateHint && (
@@ -778,6 +764,20 @@ const AppContent = () => {
                             setSelectedVenue={setSelectedVenue}
                         />
                     )}
+
+                    <AnimatePresence>
+                        {showOwnerDashboard && (
+                            <Suspense fallback={null}>
+                                <OwnerDashboard
+                                    venue={selectedVenue}
+                                    liveVenueFeatures={liveVenueFeatures}
+                                    setLiveVenueFeatures={updateLiveVenueFeature}
+                                    onClose={handleOwnerDashboardClose}
+                                    onVenueUpdate={handleSelectedVenueUpdate}
+                                />
+                            </Suspense>
+                        )}
+                    </AnimatePresence>
 
                     <Suspense fallback={null}>
                         <FilterSheet
