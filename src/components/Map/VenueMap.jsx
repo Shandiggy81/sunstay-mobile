@@ -1186,7 +1186,7 @@ const VenueMap = forwardRef(({
                 style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
             />
 
-            {/* Dedicated rain-radar overlay toggle — visible even while Mapbox loads. lg:right-14 clears native zoom. */}
+            {/* Dedicated rain-radar overlay toggle (RainViewer/Xweather). Visible even while Mapbox loads. lg:right-14 clears native zoom. */}
             {!mapError && (
                 <button
                     type="button"
