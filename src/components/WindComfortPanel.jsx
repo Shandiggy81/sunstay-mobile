@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Wind, Thermometer, Shield, AlertTriangle, Clock,
     ChevronRight, ChevronDown, Calendar, TrendingUp,
-    TrendingDown, Minus, Bell, Info,
+    TrendingDown, Minus, Info,
 } from 'lucide-react';
 import { useWeather } from '../context/WeatherContext';
 import {
@@ -15,7 +15,6 @@ import {
     getWindTrend,
     getOptimalBookingTime,
     getWindImpactExplanation,
-    getWindAlertMessage,
 } from '../data/windIntelligence';
 
 // ── Wind Warning Badge ────────────────────────────────────────────
@@ -169,7 +168,6 @@ const HourlyForecastStrip = ({ forecast, onHourTap }) => {
 const WindComfortPanel = ({ venue }) => {
     const { weather } = useWeather();
     const [selectedHour, setSelectedHour] = useState(null);
-    const [showAlert, setShowAlert] = useState(false);
 
     const windData = useMemo(() => {
         if (!weather || !venue) return null;
@@ -189,7 +187,6 @@ const WindComfortPanel = ({ venue }) => {
         const windTrend = getWindTrend(hourlyForecast);
         const optimalBooking = getOptimalBookingTime(hourlyForecast);
         const windImpact = getWindImpactExplanation(temp, windSpeed, apparentTemp, venue);
-        const alertMessage = getWindAlertMessage(windWarning, venue.venueName);
 
         return {
             temp: Math.round(temp),
@@ -204,7 +201,6 @@ const WindComfortPanel = ({ venue }) => {
             windTrend,
             optimalBooking,
             windImpact,
-            alertMessage,
         };
     }, [weather, venue]);
 
@@ -224,32 +220,7 @@ const WindComfortPanel = ({ venue }) => {
                     <Shield size={16} className="text-blue-500" />
                     <h3 className="wind-section-title">Wind & Comfort Intelligence</h3>
                 </div>
-                <button
-                    onClick={() => setShowAlert(!showAlert)}
-                    className="wind-alert-toggle"
-                    title="Show wind alert notification"
-                    id="wind-alert-toggle"
-                >
-                    <Bell size={14} />
-                </button>
             </div>
-
-            {/* ── Push Notification Alert ─────────────────── */}
-            <AnimatePresence>
-                {showAlert && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="wind-push-alert"
-                    >
-                        <div className={`wind-push-card ${windData.windWarning.bgColor} border ${windData.windWarning.borderColor}`}>
-                            <Bell size={14} className={windData.windWarning.color} />
-                            <p className="wind-push-text">{windData.alertMessage}</p>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* ── Wind Warning Badge ─────────────────────── */}
             <WindWarningBadge warning={windData.windWarning} />
