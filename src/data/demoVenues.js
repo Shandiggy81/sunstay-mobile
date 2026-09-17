@@ -86,6 +86,8 @@ export const companyByName = Object.fromEntries(
 export const demoVenues = [
     {
         id: "dv-01",
+        sunshineScore: 80,
+        shelterFactor: 0.41,
         happyHour: {
             days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
             start: "16:00",
@@ -117,6 +119,8 @@ export const demoVenues = [
     },
     {
         id: "dv-02",
+        sunshineScore: 95,
+        shelterFactor: 0.16,
         happyHour: {
             days: ["Wed", "Thu", "Fri", "Sat"],
             start: "17:00",
@@ -151,6 +155,8 @@ export const demoVenues = [
     },
     {
         id: "dv-03",
+        sunshineScore: 62,
+        shelterFactor: 0.4,
         happyHour: {
             days: ["Tue", "Wed", "Thu", "Fri"],
             start: "15:00",
@@ -182,6 +188,8 @@ export const demoVenues = [
     },
     {
         id: "dv-04",
+        sunshineScore: 86,
+        shelterFactor: 0.39,
         happyHour: {
             days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
             start: "16:00",
@@ -204,6 +212,8 @@ export const demoVenues = [
     },
     {
         id: "dv-05",
+        sunshineScore: 27,
+        shelterFactor: 0.99,
         happyHour: {
             days: ["Thu", "Fri", "Sat"],
             start: "17:30",
@@ -232,6 +242,8 @@ export const demoVenues = [
     },
     {
         id: "dv-06",
+        sunshineScore: 90,
+        shelterFactor: 0.3,
         happyHour: {
             days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
             start: "16:00",
@@ -257,6 +269,8 @@ export const demoVenues = [
     },
     {
         id: "dv-07",
+        sunshineScore: 79,
+        shelterFactor: 0.31,
         happyHour: {
             days: ["Fri", "Sat", "Sun"],
             start: "14:00",
@@ -279,6 +293,8 @@ export const demoVenues = [
     },
     {
         id: "dv-08",
+        sunshineScore: 84,
+        shelterFactor: 0.32,
         happyHour: {
             days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
             start: "17:00",
@@ -301,6 +317,8 @@ export const demoVenues = [
     },
     {
         id: "dv-09",
+        sunshineScore: 87,
+        shelterFactor: 0.26,
         companyName: "Pacific Concepts",
         venueName: "CQ City Bar",
         address: "113 Queen Street, Melbourne VIC 3000",
@@ -316,6 +334,8 @@ export const demoVenues = [
     },
     {
         id: "dv-10",
+        sunshineScore: 82,
+        shelterFactor: 0.49,
         companyName: "Commune Group",
         venueName: "Howler",
         address: "7-11 Dawson Street, Brunswick VIC 3056",
@@ -338,6 +358,8 @@ export const demoVenues = [
     },
     {
         id: "dv-11",
+        sunshineScore: 93,
+        shelterFactor: 0.29,
         companyName: "Dixon Hospitality",
         venueName: "Good Heavens Rooftop",
         address: "Level 2, 79 Bourke Street, Melbourne VIC 3000",
@@ -354,6 +376,8 @@ export const demoVenues = [
     },
     {
         id: "dv-12",
+        sunshineScore: 80,
+        shelterFactor: 0.32,
         companyName: "Melbourne Pub Group",
         venueName: "Railway Hotel (Windsor)",
         address: "29 Chapel Street, Windsor VIC 3181, Australia",
@@ -370,6 +394,8 @@ export const demoVenues = [
     },
     {
         id: "dv-13",
+        sunshineScore: 57,
+        shelterFactor: 0.55,
         companyName: "Lucas Restaurants",
         venueName: "Chin Chin",
         address: "125 Flinders Lane, Melbourne VIC 3000",
@@ -393,6 +419,8 @@ export const demoVenues = [
     },
     {
         id: "dv-14",
+        sunshineScore: 71,
+        shelterFactor: 0.49,
         companyName: "Industry Beans",
         venueName: "Industry Beans Fitzroy",
         address: "70–76 Westgarth Street, Fitzroy VIC 3065",
@@ -416,6 +444,8 @@ export const demoVenues = [
     },
     {
         id: "dv-15",
+        sunshineScore: 87,
+        shelterFactor: 0.33,
         companyName: "The Boatbuilders Yard",
         venueName: "The Boatbuilders Yard",
         address: "23 South Wharf Promenade, South Wharf VIC 3006",
@@ -439,6 +469,8 @@ export const demoVenues = [
     },
     {
         id: "dv-16",
+        sunshineScore: 17,
+        shelterFactor: 0.98,
         companyName: "Trader House",
         venueName: "The Builders Arms Hotel",
         address: "211 Gertrude Street, Fitzroy VIC 3065",
@@ -462,6 +494,8 @@ export const demoVenues = [
     },
     {
         id: "dv-17",
+        sunshineScore: 90,
+        shelterFactor: 0.19,
         companyName: "Lancemore Group",
         venueName: "Lancemore Crossley St",
         address: "51 Little Bourke Street, Melbourne VIC 3000",
@@ -484,6 +518,8 @@ export const demoVenues = [
     },
     {
         id: "dv-18",
+        sunshineScore: 74,
+        shelterFactor: 0.33,
         companyName: "The Corner Hotel",
         venueName: "The Corner Hotel",
         address: "57 Swan Street, Richmond VIC 3121",
@@ -507,6 +543,8 @@ export const demoVenues = [
     },
     {
         id: "dv-19",
+        sunshineScore: 67,
+        shelterFactor: 0.51,
         companyName: "The Crabshack",
         venueName: "The Crabshack Docklands",
         address: "30 NewQuay Promenade, Docklands VIC 3008",
@@ -530,6 +568,8 @@ export const demoVenues = [
     },
     {
         id: "dv-20",
+        sunshineScore: 31,
+        shelterFactor: 0.9,
         companyName: "State Library Victoria",
         venueName: "Mr Tulk",
         address: "328 Swanston Street, Melbourne VIC 3000",
@@ -553,6 +593,8 @@ export const demoVenues = [
     },
     {
         id: "dv-21",
+        sunshineScore: 87,
+        shelterFactor: 0.24,
         companyName: "Australian Venue Co",
         venueName: "The Espy",
         address: "11 The Esplanade, St Kilda VIC 3182",
@@ -574,6 +616,8 @@ export const demoVenues = [
     },
     {
         id: "dv-22",
+        sunshineScore: 90,
+        shelterFactor: 0.23,
         companyName: "Pacific Concepts",
         venueName: "Arbory Afloat",
         address: "1 Flinders Walk, Melbourne VIC 3000",
@@ -595,6 +639,8 @@ export const demoVenues = [
     },
     {
         id: "dv-23",
+        sunshineScore: 78,
+        shelterFactor: 0.46,
         companyName: "Sand Hill Road",
         venueName: "The Standard",
         address: "293 Fitzroy Street, Fitzroy VIC 3065",
@@ -610,6 +656,8 @@ export const demoVenues = [
     },
     {
         id: "dv-25",
+        sunshineScore: 45,
+        shelterFactor: 0.73,
         companyName: "Good Company",
         venueName: "La La Land Windsor",
         address: "134 Chapel Street, Windsor VIC 3181",
@@ -627,6 +675,8 @@ export const demoVenues = [
     },
     {
         id: "dv-26",
+        sunshineScore: 25,
+        shelterFactor: 0.91,
         companyName: "Common Man Group",
         venueName: "Pause Bar",
         address: "268 Carlisle Street, Balaclava VIC 3183",
@@ -644,6 +694,8 @@ export const demoVenues = [
     },
     {
         id: "dv-27",
+        sunshineScore: 95,
+        shelterFactor: 0.3,
         companyName: "ALH Group (Endeavour)",
         venueName: "Transport Hotel",
         address: "Federation Square, Flinders Street, Melbourne VIC 3000",
@@ -667,6 +719,8 @@ export const demoVenues = [
     },
     {
         id: "dv-28",
+        sunshineScore: 80,
+        shelterFactor: 0.33,
         companyName: "Australian Venue Co",
         venueName: "Good Nature Hotel",
         address: "Federation Square, Flinders Street, Melbourne VIC 3000",
@@ -691,6 +745,8 @@ export const demoVenues = [
     },
     {
         id: "holy-grail",
+        sunshineScore: 20,
+        shelterFactor: 0.99,
         companyName: "Australian Venue Co",
         venueName: "Holy Grail",
         address: "Chapel Street, Windsor VIC 3181",
@@ -712,6 +768,8 @@ export const demoVenues = [
     },
     {
         id: "union-hotel",
+        sunshineScore: 40,
+        shelterFactor: 0.62,
         companyName: "Australian Venue Co",
         venueName: "Union Hotel",
         address: "Chapel Street, Windsor VIC 3181",
@@ -733,6 +791,8 @@ export const demoVenues = [
     },
     {
         id: "dv-hotel-01",
+        sunshineScore: 26,
+        shelterFactor: 0.94,
         companyName: "Hyatt",
         venueName: "Grand Hyatt Melbourne",
         address: "123 Collins Street, Melbourne VIC 3000",
@@ -755,6 +815,8 @@ export const demoVenues = [
     },
     {
         id: "dv-hotel-02",
+        sunshineScore: 33,
+        shelterFactor: 0.6,
         companyName: "Pullman Melbourne",
         venueName: "Pullman Melbourne On the Park",
         address: "192 Wellington Parade, East Melbourne VIC 3002",
@@ -817,6 +879,8 @@ export const demoVenues = [
     },
     {
         id: "dv-hotel-03",
+        sunshineScore: 88,
+        shelterFactor: 0.14,
         companyName: "Sheraton Melbourne",
         venueName: "Sheraton Melbourne Hotel",
         address: "27 Little Collins Street, Melbourne VIC 3000",
@@ -879,6 +943,8 @@ export const demoVenues = [
     },
     {
         id: "dv-hotel-04",
+        sunshineScore: 75,
+        shelterFactor: 0.42,
         companyName: "Pan Pacific",
         venueName: "Pan Pacific Melbourne",
         address: "2 Convention Centre Place, South Wharf VIC 3006",
@@ -901,6 +967,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-01",
+        sunshineScore: 78,
+        shelterFactor: 0.18,
         companyName: "Stokehouse",
         venueName: "Stokehouse",
         address: "30 Jacka Boulevard, St Kilda VIC 3182",
@@ -924,6 +992,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-02",
+        sunshineScore: 73,
+        shelterFactor: 0.46,
         companyName: "Naked for Satan",
         venueName: "Naked for Satan",
         address: "285 Brunswick Street, Fitzroy VIC 3065",
@@ -947,6 +1017,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-03",
+        sunshineScore: 72,
+        shelterFactor: 0.45,
         companyName: "The Retreat Hotel",
         venueName: "The Retreat Hotel",
         address: "280 Sydney Road, Brunswick VIC 3056",
@@ -970,6 +1042,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-04",
+        sunshineScore: 55,
+        shelterFactor: 0.48,
         companyName: "Ponyfish Island",
         venueName: "Ponyfish Island",
         address: "Southbank Pedestrian Bridge, Melbourne VIC 3006",
@@ -993,6 +1067,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-05",
+        sunshineScore: 56,
+        shelterFactor: 0.53,
         companyName: "Botanical Hotel",
         venueName: "Botanical Hotel",
         address: "169 Domain Road, South Yarra VIC 3141",
@@ -1016,6 +1092,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-06",
+        sunshineScore: 57,
+        shelterFactor: 0.5,
         companyName: "Cookie",
         venueName: "Cookie",
         address: "Level 1, Curtin House, 252 Swanston Street, Melbourne VIC 3000",
@@ -1039,6 +1117,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-07",
+        sunshineScore: 93,
+        shelterFactor: 0.28,
         companyName: "The Great Britain Hotel",
         venueName: "The Great Britain Hotel",
         address: "447 Church Street, Richmond VIC 3121",
@@ -1062,6 +1142,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-08",
+        sunshineScore: 71,
+        shelterFactor: 0.57,
         companyName: "Borsch, Vodka & Tears",
         venueName: "Borsch, Vodka & Tears",
         address: "173 Chapel Street, Windsor VIC 3181",
@@ -1085,6 +1167,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-09",
+        sunshineScore: 37,
+        shelterFactor: 0.5,
         companyName: "The Grace Darling Hotel",
         venueName: "The Grace Darling Hotel",
         address: "114 Smith Street, Collingwood VIC 3066",
@@ -1108,6 +1192,8 @@ export const demoVenues = [
     },
     {
         id: "dv-stay-10",
+        sunshineScore: 84,
+        shelterFactor: 0.35,
         companyName: "Moon Dog",
         venueName: "Moon Dog Funderland",
         address: "17 Duke Street, Abbotsford VIC 3067",
@@ -1131,6 +1217,8 @@ export const demoVenues = [
     },
     {
         id: "dv-nat-01",
+        sunshineScore: 81,
+        shelterFactor: 0.18,
         companyName: "Riverland",
         venueName: "Riverland Bar",
         address: "18–20 Batman Avenue, Melbourne VIC 3000",
@@ -1157,6 +1245,8 @@ export const demoVenues = [
     },
     {
         id: "dv-nat-02",
+        sunshineScore: 80,
+        shelterFactor: 0.3,
         companyName: "Donovans",
         venueName: "Donovans",
         address: "40 Jacka Boulevard, St Kilda VIC 3182",
@@ -1182,6 +1272,8 @@ export const demoVenues = [
     },
     {
         id: "dv-nat-03",
+        sunshineScore: 90,
+        shelterFactor: 0.16,
         companyName: "Stomping Ground",
         venueName: "Stomping Ground Brewery",
         address: "100 Gipps Street, Collingwood VIC 3066",
@@ -1208,6 +1300,8 @@ export const demoVenues = [
     },
     {
         id: "dv-nat-04",
+        sunshineScore: 81,
+        shelterFactor: 0.32,
         companyName: "Elwood Bathers",
         venueName: "Elwood Bathers",
         address: "15 Elwood Foreshore, Elwood VIC 3184",
@@ -1233,6 +1327,8 @@ export const demoVenues = [
     },
     {
         id: "dv-nat-05",
+        sunshineScore: 37,
+        shelterFactor: 0.92,
         companyName: "Young & Jackson",
         venueName: "Young & Jackson",
         address: "1 Swanston Street, Melbourne VIC 3000",
