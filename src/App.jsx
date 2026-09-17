@@ -261,9 +261,14 @@ VenueChip.displayName = 'VenueChip';
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
-    const { weather, calculateSunstayScore, previewMinutes } = useWeather();
+    const { weather, loading: weatherLoading, calculateSunstayScore, previewMinutes } = useWeather();
     const { venues } = useVenues();
     const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
+
+    // Splash-screen readiness: weather is the remaining async dependency.
+    // useVenues starts with demoVenues so the list is available immediately.
+    const venuesReady = Array.isArray(venues) && venues.length > 0;
+    const appReady = !weatherLoading && venuesReady;
 
     const comfort = useMemo(() => {
         if (!weather) return { label: 'Loading', icon: '☁️', cozy: false };
@@ -580,10 +585,13 @@ const AppContent = () => {
     return (
         <>
             {!splashDone && (
-                <SplashScreen onComplete={() => {
-                    markSplashSeen();
-                    setSplashDone(true);
-                }} />
+                <SplashScreen
+                    isReady={appReady}
+                    onComplete={() => {
+                        markSplashSeen();
+                        setSplashDone(true);
+                    }}
+                />
             )}
 
             <NotificationCenter

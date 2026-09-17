@@ -2,25 +2,42 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function SplashScreen({ onComplete }) {
-  const [phase, setPhase] = useState('in'); // 'in' | 'hold' | 'out'
+// Minimum time the splash stays visible, even if data resolves instantly —
+// prevents a jarring flash on fast networks / warm caches.
+const MIN_DISPLAY_MS = 600;
+// Hard safety cap: dismiss even if `isReady` never arrives (e.g. a stalled
+// weather fetch), so the splash can never block the app indefinitely.
+const MAX_WAIT_MS = 5000;
+// How long the exit animation runs before the parent should fully unmount us.
+const EXIT_ANIM_MS = 700;
+
+export default function SplashScreen({ isReady = false, onComplete }) {
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+  const [forceReady, setForceReady] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
-    // Phase: hold after 1.2s, then exit after 3.2s total
-    const holdTimer = setTimeout(() => setPhase('hold'), 1200);
-    const exitTimer = setTimeout(() => {
-      setPhase('out');
-      setTimeout(onComplete, 700);
-    }, 3200);
+    const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_DISPLAY_MS);
+    const maxWaitTimer = setTimeout(() => setForceReady(true), MAX_WAIT_MS);
     return () => {
-      clearTimeout(holdTimer);
-      clearTimeout(exitTimer);
+      clearTimeout(minTimer);
+      clearTimeout(maxWaitTimer);
     };
-  }, [onComplete]);
+  }, []);
+
+  // Dismiss as soon as the app is actually ready AND the minimum floor has
+  // elapsed — whichever finishes last. Falls back to `forceReady` if the
+  // readiness signal never resolves, so this never becomes a hard blocker.
+  useEffect(() => {
+    if (exiting || !minTimeElapsed || !(isReady || forceReady)) return;
+    setExiting(true);
+    const exitTimer = setTimeout(onComplete, EXIT_ANIM_MS);
+    return () => clearTimeout(exitTimer);
+  }, [isReady, forceReady, minTimeElapsed, exiting, onComplete]);
 
   return (
     <AnimatePresence>
-      {phase !== 'out' && (
+      {!exiting && (
         <motion.div
           key="splash"
           initial={{ opacity: 0 }}
