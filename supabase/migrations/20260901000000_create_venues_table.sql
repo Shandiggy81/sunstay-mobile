@@ -2,6 +2,7 @@
 -- Migration: create_venues_table
 -- Created:   2026-09-01
 -- Objective: Migrate static demoVenues.js dataset to live Supabase Postgres DB
+-- Supersedes the original 01_init_venues.sql (venues schema, RLS, seed).
 -- ============================================================
 
 -- 1. Create venues table with exact column names matching frontend components
