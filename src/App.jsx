@@ -163,6 +163,12 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calcula
     const isStay = venue.typeCategory === 'ShortStay';
     const isHotel = venue.typeCategory === 'Hotel';
 
+    // `typeLabel` and `vibe` are both nullable in the venues table, so the
+    // subtitle is joined from present parts only — never " · Fitzroy".
+    const descriptor = String((isStay || isHotel ? venue.typeLabel : venue.vibe) ?? '').trim();
+    const suburbText = String(venue.suburb ?? '').trim();
+    const subtitle = [descriptor, suburbText].filter(Boolean).join(' · ');
+
     return (
         <motion.div
             whileHover={{ scale: 1.01 }}
@@ -172,16 +178,14 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calcula
                 onVenueSelect(venue);
             }}
             role="button"
-            aria-label={`Venue: ${venue.venueName}. ${isStay || isHotel ? venue.typeLabel : venue.vibe} in ${venue.suburb}.${sunstayScore != null ? ` Sunstay score ${sunstayScore} out of 100.` : ''}`}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''}${sunstayScore != null ? ` Sunstay score ${sunstayScore} out of 100.` : ''}`}
             className={`ss-venue-list-card relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
             <div className="ss-vlc-emoji">{venue.emoji}</div>
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
-                <div className="ss-vlc-sub">
-                    {isStay || isHotel ? venue.typeLabel : venue.vibe} · {venue.suburb}
-                </div>
+                {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
             </div>
             <div className="ss-vlc-right">
                 {scoreVisual && (
@@ -667,15 +671,19 @@ const AppContent = () => {
 
     const filtersControl = useMemo(() => (
         <button
-            className="ss-filters-fab min-h-11"
+            type="button"
+            className="flex min-h-12 cursor-pointer items-center gap-2 rounded-full bg-slate-900/90 px-6 text-[14px] font-semibold tracking-[-0.01em] text-white shadow-[0_8px_28px_-8px_rgba(15,23,42,0.6)] ring-1 ring-inset ring-white/15 backdrop-blur-xl transition-transform duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
             onClick={openMobileFilters}
             disabled={mobileFilterOpen}
             aria-expanded={mobileFilterOpen}
+            aria-label="Open filters"
         >
-            <ListFilter size={18} />
+            <ListFilter size={18} strokeWidth={2.25} aria-hidden="true" />
             <span>Filters</span>
             {activeFilters.length > 0 && (
-                <span className="ss-filters-fab-badge">{activeFilters.length}</span>
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-[11px] font-bold tabular-nums text-slate-950">
+                    {activeFilters.length}
+                </span>
             )}
         </button>
     ), [openMobileFilters, mobileFilterOpen, activeFilters.length]);
@@ -813,34 +821,38 @@ const AppContent = () => {
                                 {locateHint && (
                                     <div
                                         role="status"
-                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
+                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/85 px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_6px_24px_-8px_rgba(15,23,42,0.5)] ring-1 ring-inset ring-white/15 backdrop-blur-xl"
                                     >
                                         {locateHint}
                                     </div>
                                 )}
-                                <motion.button
-                                    type="button"
-                                    className="z-50 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/80 bg-white text-blue-600 shadow-lg hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70"
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={handleLocateMe}
-                                    disabled={isLocating}
-                                    aria-label="Locate Me"
-                                    title="Locate Me"
-                                    id="locate-me"
-                                >
-                                    <Locate size={18} className={isLocating ? 'animate-pulse' : undefined} />
-                                </motion.button>
-                                <motion.button
-                                    type="button"
-                                    className="ss-recenter-btn !relative !right-auto !bottom-auto !h-11 !w-11 min-h-11 min-w-11"
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={handleRecenter}
-                                    id="recenter-map"
-                                    aria-label="Recenter Melbourne"
-                                    title="Recenter Melbourne"
-                                >
-                                    <Crosshair size={18} />
-                                </motion.button>
+                                {/* Grouped navigation controls — one translucent
+                                    material stack with 44px hit areas. */}
+                                <div className="flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/70 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 divide-y divide-slate-900/[0.07]">
+                                    <motion.button
+                                        type="button"
+                                        className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center text-sky-700 transition-colors active:bg-slate-900/10 disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"
+                                        whileTap={{ scale: 0.92 }}
+                                        onClick={handleLocateMe}
+                                        disabled={isLocating}
+                                        aria-label="Locate Me"
+                                        title="Locate Me"
+                                        id="locate-me"
+                                    >
+                                        <Locate size={19} strokeWidth={2.25} className={isLocating ? 'animate-pulse' : undefined} />
+                                    </motion.button>
+                                    <motion.button
+                                        type="button"
+                                        className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center text-slate-800 transition-colors active:bg-slate-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"
+                                        whileTap={{ scale: 0.92 }}
+                                        onClick={handleRecenter}
+                                        id="recenter-map"
+                                        aria-label="Recenter Melbourne"
+                                        title="Recenter Melbourne"
+                                    >
+                                        <Crosshair size={19} strokeWidth={2.25} />
+                                    </motion.button>
+                                </div>
                                 {!selectedVenue && (
                                     <SunnyMascot
                                         onClick={toggleChat}

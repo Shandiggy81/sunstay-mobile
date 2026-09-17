@@ -117,6 +117,16 @@ function visibleVenueSetKey(venues) {
     return venues.map((v) => String(v.id)).sort().join('|');
 }
 
+// ── Map overlay chrome ──────────────────────────────────────────────────
+// Apple-Maps-style grouped control stack: one translucent material container
+// with hairline dividers, 44px hit areas, and no per-button shadows.
+const CONTROL_GROUP =
+    'flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/70 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 divide-y divide-slate-900/[0.07]';
+const CONTROL_BUTTON =
+    'flex h-11 w-11 min-h-11 min-w-11 cursor-pointer items-center justify-center text-[19px] leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600';
+const CONTROL_BUTTON_IDLE = 'bg-transparent text-slate-800 active:bg-slate-900/10';
+const CONTROL_TOUCH_STYLE = { touchAction: 'auto', WebkitTapHighlightColor: 'transparent' };
+
 // ── Mini Sunstay Score badge (mirrors the list card + detail sheet ramp) ──
 const SCORE_BADGE_TIERS = [
     { min: 75, bg: '#059669' }, // emerald — prime conditions
@@ -563,16 +573,16 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
             aria-hidden={isVenueSelected}
             inert={isVenueSelected || undefined}
         >
-            <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 px-4 py-2.5 shadow-lg backdrop-blur-md">
+            <div className="flex items-center gap-3 rounded-[22px] border border-white/60 bg-white/72 px-4 py-2.5 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150">
                 <span className="select-none text-xl leading-none" aria-hidden="true">🌇</span>
                 <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-center justify-between">
-                        <label htmlFor="tod-slider" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                        <label htmlFor="tod-slider" className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
                             Time of day
                         </label>
                         <span
                             aria-live="polite"
-                            className="text-xs font-bold tabular-nums text-slate-800"
+                            className="text-[13px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900"
                         >
                             {clock}
                         </span>
@@ -1192,17 +1202,24 @@ const VenueMap = forwardRef(({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setShowRadar(!showRadar); }}
                     onTouchEnd={e => e.stopPropagation()}
-                    className={`absolute top-4 right-4 z-50 flex min-h-11 items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all lg:right-14 ${
+                    className={`absolute right-4 top-4 z-50 flex min-h-11 items-center gap-2 rounded-full px-4 text-[14px] font-semibold tracking-[-0.01em] shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 transition-colors lg:right-14 ${
                         showRadar
-                            ? 'bg-blue-600/95 text-white border-2 border-blue-400'
-                            : 'bg-white/95 text-gray-800 border border-gray-200/80 hover:bg-gray-50'
+                            ? 'bg-blue-600/90 text-white ring-1 ring-inset ring-white/30'
+                            : 'bg-white/72 text-slate-800 ring-1 ring-inset ring-slate-900/10 active:bg-white/90'
                     }`}
-                    style={{ touchAction: 'auto' }}
+                    style={{ touchAction: 'auto', WebkitTapHighlightColor: 'transparent' }}
                     aria-label={showRadar ? 'Hide rain radar' : 'Show rain radar'}
                     aria-pressed={showRadar}
                     title={showRadar ? 'Hide live rain radar' : 'Show live rain radar'}
                 >
-                    <span>🌧️</span>
+                    {showRadar ? (
+                        <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/80" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                        </span>
+                    ) : (
+                        <span aria-hidden="true">🌧️</span>
+                    )}
                     <span>{showRadar ? 'Radar Active' : 'Live Radar'}</span>
                 </button>
             )}
@@ -1224,95 +1241,58 @@ const VenueMap = forwardRef(({
             {/* FAB stack */}
             {mapLoaded && !mapError && (
                 <div
-                    className="absolute top-20 right-4 z-20 flex flex-col gap-2"
+                    className="absolute right-4 top-20 z-20 flex flex-col items-end gap-3"
                     style={{
                         touchAction:     'auto',
                         pointerEvents:   'auto',
                     }}
                     onTouchEnd={e => e.stopPropagation()}
                 >
-
-                    {/* Comfort Heatmap FAB */}
-                    <button
-                        onClick={() => setComfortMapOn(prev => !prev)}
-                        onTouchEnd={e => { e.stopPropagation(); }}
-                        title={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
-                        style={{
-                            width:               44,
-                            height:              44,
-                            borderRadius:        '50%',
-                            border:              comfortMapOn ? '2px solid #D97706' : '2px solid rgba(255,255,255,0.3)',
-                            background:          comfortMapOn ? 'rgba(217,119,6,0.9)' : 'rgba(15,15,30,0.85)',
-                            backdropFilter:      'blur(8px)',
-                            WebkitBackdropFilter:'blur(8px)',
-                            color:               '#fff',
-                            fontSize:            20,
-                            cursor:              'pointer',
-                            display:             'flex',
-                            alignItems:          'center',
-                            justifyContent:      'center',
-                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
-                            transition:          'background 200ms ease, border-color 200ms ease',
-                            WebkitTapHighlightColor: 'transparent',
-                            touchAction:         'auto',
-                        }}
-                        aria-label={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
-                        aria-pressed={comfortMapOn}
-                    >
-                        🔥
-                    </button>
-
-                    {/* Cloud Cover FAB */}
-                    {WEATHER_API_KEY && (
+                    <div className={CONTROL_GROUP}>
+                        {/* Comfort Heatmap FAB */}
                         <button
-                            onClick={() => setCloudOn(prev => !prev)}
+                            type="button"
+                            onClick={() => setComfortMapOn(prev => !prev)}
                             onTouchEnd={e => { e.stopPropagation(); }}
-                            title={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
-                            style={{
-                                width:               44,
-                                height:              44,
-                                borderRadius:        '50%',
-                                border:              cloudOn ? '2px solid #9CA3AF' : '2px solid rgba(255,255,255,0.3)',
-                                background:          cloudOn ? 'rgba(156,163,175,0.9)' : 'rgba(15,15,30,0.85)',
-                                backdropFilter:      'blur(8px)',
-                                WebkitBackdropFilter:'blur(8px)',
-                                color:               '#fff',
-                                fontSize:            20,
-                                cursor:              'pointer',
-                                display:             'flex',
-                                alignItems:          'center',
-                                justifyContent:      'center',
-                                boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
-                                transition:          'background 200ms ease, border-color 200ms ease',
-                                WebkitTapHighlightColor: 'transparent',
-                                touchAction:         'auto',
-                            }}
-                            aria-label={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
-                            aria-pressed={cloudOn}
+                            title={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
+                            className={`${CONTROL_BUTTON} ${
+                                comfortMapOn
+                                    ? 'bg-amber-500/90 text-white active:bg-amber-500'
+                                    : CONTROL_BUTTON_IDLE
+                            }`}
+                            style={CONTROL_TOUCH_STYLE}
+                            aria-label={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
+                            aria-pressed={comfortMapOn}
                         >
-                            ☁️
+                            🔥
                         </button>
-                    )}
+
+                        {/* Cloud Cover FAB */}
+                        {WEATHER_API_KEY && (
+                            <button
+                                type="button"
+                                onClick={() => setCloudOn(prev => !prev)}
+                                onTouchEnd={e => { e.stopPropagation(); }}
+                                title={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
+                                className={`${CONTROL_BUTTON} ${
+                                    cloudOn
+                                        ? 'bg-slate-500/90 text-white active:bg-slate-500'
+                                        : CONTROL_BUTTON_IDLE
+                                }`}
+                                style={CONTROL_TOUCH_STYLE}
+                                aria-label={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
+                                aria-pressed={cloudOn}
+                            >
+                                ☁️
+                            </button>
+                        )}
+                    </div>
 
                     {/* Cozy weather indicator — shows when cozyWeatherActive */}
                     {cozyWeatherActive && (
                         <div
                             title="Cozy weather conditions active"
-                            style={{
-                                width:               44,
-                                height:              44,
-                                borderRadius:        '50%',
-                                border:              '2px solid #F59E0B',
-                                background:          'rgba(251,191,36,0.15)',
-                                backdropFilter:      'blur(8px)',
-                                WebkitBackdropFilter:'blur(8px)',
-                                display:             'flex',
-                                alignItems:          'center',
-                                justifyContent:      'center',
-                                fontSize:            20,
-                                boxShadow:           '0 2px 10px rgba(0,0,0,0.3)',
-                                pointerEvents:       'none',
-                            }}
+                            className="pointer-events-none flex h-11 w-11 items-center justify-center rounded-full border border-amber-500/40 bg-amber-300/25 text-[19px] leading-none shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150"
                             aria-label="Cozy weather active"
                         >
                             🧥
