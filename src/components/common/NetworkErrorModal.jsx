@@ -124,6 +124,9 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
         const reachable = await probeConnection();
         setChecking(false);
         if (!reachable) {
+            // Ignore a probe that failed after the link already came back on its
+            // own, so the modal never closes behind a "still no signal" message.
+            if (isBrowserOnline()) return;
             setRetryFailed(true);
             return;
         }
