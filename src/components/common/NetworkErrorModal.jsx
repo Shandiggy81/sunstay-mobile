@@ -12,6 +12,18 @@ const PROBE_TIMEOUT_MS = 6000;
 
 const isBrowserOnline = () => (typeof navigator === 'undefined' ? true : navigator.onLine !== false);
 
+// The modal only ever renders once the network is already gone, so Brucey has
+// to be in the browser's cache before that happens. Warm him on idle, once per
+// session, and keep the element alive so the decoded bitmap stays resident.
+let mascotWarmer = null;
+const warmMascot = () => {
+    if (mascotWarmer || typeof Image === 'undefined') return;
+    mascotWarmer = new Image();
+    mascotWarmer.fetchPriority = 'low';
+    mascotWarmer.decoding = 'async';
+    mascotWarmer.src = MASCOT_SRC;
+};
+
 const probeConnection = async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
@@ -41,11 +53,22 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
     const [offline, setOffline] = useState(() => !isBrowserOnline());
     const [checking, setChecking] = useState(false);
     const [retryFailed, setRetryFailed] = useState(false);
+    const [mascotUnavailable, setMascotUnavailable] = useState(false);
     const prefersReducedMotion = useReducedMotion();
     const retryButtonRef = useRef(null);
     const lastFocusedRef = useRef(null);
 
     const isOpen = offline || forceVisible;
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+        if (typeof window.requestIdleCallback !== 'function') {
+            const timer = setTimeout(warmMascot, 1200);
+            return () => clearTimeout(timer);
+        }
+        const handle = window.requestIdleCallback(warmMascot, { timeout: 4000 });
+        return () => window.cancelIdleCallback?.(handle);
+    }, []);
 
     useEffect(() => {
         const handleOnline = () => {
@@ -70,7 +93,9 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
     useEffect(() => {
         if (!isOpen) return undefined;
         lastFocusedRef.current = document.activeElement;
-        const focusTimer = setTimeout(() => retryButtonRef.current?.focus(), 0);
+        // preventScroll matters on short viewports: the overlay scrolls, and
+        // focusing the button would otherwise scroll Brucey off the top.
+        const focusTimer = setTimeout(() => retryButtonRef.current?.focus({ preventScroll: true }), 0);
         return () => {
             clearTimeout(focusTimer);
             const previous = lastFocusedRef.current;
@@ -117,9 +142,10 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
                     transition={{ duration: 0.25 }}
                     className="fixed inset-0 z-[100000] flex justify-center overflow-y-auto overscroll-contain"
                     style={{
-                        // Leave headroom for Brucey's overhang, and stay clear of
-                        // notches, dynamic islands and home indicators.
-                        paddingTop: 'max(6rem, calc(env(safe-area-inset-top, 0px) + 1.5rem))',
+                        // 7rem clears Brucey's 6rem overhang with room to spare,
+                        // and every side stays clear of notches, dynamic islands
+                        // and home indicators.
+                        paddingTop: 'max(7rem, calc(env(safe-area-inset-top, 0px) + 1.5rem))',
                         paddingBottom: 'max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))',
                         paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
                         paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
@@ -141,16 +167,25 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
                         {/* Brucey is anchored above the card edge so his ears and
                             muzzle break the silhouette instead of sitting inside it. */}
                         <div className="pointer-events-none absolute -top-24 left-1/2 z-10 -translate-x-1/2">
-                            <motion.img
-                                src={MASCOT_SRC}
-                                alt="Brucey the Sunstay mascot, waiting for the connection to come back"
-                                width={440}
-                                height={881}
-                                draggable={false}
-                                animate={prefersReducedMotion ? undefined : { y: [0, -6, 0] }}
-                                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                                className="h-40 w-auto select-none drop-shadow-[0_18px_28px_rgba(15,23,42,0.45)] sm:h-52 [@media(max-height:560px)]:h-32"
-                            />
+                            {mascotUnavailable ? (
+                                // Cache miss: fall back to a glyph rather than a
+                                // broken image dragging the card's layout around.
+                                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-slate-800 text-white shadow-[0_18px_28px_rgba(15,23,42,0.45)] ring-4 ring-white">
+                                    <WifiOff size={34} strokeWidth={2.25} aria-hidden="true" />
+                                </div>
+                            ) : (
+                                <motion.img
+                                    src={MASCOT_SRC}
+                                    alt="Brucey the Sunstay mascot"
+                                    width={440}
+                                    height={881}
+                                    draggable={false}
+                                    onError={() => setMascotUnavailable(true)}
+                                    animate={prefersReducedMotion ? undefined : { y: [0, -6, 0] }}
+                                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                                    className="h-40 w-auto select-none drop-shadow-[0_18px_28px_rgba(15,23,42,0.45)] sm:h-52 [@media(max-height:560px)]:h-32"
+                                />
+                            )}
                         </div>
 
                         <div className="relative overflow-hidden rounded-3xl bg-white px-6 pb-7 pt-24 text-center shadow-[0_32px_80px_-24px_rgba(15,23,42,0.65)] ring-1 ring-slate-900/5 sm:px-7 sm:pt-32 [@media(max-height:560px)]:pt-20">
