@@ -9,3 +9,11 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Mascots are only needed the moment the network is already gone, so they must
+# come from the browser's cache instead of a revalidation request that cannot
+# complete. Netlify's default `max-age=0, must-revalidate` breaks that.
+[[headers]]
+  for = "/assets/mascots/*"
+[headers.values]
+  Cache-Control = "public, max-age=604800"

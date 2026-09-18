@@ -28,6 +28,7 @@ import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
 import MapErrorBoundary from './components/MapErrorBoundary';
+import NetworkErrorModal from './components/common/NetworkErrorModal';
 
 const FilterSheet = lazy(() => import('./components/FilterSheet'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
@@ -1120,6 +1121,9 @@ const App = () => (
                 <AppContent />
             </MicroclimateProvider>
         </WeatherProvider>
+        {/* Outside the providers: the offline boundary watches the connection
+            itself and must not depend on weather or microclimate state. */}
+        <NetworkErrorModal />
     </ErrorBoundary>
 );
 
