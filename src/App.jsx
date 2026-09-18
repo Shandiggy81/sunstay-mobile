@@ -818,9 +818,11 @@ const AppContent = () => {
                             </MapErrorBoundary>
                         </div>
 
-                        {/* Zero-Results Filter Overlay */}
+                        {/* Zero-Results Filter Overlay — desktop only: on mobile the
+                            bottom sheet already carries the card, and the map area
+                            behind it is too occluded to centre a second copy in. */}
                         <AnimatePresence>
-                            {filteredVenues.length === 0 && (
+                            {!isMobile && filteredVenues.length === 0 && (
                                 <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
@@ -959,7 +961,7 @@ const AppContent = () => {
                                 }}
                                 initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                className="ss-mobile-sheet"
+                                className={`ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''}`}
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />

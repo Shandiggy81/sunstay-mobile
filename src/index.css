@@ -3692,6 +3692,13 @@ body,
   flex-direction: column;
 }
 
+/* The zero-results card reserves 6rem of headroom for the mascots' overhang,
+   which does not fit the default sheet height. Give it back to the list so the
+   Clear Filters button stays above the fold. */
+.ss-mobile-sheet--empty {
+  height: 78dvh;
+}
+
 .ss-mobile-sheet-head {
   padding: 24px 16px 12px;
   position: relative;

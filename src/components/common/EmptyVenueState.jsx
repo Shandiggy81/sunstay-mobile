@@ -6,9 +6,12 @@ const MASCOT_SRC = '/assets/mascots/empty-state.png';
 
 // Sally and Rayray are cropped at the shoulders, so the artwork is painted
 // *behind* the card: their heads clear the top edge while the crop line stays
-// hidden underneath it. The image is 663×289, so `w-64` renders 112px tall and
-// `-top-24` (96px) leaves 16px tucked behind the card. Do not size it below
-// `w-64` or the crop line rises above the edge.
+// hidden underneath it. The image is 663×289, so `w-72` renders 125px tall and
+// `-top-24` (96px) leaves 29px tucked behind the card — enough to absorb the
+// idle float. Preflight's `img { max-width: 100% }` caps it to the card on
+// narrow phones, and even the tightest card (264px in the sheet on a 320px
+// viewport) still hides 19px. Do not swap the width for a smaller percentage: a
+// narrower render is a shorter one, which lifts the crop line back into view.
 const MASCOT_OVERHANG = '7rem';
 
 /**
@@ -53,7 +56,11 @@ const EmptyVenueState = ({ onClearFilters, announce = false, className = '' }) =
                 className="relative my-auto w-full max-w-sm"
             >
                 {!mascotUnavailable && (
-                    <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2">
+                    // Spans the card rather than using `left-1/2`: an auto-width
+                    // absolute box only gets the space to the right of its offset,
+                    // and Tailwind's `img { max-width: 100% }` would shrink the
+                    // artwork to fit it.
+                    <div className="pointer-events-none absolute -top-24 left-0 right-0 flex justify-center">
                         <motion.img
                             src={MASCOT_SRC}
                             alt="Sally and Rayray, the SunStay mascots, raising a toast"
@@ -64,7 +71,7 @@ const EmptyVenueState = ({ onClearFilters, announce = false, className = '' }) =
                             onError={() => setMascotUnavailable(true)}
                             animate={prefersReducedMotion ? undefined : { y: [0, -5, 0] }}
                             transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-                            className="w-64 select-none drop-shadow-[0_16px_24px_rgba(15,23,42,0.28)] sm:w-72"
+                            className="w-72 select-none drop-shadow-[0_16px_24px_rgba(15,23,42,0.28)]"
                         />
                     </div>
                 )}
@@ -97,10 +104,6 @@ const EmptyVenueState = ({ onClearFilters, announce = false, className = '' }) =
                         <RotateCcw size={16} strokeWidth={2.75} aria-hidden="true" />
                         CLEAR FILTERS
                     </button>
-
-                    <p className="mt-3 text-[12px] font-semibold text-slate-400">
-                        Clearing brings every Melbourne spot back.
-                    </p>
                 </div>
             </motion.div>
         </div>
