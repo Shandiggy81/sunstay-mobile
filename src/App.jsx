@@ -29,6 +29,7 @@ import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
 import MapErrorBoundary from './components/MapErrorBoundary';
 import NetworkErrorModal from './components/common/NetworkErrorModal';
+import EmptyVenueState from './components/common/EmptyVenueState';
 
 const FilterSheet = lazy(() => import('./components/FilterSheet'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
@@ -289,31 +290,6 @@ const LiveVenueList = memo(function LiveVenueList({
     );
 });
 LiveVenueList.displayName = 'LiveVenueList';
-
-const FilterEmptyState = ({ onClear }) => (
-    <div className="ss-venue-list-empty flex min-h-[240px] flex-col items-center justify-center px-6 py-8 text-center">
-        <img
-            src="/sunny-mascot.jpg"
-            alt=""
-            className="ss-venue-list-empty-mascot mb-4 h-20 w-20 rounded-[20px] object-cover shadow-md"
-        />
-        <p className="mb-1.5 text-base font-black tracking-tight text-slate-900">
-            No venues match your search
-        </p>
-        <p className="ss-venue-list-empty-sub mb-5 max-w-[240px] text-xs leading-relaxed text-slate-500">
-            Try a different name or suburb, or clear filters to see Melbourne spots again.
-        </p>
-        <button
-            type="button"
-            onClick={onClear}
-            className="flex min-h-[48px] cursor-pointer items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-sm font-black text-slate-950 shadow-md shadow-amber-500/25 transition-all hover:bg-amber-400 active:scale-95 touch-manipulation"
-            aria-label="Clear Filters"
-        >
-            <span aria-hidden="true">✨</span>
-            <span>Clear Filters</span>
-        </button>
-    </div>
-);
 
 const VenueSearchInput = memo(({ id, value, onChange }) => (
     <div className="ss-search-wrap">
@@ -814,7 +790,7 @@ const AppContent = () => {
                                 onVenueSelect={handleVenueSelect}
                                 weather={weather}
                                 empty={filteredVenues.length === 0 ? (
-                                    <FilterEmptyState onClear={handleClearFilters} />
+                                    <EmptyVenueState announce onClearFilters={handleClearFilters} />
                                 ) : null}
                             />
                         ) : null}
@@ -849,17 +825,14 @@ const AppContent = () => {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
-                                    className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-sm pointer-events-none"
+                                    className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/30 backdrop-blur-sm pointer-events-none"
                                 >
-                                    <motion.div
-                                        initial={{ scale: 0.92, y: 12, opacity: 0 }}
-                                        animate={{ scale: 1, y: 0, opacity: 1 }}
-                                        exit={{ scale: 0.92, y: 12, opacity: 0 }}
-                                        transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-                                        className="pointer-events-auto max-w-sm w-full rounded-3xl border border-white/60 bg-white/95 shadow-2xl backdrop-blur-md"
-                                    >
-                                        <FilterEmptyState onClear={handleClearFilters} />
-                                    </motion.div>
+                                    {/* The card and its spring live in EmptyVenueState;
+                                        the sidebar copy is the one that announces. */}
+                                    <EmptyVenueState
+                                        onClearFilters={handleClearFilters}
+                                        className="pointer-events-auto"
+                                    />
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -1044,7 +1017,7 @@ const AppContent = () => {
                                     onVenueSelect={handleVenueSelect}
                                     weather={weather}
                                     empty={filteredVenues.length === 0 ? (
-                                        <FilterEmptyState onClear={handleClearFilters} />
+                                        <EmptyVenueState announce onClearFilters={handleClearFilters} />
                                     ) : null}
                                 />
                             </motion.div>
