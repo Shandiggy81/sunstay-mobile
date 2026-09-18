@@ -317,3 +317,114 @@ export function markerScoreFromMicroclimate(reading) {
     if (sun == null) return null;
     return Math.round(clamp01(sun) * 100);
 }
+
+/**
+ * Resolve a `venues_in_bbox` row whether the caller keyed the id as a string
+ * or a number. Map markers already try both; the venue sheet must too.
+ *
+ * @param {Record<string, object>|null|undefined} byId
+ * @param {string|number|null|undefined} venueId
+ * @returns {object|null}
+ */
+export function lookupMicroclimateEntry(byId, venueId) {
+    if (venueId == null || !byId) return null;
+    return byId[venueId] ?? byId[String(venueId)] ?? null;
+}
+
+/**
+ * Format a sun-hour count for the sheet. Numeric zero must render as `0h`,
+ * never `Oh` — `hours || 'O'` (letter O as a "zero" fallback) is the trap
+ * that produced "Oh Sun Today".
+ *
+ * @param {number|null|undefined} hours
+ * @param {{ digits?: number }} [options]
+ * @returns {string}
+ */
+export function formatSunHours(hours, { digits } = {}) {
+    const n = asFiniteNumber(hours);
+    if (n == null) return '—';
+    const text = Number.isFinite(digits) && digits >= 0
+        ? n.toFixed(digits)
+        : String(Math.round(n));
+    return `${text}h`;
+}
+
+const PEAK_SLOT_THRESHOLD = 0.5;
+
+function hourClockLabel(hour) {
+    const rounded = Math.round(hour);
+    if (rounded === 0 || rounded === 24) return '12am';
+    if (rounded < 12) return `${rounded}am`;
+    if (rounded === 12) return '12pm';
+    return `${rounded - 12}pm`;
+}
+
+/**
+ * Daily totals from a 24-slot `sun_hour_fraction` curve.
+ *
+ * Formula: each slot is the fraction (0–1) of that Melbourne-local hour
+ * with sun, so the sum of slots ≈ hours of direct sun. The peak window is
+ * the longest contiguous run of slots at or above 0.5 (at least half the
+ * hour in sun), labelled with the start hour and the first hour after the
+ * run (end-exclusive).
+ *
+ * @param {unknown} curve
+ * @returns {{
+ *   totalHours: number|null,
+ *   peakWindow: string|null,
+ *   peakStartHour: number|null,
+ *   peakEndHour: number|null,
+ * }}
+ */
+export function sunCurveTotals(curve) {
+    const empty = {
+        totalHours: null,
+        peakWindow: null,
+        peakStartHour: null,
+        peakEndHour: null,
+    };
+    if (!Array.isArray(curve) || curve.length !== SUN_CURVE_SLOTS) return empty;
+
+    let sum = 0;
+    let bestStart = -1;
+    let bestLen = 0;
+    let curStart = -1;
+    let curLen = 0;
+
+    for (let i = 0; i < SUN_CURVE_SLOTS; i += 1) {
+        const slot = asFiniteNumber(curve[i]);
+        if (slot != null) sum += clamp01(slot);
+
+        const high = slot != null && clamp01(slot) >= PEAK_SLOT_THRESHOLD;
+        if (high) {
+            if (curStart < 0) curStart = i;
+            curLen += 1;
+            if (curLen > bestLen) {
+                bestLen = curLen;
+                bestStart = curStart;
+            }
+        } else {
+            curStart = -1;
+            curLen = 0;
+        }
+    }
+
+    const totalHours = Math.round(sum * 10) / 10;
+    if (bestLen <= 0) {
+        return {
+            totalHours,
+            peakWindow: null,
+            peakStartHour: null,
+            peakEndHour: null,
+        };
+    }
+
+    const peakStartHour = bestStart;
+    const peakEndHour = bestStart + bestLen;
+    return {
+        totalHours,
+        peakWindow: `${hourClockLabel(peakStartHour)} – ${hourClockLabel(peakEndHour)}`,
+        peakStartHour,
+        peakEndHour,
+    };
+}

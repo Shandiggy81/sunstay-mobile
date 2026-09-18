@@ -14,6 +14,7 @@ import {
     readMicroclimate,
     pinStateFromMicroclimate,
     markerScoreFromMicroclimate,
+    lookupMicroclimateEntry,
 } from '../../utils/microclimate';
 import {
     TOD_DAY_START_MIN as DAY_START_MIN,
@@ -75,8 +76,7 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
 }
 
 function readingForVenue(microById, venueId, todMinutes) {
-    if (venueId == null || !microById) return null;
-    const entry = microById[venueId] ?? microById[String(venueId)];
+    const entry = lookupMicroclimateEntry(microById, venueId);
     if (!entry) return null;
     return readMicroclimate(entry, todMinutes);
 }

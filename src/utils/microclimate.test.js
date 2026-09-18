@@ -16,6 +16,9 @@ import {
     readMicroclimate,
     pinStateFromMicroclimate,
     markerScoreFromMicroclimate,
+    formatSunHours,
+    sunCurveTotals,
+    lookupMicroclimateEntry,
 } from './microclimate.js';
 
 // 24 slots indexed by Australia/Melbourne wall-clock hour. Dawn at 06:00,
@@ -348,5 +351,70 @@ describe('markerScoreFromMicroclimate', () => {
         assert.equal(markerScoreFromMicroclimate(readMicroclimate(entry(), 12 * 60, AEST_DAY)), 100);
         assert.equal(markerScoreFromMicroclimate(readMicroclimate(entry(), 14 * 60, AEST_DAY)), 70);
         assert.equal(markerScoreFromMicroclimate(readMicroclimate(null, 12 * 60, AEST_DAY)), null);
+    });
+
+    it('keeps a zero reading as 0 rather than falling through as missing', () => {
+        assert.equal(markerScoreFromMicroclimate(readMicroclimate(entry(), 18 * 60, AEST_DAY)), 0);
+    });
+});
+
+describe('formatSunHours', () => {
+    it('formats numeric zero as 0h, never Oh', () => {
+        assert.equal(formatSunHours(0), '0h');
+        assert.equal(formatSunHours(0.0), '0h');
+        assert.equal(formatSunHours(-0), '0h');
+        assert.notEqual(formatSunHours(0), 'Oh');
+        assert.equal(formatSunHours(0).startsWith('O'), false);
+    });
+
+    it('formats whole and fractional hours without a falsy fallback', () => {
+        assert.equal(formatSunHours(6), '6h');
+        assert.equal(formatSunHours(6.0, { digits: 1 }), '6.0h');
+        assert.equal(formatSunHours(7.2, { digits: 1 }), '7.2h');
+        assert.equal(formatSunHours(0, { digits: 1 }), '0.0h');
+    });
+
+    it('renders a dash when the value is missing rather than inventing a letter', () => {
+        assert.equal(formatSunHours(null), '—');
+        assert.equal(formatSunHours(undefined), '—');
+        assert.equal(formatSunHours(Number.NaN), '—');
+    });
+});
+
+describe('sunCurveTotals', () => {
+    it('sums sun_hour_fraction slots as hours of sun and finds the peak window', () => {
+        const totals = sunCurveTotals(LOCAL_CURVE);
+        // Each of 24 slots is the fraction of that Melbourne-local hour in sun.
+        // LOCAL_CURVE: 0.1+0.4+0.8+1+1+1+1+0.9+0.7+0.3 = 7.2h.
+        assert.equal(totals.totalHours, 7.2);
+        // Slots ≥ 0.5 run 08:00–15:00 (end exclusive of the first low slot).
+        assert.equal(totals.peakWindow, '8am – 3pm');
+        assert.equal(totals.peakStartHour, 8);
+        assert.equal(totals.peakEndHour, 15);
+    });
+
+    it('reports 0 hours and no peak for an all-shade curve', () => {
+        const totals = sunCurveTotals(Array(24).fill(0));
+        assert.equal(totals.totalHours, 0);
+        assert.equal(totals.peakWindow, null);
+        assert.equal(formatSunHours(totals.totalHours), '0h');
+        assert.notEqual(formatSunHours(totals.totalHours), 'Oh');
+    });
+
+    it('returns null totals when the curve is missing or the wrong length', () => {
+        assert.equal(sunCurveTotals(null).totalHours, null);
+        assert.equal(sunCurveTotals(undefined).peakWindow, null);
+        assert.equal(sunCurveTotals([1, 0, 1]).totalHours, null);
+        assert.equal(sunCurveTotals('not-an-array').totalHours, null);
+    });
+});
+
+describe('lookupMicroclimateEntry', () => {
+    it('resolves a venue id whether the map keyed it as a string or a number', () => {
+        const byId = { '42': entry({ id: '42' }) };
+        assert.equal(lookupMicroclimateEntry(byId, 42)?.id, '42');
+        assert.equal(lookupMicroclimateEntry(byId, '42')?.id, '42');
+        assert.equal(lookupMicroclimateEntry(byId, 'missing'), null);
+        assert.equal(lookupMicroclimateEntry(null, 42), null);
     });
 });

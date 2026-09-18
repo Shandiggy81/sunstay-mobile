@@ -1,7 +1,7 @@
 import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions } from './context/MicroclimateContext';
-import { boundsOfVenues } from './utils/microclimate';
+import { boundsOfVenues, markerScoreFromMicroclimate } from './utils/microclimate';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
 import VenueCard from './components/VenueCard';
@@ -156,13 +156,16 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calcula
         : null;
     const comfort = feelsLike != null ? getComfortZone(feelsLike) : null;
 
-    // Per-venue Sunstay Score — the same weather-adjusted score used in the
-    // detail sheet's hero badge, surfaced here so the best-matched venues are
-    // identifiable at a glance without opening each card.
+    // Per-venue Sunstay Score — same RPC microclimate score as the map pin
+    // and the detail sheet, so scrubbing TOD cannot show 84 on the card and
+    // 4 on the marker. Weather-adjusted calculateSunstayScore is the fallback
+    // for venues with no profile row.
     const sunstayScore = useMemo(() => {
+        const profileScore = markerScoreFromMicroclimate(micro);
+        if (profileScore != null) return profileScore;
         const raw = typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null;
         return Number.isFinite(raw) ? Math.round(raw) : null;
-    }, [calculateSunstayScore, venue]);
+    }, [micro, calculateSunstayScore, venue]);
     const scoreVisual = useMemo(
         () => (sunstayScore != null ? getSunstayScoreVisual(sunstayScore) : null),
         [sunstayScore]

@@ -17,8 +17,16 @@ import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
 import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
-import { useVenueMicroclimate, useMicroclimateState } from '../context/MicroclimateContext';
-import { formatReadingTime } from '../utils/microclimate';
+import { useMicroclimateState } from '../context/MicroclimateContext';
+import {
+  formatReadingTime,
+  formatSunHours,
+  localHourForMinutes,
+  lookupMicroclimateEntry,
+  melbourneHourNow,
+  readMicroclimate,
+  sunCurveTotals,
+} from '../utils/microclimate';
 import { seedVenues } from '../data/seedVenues.js';
 import { getVenueSunStatus, checkIfShaded, getSunWindow } from '../utils/solarMath.js';
 import { calculateHourlyExposure } from '../utils/solarCalculator.js';
@@ -200,13 +208,20 @@ const ShieldBar = ({ label, value, color, delay = 0 }) => (
   </div>
 );
 
-const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, minutesUntilRain, cloudcover }) => {
+const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction, isRainStartingSoon, minutesUntilRain, cloudcover }) => {
   if (!balconyData) return null;
-  const sunHoursNum = outdoorSun?.balcony ?? balconyData?.hours ?? 0;
+  // Prefer the RPC curve total so 0 hours still render as "0h", not a falsy
+  // letter fallback ("Oh Sun Today") or a hashed seed value.
+  const sunHoursNum = Number.isFinite(curveHours)
+    ? curveHours
+    : (outdoorSun?.balcony ?? balconyData?.hours ?? 0);
   const cloudPct = Array.isArray(cloudcover)
     ? cloudcover[new Date().getHours()] ?? cloudcover[0] ?? 0
     : typeof cloudcover === 'number' ? cloudcover : 0;
-  const isSunNow = sunHoursNum > 0 && cloudPct < 70;
+  // "Sun now" follows the slider's current slot, not the daily total (which
+  // stays > 0 after sunset and used to keep the badge on at 8 PM).
+  const isLitNow = Number.isFinite(sunFraction) ? sunFraction > 0 : sunHoursNum > 0;
+  const isSunNow = isLitNow && cloudPct < 70;
   const rainSoon = isRainStartingSoon && minutesUntilRain >= 0 && minutesUntilRain <= 60;
   const cloudSoon = cloudPct >= 50 && cloudPct < 80;
   return (
@@ -223,9 +238,9 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
           </motion.span>
           <div className="min-w-0">
             <span className={`block ${isSunNow ? 'text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700' : MICRO_LABEL}`}>
-              {balconyData.type === 'pool' ? 'Pool & Outdoor Area' : 'Balcony'}
+              {balconyData.type === 'pool' ? 'Pool & Outdoor Area' : balconyData.type === 'outdoor' ? 'Daily sun' : 'Balcony'}
             </span>
-            <span className="block text-[17px] font-bold leading-snug tracking-[-0.01em] text-slate-900 tabular-nums">{sunHoursNum}h Sun Today</span>
+            <span className="block text-[17px] font-bold leading-snug tracking-[-0.01em] text-slate-900 tabular-nums">{formatSunHours(sunHoursNum)} Sun Today</span>
           </div>
         </div>
         {isSunNow && (
@@ -446,7 +461,7 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
             {`☀️ Golden window starts in ${bestWindow.startsInHours}h`}
           </motion.span>
         )}
-        {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && (
+        {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && pct >= 75 && (
           <motion.span
             className="text-[13px] font-semibold leading-snug"
             style={{ color: '#065F46' }}
@@ -734,11 +749,24 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   }, [venue]);
 
   // Server-side microclimate for this venue, read at the time-of-day slider's
-  // position. Empty until the viewport fetch lands, and empty for venues with
-  // no profile row, in which case the panel below does not render.
-  const microclimate = useVenueMicroclimate(venue?.id);
-  const { todMinutes } = useMicroclimateState();
+  // position. Same `venues_in_bbox` row + `todMinutes` the map markers use, so
+  // the sheet score cannot drift from the active pin. Empty until the viewport
+  // fetch lands, and empty for venues with no profile row.
+  const { todMinutes, byId: microById } = useMicroclimateState();
+  const microclimateEntry = useMemo(
+    () => lookupMicroclimateEntry(microById, venue?.id),
+    [microById, venue?.id],
+  );
+  const microclimate = useMemo(
+    () => readMicroclimate(microclimateEntry, todMinutes),
+    [microclimateEntry, todMinutes],
+  );
   const microclimateAtLabel = useMemo(() => formatReadingTime(todMinutes), [todMinutes]);
+  const curveTotals = useMemo(
+    () => sunCurveTotals(microclimateEntry?.sun_hour_fraction),
+    [microclimateEntry],
+  );
+  const hasCurveTotals = curveTotals.totalHours != null;
 
   const dragControls = useDragControls();
   const mouseX = useMotionValue(0);
@@ -816,6 +844,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     loading: weatherLoading,
     getSunstayScoreResult,
     venue,
+    microclimateEntry,
+    todMinutes,
   });
   const score = overviewScore.score;
   const uvIndex    = weather?.rawWeather?.uvIndex ?? venue?.weatherNow?.uvIndex ?? 3;
@@ -895,18 +925,30 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
   const sunHours = useMemo(() => {
+    if (hasCurveTotals) {
+      return {
+        outdoor: formatSunHours(curveTotals.totalHours, { digits: 1 }),
+        covered: formatSunHours(Math.max(0, curveTotals.totalHours - 2), { digits: 1 }),
+        labels: { outdoor: 'Outdoor', covered: 'Covered' },
+      };
+    }
     if (isHotelOrStay && (outdoorSun.balcony > 0 || outdoorSun.pool > 0))
       return { outdoor: `${outdoorSun.balcony}h`, covered: `${outdoorSun.pool}h`, labels: { outdoor: 'Balcony', covered: 'Pool' } };
     const sunHoursFallback = getDeterministicSunHours(venue?.id);
     return { outdoor: `${sunHoursFallback}h`, covered: `${Math.max(4, sunHoursFallback - 2)}h`, labels: { outdoor: 'Outdoor', covered: 'Covered' } };
-  }, [isHotelOrStay, outdoorSun, venue?.id]);
-  const directSunHours = Number.parseFloat(sunHours.outdoor) || 0;
-  const hasSunHours = Number.isFinite(directSunHours) && directSunHours > 0;
+  }, [hasCurveTotals, curveTotals.totalHours, isHotelOrStay, outdoorSun, venue?.id]);
+  const directSunHours = hasCurveTotals
+    ? curveTotals.totalHours
+    : (Number.parseFloat(sunHours.outdoor) || 0);
+  // Include 0h from the RPC curve so a fully shaded venue still shows "0.0h"
+  // rather than hiding the overlay or substituting a hashed 6–9h seed.
+  const hasSunHours = Number.isFinite(directSunHours) && (hasCurveTotals || directSunHours > 0);
   const peakSunWindow = useMemo(() => {
+    if (hasCurveTotals) return curveTotals.peakWindow;
     const start = formatHourLabel(sunData?.startHour);
     const end = formatHourLabel(sunData?.endHour);
     return start && end ? `${start} – ${end}` : null;
-  }, [sunData]);
+  }, [hasCurveTotals, curveTotals.peakWindow, sunData]);
 
   const weatherCondition = useMemo(() => {
     if (weather?.weather?.[0]?.main) return weather.weather[0].main.toLowerCase();
@@ -952,6 +994,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
       localSunData ||
       sunData ||
       balconyData ||
+      hasCurveTotals ||
       (isHotelOrStay && (outdoorSun?.balcony > 0 || outdoorSun?.pool > 0))
     );
     if (hasSunData) {
@@ -989,7 +1032,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     }
 
     return tabs;
-  }, [localSunData, sunData, balconyData, isHotelOrStay, outdoorSun, venue?.roomTypes, roomIntelligence, actualHappyHour, shielding, safeTags, weather]);
+  }, [localSunData, sunData, balconyData, hasCurveTotals, isHotelOrStay, outdoorSun, venue?.roomTypes, roomIntelligence, actualHappyHour, shielding, safeTags, weather]);
 
   // Safety fallback: if activeTab was pruned out for this venue, reset to first available tab
   React.useEffect(() => {
@@ -1001,7 +1044,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const verdict = useMemo(() => {
     if (weatherLoading) return { icon: '☁️', text: 'Checking conditions', color: '#94A3B8' };
     if (weatherUnavailable) return { icon: '☁️', text: 'Weather temporarily unavailable', color: '#64748B' };
-    const currentHour = new Date().getHours();
+    const currentHour = localHourForMinutes(todMinutes) ?? melbourneHourNow() ?? new Date().getHours();
     const isNight = currentHour >= 20 || currentHour < 6;
     const cloudNow = Array.isArray(cloudcover) ? (cloudcover[currentHour] ?? cloudcover[0] ?? 0) : (typeof cloudcover === 'number' ? cloudcover : 50);
     if (isNight) {
@@ -1018,7 +1061,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     if (Number.isFinite(score) && score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions', color: '#F59E0B' };
     if (Number.isFinite(score) && score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#0EA5E9' };
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
-  }, [precipProb, precipProbability, wind, score, cloudcover, weatherLoading, weatherUnavailable]);
+  }, [precipProb, precipProbability, wind, score, cloudcover, weatherLoading, weatherUnavailable, todMinutes]);
 
   const scoreLabel = useMemo(() => {
     if (overviewScore.loading) return null;
@@ -1182,7 +1225,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     {hasSunHours ? (
                       <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-slate-950/45 px-3 py-1 text-[13px] font-semibold text-white ring-1 ring-inset ring-white/25 backdrop-blur-md">
                         <span aria-hidden="true">☀️</span>
-                        <span className="tabular-nums">{directSunHours.toFixed(1)}h</span> direct sun
+                        <span className="tabular-nums">{formatSunHours(directSunHours, { digits: 1 })}</span> direct sun
                       </span>
                     ) : null}
                     {peakSunWindow ? (
@@ -1288,7 +1331,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     );
                   })()}
 
-                  {weatherLoading ? (
+                  {overviewScore.loading ? (
                     <SunstayScoreSkeleton />
                   ) : (
                     <SunstayScoreBadge
@@ -1464,10 +1507,12 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     </div>
                   )}
 
-                  {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
+                  {(balconyData || hasCurveTotals || (isHotelOrStay && outdoorSun.balcony > 0)) && (
                     <BalconySunshineBlock
-                      balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
+                      balconyData={balconyData || { hours: hasCurveTotals ? curveTotals.totalHours : outdoorSun.balcony, direction: null, views: null, type: isHotelOrStay ? 'balcony' : 'outdoor' }}
                       outdoorSun={outdoorSun}
+                      curveHours={hasCurveTotals ? curveTotals.totalHours : null}
+                      sunFraction={microclimate.sunFraction}
                       isRainStartingSoon={isRainStartingSoon}
                       minutesUntilRain={minutesUntilRain}
                       cloudcover={cloudcover}
