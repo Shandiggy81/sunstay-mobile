@@ -2,15 +2,20 @@
  * Helpers for the `venues_in_bbox` RPC payload.
  *
  * The RPC returns each venue's microclimate profile, including
- * `sun_hour_fraction`: 24 slots of 0–1 sun availability indexed by **UTC
- * hour**, slot 0 being 00:00 UTC. The time-of-day slider is Melbourne
- * wall-clock minutes, so every lookup goes through `melbourneDate` to cross
- * the timezone (and DST) boundary correctly.
+ * `sun_hour_fraction`: 24 slots of 0–1 sun availability indexed by
+ * **Australia/Melbourne wall-clock hour** (AEST/AEDT via the TZ, not UTC),
+ * slot 0 being 00:00 Melbourne. The time-of-day slider is also Melbourne
+ * wall-clock minutes, so curve lookup is `floor(minutes / 60)` with no UTC
+ * conversion.
+ *
+ * Map markers and map styling must read these cached columns
+ * (`effective_sun`, `effective_wind`, `sun_now`, `sun_hour_fraction`) rather
+ * than re-deriving sun/wind from client weather APIs when a profile exists.
  *
  * @module utils/microclimate
  */
 
-import { melbourneDate } from './sunPosition.js';
+import { MELBOURNE_TZ } from './sunPosition.js';
 
 export const SUN_CURVE_SLOTS = 24;
 
@@ -23,26 +28,47 @@ const asFiniteNumber = (value) => {
 };
 
 /**
- * Map Melbourne wall-clock minutes onto the UTC hour that indexes the curve.
+ * Map Melbourne wall-clock minutes onto the hour that indexes the curve.
+ *
+ * Slider minutes *are* Melbourne local, so this is a direct hour extraction
+ * — no UTC conversion, and DST does not shift the slot.
  *
  * @param {number} minutes - minutes past Melbourne midnight
- * @param {Date} [now] - reference date, for the Melbourne calendar day
+ * @param {Date} [_now] - unused; kept so call sites that passed a reference date stay valid
  * @returns {number|null} 0–23, or null when `minutes` is not a number
  */
-export function utcHourForMinutes(minutes, now = new Date()) {
+export function localHourForMinutes(minutes, _now = new Date()) {
     const mins = asFiniteNumber(minutes);
     if (mins == null) return null;
-    return melbourneDate(mins, now).getUTCHours();
+    const wrapped = ((Math.round(mins) % 1440) + 1440) % 1440;
+    return Math.floor(wrapped / 60);
+}
+
+/**
+ * Current Australia/Melbourne wall-clock hour (0–23), including DST.
+ *
+ * @param {Date} [now]
+ * @returns {number|null}
+ */
+export function melbourneHourNow(now = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: MELBOURNE_TZ,
+        hour: 'numeric',
+        hourCycle: 'h23',
+    }).formatToParts(now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date());
+    const hour = Number(parts.find((part) => part.type === 'hour')?.value);
+    return Number.isFinite(hour) ? hour : null;
 }
 
 /**
  * Sun availability at a given slider position.
  *
  * `effective_sun` is a live, cloud-adjusted reading for *now*, so it only
- * applies while the slider sits on the current hour. Scrub away from that and
- * the precomputed curve is the honest answer. Without a curve the only value
- * available is `sun_now`, which the RPC already resolved for a single hour, so
- * it is returned as-is rather than pretending it covers the whole day.
+ * applies while the slider sits on the current Melbourne hour. Scrub away
+ * from that and the precomputed curve is the honest answer. Without a curve
+ * the only value available is `sun_now`, which the RPC already resolved for
+ * a single hour, so it is returned as-is rather than pretending it covers
+ * the whole day.
  *
  * @param {object|null} entry - one `venues_in_bbox` row
  * @param {number|null} minutes - slider minutes, or null for "now"
@@ -55,17 +81,17 @@ export function resolveSunFraction(entry, minutes, now = new Date()) {
     const sunNow = asFiniteNumber(entry.sun_now);
     if (minutes == null) return sunNow == null ? null : clamp01(sunNow);
 
-    const hourUtc = utcHourForMinutes(minutes, now);
-    if (hourUtc == null) return sunNow == null ? null : clamp01(sunNow);
+    const hourLocal = localHourForMinutes(minutes, now);
+    if (hourLocal == null) return sunNow == null ? null : clamp01(sunNow);
 
     const effectiveSun = asFiniteNumber(entry.effective_sun);
-    if (effectiveSun != null && hourUtc === now.getUTCHours()) {
+    if (effectiveSun != null && hourLocal === melbourneHourNow(now)) {
         return clamp01(effectiveSun);
     }
 
     const curve = entry.sun_hour_fraction;
     if (Array.isArray(curve) && curve.length === SUN_CURVE_SLOTS) {
-        const slot = asFiniteNumber(curve[hourUtc]);
+        const slot = asFiniteNumber(curve[hourLocal]);
         if (slot != null) return clamp01(slot);
     }
 
@@ -239,11 +265,11 @@ export function readMicroclimate(entry, minutes, now = new Date()) {
     const sunFraction = resolveSunFraction(entry, minutes, now);
     const windExposure = resolveWindExposure(entry);
     const comfortHint = resolveComfortHint(entry);
-    const hourUtc = utcHourForMinutes(minutes, now);
+    const hourLocal = localHourForMinutes(minutes, now);
     const isLiveSun = Boolean(
         entry
         && asFiniteNumber(entry.effective_sun) != null
-        && (minutes == null || hourUtc === now.getUTCHours())
+        && (minutes == null || hourLocal === melbourneHourNow(now))
     );
 
     return {
@@ -257,4 +283,37 @@ export function readMicroclimate(entry, minutes, now = new Date()) {
         isLiveSun,
         confidence: asFiniteNumber(entry?.geometry_confidence),
     };
+}
+
+/**
+ * Mapbox pin key from cached microclimate. Returns null when the venue has
+ * no profile so callers can fall back to existing client estimates.
+ *
+ * @param {ReturnType<typeof readMicroclimate>|null} reading
+ * @returns {'sunshine'|'sunny'|'cloudy'|'windy'|'default'|null}
+ */
+export function pinStateFromMicroclimate(reading) {
+    if (!reading?.available) return null;
+    const sun = asFiniteNumber(reading.sunFraction);
+    const wind = asFiniteNumber(reading.windExposure);
+    if (sun == null && wind == null) return null;
+    if (sun != null && sun >= 0.75) return 'sunshine';
+    if (wind != null && wind >= 0.66) return 'windy';
+    if (sun != null && sun >= 0.4) return 'sunny';
+    if (sun != null && sun > 0) return 'cloudy';
+    if (sun != null) return 'default';
+    return null;
+}
+
+/**
+ * 0–100 pin badge from the cached sun fraction. Null when unknown so the
+ * map can keep its existing score fallback.
+ *
+ * @param {ReturnType<typeof readMicroclimate>|null} reading
+ * @returns {number|null}
+ */
+export function markerScoreFromMicroclimate(reading) {
+    const sun = asFiniteNumber(reading?.sunFraction);
+    if (sun == null) return null;
+    return Math.round(clamp01(sun) * 100);
 }

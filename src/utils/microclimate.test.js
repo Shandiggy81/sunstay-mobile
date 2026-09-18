@@ -2,7 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     SUN_CURVE_SLOTS,
-    utcHourForMinutes,
+    localHourForMinutes,
+    melbourneHourNow,
     resolveSunFraction,
     hasSunProfile,
     formatSunPercent,
@@ -13,13 +14,16 @@ import {
     formatReadingTime,
     boundsOfVenues,
     readMicroclimate,
+    pinStateFromMicroclimate,
+    markerScoreFromMicroclimate,
 } from './microclimate.js';
 
-// The curve the Melbourne seed writes: UTC-indexed, so the daylight run sits
-// at slots 20-23 and 0-5, which is 06:00-15:00 Melbourne.
-const SEEDED_CURVE = [
-    1, 1, 1, 0.9, 0.7, 0.3, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0.4, 0.8, 1,
+// 24 slots indexed by Australia/Melbourne wall-clock hour. Dawn at 06:00,
+// plateau 09:00-12:00, fading out by 16:00 — the same local shape the
+// Melbourne seed stores (no UTC rotation).
+const LOCAL_CURVE = [
+    0, 0, 0, 0, 0, 0, 0.1, 0.4, 0.8, 1.0, 1.0, 1.0,
+    1.0, 0.9, 0.7, 0.3, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
 const entry = (overrides = {}) => ({
@@ -29,60 +33,89 @@ const entry = (overrides = {}) => ({
     effective_wind: null,
     comfort_hint: null,
     geometry_confidence: 0.2,
-    sun_hour_fraction: SEEDED_CURVE,
+    sun_hour_fraction: LOCAL_CURVE,
     ...overrides,
 });
 
-// Mid-September is AEST, so Melbourne is UTC+10.
+// Mid-September is AEST (UTC+10). 00:00 UTC is 10:00 Melbourne.
 const AEST_DAY = new Date('2026-09-17T00:00:00Z');
+// Mid-January is AEDT (UTC+11). 01:00 UTC is 12:00 Melbourne.
+const AEDT_NOON = new Date('2026-01-15T01:00:00Z');
 
-describe('utcHourForMinutes', () => {
-    it('shifts Melbourne wall-clock minutes back by the AEST offset', () => {
-        assert.equal(utcHourForMinutes(10 * 60, AEST_DAY), 0);
-        assert.equal(utcHourForMinutes(12 * 60, AEST_DAY), 2);
-        assert.equal(utcHourForMinutes(6 * 60, AEST_DAY), 20);
+describe('localHourForMinutes', () => {
+    it('indexes the curve by Melbourne wall-clock hour, not UTC', () => {
+        assert.equal(localHourForMinutes(6 * 60), 6);
+        assert.equal(localHourForMinutes(10 * 60), 10);
+        assert.equal(localHourForMinutes(12 * 60), 12);
+        assert.equal(localHourForMinutes(14 * 60 + 30), 14);
     });
 
-    it('wraps across the UTC day boundary rather than going negative', () => {
-        assert.equal(utcHourForMinutes(9 * 60, AEST_DAY), 23);
-        assert.equal(utcHourForMinutes(8 * 60, AEST_DAY), 22);
+    it('does not shift by the AEST or AEDT UTC offset', () => {
+        // A UTC conversion of 12:00 Melbourne would land on hour 2 (AEST) or 1 (AEDT).
+        assert.equal(localHourForMinutes(12 * 60, AEST_DAY), 12);
+        assert.equal(localHourForMinutes(12 * 60, AEDT_NOON), 12);
+        assert.notEqual(localHourForMinutes(12 * 60, AEST_DAY), 2);
+        assert.notEqual(localHourForMinutes(12 * 60, AEDT_NOON), 1);
+    });
+
+    it('wraps past midnight rather than going negative or past 23', () => {
+        assert.equal(localHourForMinutes(0), 0);
+        assert.equal(localHourForMinutes(23 * 60 + 59), 23);
+        assert.equal(localHourForMinutes(24 * 60), 0);
+        assert.equal(localHourForMinutes(-60), 23);
     });
 
     it('returns null for a missing or unparseable value', () => {
-        assert.equal(utcHourForMinutes(null, AEST_DAY), null);
-        assert.equal(utcHourForMinutes(undefined, AEST_DAY), null);
-        assert.equal(utcHourForMinutes('not a time', AEST_DAY), null);
+        assert.equal(localHourForMinutes(null), null);
+        assert.equal(localHourForMinutes(undefined), null);
+        assert.equal(localHourForMinutes('not a time'), null);
+    });
+});
+
+describe('melbourneHourNow', () => {
+    it('reads the Australia/Melbourne wall-clock hour, including DST', () => {
+        assert.equal(melbourneHourNow(AEST_DAY), 10);
+        assert.equal(melbourneHourNow(AEDT_NOON), 12);
     });
 });
 
 describe('resolveSunFraction', () => {
-    it('reads the curve at the slider hour, not the current hour', () => {
-        // 09:00 Melbourne -> UTC 23 -> slot 23 -> 1
+    it('reads the curve at the Melbourne slider hour, not a UTC hour', () => {
         assert.equal(resolveSunFraction(entry(), 9 * 60, AEST_DAY), 1);
-        // 14:00 Melbourne -> UTC 4 -> slot 4 -> 0.7
+        assert.equal(resolveSunFraction(entry(), 12 * 60, AEST_DAY), 1);
         assert.equal(resolveSunFraction(entry(), 14 * 60, AEST_DAY), 0.7);
-        // 18:00 Melbourne -> UTC 8 -> slot 8 -> 0
         assert.equal(resolveSunFraction(entry(), 18 * 60, AEST_DAY), 0);
     });
 
-    it('produces a daylight shape across the whole slider range', () => {
+    it('yields a high midday Melbourne sun score on a clear-sky curve', () => {
         const atSix = resolveSunFraction(entry(), 6 * 60, AEST_DAY);
         const atNoon = resolveSunFraction(entry(), 12 * 60, AEST_DAY);
         const atEight = resolveSunFraction(entry(), 20 * 60, AEST_DAY);
         assert.ok(atSix > 0 && atSix < atNoon, 'dawn is lit but below midday');
-        assert.equal(atNoon, 1);
+        assert.ok(atNoon >= 0.9, 'midday Melbourne is high sun before clouds');
         assert.equal(atEight, 0, 'after dark');
+    });
+
+    it('keeps midday high during AEDT instead of looking up the UTC hour', () => {
+        // Slot 1 (01:00 UTC) is night on a local curve. Slot 12 is noon.
+        assert.equal(resolveSunFraction(entry(), 12 * 60, AEDT_NOON), 1);
     });
 
     it('falls back to sun_now when no minutes are supplied', () => {
         assert.equal(resolveSunFraction(entry({ sun_now: 0.42 }), null, AEST_DAY), 0.42);
     });
 
-    it('prefers the live effective_sun only on the current hour', () => {
-        // AEST_DAY is 00:00 UTC, which is 10:00 Melbourne.
+    it('prefers the live effective_sun only on the current Melbourne hour', () => {
+        // AEST_DAY is 10:00 Melbourne.
         const live = entry({ effective_sun: 0.25 });
         assert.equal(resolveSunFraction(live, 10 * 60, AEST_DAY), 0.25, 'current hour uses the live reading');
         assert.equal(resolveSunFraction(live, 14 * 60, AEST_DAY), 0.7, 'other hours use the curve');
+    });
+
+    it('compares current hour in Melbourne, not UTC, during AEDT', () => {
+        const live = entry({ effective_sun: 0.33 });
+        assert.equal(resolveSunFraction(live, 12 * 60, AEDT_NOON), 0.33);
+        assert.equal(resolveSunFraction(live, 9 * 60, AEDT_NOON), 1);
     });
 
     it('clamps values that fall outside 0-1', () => {
@@ -284,5 +317,36 @@ describe('readMicroclimate', () => {
         const read = readMicroclimate(null, 12 * 60, AEST_DAY);
         assert.equal(read.available, false);
         assert.equal(read.sunFraction, null);
+    });
+});
+
+describe('pinStateFromMicroclimate', () => {
+    it('returns null when there is no profile so markers can fall back', () => {
+        assert.equal(pinStateFromMicroclimate(readMicroclimate(null, 12 * 60, AEST_DAY)), null);
+        assert.equal(
+            pinStateFromMicroclimate(readMicroclimate({ id: 'x', sun_now: null, sun_hour_fraction: null }, 12 * 60, AEST_DAY)),
+            null,
+        );
+    });
+
+    it('maps cached sun onto Mapbox pin keys without client weather recompute', () => {
+        assert.equal(pinStateFromMicroclimate(readMicroclimate(entry(), 12 * 60, AEST_DAY)), 'sunshine');
+        assert.equal(pinStateFromMicroclimate(readMicroclimate(entry(), 14 * 60, AEST_DAY)), 'sunny');
+        assert.equal(pinStateFromMicroclimate(readMicroclimate(entry(), 15 * 60, AEST_DAY)), 'cloudy');
+        assert.equal(pinStateFromMicroclimate(readMicroclimate(entry(), 20 * 60, AEST_DAY)), 'default');
+    });
+
+    it('uses cached effective_wind for exposed pins when sun is not full', () => {
+        const windy = entry({ effective_wind: 0.8, sun_hour_fraction: LOCAL_CURVE });
+        assert.equal(pinStateFromMicroclimate(readMicroclimate(windy, 15 * 60, AEST_DAY)), 'windy');
+        assert.equal(pinStateFromMicroclimate(readMicroclimate(windy, 12 * 60, AEST_DAY)), 'sunshine');
+    });
+});
+
+describe('markerScoreFromMicroclimate', () => {
+    it('turns the cached sun fraction into a 0-100 pin badge', () => {
+        assert.equal(markerScoreFromMicroclimate(readMicroclimate(entry(), 12 * 60, AEST_DAY)), 100);
+        assert.equal(markerScoreFromMicroclimate(readMicroclimate(entry(), 14 * 60, AEST_DAY)), 70);
+        assert.equal(markerScoreFromMicroclimate(readMicroclimate(null, 12 * 60, AEST_DAY)), null);
     });
 });
