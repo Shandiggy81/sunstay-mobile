@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { useVenuesInBbox } from '../hooks/useVenuesInBbox';
-import { readMicroclimate } from '../utils/microclimate';
+import { lookupMicroclimateEntry, readMicroclimate } from '../utils/microclimate';
 
 /**
  * Viewport-scoped microclimate, fetched from the `venues_in_bbox` RPC and read
@@ -133,7 +133,7 @@ export const useVenueMicroclimate = (venueId) => {
     const { byId, todMinutes } = useMicroclimateState();
     return useMemo(() => {
         if (venueId == null) return EMPTY_READING;
-        const entry = byId[venueId];
+        const entry = lookupMicroclimateEntry(byId, venueId);
         if (!entry) return EMPTY_READING;
         return readMicroclimate(entry, todMinutes);
     }, [byId, venueId, todMinutes]);
