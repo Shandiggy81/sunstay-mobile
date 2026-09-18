@@ -10,24 +10,14 @@
 -- alone, since those are owned by apply_microclimate_weather.
 --
 -- TIME BASE
--- venues_in_bbox reads sun_hour_fraction[extract(hour from now() at utc) + 1],
--- so the stored array is indexed by UTC hour. The curve below is written in
--- Sydney local hours, then rotated into UTC. Storing the local curve directly
--- would report peak sun at 19:00-22:00 Sydney and zero sun at 08:00-12:00.
--- The offset is fixed at +10 (AEST), so values run one hour late while AEDT
--- is in effect. See the Melbourne seed for the same caveat.
+-- venues_in_bbox indexes sun_hour_fraction by Australia/Melbourne wall-clock
+-- hour. Sydney shares that offset (AEST/AEDT), so the stored array is the
+-- local 0..23 curve with no UTC rotation. Slot 1 = 00:00 local.
 -- ============================================================
 
 WITH local_curve AS (
   -- Sydney local hour 0..23.
   SELECT '{0,0,0,0,0,0,0.1,0.4,0.8,1.0,1.0,1.0,1.0,0.9,0.7,0.3,0,0,0,0,0,0,0,0}'::real[] AS a
-),
-utc_curve AS (
-  SELECT array(
-    SELECT lc.a[((h + 10) % 24) + 1]
-    FROM generate_series(0, 23) AS h
-  )::real[] AS a
-  FROM local_curve lc
 )
 INSERT INTO public.microclimate_profiles (
   venue_id, sun_score_annual, sun_hour_fraction, canyon_aspect_hw,
@@ -35,7 +25,7 @@ INSERT INTO public.microclimate_profiles (
   geometry_computed_at, updated_at
 )
 SELECT
-  id, 0.65, (SELECT a FROM utc_curve),
+  id, 0.65, (SELECT a FROM local_curve),
   -- Compass sectors N..NW; direction-indexed, so no time rotation.
   0.5, '{0.6, 0.7, 0.9, 1.0, 0.8, 0.5, 0.4, 0.4}'::real[], 0.2,
   'heuristic_sydney_seed', 'heuristic_sydney_seed', now(), now()

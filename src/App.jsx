@@ -121,6 +121,8 @@ const getWeatherBadge = (weather, venue) => {
     return { emoji: '🌤️', label: 'Fair', color: '#f59e0b' };
 };
 
+// Soft fallback only: VenueMap prefers cached RPC effective_sun / effective_wind
+// when a microclimate profile exists, and only calls this for venues without one.
 const getMarkerWeatherColor = (weather, venue) => {
     if (!weather) return 'sunny';
     const condition = (weather.weather?.[0]?.main || '').toLowerCase();
