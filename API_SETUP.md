@@ -36,7 +36,7 @@ These names were verified from `import.meta.env.VITE_*` references in `src/`.
 
 Sunny chat (`chat-sunny` Edge Function) uses only those two `VITE_SUPABASE_*` values on the client. The LLM key stays on the server:
 
-- Secret name: `GEMINI_API_KEY` (optional `GEMINI_MODEL`, default `gemini-3.6-flash`)
+- Secret name: `GEMINI_API_KEY` (alias `GOOGLE_API_KEY`; optional `GEMINI_MODEL`, default `gemini-2.5-flash` with fallbacks `gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-flash-latest`, `gemini-1.5-flash`)
 - Gemini REST: `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
 - Endpoint: `POST ${VITE_SUPABASE_URL}/functions/v1/chat-sunny`
 - Request: `{ messages: [{ role, content }], sunnyContext: { timeOfDay, activeVenue, visibleVenues } }`

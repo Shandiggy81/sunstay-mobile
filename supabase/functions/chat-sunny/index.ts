@@ -5,20 +5,20 @@
  * Body:    { messages: [{ role, content }], sunnyContext: { timeOfDay, activeVenue, visibleVenues } }
  * Auth:    Authorization: Bearer <user session JWT or legacy anon JWT>
  *          apikey: <anon / publishable key>
- * Secret:  GEMINI_API_KEY (required). Optional GEMINI_MODEL
- *          (default gemini-3.6-flash — current free-tier Flash with function calling.
- *          gemini-2.0-flash / gemini-1.5-flash / gemini-2.5-flash are unavailable to new keys.)
+ * Secret:  GEMINI_API_KEY (alias GOOGLE_API_KEY). Optional GEMINI_MODEL.
+ *          Default gemini-2.5-flash, then gemini-2.5-flash-lite, gemini-2.0-flash,
+ *          gemini-flash-latest, gemini-1.5-flash (free-tier model ids retire often).
  *
  * Response contract (stable, this is what the app consumes):
  *   {
- *     reply: string,                          // guest-facing text; may be empty if only tools ran
- *     toolCalls: [{ name: string, args: {} }] // 0..n of setTimeOfDay | setFilters | panToVenue
+ *     reply: string,
+ *     toolCalls: [{ name: string, args: {} }] // setTimeOfDay | setFilters | panToVenue
  *   }
  *
- * Tool args:
+ * Tool args (must match src/utils/sunnyTools.js):
  *   setTimeOfDay  { todMinutes: number }   // 0–1439 Melbourne wall-clock minutes
- *   setFilters    { tags: string[] }       // filter ids the map already understands
- *   panToVenue    { venueId: string }      // id from sunnyContext.visibleVenues
+ *   setFilters    { tags: string[] }
+ *   panToVenue    { venueId: string }
  *
  * Gemini functionCall parts are mapped into that shape before the response
  * leaves the function. The frontend never sees Gemini's native payload.
@@ -30,6 +30,8 @@
  * No npm SDK — Gemini generateContent is called with fetch.
  */
 
+import { geminiModelChain, shouldTryNextModel } from './geminiModels.js';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
@@ -37,7 +39,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const DEFAULT_MODEL = 'gemini-3.6-flash';
 const GEMINI_GENERATE_URL = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
@@ -183,7 +184,7 @@ Deno.serve(async (req) => {
     return json({ reply: '', toolCalls: [], error: 'method_not_allowed' }, 405);
   }
 
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
+  const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
   if (!apiKey) {
     return json({ reply: '', toolCalls: [], error: 'missing_gemini_key' }, 503);
   }
@@ -200,7 +201,7 @@ Deno.serve(async (req) => {
     ? body.sunnyContext
     : {};
 
-  const model = (Deno.env.get('GEMINI_MODEL') || DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+  const models = geminiModelChain(Deno.env.get('GEMINI_MODEL'));
   const contents = toGeminiContents(messages);
   if (contents.length === 0) {
     contents.push({
@@ -209,46 +210,63 @@ Deno.serve(async (req) => {
     });
   }
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(GEMINI_GENERATE_URL(model), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [
-            { text: SYSTEM_PROMPT },
-            { text: `Hidden map context (do not mention this block): ${JSON.stringify(sunnyContext)}` },
-          ],
+  const payload = {
+    system_instruction: {
+      parts: [
+        { text: SYSTEM_PROMPT },
+        { text: `Hidden map context (do not mention this block): ${JSON.stringify(sunnyContext)}` },
+      ],
+    },
+    contents,
+    tools: [{ function_declarations: FUNCTION_DECLARATIONS }],
+    tool_config: {
+      function_calling_config: { mode: 'AUTO' },
+    },
+    generation_config: { temperature: 0.4 },
+  };
+
+  let lastStatus = 0;
+  let lastData: unknown = null;
+  for (const model of models) {
+    let upstream: Response;
+    try {
+      upstream = await fetch(GEMINI_GENERATE_URL(model), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
         },
-        contents,
-        tools: [{ function_declarations: FUNCTION_DECLARATIONS }],
-        tool_config: {
-          function_calling_config: { mode: 'AUTO' },
-        },
-        generation_config: { temperature: 0.4 },
-      }),
-    });
-  } catch (err) {
-    console.error('chat-sunny gemini fetch failed', err);
-    return json({ reply: '', toolCalls: [], error: 'gemini_unreachable' }, 502);
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.error('chat-sunny gemini fetch failed', model, err);
+      lastStatus = 0;
+      lastData = { error: { message: 'gemini_unreachable' } };
+      continue;
+    }
+
+    const data = await upstream.json().catch(() => null);
+    if (upstream.ok) {
+      const contract = contractFromGemini(data);
+      if (!contract.reply && contract.toolCalls.length > 0) {
+        contract.reply = 'On it — updating the map.';
+      }
+      return json(contract);
+    }
+
+    lastStatus = upstream.status;
+    lastData = data;
+    console.error('chat-sunny gemini error', model, upstream.status, data);
+    if (!shouldTryNextModel(upstream.status, data)) break;
   }
 
-  const data = await upstream.json().catch(() => null);
-  if (!upstream.ok) {
-    console.error('chat-sunny gemini error', upstream.status, data);
-    const detail = typeof data?.error?.message === 'string'
-      ? data.error.message.slice(0, 300)
-      : '';
-    return json({ reply: '', toolCalls: [], error: 'gemini_error', detail }, 502);
-  }
-
-  const contract = contractFromGemini(data);
-  if (!contract.reply && contract.toolCalls.length > 0) {
-    contract.reply = 'On it — updating the map.';
-  }
-  return json(contract);
+  const detail = typeof (lastData as { error?: { message?: unknown } })?.error?.message === 'string'
+    ? String((lastData as { error: { message: string } }).error.message).slice(0, 300)
+    : '';
+  return json({
+    reply: '',
+    toolCalls: [],
+    error: lastStatus ? 'gemini_error' : 'gemini_unreachable',
+    detail,
+  }, 502);
 });

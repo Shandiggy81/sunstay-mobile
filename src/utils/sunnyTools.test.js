@@ -82,7 +82,7 @@ describe('parseChatSunnyResponse', () => {
         assert.deepEqual(parsed.toolCalls[1], { name: 'panToVenue', args: { venueId: 'dv-13' } });
     });
 
-    it('parses OpenAI-style tool_calls and stringified arguments', () => {
+    it('parses chat-completions-style tool_calls and stringified arguments', () => {
         const parsed = parseChatSunnyResponse({
             choices: [{
                 message: {

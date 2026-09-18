@@ -5,9 +5,9 @@
  *
  *   { reply: string, toolCalls: [{ name: string, args: object }] }
  *
- * OpenAI-style `{ choices: [{ message: { content, tool_calls } }] }` and
  * Gemini `{ candidates: [{ content: { parts: [{ text, functionCall }] } }] }`
- * payloads are also accepted so the frontend can consume either.
+ * payloads are also accepted so the frontend can consume a raw generateContent
+ * body if the Edge Function is bypassed.
  *
  * @module utils/sunnyTools
  */
@@ -98,11 +98,11 @@ function collectRawToolCalls(payload) {
 
     if (Array.isArray(payload.toolCalls)) return payload.toolCalls;
 
-    const openaiCalls = payload.choices?.[0]?.message?.tool_calls
+    const completionsCalls = payload.choices?.[0]?.message?.tool_calls
         ?? payload.message?.tool_calls
         ?? payload.tool_calls;
-    if (Array.isArray(openaiCalls)) {
-        return openaiCalls.map((call) => ({
+    if (Array.isArray(completionsCalls)) {
+        return completionsCalls.map((call) => ({
             name: call?.function?.name ?? call?.name,
             args: call?.function?.arguments ?? call?.args ?? call?.arguments,
         }));
@@ -135,7 +135,7 @@ function readReply(payload) {
 }
 
 /**
- * Normalize an Edge Function / OpenAI payload into the frontend contract.
+ * Normalize an Edge Function / Gemini payload into the frontend contract.
  * Never throws.
  *
  * @param {unknown} payload
@@ -242,7 +242,7 @@ export function buildSunnyContext({ timeOfDay = null, activeVenue = null, visibl
 }
 
 /**
- * Convert ChatWidget bubbles into OpenAI chat messages.
+ * Convert ChatWidget bubbles into role/content turns for chat-sunny.
  *
  * @param {Array<{ type?: string, text?: string }>} uiMessages
  */
