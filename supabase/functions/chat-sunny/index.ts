@@ -6,8 +6,8 @@
  * Auth:    Authorization: Bearer <user session JWT or legacy anon JWT>
  *          apikey: <anon / publishable key>
  * Secret:  GEMINI_API_KEY (required). Optional GEMINI_MODEL
- *          (default gemini-2.5-flash — free-tier Flash with function calling.
- *          gemini-2.0-flash / gemini-1.5-flash are shut down.)
+ *          (default gemini-3.6-flash — current free-tier Flash with function calling.
+ *          gemini-2.0-flash / gemini-1.5-flash / gemini-2.5-flash are unavailable to new keys.)
  *
  * Response contract (stable, this is what the app consumes):
  *   {
@@ -37,7 +37,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-3.6-flash';
 const GEMINI_GENERATE_URL = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
@@ -240,7 +240,10 @@ Deno.serve(async (req) => {
   const data = await upstream.json().catch(() => null);
   if (!upstream.ok) {
     console.error('chat-sunny gemini error', upstream.status, data);
-    return json({ reply: '', toolCalls: [], error: 'gemini_error' }, 502);
+    const detail = typeof data?.error?.message === 'string'
+      ? data.error.message.slice(0, 300)
+      : '';
+    return json({ reply: '', toolCalls: [], error: 'gemini_error', detail }, 502);
   }
 
   const contract = contractFromGemini(data);
