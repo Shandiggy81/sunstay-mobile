@@ -21,7 +21,9 @@ import { useMicroclimateState } from '../context/MicroclimateContext';
 import {
   formatReadingTime,
   formatSunHours,
+  localHourForMinutes,
   lookupMicroclimateEntry,
+  melbourneHourNow,
   readMicroclimate,
   sunCurveTotals,
 } from '../utils/microclimate';
@@ -206,7 +208,7 @@ const ShieldBar = ({ label, value, color, delay = 0 }) => (
   </div>
 );
 
-const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, isRainStartingSoon, minutesUntilRain, cloudcover }) => {
+const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction, isRainStartingSoon, minutesUntilRain, cloudcover }) => {
   if (!balconyData) return null;
   // Prefer the RPC curve total so 0 hours still render as "0h", not a falsy
   // letter fallback ("Oh Sun Today") or a hashed seed value.
@@ -216,7 +218,10 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, isRainStart
   const cloudPct = Array.isArray(cloudcover)
     ? cloudcover[new Date().getHours()] ?? cloudcover[0] ?? 0
     : typeof cloudcover === 'number' ? cloudcover : 0;
-  const isSunNow = sunHoursNum > 0 && cloudPct < 70;
+  // "Sun now" follows the slider's current slot, not the daily total (which
+  // stays > 0 after sunset and used to keep the badge on at 8 PM).
+  const isLitNow = Number.isFinite(sunFraction) ? sunFraction > 0 : sunHoursNum > 0;
+  const isSunNow = isLitNow && cloudPct < 70;
   const rainSoon = isRainStartingSoon && minutesUntilRain >= 0 && minutesUntilRain <= 60;
   const cloudSoon = cloudPct >= 50 && cloudPct < 80;
   return (
@@ -456,7 +461,7 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
             {`☀️ Golden window starts in ${bestWindow.startsInHours}h`}
           </motion.span>
         )}
-        {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && (
+        {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && pct >= 75 && (
           <motion.span
             className="text-[13px] font-semibold leading-snug"
             style={{ color: '#065F46' }}
@@ -1039,7 +1044,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const verdict = useMemo(() => {
     if (weatherLoading) return { icon: '☁️', text: 'Checking conditions', color: '#94A3B8' };
     if (weatherUnavailable) return { icon: '☁️', text: 'Weather temporarily unavailable', color: '#64748B' };
-    const currentHour = new Date().getHours();
+    const currentHour = localHourForMinutes(todMinutes) ?? melbourneHourNow() ?? new Date().getHours();
     const isNight = currentHour >= 20 || currentHour < 6;
     const cloudNow = Array.isArray(cloudcover) ? (cloudcover[currentHour] ?? cloudcover[0] ?? 0) : (typeof cloudcover === 'number' ? cloudcover : 50);
     if (isNight) {
@@ -1056,7 +1061,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     if (Number.isFinite(score) && score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions', color: '#F59E0B' };
     if (Number.isFinite(score) && score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#0EA5E9' };
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
-  }, [precipProb, precipProbability, wind, score, cloudcover, weatherLoading, weatherUnavailable]);
+  }, [precipProb, precipProbability, wind, score, cloudcover, weatherLoading, weatherUnavailable, todMinutes]);
 
   const scoreLabel = useMemo(() => {
     if (overviewScore.loading) return null;
@@ -1507,6 +1512,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       balconyData={balconyData || { hours: hasCurveTotals ? curveTotals.totalHours : outdoorSun.balcony, direction: null, views: null, type: isHotelOrStay ? 'balcony' : 'outdoor' }}
                       outdoorSun={outdoorSun}
                       curveHours={hasCurveTotals ? curveTotals.totalHours : null}
+                      sunFraction={microclimate.sunFraction}
                       isRainStartingSoon={isRainStartingSoon}
                       minutesUntilRain={minutesUntilRain}
                       cloudcover={cloudcover}
