@@ -4,13 +4,12 @@ import { readMicroclimate } from '../utils/microclimate';
 
 /**
  * Viewport-scoped microclimate, fetched from the `venues_in_bbox` RPC and read
- * at whatever time the time-of-day slider is sitting on.
+ * at whatever Melbourne wall-clock time the time-of-day slider is sitting on.
  *
- * State and actions are separate contexts on purpose. VenueMap is a pure
- * writer — it reports the viewport bbox and the slider position — and
- * subscribing it to the state would re-render the map, and re-run marker sync,
- * on every scrub tick. Holding the actions value stable keeps writers out of
- * the render path entirely; only the components that display a reading update.
+ * State and actions are separate contexts so the slider (a writer) does not
+ * subscribe to readings. VenueMap is both: it publishes bbox/slider and also
+ * reads `byId` so marker colour/size follow cached `effective_sun` /
+ * `effective_wind` / `sun_hour_fraction` instead of client weather estimates.
  *
  * @module context/MicroclimateContext
  */

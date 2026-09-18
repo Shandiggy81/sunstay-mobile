@@ -8,8 +8,13 @@ import SunCalc from 'suncalc';
 import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
-import { useMicroclimateActions } from '../../context/MicroclimateContext';
+import { useMicroclimateActions, useMicroclimateState } from '../../context/MicroclimateContext';
 import { melbourneDate } from '../../utils/sunPosition';
+import {
+    readMicroclimate,
+    pinStateFromMicroclimate,
+    markerScoreFromMicroclimate,
+} from '../../utils/microclimate';
 import {
     TOD_DAY_START_MIN as DAY_START_MIN,
     TOD_DAY_END_MIN as DAY_END_MIN,
@@ -31,18 +36,23 @@ const PIN_STATES = {
     cloudy:   { emoji: '☁️',  bg: '#e2e8f0', border: '#cbd5e1', color: '#64748b' },
 };
 
-function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive) {
-    // If a custom weatherColorFn is provided, let it take priority
-    if (typeof weatherColorFn === 'function') {
-        const fnResult = weatherColorFn(weather, venue);
-        if (fnResult && PIN_STATES[fnResult]) return fnResult;
-    }
-
-    // Cozy filter active: highlight cozy venues differently
+function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive, microReading) {
+    // Cozy filter is a user intent overlay, not a weather recompute.
     if (cozyFilterActive) {
         const live = liveVenueFeatures?.[venue.id] || {};
         if (live.fireplaceOn || venue.fireplaceOn) return 'heater';
         if (live.heatersOn || live.roofClosed || venue.hasCozy) return 'cozy';
+    }
+
+    // Cached RPC profile wins: marker colour comes from effective_sun /
+    // sun_hour_fraction / effective_wind, never from client weather APIs.
+    const profilePin = pinStateFromMicroclimate(microReading);
+    if (profilePin && PIN_STATES[profilePin]) return profilePin;
+
+    // Soft fallback only when the venue has no microclimate profile.
+    if (typeof weatherColorFn === 'function') {
+        const fnResult = weatherColorFn(weather, venue);
+        if (fnResult && PIN_STATES[fnResult]) return fnResult;
     }
 
     const live = liveVenueFeatures?.[venue.id] || {};
@@ -62,6 +72,22 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
     if (apparentTemp <= 11) return 'cold';
     if (apparentTemp >= 18 && cloudCover <= 35 && precipProb < 20) return 'sunny';
     return 'default';
+}
+
+function readingForVenue(microById, venueId, todMinutes) {
+    if (venueId == null || !microById) return null;
+    const entry = microById[venueId] ?? microById[String(venueId)];
+    if (!entry) return null;
+    return readMicroclimate(entry, todMinutes);
+}
+
+function markerScoreForVenue(reading, venue, calculateSunstayScore) {
+    const profileScore = markerScoreFromMicroclimate(reading);
+    if (profileScore != null) return profileScore;
+    const rawScore = typeof calculateSunstayScore === 'function'
+        ? calculateSunstayScore(venue)
+        : null;
+    return Number.isFinite(rawScore) ? Math.round(rawScore) : null;
 }
 
 const isFiniteCoord = (v) => Number.isFinite(Number(v));
@@ -532,11 +558,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         resumeMapPan();
     }, [cancelPendingLight, resumeMapPan]);
 
-    // Publish the slider's opening position once it mounts. Without this the
-    // readouts would describe the server's "now" while the thumb shows
-    // something else — they only agree when the device is already on
-    // Melbourne time, since localTimeToSliderMinutes reads the device clock
-    // but every downstream consumer treats minutes as Melbourne wall-clock.
+    // Publish the slider's opening position once it mounts. Minutes are
+    // Melbourne wall-clock (AEST/AEDT), matching the sun curve index and
+    // the "is this the current hour?" comparison.
     useEffect(() => {
         setTodMinutes(minutesRef.current);
     }, [setTodMinutes]);
@@ -660,6 +684,10 @@ const VenueMap = forwardRef(({
 
     const { weather, calculateSunstayScore } = useWeather();
     const { setBbox } = useMicroclimateActions();
+    // Reader: cached venues_in_bbox rows + slider minutes. Pin colour/size
+    // use these fields (effective_sun, effective_wind, sun_hour_fraction)
+    // rather than recomputing sun from client weather when a profile exists.
+    const { byId: microById, todMinutes } = useMicroclimateState();
 
     const safeVenues = useMemo(
         () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
@@ -922,9 +950,13 @@ const VenueMap = forwardRef(({
             : safeVenues;
 
         const geojsonFeatures = visibleVenues.map(venue => {
-            const rawScore = typeof calculateSunstayScore === 'function'
-                ? calculateSunstayScore(venue)
-                : 75;
+            const reading = readingForVenue(microById, venue.id, todMinutes);
+            const profileScore = markerScoreFromMicroclimate(reading);
+            const rawScore = profileScore ?? (
+                typeof calculateSunstayScore === 'function'
+                    ? calculateSunstayScore(venue)
+                    : 75
+            );
             const weight = Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75;
             return {
                 type: 'Feature',
@@ -990,7 +1022,7 @@ const VenueMap = forwardRef(({
                 comfortMapOn ? 'visible' : 'none'
             );
         }
-    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore]);
+    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore, microById, todMinutes]);
 
     // ── fitBounds once ──────────────────────────────────────────────
     useEffect(() => {
@@ -1105,17 +1137,16 @@ const VenueMap = forwardRef(({
                         const venueLat = Number(venue.lat);
                         if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
 
+                        const microReading = readingForVenue(microById, venue.id, todMinutes);
                         const pinKey = getPinStateKey(
                             venue,
                             weather,
                             live,
                             weatherColorFnRef.current,
                             cozyFilterActiveRef.current,
+                            microReading,
                         );
-                        const rawScore = typeof calculateSunstayScore === 'function'
-                            ? calculateSunstayScore(venue)
-                            : null;
-                        const score = Number.isFinite(rawScore) ? Math.round(rawScore) : null;
+                        const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
 
                         let existing = markersRef.current[markerId];
 
@@ -1165,7 +1196,7 @@ const VenueMap = forwardRef(({
                 map.current.off('moveend', syncMarkers);
             }
         };
-    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore]);
+    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, todMinutes]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces

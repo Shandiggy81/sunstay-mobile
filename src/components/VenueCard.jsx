@@ -37,10 +37,10 @@ const MICRO_LABEL =
   'text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600';
 
 // ── Live microclimate panel ────────────────────────────────
-// Surfaces the three readings that come back from the venues_in_bbox RPC:
-// sun_now (resolved against the venue's hourly curve at the slider time),
-// effective_wind and comfort_hint. Rendered only when the venue actually has
-// a profile row, so venues outside the seeded set are unchanged.
+// Surfaces the cached venues_in_bbox readings: sun_now / sun_hour_fraction
+// (Melbourne-local hour), effective_sun, effective_wind and comfort_hint.
+// Rendered only when the venue actually has a profile row, so venues outside
+// the seeded set are unchanged.
 const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) {
   if (!reading?.available) return null;
 

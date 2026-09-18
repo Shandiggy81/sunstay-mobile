@@ -11,11 +11,14 @@ import { supabase } from '../lib/supabase';
  * So this is a viewport-scoped overlay keyed by venue id, merged onto the full
  * rows at the point of display.
  *
- * The response carries the whole 24-slot `sun_hour_fraction` curve, so moving
- * the time-of-day slider is a local array lookup. No refetch, no lag.
+ * The response is stored as-is, including the cached profile columns the map
+ * styles from: `effective_sun`, `effective_wind`, `sun_now`,
+ * `sun_hour_fraction` (24 Melbourne-local hours), `wind_shelter_score`,
+ * `canyon_aspect_hw`, `geometry_confidence`, `weather_computed_at`,
+ * `comfort_hint`. The time-of-day slider is a local array lookup. No refetch.
  *
  * Failure is always soft: any error leaves `byId` empty and the UI falls back
- * to its existing client-side estimates.
+ * to its existing client-side estimates only for venues with no profile.
  *
  * @module hooks/useVenuesInBbox
  */
@@ -104,7 +107,10 @@ export function useVenuesInBbox(bbox, { limit = 500, enabled = true } = {}) {
 
                     const next = Object.create(null);
                     for (const row of Array.isArray(data) ? data : []) {
-                        if (row?.id != null) next[row.id] = row;
+                        if (row?.id == null) continue;
+                        // Pass the RPC row through unchanged so Mapbox styling
+                        // can read the cached microclimate columns directly.
+                        next[row.id] = row;
                     }
                     setById(next);
                     setError(null);
