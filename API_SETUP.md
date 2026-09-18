@@ -34,6 +34,14 @@ These names were verified from `import.meta.env.VITE_*` references in `src/`.
 | `VITE_SUPABASE_URL` | Optional Supabase browser client URL. | Public by design; production requires Supabase Row Level Security. |
 | `VITE_SUPABASE_ANON_KEY` | Optional Supabase browser anon key. | Anon keys are public by design; production requires RLS and authenticated owner-write policies. Never use `SUPABASE_SERVICE_ROLE_KEY` in Vite/browser code. |
 
+Sunny chat (`chat-sunny` Edge Function) uses only those two `VITE_SUPABASE_*` values on the client. The LLM key stays on the server:
+
+- Secret name: `OPENAI_API_KEY` (optional `OPENAI_MODEL`, default `gpt-4o-mini`)
+- Endpoint: `POST ${VITE_SUPABASE_URL}/functions/v1/chat-sunny`
+- Request: `{ messages: [{ role, content }], sunnyContext: { timeOfDay, activeVenue, visibleVenues } }`
+- Response: `{ reply: string, toolCalls: [{ name, args }] }` where `name` is `setTimeOfDay` | `setFilters` | `panToVenue`
+- JWT: `verify_jwt = true` — send the session access token, or the legacy anon JWT, in `Authorization`.
+
 ## 4) Local run
 
 ```bash

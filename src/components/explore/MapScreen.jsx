@@ -326,6 +326,15 @@ const MapScreen = () => {
             <ChatWidget
                 isOpen={isChatOpen}
                 onClose={() => setIsChatOpen(false)}
+                selectedVenue={selectedVenue}
+                onSetFilters={(tags) => setActiveFilters(Array.isArray(tags) ? tags : [])}
+                onPanToVenue={(venueId) => {
+                    const venue = resolveVenue(venueId);
+                    if (!venue) return false;
+                    setMapMode('map');
+                    handleVenueSelect(venue);
+                    return true;
+                }}
                 onFindWheelchair={() => { setActiveFilters(['wheelchair']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
                 onFindDogFriendly={() => { setActiveFilters(['pet-friendly']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
                 onFindSmoking={() => { setActiveFilters(['smoking']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}

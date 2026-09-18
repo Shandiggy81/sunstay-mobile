@@ -443,7 +443,7 @@ function computeSunLight(minutes, lat, lng) {
 // off so the pitched Standard map stays interactive. A full lights+shadows
 // pass runs once on settle. Score preview commits only on pointer-up /
 // cancel / blur / keyup — never the live scrub path.
-function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
+function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes = null }) {
     const { setScorePreviewMinutes } = useWeather();
     // Writer-only: publishing the scrub position re-renders the microclimate
     // readouts, not this component or the map.
@@ -564,6 +564,23 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
     useEffect(() => {
         setTodMinutes(minutesRef.current);
     }, [setTodMinutes]);
+
+    // Sunny (and any other writer) publishes through MicroclimateContext.
+    // Keep the thumb + 3D lights in lockstep when that value changes
+    // without this slider firing the input.
+    useEffect(() => {
+        if (todMinutes == null) return;
+        const n = Number(todMinutes);
+        if (!Number.isFinite(n)) return;
+        const clamped = Math.min(DAY_END_MIN, Math.max(DAY_START_MIN, Math.round(n)));
+        if (clamped === minutesRef.current) return;
+        minutesRef.current = clamped;
+        setSliderMinutes(clamped);
+        applyLight(clamped, { castShadows: true });
+        if (typeof setScorePreviewMinutes === 'function') {
+            setScorePreviewMinutes(clamped);
+        }
+    }, [todMinutes, applyLight, setScorePreviewMinutes]);
 
     const handleScrub = (e) => {
         const v = Number(e.target.value);
@@ -1316,7 +1333,7 @@ const VenueMap = forwardRef(({
                         </div>
                     ) : null}
                     {mapLoaded && !mapError ? (
-                        <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} />
+                        <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} todMinutes={todMinutes} />
                     ) : null}
                 </div>
             </div>
