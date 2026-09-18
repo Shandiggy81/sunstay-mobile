@@ -627,6 +627,19 @@ const AppContent = () => {
         setTimeout(() => setIsChatOpen(false), 1500);
     }, [handleVenueSelect, venues]);
 
+    const handleSunnySetFilters = useCallback((tags) => {
+        setActiveFilters(Array.isArray(tags) ? tags : []);
+    }, []);
+
+    const handleSunnyPanToVenue = useCallback((venueId) => {
+        const id = String(venueId ?? '');
+        if (!id) return false;
+        const venue = venues.find((v) => String(v.id) === id);
+        if (!venue) return false;
+        handleVenueSelect(venue);
+        return true;
+    }, [venues, handleVenueSelect]);
+
     const handleRecenter = useCallback(() => {
         mapRef.current?.flyTo({ center: [144.9631, -37.8136], zoom: 12, duration: 1200 });
     }, []);
@@ -1042,6 +1055,9 @@ const AppContent = () => {
                     isOpen={isChatOpen}
                     onClose={closeChat}
                     weather={weather}
+                    selectedVenue={selectedVenue}
+                    onSetFilters={handleSunnySetFilters}
+                    onPanToVenue={handleSunnyPanToVenue}
                     onFindWheelchair={handleFindWheelchair}
                     onFindDogFriendly={handleFindDogFriendly}
                     onFindSmoking={handleFindSmoking}
