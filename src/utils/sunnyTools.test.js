@@ -64,6 +64,24 @@ describe('parseChatSunnyResponse', () => {
         assert.equal(parsed.toolCalls[1].args.venueId, 'dv-13');
     });
 
+    it('maps Gemini generateContent functionCall parts into the contract', () => {
+        const parsed = parseChatSunnyResponse({
+            candidates: [{
+                content: {
+                    parts: [
+                        { text: 'Golden hour — sliding you over.' },
+                        { functionCall: { name: 'setTimeOfDay', args: { todMinutes: 1080 } } },
+                        { function_call: { name: 'panToVenue', args: { venueId: 'dv-13' } } },
+                    ],
+                },
+            }],
+        });
+        assert.equal(parsed.reply, 'Golden hour — sliding you over.');
+        assert.equal(parsed.toolCalls.length, 2);
+        assert.deepEqual(parsed.toolCalls[0], { name: 'setTimeOfDay', args: { todMinutes: 1080 } });
+        assert.deepEqual(parsed.toolCalls[1], { name: 'panToVenue', args: { venueId: 'dv-13' } });
+    });
+
     it('parses OpenAI-style tool_calls and stringified arguments', () => {
         const parsed = parseChatSunnyResponse({
             choices: [{

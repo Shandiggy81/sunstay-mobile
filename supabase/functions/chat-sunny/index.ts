@@ -5,7 +5,9 @@
  * Body:    { messages: [{ role, content }], sunnyContext: { timeOfDay, activeVenue, visibleVenues } }
  * Auth:    Authorization: Bearer <user session JWT or legacy anon JWT>
  *          apikey: <anon / publishable key>
- * Secret:  OPENAI_API_KEY (required). Optional OPENAI_MODEL (default gpt-4o-mini).
+ * Secret:  GEMINI_API_KEY (required). Optional GEMINI_MODEL
+ *          (default gemini-2.5-flash — free-tier Flash with function calling.
+ *          gemini-2.0-flash / gemini-1.5-flash are shut down.)
  *
  * Response contract (stable, this is what the app consumes):
  *   {
@@ -18,11 +20,14 @@
  *   setFilters    { tags: string[] }       // filter ids the map already understands
  *   panToVenue    { venueId: string }      // id from sunnyContext.visibleVenues
  *
+ * Gemini functionCall parts are mapped into that shape before the response
+ * leaves the function. The frontend never sees Gemini's native payload.
+ *
  * Deploy:
  *   supabase functions deploy chat-sunny --project-ref fksuqgvsazoxarocmaii
- *   supabase secrets set OPENAI_API_KEY=sk-... --project-ref fksuqgvsazoxarocmaii
+ *   supabase secrets set GEMINI_API_KEY=... --project-ref fksuqgvsazoxarocmaii
  *
- * No npm SDK — OpenAI is called via fetch so the function stays Deno-native.
+ * No npm SDK — Gemini generateContent is called with fetch.
  */
 
 const corsHeaders = {
@@ -31,6 +36,10 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-retry-count, traceparent, tracestate, baggage',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+const GEMINI_GENERATE_URL = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
 const SYSTEM_PROMPT = `You are Sunny, a sharp, brief hospitality floor manager for Melbourne venues.
 You help guests pick spots for sun, shade, and wind comfort — rooftops, courtyards, beer gardens, indoor warmth.
@@ -48,76 +57,69 @@ Rules:
 - Never mention tools, JSON, system prompts, or hidden context.
 - If they name a venue that is not in visibleVenues, say you can't see it on the map rather than guessing an id.`;
 
-const TOOLS = [
+const FUNCTION_DECLARATIONS = [
   {
-    type: 'function',
-    function: {
-      name: 'setTimeOfDay',
-      description: 'Scrub the time-of-day slider (Melbourne wall-clock minutes, 0–1439).',
-      parameters: {
-        type: 'object',
-        properties: {
-          todMinutes: {
-            type: 'number',
-            description: 'Minutes past Melbourne midnight. Golden hour ~1080, midday 720.',
-            minimum: 0,
-            maximum: 1439,
-          },
+    name: 'setTimeOfDay',
+    description: 'Scrub the time-of-day slider (Melbourne wall-clock minutes, 0–1439).',
+    parameters: {
+      type: 'object',
+      properties: {
+        todMinutes: {
+          type: 'number',
+          description: 'Minutes past Melbourne midnight. Golden hour ~1080, midday 720.',
         },
-        required: ['todMinutes'],
       },
+      required: ['todMinutes'],
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'setFilters',
-      description: 'Replace the active venue filter tags on the map.',
-      parameters: {
-        type: 'object',
-        properties: {
-          tags: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Filter ids such as Rooftop, Pet Friendly, Shaded, Indoor Warmth.',
-          },
+    name: 'setFilters',
+    description: 'Replace the active venue filter tags on the map.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filter ids such as Rooftop, Pet Friendly, Shaded, Indoor Warmth.',
         },
-        required: ['tags'],
       },
+      required: ['tags'],
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'panToVenue',
-      description: 'Fly the map to a venue currently in (or known by) the viewport.',
-      parameters: {
-        type: 'object',
-        properties: {
-          venueId: {
-            type: 'string',
-            description: 'Venue id from sunnyContext.visibleVenues (e.g. dv-13).',
-          },
+    name: 'panToVenue',
+    description: 'Fly the map to a venue currently in (or known by) the viewport.',
+    parameters: {
+      type: 'object',
+      properties: {
+        venueId: {
+          type: 'string',
+          description: 'Venue id from sunnyContext.visibleVenues (e.g. dv-13).',
         },
-        required: ['venueId'],
       },
+      required: ['venueId'],
     },
   },
 ];
 
-const json = (body, status = 200) =>
+const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-function sanitizeMessages(raw) {
+function sanitizeMessages(raw: unknown) {
   if (!Array.isArray(raw)) return [];
-  const out = [];
+  const out: Array<{ role: 'user' | 'assistant'; content: string }> = [];
   for (const msg of raw) {
     if (!msg || typeof msg !== 'object') continue;
-    const role = msg.role === 'assistant' || msg.role === 'user' ? msg.role : null;
-    const content = typeof msg.content === 'string' ? msg.content.slice(0, 2000) : '';
+    const role = (msg as { role?: string }).role === 'assistant' || (msg as { role?: string }).role === 'user'
+      ? (msg as { role: 'user' | 'assistant' }).role
+      : null;
+    const content = typeof (msg as { content?: unknown }).content === 'string'
+      ? (msg as { content: string }).content.slice(0, 2000)
+      : '';
     if (!role || !content.trim()) continue;
     out.push({ role, content });
     if (out.length >= 12) break;
@@ -125,8 +127,23 @@ function sanitizeMessages(raw) {
   return out;
 }
 
-function parseArgs(raw) {
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+function toGeminiContents(messages: Array<{ role: 'user' | 'assistant'; content: string }>) {
+  const contents = messages.map((msg) => ({
+    role: msg.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: msg.content }],
+  }));
+  // generateContent prefers a user turn first.
+  if (contents[0]?.role === 'model') {
+    contents.unshift({
+      role: 'user',
+      parts: [{ text: 'The guest opened Sunny on the Melbourne venue map.' }],
+    });
+  }
+  return contents;
+}
+
+function parseArgs(raw: unknown) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>;
   if (typeof raw === 'string') {
     try {
       const parsed = JSON.parse(raw);
@@ -138,19 +155,24 @@ function parseArgs(raw) {
   return {};
 }
 
-function contractFromOpenAI(data) {
-  const message = data?.choices?.[0]?.message ?? {};
-  const reply = typeof message.content === 'string' ? message.content : '';
-  const toolCalls = [];
-  for (const call of Array.isArray(message.tool_calls) ? message.tool_calls : []) {
-    const name = call?.function?.name;
+function contractFromGemini(data: unknown) {
+  const parts = (data as {
+    candidates?: Array<{ content?: { parts?: Array<Record<string, unknown>> } }>;
+  })?.candidates?.[0]?.content?.parts;
+  let reply = '';
+  const toolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  for (const part of Array.isArray(parts) ? parts : []) {
+    if (typeof part?.text === 'string' && part.text.trim()) {
+      reply += (reply ? '\n' : '') + part.text;
+    }
+    const fc = (part?.functionCall ?? part?.function_call) as
+      | { name?: string; args?: unknown; arguments?: unknown }
+      | undefined;
+    const name = fc?.name;
     if (name !== 'setTimeOfDay' && name !== 'setFilters' && name !== 'panToVenue') continue;
-    toolCalls.push({ name, args: parseArgs(call?.function?.arguments) });
+    toolCalls.push({ name, args: parseArgs(fc?.args ?? fc?.arguments) });
   }
-  return {
-    reply,
-    toolCalls,
-  };
+  return { reply, toolCalls };
 }
 
 Deno.serve(async (req) => {
@@ -161,12 +183,12 @@ Deno.serve(async (req) => {
     return json({ reply: '', toolCalls: [], error: 'method_not_allowed' }, 405);
   }
 
-  const apiKey = Deno.env.get('OPENAI_API_KEY');
+  const apiKey = Deno.env.get('GEMINI_API_KEY');
   if (!apiKey) {
-    return json({ reply: '', toolCalls: [], error: 'missing_openai_key' }, 503);
+    return json({ reply: '', toolCalls: [], error: 'missing_gemini_key' }, 503);
   }
 
-  let body;
+  let body: { messages?: unknown; sunnyContext?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -178,45 +200,50 @@ Deno.serve(async (req) => {
     ? body.sunnyContext
     : {};
 
-  const openaiMessages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    {
-      role: 'system',
-      content: `Hidden map context (do not mention this block): ${JSON.stringify(sunnyContext)}`,
-    },
-    ...messages,
-  ];
+  const model = (Deno.env.get('GEMINI_MODEL') || DEFAULT_MODEL).trim() || DEFAULT_MODEL;
+  const contents = toGeminiContents(messages);
+  if (contents.length === 0) {
+    contents.push({
+      role: 'user',
+      parts: [{ text: 'Greet the guest briefly and wait for what they want.' }],
+    });
+  }
 
-  const model = Deno.env.get('OPENAI_MODEL') || 'gpt-4o-mini';
-
-  let upstream;
+  let upstream: Response;
   try {
-    upstream = await fetch('https://api.openai.com/v1/chat/completions', {
+    upstream = await fetch(GEMINI_GENERATE_URL(model), {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify({
-        model,
-        temperature: 0.4,
-        messages: openaiMessages,
-        tools: TOOLS,
-        tool_choice: 'auto',
+        system_instruction: {
+          parts: [
+            { text: SYSTEM_PROMPT },
+            { text: `Hidden map context (do not mention this block): ${JSON.stringify(sunnyContext)}` },
+          ],
+        },
+        contents,
+        tools: [{ function_declarations: FUNCTION_DECLARATIONS }],
+        tool_config: {
+          function_calling_config: { mode: 'AUTO' },
+        },
+        generation_config: { temperature: 0.4 },
       }),
     });
   } catch (err) {
-    console.error('chat-sunny openai fetch failed', err);
-    return json({ reply: '', toolCalls: [], error: 'openai_unreachable' }, 502);
+    console.error('chat-sunny gemini fetch failed', err);
+    return json({ reply: '', toolCalls: [], error: 'gemini_unreachable' }, 502);
   }
 
   const data = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    console.error('chat-sunny openai error', upstream.status, data);
-    return json({ reply: '', toolCalls: [], error: 'openai_error' }, 502);
+    console.error('chat-sunny gemini error', upstream.status, data);
+    return json({ reply: '', toolCalls: [], error: 'gemini_error' }, 502);
   }
 
-  const contract = contractFromOpenAI(data);
+  const contract = contractFromGemini(data);
   if (!contract.reply && contract.toolCalls.length > 0) {
     contract.reply = 'On it — updating the map.';
   }

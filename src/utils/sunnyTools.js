@@ -5,9 +5,9 @@
  *
  *   { reply: string, toolCalls: [{ name: string, args: object }] }
  *
- * OpenAI-style `{ choices: [{ message: { content, tool_calls } }] }` is also
- * accepted so the frontend can consume either without caring which the
- * function serialized.
+ * OpenAI-style `{ choices: [{ message: { content, tool_calls } }] }` and
+ * Gemini `{ candidates: [{ content: { parts: [{ text, functionCall }] } }] }`
+ * payloads are also accepted so the frontend can consume either.
  *
  * @module utils/sunnyTools
  */
@@ -101,12 +101,22 @@ function collectRawToolCalls(payload) {
     const openaiCalls = payload.choices?.[0]?.message?.tool_calls
         ?? payload.message?.tool_calls
         ?? payload.tool_calls;
-    if (!Array.isArray(openaiCalls)) return [];
+    if (Array.isArray(openaiCalls)) {
+        return openaiCalls.map((call) => ({
+            name: call?.function?.name ?? call?.name,
+            args: call?.function?.arguments ?? call?.args ?? call?.arguments,
+        }));
+    }
 
-    return openaiCalls.map((call) => ({
-        name: call?.function?.name ?? call?.name,
-        args: call?.function?.arguments ?? call?.args ?? call?.arguments,
-    }));
+    const geminiParts = payload.candidates?.[0]?.content?.parts;
+    if (!Array.isArray(geminiParts)) return [];
+    return geminiParts
+        .map((part) => part?.functionCall ?? part?.function_call)
+        .filter(Boolean)
+        .map((fc) => ({
+            name: fc.name,
+            args: fc.args ?? fc.arguments,
+        }));
 }
 
 function readReply(payload) {
@@ -114,6 +124,13 @@ function readReply(payload) {
     if (typeof payload.reply === 'string') return payload.reply;
     const content = payload.choices?.[0]?.message?.content ?? payload.message?.content;
     if (typeof content === 'string') return content;
+    const geminiParts = payload.candidates?.[0]?.content?.parts;
+    if (Array.isArray(geminiParts)) {
+        return geminiParts
+            .map((part) => (typeof part?.text === 'string' ? part.text : ''))
+            .filter((text) => text.trim())
+            .join('\n');
+    }
     return '';
 }
 
