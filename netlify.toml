@@ -5,6 +5,14 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# Retired: mascots used to live at this unhashed public/ path. First-match
+# wins, so this must sit above the SPA splat — otherwise a miss is rewritten
+# to index.html and then cached as an immutable "image" by the *.png header.
+[[redirects]]
+  from = "/assets/mascots/*"
+  to = "/404"
+  status = 404
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
