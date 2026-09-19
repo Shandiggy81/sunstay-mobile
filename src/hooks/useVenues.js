@@ -1,34 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { demoVenues } from '../data/demoVenues';
-
-function normalizeVenueRow(row) {
-    if (!row || typeof row !== 'object') return row;
-    const parseJson = (value, fallback) => {
-        if (value == null || value === '') return fallback;
-        if (typeof value === 'string') {
-            try { return JSON.parse(value); } catch { return fallback; }
-        }
-        return value;
-    };
-
-    const tags = Array.isArray(row.tags) ? row.tags : parseJson(row.tags, []);
-    const happyHour = parseJson(row.happyHour, null);
-    const shielding = parseJson(row.shielding, null);
-    let roomTypes = parseJson(row.roomTypes, null);
-    if (roomTypes && !Array.isArray(roomTypes)) roomTypes = [roomTypes];
-
-    return {
-        ...row,
-        tags,
-        happyHour: happyHour || undefined,
-        shielding: shielding || undefined,
-        roomTypes: Array.isArray(roomTypes) ? roomTypes : undefined,
-        lat: Number(row.lat),
-        lng: Number(row.lng),
-        venueName: row.venueName || row.name || 'Unnamed venue',
-    };
-}
+import { interpretVenueResponse } from './interpretVenueResponse';
 
 /**
  * useVenues hook
@@ -40,7 +13,15 @@ function normalizeVenueRow(row) {
  * - Race-conditions a 5-second timeout against slow mobile connections.
  * - If Supabase fails, is offline, or returns 0 rows, gracefully retains the static data.
  *
- * @returns {{ venues: Array, setVenues: Function, isLoading: boolean, source: 'supabase' | 'fallback', error: any }}
+ * @returns {{
+ *   venues: Array,
+ *   setVenues: Function,
+ *   isLoading: boolean,
+ *   isRefreshing: boolean,
+ *   source: 'supabase' | 'fallback',
+ *   error: any,
+ *   refetch: () => Promise<{ ok: boolean, error?: any, skipped?: boolean, empty?: boolean, rows?: Array|null }>
+ * }}
  */
 export function useVenues() {
     const [venues, setVenues] = useState(demoVenues);
@@ -48,72 +29,91 @@ export function useVenues() {
     const [source, setSource] = useState('fallback');
     const [error, setError] = useState(null);
 
+    const mountedRef = useRef(true);
+    const abortRef = useRef(null);
+    const timeoutRef = useRef(null);
+    const userRefreshRef = useRef(false);
+
     useEffect(() => {
-        let isMounted = true;
-        const controller = new AbortController();
-        let timeoutId;
-
-        async function fetchLiveVenues() {
-            if (!supabase) {
-                console.info('[useVenues] Supabase client not initialized, running on static demoVenues.');
-                return;
-            }
-
-            setIsLoading(true);
-            setError(null);
-
-            // 5-second timeout: abort the in-flight Supabase request, don't just ignore it
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => {
-                    controller.abort();
-                    reject(new Error('Supabase request timed out after 5000ms'));
-                }, 5000);
-            });
-
-            try {
-                const queryPromise = supabase
-                    .from('venues')
-                    .select('*')
-                    .abortSignal(controller.signal);
-
-                const response = await Promise.race([queryPromise, timeoutPromise]);
-                const { data, error: dbError } = response || {};
-
-                if (dbError) {
-                    throw dbError;
-                }
-
-                if (isMounted) {
-                    if (Array.isArray(data) && data.length > 0) {
-                        const rows = data.map(normalizeVenueRow);
-                        console.info(`[useVenues] Loaded ${rows.length} live venues from Supabase.`);
-                        setVenues(rows);
-                        setSource('supabase');
-                    } else {
-                        console.warn('[useVenues] Zero venues returned from Supabase. Maintaining static fallback.');
-                    }
-                }
-            } catch (err) {
-                console.warn('[useVenues] Failed to fetch venues from Supabase, maintaining static fallback:', err?.message || err);
-                if (isMounted) {
-                    setError(err);
-                }
-            } finally {
-                if (timeoutId) clearTimeout(timeoutId);
-                if (isMounted) {
-                    setIsLoading(false);
-                }
-            }
-        }
-
-        fetchLiveVenues();
-
+        mountedRef.current = true;
         return () => {
-            isMounted = false;
-            if (timeoutId) clearTimeout(timeoutId);
-            controller.abort();
+            mountedRef.current = false;
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            abortRef.current?.abort();
         };
     }, []);
 
-    return { venues, setVenues, isLoading, source, error };
+    const fetchLiveVenues = useCallback(async () => {
+        if (!supabase) {
+            console.info('[useVenues] Supabase client not initialized, running on static demoVenues.');
+            return { ok: true, skipped: true, empty: false, rows: null, error: null };
+        }
+
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+        if (mountedRef.current) {
+            setIsLoading(true);
+            setError(null);
+        }
+
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutRef.current = setTimeout(() => {
+                controller.abort();
+                reject(new Error('Supabase request timed out after 5000ms'));
+            }, 5000);
+        });
+
+        try {
+            const response = await Promise.race([
+                supabase.from('venues').select('*').abortSignal(controller.signal),
+                timeoutPromise,
+            ]);
+            const interpreted = interpretVenueResponse(response);
+            if (!mountedRef.current) return interpreted;
+
+            if (interpreted.ok) {
+                console.info(`[useVenues] Loaded ${interpreted.rows.length} live venues from Supabase.`);
+                setVenues(interpreted.rows);
+                setSource('supabase');
+                setError(null);
+                return interpreted;
+            }
+
+            if (interpreted.error) {
+                throw interpreted.error;
+            }
+
+            console.warn('[useVenues] Zero venues returned from Supabase. Maintaining static fallback.');
+            return interpreted;
+        } catch (err) {
+            console.warn('[useVenues] Failed to fetch venues from Supabase, maintaining static fallback:', err?.message || err);
+            if (mountedRef.current) setError(err);
+            return { ok: false, empty: false, rows: null, error: err };
+        } finally {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            if (mountedRef.current) setIsLoading(false);
+        }
+    }, []);
+
+    const refetch = useCallback(() => {
+        userRefreshRef.current = true;
+        return fetchLiveVenues();
+    }, [fetchLiveVenues]);
+
+    useEffect(() => {
+        fetchLiveVenues();
+    }, [fetchLiveVenues]);
+
+    return {
+        venues,
+        setVenues,
+        isLoading,
+        isRefreshing: isLoading && userRefreshRef.current,
+        source,
+        error,
+        refetch,
+    };
 }

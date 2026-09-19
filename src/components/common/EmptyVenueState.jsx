@@ -65,6 +65,7 @@ const EmptyVenueState = ({ onClearFilters, announce = false, className = '' }) =
                 paddingBottom: 'max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))',
                 paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
                 paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+                overscrollBehaviorY: 'contain',
             }}
         >
             {/* `my-auto` rather than `items-center`: it centres the card without
