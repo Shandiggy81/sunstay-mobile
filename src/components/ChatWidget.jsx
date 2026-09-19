@@ -10,7 +10,17 @@ import {
   postChatSunny,
   toLlmMessages,
 } from '../utils/sunnyTools';
-import sunnyMascot from '../assets/sunny-mascot.jpg';
+import thunderBuddy from '../assets/mascots/thunder-buddy.png';
+import sunnySunglasses from '../assets/sunny-mascot.jpg';
+import { resolveChatAvatarKind } from '../utils/resolveChatAvatar';
+
+const sunnyDefault = sunnySunglasses;
+
+const CHAT_AVATARS = {
+  thunder: { src: thunderBuddy, alt: 'Thunder Buddy' },
+  sunny: { src: sunnySunglasses, alt: 'Sunny' },
+  default: { src: sunnyDefault, alt: 'Sunny' },
+};
 
 // ─── Weather helpers ───────────────────────────────────────────────────────────
 const getWeatherMood = (weather) => {
@@ -154,6 +164,7 @@ const ChatWidget = ({
     onFindWindSheltered,
   };
   const mood = getWeatherMood(weather);
+  const avatar = CHAT_AVATARS[resolveChatAvatarKind(weather)];
   const quickReplies = buildQuickReplies(weather);
   const { byId, todMinutes } = useMicroclimateState();
   const { setTodMinutes } = useMicroclimateActions();
@@ -329,8 +340,16 @@ const ChatWidget = ({
             <div className={`bg-gradient-to-r ${mood.gradient} px-5 py-4 flex items-center justify-between flex-shrink-0`}>
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/50 shadow-md">
-                    <img src={sunnyMascot} alt="Sunny" className="w-full h-full object-cover" />
+                  <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full shadow-sm ring-2 ring-white/50">
+                    <img
+                      key={avatar.src}
+                      src={avatar.src}
+                      alt={avatar.alt}
+                      width={48}
+                      height={48}
+                      draggable={false}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   <motion.span
                     className="absolute -bottom-0.5 -right-0.5 text-base leading-none"
