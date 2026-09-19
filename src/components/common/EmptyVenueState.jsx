@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { RotateCcw, SearchX } from 'lucide-react';
+import sallyEmpty from '../../assets/mascots/sally-empty.png';
+import rayrayEmpty from '../../assets/mascots/rayray-empty.png';
 
 // Sally is a full-body mascot and Rayray is a head, so matching them on height
 // would leave her looking tiny beside him. They are matched on *head* size
 // instead: her ray span is 0.42× her own height where his is 0.94× his, so
 // equal heads put him at ~44% of her height. 78px against her 184px lands just
 // under that, which reads as a natural pair rather than a clone.
-const SALLY = { src: '/assets/mascots/sally-empty.png', w: 201, h: 380 };
-const RAYRAY = { src: '/assets/mascots/rayray-empty.png', w: 197, h: 200 };
+const SALLY = { src: sallyEmpty, w: 201, h: 380 };
+const RAYRAY = { src: rayrayEmpty, w: 197, h: 200 };
 
 const SALLY_H = 184;
 const RAYRAY_H = 78;

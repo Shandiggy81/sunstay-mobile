@@ -10,6 +10,7 @@ import {
   postChatSunny,
   toLlmMessages,
 } from '../utils/sunnyTools';
+import sunnyMascot from '../assets/sunny-mascot.jpg';
 
 // ─── Weather helpers ───────────────────────────────────────────────────────────
 const getWeatherMood = (weather) => {
@@ -329,7 +330,7 @@ const ChatWidget = ({
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/50 shadow-md">
-                    <img src="/sunny-chatbot.png" alt="Sunny" className="w-full h-full object-cover" />
+                    <img src={sunnyMascot} alt="Sunny" className="w-full h-full object-cover" />
                   </div>
                   <motion.span
                     className="absolute -bottom-0.5 -right-0.5 text-base leading-none"

@@ -10,10 +10,11 @@
   to = "/index.html"
   status = 200
 
-# Mascots are only needed the moment the network is already gone, so they must
-# come from the browser's cache instead of a revalidation request that cannot
-# complete. Netlify's default `max-age=0, must-revalidate` breaks that.
+# Vite emits hashed files under /assets/* (JS, CSS, and imported images).
+# Content-addressed names make these safe to cache forever; a new file is a
+# new URL. Brucey is still preloaded on idle so the offline modal can paint
+# him from cache when the network is already gone.
 [[headers]]
-  for = "/assets/mascots/*"
+  for = "/assets/*"
 [headers.values]
-  Cache-Control = "public, max-age=604800"
+  Cache-Control = "public, max-age=31536000, immutable"

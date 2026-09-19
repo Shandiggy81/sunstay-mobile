@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWeather } from '../context/WeatherContext';
+import sunnyMascot from '../assets/sunny-mascot.jpg';
 
 const SunnyMascot = ({
     onClick,
@@ -63,7 +64,7 @@ const SunnyMascot = ({
 
                 {/* Sunny mascot image */}
                 <motion.img
-                    src={`${import.meta.env.BASE_URL}assets/sunny-mascot.jpg`}
+                    src={sunnyMascot}
                     alt="Sunny"
                     className={`w-full h-full rounded-full object-cover relative z-10 border-4 transition-colors duration-500 ${isChatOpen ? 'border-emerald-400' : 'border-white/50'
                         }`}

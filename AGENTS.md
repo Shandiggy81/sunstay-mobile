@@ -171,10 +171,22 @@ The site is on Netlify (`netlify.toml`), and every PR gets a deploy preview at
 `https://deploy-preview-<PR>--sunstayglobal30.netlify.app`. Use it to verify
 anything that depends on real CDN behaviour, which `vite dev` cannot show:
 
+Mascots live in `src/assets/mascots/` and are imported as ES modules so Vite
+emits them as hashed `/assets/<name>-<hash>.png` files. Do **not** put them
+back under `public/` — that path is unhashed, and returning visitors will keep
+seeing the old artwork until their cache expires.
+
 ```bash
-curl -sI https://deploy-preview-74--sunstayglobal30.netlify.app/assets/mascots/brucey-offline-v2.png \
-  | grep -i cache-control     # public,max-age=604800
+# After a production/preview build, the hashed filename is in the JS bundle:
+curl -s https://sunstayglobal30.netlify.app/ \
+  | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1
+# Then:
+curl -s https://sunstayglobal30.netlify.app/assets/index-<hash>.js \
+  | grep -oE '/assets/brucey-offline-v2-[A-Za-z0-9_-]+\.png'
+curl -sI https://sunstayglobal30.netlify.app/assets/brucey-offline-v2-<hash>.png \
+  | grep -i cache-control     # public,max-age=31536000,immutable
 ```
 
-Netlify's default for static assets is `max-age=0, must-revalidate`, so any asset
-that must survive an offline reload needs an explicit `[[headers]]` rule.
+Netlify's default for static assets is `max-age=0, must-revalidate`. Hashed
+`/assets/*` files get an explicit `immutable` header in `netlify.toml` so the
+offline modal can still paint Brucey from cache.

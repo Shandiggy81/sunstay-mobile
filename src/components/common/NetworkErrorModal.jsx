@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { RefreshCw, WifiOff } from 'lucide-react';
+import bruceyOffline from '../../assets/mascots/brucey-offline-v2.png';
 
-// Version the filename when the artwork changes. netlify.toml caches
-// /assets/mascots/* for a week, so overwriting a mascot in place leaves
-// returning visitors on the old image until their cache expires.
-const MASCOT_SRC = '/assets/mascots/brucey-offline-v2.png';
+// Vite hashes this at build time, so a new file is a new URL — no more
+// overwriting an unversioned public/ path and leaving returning visitors on
+// the old artwork until their week-long cache expires.
+const MASCOT_SRC = bruceyOffline;
 const MASCOT_W = 320;
 const MASCOT_H = 420;
 
