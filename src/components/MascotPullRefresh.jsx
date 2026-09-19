@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import sunnyMascot from '../assets/sunny-mascot.jpg';
-import { computePull, PULL_THRESHOLD } from '../utils/computePull';
+import { computePull, PULL_MAX_DISTANCE } from '../utils/computePull';
 import { shouldBeginPull } from '../utils/shouldBeginPull';
 import { nextPullPhase, pullRefreshStatus } from '../utils/pullRefreshStatus';
 
@@ -77,7 +77,7 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         }
 
         applyPhase('refreshing');
-        setDistance(PULL_THRESHOLD);
+        setDistance(PULL_MAX_DISTANCE);
         setScale(1.12);
 
         try {
@@ -102,11 +102,8 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
     }, [applyPhase, onRefresh, prefersReducedMotion, resetPull]);
 
     useImperativeHandle(ref, () => ({
-        refresh: () => {
-            applyPhase(nextPullPhase(phaseRef.current, { type: 'refresh-start' }));
-            return runRefresh();
-        },
-    }), [applyPhase, runRefresh]);
+        refresh: () => runRefresh(),
+    }), [runRefresh]);
 
     useEffect(() => {
         onStatusChange?.(pullRefreshStatus(phase));
@@ -233,6 +230,7 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
             {showMascot ? (
                 <div
                     className={actorClass}
+                    data-phase={phase}
                     style={{
                         '--ss-ptr-y': `${translateY}px`,
                         '--ss-ptr-scale': String(scale),
