@@ -15,6 +15,9 @@ import {
     Wind, Sun, Cloud, X, Locate, Crosshair, ListFilter
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
+import { pullRefreshStatus } from './utils/pullRefreshStatus';
+import MascotPullRefresh from './components/MascotPullRefresh';
+import VenueRefreshButton from './components/VenueRefreshButton';
 import { useVenueFeatures } from './hooks/useVenueFeatures';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
@@ -260,19 +263,27 @@ const LiveVenueList = memo(function LiveVenueList({
 }) {
     if (venues.length === 0) {
         return (
-            <div className={className} onPointerDownCapture={onPointerDownCapture}>
+            <div
+                className={className}
+                onPointerDownCapture={onPointerDownCapture}
+                style={{ overscrollBehaviorY: 'contain' }}
+            >
                 {empty}
             </div>
         );
     }
 
     return (
-        <div className={className} onPointerDownCapture={onPointerDownCapture}>
+        <div
+            className={className}
+            onPointerDownCapture={onPointerDownCapture}
+            style={{ overscrollBehaviorY: 'contain' }}
+        >
             <Virtuoso
                 ref={virtuosoRef}
                 data={venues}
                 computeItemKey={(_index, venue) => venue.id}
-                style={{ flex: 1, minHeight: 0, height: '100%', WebkitOverflowScrolling: 'touch' }}
+                style={{ flex: 1, minHeight: 0, height: '100%', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}
                 className="overscroll-contain"
                 components={safeAreaFooter ? { Footer: SafeAreaListFooter } : {}}
                 itemContent={(_index, venue) => (
@@ -347,7 +358,18 @@ VenueChip.displayName = 'VenueChip';
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
     const { weather, loading: weatherLoading, calculateSunstayScore, previewMinutes } = useWeather();
-    const { venues } = useVenues();
+    const { venues, refetch, isRefreshing } = useVenues();
+    const pullRefreshRef = useRef(null);
+    const [refreshStatus, setRefreshStatus] = useState('');
+    const requestRefresh = useCallback(async () => {
+        if (pullRefreshRef.current?.refresh) {
+            return pullRefreshRef.current.refresh();
+        }
+        setRefreshStatus(pullRefreshStatus('refreshing'));
+        const result = await refetch();
+        setRefreshStatus(pullRefreshStatus(result?.error ? 'error' : 'success'));
+        return result;
+    }, [refetch]);
     const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
     const { setFallbackBbox } = useMicroclimateActions();
 
@@ -733,6 +755,10 @@ const AppContent = () => {
                 score={selectedVenueScore}
             />
 
+            <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+                {refreshStatus}
+            </div>
+
             <div className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
                 <WeatherBackground />
 
@@ -775,24 +801,45 @@ const AppContent = () => {
                         </div>
 
                         <div className="ss-sidebar-count">
-                            <span>{matchingCount} venue{matchingCount !== 1 ? 's' : ''}</span>
-                            {(activeFilters.length > 0 || searchQuery.trim()) && (
-                                <button onClick={handleClearFilters} className="ss-sidebar-clear">Clear all</button>
-                            )}
+                            <span className="inline-flex items-center gap-2">
+                                {matchingCount} venue{matchingCount !== 1 ? 's' : ''}
+                                <VenueRefreshButton
+                                    onRefresh={requestRefresh}
+                                    isRefreshing={isRefreshing}
+                                />
+                            </span>
+                            <span className="inline-flex items-center gap-2">
+                                {isRefreshing ? <span className="ss-venue-refresh-status">Updating…</span> : null}
+                                {!isRefreshing && refreshStatus.startsWith('Venue refresh failed') ? (
+                                    <span className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</span>
+                                ) : null}
+                                {(activeFilters.length > 0 || searchQuery.trim()) && (
+                                    <button onClick={handleClearFilters} className="ss-sidebar-clear">Clear all</button>
+                                )}
+                            </span>
                         </div>
 
                         {!isMobile ? (
-                            <LiveVenueList
+                            <MascotPullRefresh
+                                ref={pullRefreshRef}
+                                enabled={false}
+                                showMascot={false}
+                                onRefresh={refetch}
+                                onStatusChange={setRefreshStatus}
                                 className="ss-venue-list"
-                                virtuosoRef={sidebarVirtuosoRef}
-                                venues={sortedVenues}
-                                selectedVenue={selectedVenue}
-                                onVenueSelect={handleVenueSelect}
-                                weather={weather}
-                                empty={filteredVenues.length === 0 ? (
-                                    <EmptyVenueState announce onClearFilters={handleClearFilters} />
-                                ) : null}
-                            />
+                            >
+                                <LiveVenueList
+                                    className="ss-mascot-ptr__scroller"
+                                    virtuosoRef={sidebarVirtuosoRef}
+                                    venues={sortedVenues}
+                                    selectedVenue={selectedVenue}
+                                    onVenueSelect={handleVenueSelect}
+                                    weather={weather}
+                                    empty={filteredVenues.length === 0 ? (
+                                        <EmptyVenueState announce onClearFilters={handleClearFilters} />
+                                    ) : null}
+                                />
+                            </MascotPullRefresh>
                         ) : null}
                     </aside>
 
@@ -939,7 +986,13 @@ const AppContent = () => {
                         onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
                     >
                         <div className="ss-mobile-sheet-grab" />
-                        <span>{matchingCount} venues nearby</span>
+                        <span className="inline-flex items-center gap-2">
+                            {matchingCount} venues nearby
+                            <VenueRefreshButton
+                                onRefresh={requestRefresh}
+                                isRefreshing={isRefreshing}
+                            />
+                        </span>
                         {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
                     </div>
                 )}
@@ -966,7 +1019,17 @@ const AppContent = () => {
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
                                     <h3>Venues</h3>
-                                    <p>{matchingCount} results</p>
+                                    <p className="inline-flex items-center justify-center gap-2">
+                                        {matchingCount} results
+                                        <VenueRefreshButton
+                                            onRefresh={requestRefresh}
+                                            isRefreshing={isRefreshing}
+                                        />
+                                    </p>
+                                    {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
+                                    {!isRefreshing && refreshStatus.startsWith('Venue refresh failed') ? (
+                                        <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
+                                    ) : null}
                                 </div>
                                 <div className="ss-mobile-sheet-search flex-shrink-0 px-4 py-2.5 flex flex-col gap-2.5 bg-white/70 border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
                                     <VenueSearchInput
@@ -1009,19 +1072,28 @@ const AppContent = () => {
                                         )}
                                     </div>
                                 </div>
-                                <LiveVenueList
+                                <MascotPullRefresh
+                                    ref={pullRefreshRef}
+                                    enabled
+                                    showMascot
+                                    onRefresh={refetch}
+                                    onStatusChange={setRefreshStatus}
                                     className="ss-mobile-sheet-list"
-                                    virtuosoRef={mobileVirtuosoRef}
-                                    onPointerDownCapture={stopSheetPointer}
-                                    safeAreaFooter
-                                    venues={sortedVenues}
-                                    selectedVenue={selectedVenue}
-                                    onVenueSelect={handleVenueSelect}
-                                    weather={weather}
-                                    empty={filteredVenues.length === 0 ? (
-                                        <EmptyVenueState announce onClearFilters={handleClearFilters} />
-                                    ) : null}
-                                />
+                                >
+                                    <LiveVenueList
+                                        className="ss-mascot-ptr__scroller"
+                                        virtuosoRef={mobileVirtuosoRef}
+                                        onPointerDownCapture={stopSheetPointer}
+                                        safeAreaFooter
+                                        venues={sortedVenues}
+                                        selectedVenue={selectedVenue}
+                                        onVenueSelect={handleVenueSelect}
+                                        weather={weather}
+                                        empty={filteredVenues.length === 0 ? (
+                                            <EmptyVenueState announce onClearFilters={handleClearFilters} />
+                                        ) : null}
+                                    />
+                                </MascotPullRefresh>
                             </motion.div>
                         </>
                     )}
