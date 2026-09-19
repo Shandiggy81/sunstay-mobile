@@ -174,7 +174,9 @@ anything that depends on real CDN behaviour, which `vite dev` cannot show:
 Mascots live in `src/assets/mascots/` and are imported as ES modules so Vite
 emits them as hashed `/assets/<name>-<hash>.png` files. Do **not** put them
 back under `public/` — that path is unhashed, and returning visitors will keep
-seeing the old artwork until their cache expires.
+seeing the old artwork until their cache expires. PWA icons
+(`public/sun-badge.jpg`, `public/sunny-mascot.jpg`, `public/sunstay-logo.png`)
+stay at the site root because `manifest.json` cannot take a hashed URL.
 
 ```bash
 # After a production/preview build, the hashed filename is in the JS bundle:
