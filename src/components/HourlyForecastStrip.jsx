@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSunData } from '../utils/getSunData';
 import { shouldFetchRemote } from '../hooks/shouldFetchRemote';
+import { normalizeHourlyForecast, countDirectSunHours } from '../utils/normalizeHourlyForecast';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -68,37 +69,17 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
       .then(r => r.json())
       .then(data => {
         if (cancelled) return;
-        if (!data?.hourly?.time) { setHourly([]); return; }
 
-        const now  = new Date();
-        const rows = data.hourly.time
-          .map((t, i) => ({
-            time:        new Date(t),
-            temp:        Math.round(data.hourly.temperature_2m[i]),
-            feelsLike:   Math.round(data.hourly.apparent_temperature?.[i] ?? data.hourly.temperature_2m[i]),
-            code:        data.hourly.weather_code?.[i] ?? data.hourly.weathercode?.[i] ?? 0,
-            precip:      data.hourly.precipitation_probability?.[i] ?? 0,
-            clouds:      data.hourly.cloud_cover?.[i] ?? data.hourly.cloudcover?.[i] ?? 0,
-            gusts:       Math.round(((data.hourly.wind_gusts_10m?.[i] ?? data.hourly.windgusts_10m?.[i] ?? 0)) * 3.6),
-            rainMm:      (data.hourly.precipitation?.[i] ?? 0).toFixed(1),
-            visibility:  Math.round((data.hourly.visibility?.[i] ?? 10000) / 1000),
-            sunshineMins: Math.round((data.hourly.sunshine_duration?.[i] ?? 0) / 60),
-            solarW:      Math.round(data.hourly.shortwave_radiation?.[i] ?? 0),
-          }))
-          .filter(r => r.time >= now)
-          .slice(0, 12);
+        setHourly(normalizeHourlyForecast(data, { now: new Date(), limit: 12 }));
 
-        setHourly(rows);
-
-        let directSunHours = 0;
-        for (let i = 0; i < 24; i++) {
-          const dni   = data.hourly.direct_normal_irradiance?.[i] ?? 0;
-          const cloud = data.hourly.cloud_cover?.[i] ?? data.hourly.cloudcover?.[i] ?? 0;
-          if (dni > 200 && cloud < 60) directSunHours += 1;
-        }
-        setSunshineMinsToday(directSunHours * 60);
+        const directSunHours = countDirectSunHours(data, 24);
+        setSunshineMinsToday(directSunHours === null ? null : directSunHours * 60);
       })
-      .catch(() => { if (!cancelled) setHourly([]); })
+      .catch(() => {
+        if (cancelled) return;
+        setHourly([]);
+        setSunshineMinsToday(null);
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
@@ -122,7 +103,7 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
   }
 
   // ── No data fallback ──────────────────────────────────────────
-  if (!hourly.length) {
+  if (!Array.isArray(hourly) || !hourly.length) {
     return (
       <div style={{
         background: '#1a1d27',
@@ -131,12 +112,18 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
         margin: 0,
         textAlign: 'center',
       }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Forecast unavailable</span>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Forecast data unavailable</span>
       </div>
     );
   }
 
   // ── Render strip ──────────────────────────────────────────────
+  // The daylight window is the same for every row, so resolve it once rather
+  // than recomputing sun position per hour card.
+  const sunData   = getSunData(latNum, lngNum);
+  const startHour = sunData?.startHour ?? 6;
+  const endHour   = sunData?.endHour   ?? 18;
+
   return (
     <div style={{
       background: '#1a1d27',
@@ -162,9 +149,6 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
       {/* Scrollable hour cards */}
       <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, paddingLeft: 12, paddingRight: 12, scrollbarWidth: 'none' }}>
         {hourly.map((hour, i) => {
-          const sunData    = getSunData(latNum, lngNum);
-          const startHour  = sunData?.startHour ?? 6;
-          const endHour    = sunData?.endHour   ?? 18;
           const currentH   = hour.time.getHours() + hour.time.getMinutes() / 60;
           const isNight    = currentH < startHour || currentH > endHour;
           const isGolden   = hour.solarW > 400 && hour.precip < 20;
