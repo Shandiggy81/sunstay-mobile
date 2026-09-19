@@ -1,6 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sun, ListFilter } from 'lucide-react';
+import { ListFilter } from 'lucide-react';
+import headerLogo from '../assets/logo-header.png';
+
+const LOGO_W = 251;
+const LOGO_H = 192;
 
 const STAT_PLACEHOLDER = '\u2013';
 
@@ -35,12 +39,18 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
             {/* iOS-style translucent navigation material: blur + saturation lift
                 over a hairline separator, so map content reads through the bar. */}
             <div className="relative flex min-h-[132px] items-center gap-3 border-b border-slate-900/[0.07] bg-white/72 px-4 py-3.5 backdrop-blur-xl backdrop-saturate-150">
-                {/* Logo */}
-                <div className="relative z-10 flex w-[52px] flex-shrink-0 flex-col items-center justify-center gap-1.5">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/15 ring-1 ring-inset ring-amber-500/25">
-                        <Sun size={24} strokeWidth={2.25} className="text-amber-600" aria-hidden="true" />
-                    </span>
-                    <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-700">Sunstay</span>
+                {/* Brand badge — height-driven so the blue field reads as a
+                    rounded chip against the cream bar without stretching it. */}
+                <div className="relative z-10 flex flex-shrink-0 items-center self-center">
+                    <img
+                        src={headerLogo}
+                        alt="Sunstay"
+                        width={LOGO_W}
+                        height={LOGO_H}
+                        draggable={false}
+                        decoding="async"
+                        className="h-12 w-auto select-none rounded-2xl shadow-sm"
+                    />
                 </div>
 
                 {/* Centre weather display */}
