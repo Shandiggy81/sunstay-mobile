@@ -555,50 +555,54 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
         className={`grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] will-change-[grid-template-rows] ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
       >
         <div className="min-h-0 overflow-hidden" inert={isExpanded ? undefined : true}>
-          {/* Live third-party forecast payloads render in here. A throw from any
-              of them must degrade this panel only — never unmount the sheet. */}
-          <ForecastErrorBoundary>
-            <div className="flex flex-col gap-3 pt-1 pb-1">
-              {/* Secondary Metrics (UV, Wind, & Pristine Air) */}
-              <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
-                <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
-                  <span className="flex-shrink-0 text-xl" aria-hidden="true">🔆</span>
-                  <div className="min-w-0">
-                    <span className={`block ${MICRO_LABEL}`}>UV Index</span>
-                    <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{uvIndex ?? '–'}</span>
-                  </div>
-                </div>
-                <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
-                  <span className="flex-shrink-0 text-xl" aria-hidden="true">🌬️</span>
-                  <div className="min-w-0">
-                    <span className={`block ${MICRO_LABEL}`}>Wind</span>
-                    <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{wind !== undefined ? `${Math.round(wind)} km/h` : '–'}</span>
-                  </div>
-                </div>
-                <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
-                  <span className="flex-shrink-0 text-xl" aria-hidden="true">🌿</span>
-                  <div className="min-w-0">
-                    <span className={`block ${MICRO_LABEL}`}>Air Quality</span>
-                    <span className="mt-0.5 block truncate text-[17px] font-bold tracking-[-0.01em] text-slate-900">{aqLabel ?? '–'}</span>
-                  </div>
+          <div className="flex flex-col gap-3 pt-1 pb-1">
+            {/* Secondary Metrics (UV, Wind, & Pristine Air) */}
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+              <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
+                <span className="flex-shrink-0 text-xl" aria-hidden="true">🔆</span>
+                <div className="min-w-0">
+                  <span className={`block ${MICRO_LABEL}`}>UV Index</span>
+                  <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{uvIndex ?? '–'}</span>
                 </div>
               </div>
+              <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
+                <span className="flex-shrink-0 text-xl" aria-hidden="true">🌬️</span>
+                <div className="min-w-0">
+                  <span className={`block ${MICRO_LABEL}`}>Wind</span>
+                  <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{wind !== undefined ? `${Math.round(wind)} km/h` : '–'}</span>
+                </div>
+              </div>
+              <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
+                <span className="flex-shrink-0 text-xl" aria-hidden="true">🌿</span>
+                <div className="min-w-0">
+                  <span className={`block ${MICRO_LABEL}`}>Air Quality</span>
+                  <span className="mt-0.5 block truncate text-[17px] font-bold tracking-[-0.01em] text-slate-900">{aqLabel ?? '–'}</span>
+                </div>
+              </div>
+            </div>
 
-              {/* Hourly Comfort Forecast */}
-              {lat && lng && (
+            {/* Hourly Comfort Forecast */}
+            {/* Each panel below renders a live third-party weather payload whose
+                shape is outside our control. They get a boundary apiece so one
+                bad payload degrades only its own panel — never the sheet, and
+                never its sibling panels. */}
+            {lat && lng && (
+              <ForecastErrorBoundary>
                 <div className="overflow-hidden rounded-3xl border border-sky-500/15 bg-sky-500/[0.04]">
                   <div className="flex items-center justify-between px-4 pb-1.5 pt-3">
                     <span className={MICRO_LABEL}>Hourly Comfort Forecast</span>
                   </div>
                   <HourlyForecastStrip lat={lat} lng={lng} dark enabled={isExpanded} />
                 </div>
-              )}
+              </ForecastErrorBoundary>
+            )}
 
-              {/* Wind & Comfort Intelligence */}
+            {/* Wind & Comfort Intelligence */}
+            <ForecastErrorBoundary>
               <WindComfortPanel venue={venue} />
-              {children}
-            </div>
-          </ForecastErrorBoundary>
+            </ForecastErrorBoundary>
+            {children}
+          </div>
         </div>
       </div>
     </div>
