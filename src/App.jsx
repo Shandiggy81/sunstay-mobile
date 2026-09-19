@@ -18,6 +18,14 @@ import { useVenues } from './hooks/useVenues';
 import { pullRefreshStatus } from './utils/pullRefreshStatus';
 import MascotPullRefresh from './components/MascotPullRefresh';
 import VenueRefreshButton from './components/VenueRefreshButton';
+import DebugStaticSunny from './components/DebugStaticSunny';
+import {
+    DEBUG_MASCOT_RENDER,
+    ENABLE_MAPBOX,
+    ENABLE_MASCOT_PULL_REFRESH,
+    ENABLE_SHEET_MOTION,
+    crashTestId,
+} from './utils/iosCrashIsolation';
 import { useVenueFeatures } from './hooks/useVenueFeatures';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
@@ -736,6 +744,33 @@ const AppContent = () => {
         </button>
     ), [openMobileFilters, mobileFilterOpen, activeFilters.length]);
 
+    const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
+    const sheetClassName = `ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''}`;
+    const SheetEl = ENABLE_SHEET_MOTION ? motion.div : 'div';
+    const BackdropEl = ENABLE_SHEET_MOTION ? motion.div : 'div';
+    const sheetMotionProps = ENABLE_SHEET_MOTION
+        ? {
+            drag: 'y',
+            dragConstraints: { top: 0, bottom: 0 },
+            dragElastic: 0.1,
+            onDragEnd: (_, { offset, velocity }) => {
+                if (offset.y > 100 || velocity.y > 500) setMobileSheetState('peek');
+            },
+            initial: { y: '100%' },
+            animate: { y: 0 },
+            exit: { y: '100%' },
+            transition: { type: 'spring', damping: 25, stiffness: 200 },
+        }
+        : {};
+    const backdropMotionProps = ENABLE_SHEET_MOTION
+        ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+        : {};
+    const isolationTestId = crashTestId({
+        pull: ENABLE_MASCOT_PULL_REFRESH,
+        map: ENABLE_MAPBOX,
+        motion: ENABLE_SHEET_MOTION,
+    });
+
     return (
         <>
             {!splashDone && (
@@ -759,7 +794,12 @@ const AppContent = () => {
                 {refreshStatus}
             </div>
 
-            <div className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}>
+            <div
+                className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
+                data-crash-isolation={isolationTestId}
+                data-debug-mascot={DEBUG_MASCOT_RENDER ? 'on' : 'off'}
+            >
+                {DEBUG_MASCOT_RENDER ? <DebugStaticSunny /> : null}
                 <WeatherBackground />
 
                 <TopBar
@@ -820,16 +860,30 @@ const AppContent = () => {
                         </div>
 
                         {!isMobile ? (
-                            <MascotPullRefresh
-                                ref={pullRefreshRef}
-                                enabled={false}
-                                showMascot={false}
-                                onRefresh={refetch}
-                                onStatusChange={setRefreshStatus}
-                                className="ss-venue-list"
-                            >
+                            ENABLE_MASCOT_PULL_REFRESH ? (
+                                <MascotPullRefresh
+                                    ref={pullRefreshRef}
+                                    enabled={false}
+                                    showMascot={false}
+                                    onRefresh={refetch}
+                                    onStatusChange={setRefreshStatus}
+                                    className="ss-venue-list"
+                                >
+                                    <LiveVenueList
+                                        className="ss-mascot-ptr__scroller"
+                                        virtuosoRef={sidebarVirtuosoRef}
+                                        venues={sortedVenues}
+                                        selectedVenue={selectedVenue}
+                                        onVenueSelect={handleVenueSelect}
+                                        weather={weather}
+                                        empty={filteredVenues.length === 0 ? (
+                                            <EmptyVenueState announce onClearFilters={handleClearFilters} />
+                                        ) : null}
+                                    />
+                                </MascotPullRefresh>
+                            ) : (
                                 <LiveVenueList
-                                    className="ss-mascot-ptr__scroller"
+                                    className="ss-venue-list"
                                     virtuosoRef={sidebarVirtuosoRef}
                                     venues={sortedVenues}
                                     selectedVenue={selectedVenue}
@@ -839,30 +893,41 @@ const AppContent = () => {
                                         <EmptyVenueState announce onClearFilters={handleClearFilters} />
                                     ) : null}
                                 />
-                            </MascotPullRefresh>
+                            )
                         ) : null}
                     </aside>
 
                     {/* RIGHT: Map */}
                     <section className={`ss-map-area relative flex min-h-0 flex-1 flex-col ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
                         <div className="ss-map-container min-h-0 flex-1">
-                            <MapErrorBoundary>
-                                <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
-                                    <VenueMap
-                                        ref={mapRef}
-                                        venues={venues}
-                                        onVenueSelect={handleVenueSelect}
-                                        selectedVenue={selectedVenue}
-                                        filteredVenueIds={stableFilteredIds}
-                                        liveVenueFeatures={liveVenueFeatures}
-                                        weatherColorFn={getMarkerWeatherColor}
-                                        cozyWeatherActive={cozyWeatherActive}
-                                        cozyFilterActive={cozyFilterActive}
-                                        isExpanded={mobileMapExpanded}
-                                        filtersControl={filtersControl}
-                                    />
-                                </Suspense>
-                            </MapErrorBoundary>
+                            {ENABLE_MAPBOX ? (
+                                <MapErrorBoundary>
+                                    <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
+                                        <VenueMap
+                                            ref={mapRef}
+                                            venues={venues}
+                                            onVenueSelect={handleVenueSelect}
+                                            selectedVenue={selectedVenue}
+                                            filteredVenueIds={stableFilteredIds}
+                                            liveVenueFeatures={liveVenueFeatures}
+                                            weatherColorFn={getMarkerWeatherColor}
+                                            cozyWeatherActive={cozyWeatherActive}
+                                            cozyFilterActive={cozyFilterActive}
+                                            isExpanded={mobileMapExpanded}
+                                            filtersControl={filtersControl}
+                                        />
+                                    </Suspense>
+                                </MapErrorBoundary>
+                            ) : (
+                                <div
+                                    data-testid="mapbox-isolation-fallback"
+                                    className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2 bg-slate-900 text-center text-white"
+                                >
+                                    <span aria-hidden="true">🗺️</span>
+                                    <p className="text-sm font-bold">Map isolation fallback</p>
+                                    <p className="text-xs text-white/70">ENABLE_MAPBOX is off</p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Zero-Results Filter Overlay — desktop only: on mobile the
@@ -997,24 +1062,18 @@ const AppContent = () => {
                     </div>
                 )}
 
+                {ENABLE_SHEET_MOTION ? (
                 <AnimatePresence>
-                    {mobileSheetState === 'expanded' && !selectedVenue && (
+                    {sheetExpanded && (
                         <>
-                            <motion.div
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            <BackdropEl
+                                {...backdropMotionProps}
                                 onClick={() => setMobileSheetState('peek')}
                                 className="ss-mobile-sheet-backdrop"
                             />
-                            <motion.div
-                                drag="y"
-                                dragConstraints={{ top: 0, bottom: 0 }}
-                                dragElastic={0.1}
-                                onDragEnd={(_, { offset, velocity }) => {
-                                    if (offset.y > 100 || velocity.y > 500) setMobileSheetState('peek');
-                                }}
-                                initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                className={`ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''}`}
+                            <SheetEl
+                                {...sheetMotionProps}
+                                className={sheetClassName}
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
@@ -1072,16 +1131,32 @@ const AppContent = () => {
                                         )}
                                     </div>
                                 </div>
-                                <MascotPullRefresh
-                                    ref={pullRefreshRef}
-                                    enabled
-                                    showMascot
-                                    onRefresh={refetch}
-                                    onStatusChange={setRefreshStatus}
-                                    className="ss-mobile-sheet-list"
-                                >
+                                {ENABLE_MASCOT_PULL_REFRESH ? (
+                                    <MascotPullRefresh
+                                        ref={pullRefreshRef}
+                                        enabled
+                                        showMascot
+                                        onRefresh={refetch}
+                                        onStatusChange={setRefreshStatus}
+                                        className="ss-mobile-sheet-list"
+                                    >
+                                        <LiveVenueList
+                                            className="ss-mascot-ptr__scroller"
+                                            virtuosoRef={mobileVirtuosoRef}
+                                            onPointerDownCapture={stopSheetPointer}
+                                            safeAreaFooter
+                                            venues={sortedVenues}
+                                            selectedVenue={selectedVenue}
+                                            onVenueSelect={handleVenueSelect}
+                                            weather={weather}
+                                            empty={filteredVenues.length === 0 ? (
+                                                <EmptyVenueState announce onClearFilters={handleClearFilters} />
+                                            ) : null}
+                                        />
+                                    </MascotPullRefresh>
+                                ) : (
                                     <LiveVenueList
-                                        className="ss-mascot-ptr__scroller"
+                                        className="ss-mobile-sheet-list"
                                         virtuosoRef={mobileVirtuosoRef}
                                         onPointerDownCapture={stopSheetPointer}
                                         safeAreaFooter
@@ -1093,11 +1168,117 @@ const AppContent = () => {
                                             <EmptyVenueState announce onClearFilters={handleClearFilters} />
                                         ) : null}
                                     />
-                                </MascotPullRefresh>
-                            </motion.div>
+                                )}
+                            </SheetEl>
                         </>
                     )}
                 </AnimatePresence>
+                ) : (
+                    sheetExpanded ? (
+                        <>
+                            <div
+                                onClick={() => setMobileSheetState('peek')}
+                                className="ss-mobile-sheet-backdrop"
+                            />
+                            <div className={sheetClassName}>
+                                <div className="ss-mobile-sheet-head">
+                                    <div className="ss-mobile-sheet-grab" />
+                                    <h3>Venues</h3>
+                                    <p className="inline-flex items-center justify-center gap-2">
+                                        {matchingCount} results
+                                        <VenueRefreshButton
+                                            onRefresh={requestRefresh}
+                                            isRefreshing={isRefreshing}
+                                        />
+                                    </p>
+                                    {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
+                                    {!isRefreshing && refreshStatus.startsWith('Venue refresh failed') ? (
+                                        <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
+                                    ) : null}
+                                </div>
+                                <div className="ss-mobile-sheet-search flex-shrink-0 px-4 py-2.5 flex flex-col gap-2.5 bg-white/70 border-b border-gray-100">
+                                    <VenueSearchInput
+                                        id="mobile-venue-search"
+                                        value={searchQuery}
+                                        onChange={setSearchQuery}
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleFilterToggle(FILTER_COZY)}
+                                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                cozyFilterActive
+                                                    ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
+                                                    : 'bg-white/90 text-gray-700 border-gray-200/80 hover:bg-gray-50'
+                                            }`}
+                                            aria-pressed={cozyFilterActive}
+                                        >
+                                            <span>🛋️</span>
+                                            <span>Cozy</span>
+                                        </button>
+                                        <button
+                                            onClick={() => handleFilterToggle(FILTER_SUNNY)}
+                                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                                sunnyFilterActive
+                                                    ? 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm'
+                                                    : 'bg-white/90 text-gray-700 border-gray-200/80 hover:bg-gray-50'
+                                            }`}
+                                            aria-pressed={sunnyFilterActive}
+                                        >
+                                            <span>☀️</span>
+                                            <span>Sunny</span>
+                                        </button>
+                                        {(activeFilters.length > 0 || searchQuery.trim()) && (
+                                            <button
+                                                onClick={handleClearFilters}
+                                                className="min-h-[44px] px-3 py-2 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
+                                            >
+                                                Clear
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                {ENABLE_MASCOT_PULL_REFRESH ? (
+                                    <MascotPullRefresh
+                                        ref={pullRefreshRef}
+                                        enabled
+                                        showMascot
+                                        onRefresh={refetch}
+                                        onStatusChange={setRefreshStatus}
+                                        className="ss-mobile-sheet-list"
+                                    >
+                                        <LiveVenueList
+                                            className="ss-mascot-ptr__scroller"
+                                            virtuosoRef={mobileVirtuosoRef}
+                                            onPointerDownCapture={stopSheetPointer}
+                                            safeAreaFooter
+                                            venues={sortedVenues}
+                                            selectedVenue={selectedVenue}
+                                            onVenueSelect={handleVenueSelect}
+                                            weather={weather}
+                                            empty={filteredVenues.length === 0 ? (
+                                                <EmptyVenueState announce onClearFilters={handleClearFilters} />
+                                            ) : null}
+                                        />
+                                    </MascotPullRefresh>
+                                ) : (
+                                    <LiveVenueList
+                                        className="ss-mobile-sheet-list"
+                                        virtuosoRef={mobileVirtuosoRef}
+                                        onPointerDownCapture={stopSheetPointer}
+                                        safeAreaFooter
+                                        venues={sortedVenues}
+                                        selectedVenue={selectedVenue}
+                                        onVenueSelect={handleVenueSelect}
+                                        weather={weather}
+                                        empty={filteredVenues.length === 0 ? (
+                                            <EmptyVenueState announce onClearFilters={handleClearFilters} />
+                                        ) : null}
+                                    />
+                                )}
+                            </div>
+                        </>
+                    ) : null
+                )}
 
                 <ChatWidget
                     isOpen={isChatOpen}
