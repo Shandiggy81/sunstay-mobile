@@ -92,7 +92,7 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
                     applyPhase('idle');
                     resetPull();
                     successTimerRef.current = null;
-                }, prefersReducedMotion ? 200 : 720);
+                }, prefersReducedMotion ? 200 : 1400);
             }
             return result;
         } catch (error) {
