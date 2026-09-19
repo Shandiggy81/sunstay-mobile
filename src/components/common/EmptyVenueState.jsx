@@ -2,17 +2,35 @@ import React, { useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { RotateCcw, SearchX } from 'lucide-react';
 
-const MASCOT_SRC = '/assets/mascots/empty-state.png';
+// Sally is a full-body mascot and Rayray is a head, so matching them on height
+// would leave her looking tiny beside him. They are matched on *head* size
+// instead: her ray span is 0.42× her own height where his is 0.94× his, so
+// equal heads put him at ~44% of her height. 78px against her 184px lands just
+// under that, which reads as a natural pair rather than a clone.
+const SALLY = { src: '/assets/mascots/sally-empty.png', w: 201, h: 380 };
+const RAYRAY = { src: '/assets/mascots/rayray-empty.png', w: 197, h: 200 };
 
-// Sally and Rayray are cropped at the shoulders, so the artwork is painted
-// *behind* the card: their heads clear the top edge while the crop line stays
-// hidden underneath it. The image is 663×289, so `w-72` renders 125px tall and
-// `-top-24` (96px) leaves 29px tucked behind the card — enough to absorb the
-// idle float. Preflight's `img { max-width: 100% }` caps it to the card on
-// narrow phones, and even the tightest card (264px in the sheet on a 320px
-// viewport) still hides 19px. Do not swap the width for a smaller percentage: a
-// narrower render is a shorter one, which lifts the crop line back into view.
-const MASCOT_OVERHANG = '7rem';
+const SALLY_H = 184;
+const RAYRAY_H = 78;
+
+// The pair is painted *behind* the card, so the card's top edge is the crop
+// line. The row is bottom-aligned and offset by `-SALLY_OVERHANG`, which puts
+// its bottom SALLY_DIP px inside the card: Sally is cut just above the hem of
+// her hoodie, hiding her leggings and shoes. Rayray is lifted by RAYRAY_LIFT so
+// he only dips 18px and still shows ~three quarters of his face —
+// bottom-aligning him flush with Sally would bury all but the top of his head.
+//
+// Keep SALLY_OVERHANG near 8rem. It is the padding the state reserves above the
+// card, and the sheet on a short viewport (320×740) has no room to spare.
+const SALLY_DIP = 56;
+const RAYRAY_LIFT = 38;
+const SALLY_OVERHANG = SALLY_H - SALLY_DIP; // 128px of artwork above the card
+
+// Widest the pair can get: 97px + 77px + the 8px gap. That clears the card at
+// every viewport we support — 334px wide at 390px, and still 264px at 320px —
+// so the row never has to wrap or squash. `shrink-0` on each image keeps flex
+// from distorting them if that ever stops being true.
+const MASCOT_OVERHANG = `${SALLY_OVERHANG / 16}rem`;
 
 /**
  * Zero-results state for the venue list.
@@ -60,20 +78,35 @@ const EmptyVenueState = ({ onClearFilters, announce = false, className = '' }) =
                     // absolute box only gets the space to the right of its offset,
                     // and Tailwind's `img { max-width: 100% }` would shrink the
                     // artwork to fit it.
-                    <div className="pointer-events-none absolute -top-24 left-0 right-0 flex justify-center">
-                        <motion.img
-                            src={MASCOT_SRC}
-                            alt="Sally and Rayray, the SunStay mascots, raising a toast"
-                            width={663}
-                            height={289}
+                    <motion.div
+                        className="pointer-events-none absolute left-0 right-0 flex items-end justify-center gap-2"
+                        style={{ top: -SALLY_OVERHANG }}
+                        animate={prefersReducedMotion ? undefined : { y: [0, -5, 0] }}
+                        transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                        <img
+                            src={SALLY.src}
+                            alt="Sally, a SunStay sun mascot in pink sunglasses and a hoodie"
+                            width={SALLY.w}
+                            height={SALLY.h}
                             draggable={false}
                             decoding="async"
                             onError={() => setMascotUnavailable(true)}
-                            animate={prefersReducedMotion ? undefined : { y: [0, -5, 0] }}
-                            transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-                            className="w-72 select-none drop-shadow-[0_16px_24px_rgba(15,23,42,0.28)]"
+                            style={{ height: SALLY_H }}
+                            className="w-auto shrink-0 select-none drop-shadow-[0_16px_24px_rgba(15,23,42,0.28)]"
                         />
-                    </div>
+                        <img
+                            src={RAYRAY.src}
+                            alt="Rayray, a beaming SunStay sun mascot"
+                            width={RAYRAY.w}
+                            height={RAYRAY.h}
+                            draggable={false}
+                            decoding="async"
+                            onError={() => setMascotUnavailable(true)}
+                            style={{ height: RAYRAY_H, marginBottom: RAYRAY_LIFT }}
+                            className="w-auto shrink-0 select-none drop-shadow-[0_14px_20px_rgba(15,23,42,0.26)]"
+                        />
+                    </motion.div>
                 )}
 
                 {/* Last in source order, so it paints over the artwork's lower edge. */}
