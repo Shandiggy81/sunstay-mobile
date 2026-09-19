@@ -4,27 +4,30 @@ import { RotateCcw, SearchX } from 'lucide-react';
 
 // Sally is a full-body mascot and Rayray is a head, so matching them on height
 // would leave her looking tiny beside him. They are matched on *head* size
-// instead: her ray span is 175px of her 420px-tall source and his is 395px of
-// his, so equal heads put him at ~44% of her height. 84px against her 200px
-// lands just under that, which reads as a natural pair rather than a clone.
-const SALLY = { src: '/assets/mascots/sally-empty.png', w: 222, h: 420 };
-const RAYRAY = { src: '/assets/mascots/rayray-empty.png', w: 414, h: 420 };
+// instead: her ray span is 0.42× her own height where his is 0.94× his, so
+// equal heads put him at ~44% of her height. 78px against her 184px lands just
+// under that, which reads as a natural pair rather than a clone.
+const SALLY = { src: '/assets/mascots/sally-empty.png', w: 201, h: 380 };
+const RAYRAY = { src: '/assets/mascots/rayray-empty.png', w: 197, h: 200 };
 
-const SALLY_H = 200;
-const RAYRAY_H = 84;
+const SALLY_H = 184;
+const RAYRAY_H = 78;
 
 // The pair is painted *behind* the card, so the card's top edge is the crop
 // line. The row is bottom-aligned and offset by `-SALLY_OVERHANG`, which puts
-// its bottom SALLY_DIP px inside the card: Sally is cut at the hem of her
-// hoodie, hiding her leggings and shoes. Rayray is lifted by RAYRAY_LIFT so he
-// only dips 22px and still shows ~three quarters of his face — bottom-aligning
-// him flush with Sally would bury all but the top of his head.
-const SALLY_DIP = 60;
+// its bottom SALLY_DIP px inside the card: Sally is cut just above the hem of
+// her hoodie, hiding her leggings and shoes. Rayray is lifted by RAYRAY_LIFT so
+// he only dips 18px and still shows ~three quarters of his face —
+// bottom-aligning him flush with Sally would bury all but the top of his head.
+//
+// Keep SALLY_OVERHANG near 8rem. It is the padding the state reserves above the
+// card, and the sheet on a short viewport (320×740) has no room to spare.
+const SALLY_DIP = 56;
 const RAYRAY_LIFT = 38;
-const SALLY_OVERHANG = SALLY_H - SALLY_DIP; // 140px of artwork above the card
+const SALLY_OVERHANG = SALLY_H - SALLY_DIP; // 128px of artwork above the card
 
-// Widest the pair can get: 106px + 83px + the 8px gap. That clears the card at
-// every viewport we support — 358px wide at 390px, and still 288px at 320px —
+// Widest the pair can get: 97px + 77px + the 8px gap. That clears the card at
+// every viewport we support — 334px wide at 390px, and still 264px at 320px —
 // so the row never has to wrap or squash. `shrink-0` on each image keeps flex
 // from distorting them if that ever stops being true.
 const MASCOT_OVERHANG = `${SALLY_OVERHANG / 16}rem`;
