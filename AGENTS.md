@@ -188,5 +188,7 @@ curl -sI https://sunstayglobal30.netlify.app/assets/brucey-offline-v2-<hash>.png
 ```
 
 Netlify's default for static assets is `max-age=0, must-revalidate`. Hashed
-`/assets/*` files get an explicit `immutable` header in `netlify.toml` so the
-offline modal can still paint Brucey from cache.
+`/assets/*.{js,css,png,jpg}` files get an explicit `immutable` header in
+`netlify.toml` so the offline modal can still paint Brucey from cache. The
+match is by extension so a missing path (SPA-rewritten to `index.html`) is
+not cached as an image.
