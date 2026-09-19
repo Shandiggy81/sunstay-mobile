@@ -15,6 +15,7 @@ import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
+import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
 import { useMicroclimateState } from '../context/MicroclimateContext';
@@ -581,17 +582,25 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
             </div>
 
             {/* Hourly Comfort Forecast */}
+            {/* Each panel below renders a live third-party weather payload whose
+                shape is outside our control. They get a boundary apiece so one
+                bad payload degrades only its own panel — never the sheet, and
+                never its sibling panels. */}
             {lat && lng && (
-              <div className="overflow-hidden rounded-3xl border border-sky-500/15 bg-sky-500/[0.04]">
-                <div className="flex items-center justify-between px-4 pb-1.5 pt-3">
-                  <span className={MICRO_LABEL}>Hourly Comfort Forecast</span>
+              <ForecastErrorBoundary>
+                <div className="overflow-hidden rounded-3xl border border-sky-500/15 bg-sky-500/[0.04]">
+                  <div className="flex items-center justify-between px-4 pb-1.5 pt-3">
+                    <span className={MICRO_LABEL}>Hourly Comfort Forecast</span>
+                  </div>
+                  <HourlyForecastStrip lat={lat} lng={lng} dark enabled={isExpanded} />
                 </div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark enabled={isExpanded} />
-              </div>
+              </ForecastErrorBoundary>
             )}
 
             {/* Wind & Comfort Intelligence */}
-            <WindComfortPanel venue={venue} />
+            <ForecastErrorBoundary>
+              <WindComfortPanel venue={venue} />
+            </ForecastErrorBoundary>
             {children}
           </div>
         </div>

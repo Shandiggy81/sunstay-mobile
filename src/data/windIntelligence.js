@@ -6,6 +6,8 @@
  * and booking intelligence.
  */
 
+import { finiteOrNull } from '../utils/finiteOrNull.js';
+
 // ── Wind Exposure Profiles ────────────────────────────────────────
 // Each venue gets a wind exposure profile based on its type, location,
 // and surrounding environment. This is a static dataset enriched from
@@ -103,9 +105,15 @@ export function getWindProfile(venue) {
  * We then adjust for venue shelter factor.
  */
 export function calculateApparentTemp(tempC, windSpeedMs, humidity, shelterFactor = 0) {
-    if (tempC == null || windSpeedMs == null) return null;
+    // Non-finite inputs (a missing field, or a non-numeric string) must not
+    // propagate through the arithmetic below as NaN.
+    const temp = finiteOrNull(tempC);
+    const wind = finiteOrNull(windSpeedMs);
+    if (temp === null || wind === null) return null;
+    tempC = temp;
+    windSpeedMs = wind;
 
-    const rh = humidity ?? 50; // default 50% if unknown
+    const rh = finiteOrNull(humidity) ?? 50; // default 50% if unknown
 
     // Vapour pressure (hPa)
     const e = (rh / 100) * 6.105 * Math.exp((17.27 * tempC) / (237.7 + tempC));
@@ -135,7 +143,10 @@ export function getWindChillImpact(tempC, windSpeedMs, shelterFactor = 0) {
  * Returns { level, label, advice, color, bgColor, icon }.
  */
 export function getComfortZone(apparentTemp) {
-    if (apparentTemp == null) {
+    // NaN fails every comparison below and would otherwise fall through to the
+    // "Extreme Heat" branch, reporting dangerous heat on missing data.
+    const at = finiteOrNull(apparentTemp);
+    if (at === null) {
         return {
             level: 'unknown',
             label: 'Unknown',
@@ -146,6 +157,7 @@ export function getComfortZone(apparentTemp) {
             icon: '❓',
         };
     }
+    apparentTemp = at;
 
     if (apparentTemp < 10) {
         return {
