@@ -172,7 +172,7 @@ The site is on Netlify (`netlify.toml`), and every PR gets a deploy preview at
 anything that depends on real CDN behaviour, which `vite dev` cannot show:
 
 ```bash
-curl -sI https://deploy-preview-74--sunstayglobal30.netlify.app/assets/mascots/brucey-offline.png \
+curl -sI https://deploy-preview-74--sunstayglobal30.netlify.app/assets/mascots/brucey-offline-v2.png \
   | grep -i cache-control     # public,max-age=604800
 ```
 

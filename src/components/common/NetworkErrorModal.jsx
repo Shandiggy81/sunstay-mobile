@@ -2,7 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { RefreshCw, WifiOff } from 'lucide-react';
 
-const MASCOT_SRC = '/assets/mascots/brucey-offline.png';
+// Version the filename when the artwork changes. netlify.toml caches
+// /assets/mascots/* for a week, so overwriting a mascot in place leaves
+// returning visitors on the old image until their cache expires.
+const MASCOT_SRC = '/assets/mascots/brucey-offline-v2.png';
+const MASCOT_W = 320;
+const MASCOT_H = 420;
 
 // `navigator.onLine === true` only means "there is a link" — captive portals and
 // dead uplinks still report true. The retry button therefore asks the network a
@@ -180,8 +185,8 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
                                 <motion.img
                                     src={MASCOT_SRC}
                                     alt="Brucey the Sunstay mascot"
-                                    width={440}
-                                    height={881}
+                                    width={MASCOT_W}
+                                    height={MASCOT_H}
                                     draggable={false}
                                     onError={() => setMascotUnavailable(true)}
                                     animate={prefersReducedMotion ? undefined : { y: [0, -6, 0] }}
