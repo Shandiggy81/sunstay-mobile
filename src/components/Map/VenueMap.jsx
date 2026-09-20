@@ -29,6 +29,7 @@ import {
     logIsolationEvent,
     setIsolationContext,
 } from '../../utils/iosCrashLog';
+import { removeStaleMarkers, syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -1181,10 +1182,11 @@ const VenueMap = forwardRef(({
                         let existing = markersRef.current[markerId];
 
                         if (existing) {
-                            if (existing.count !== count) {
-                                updateClusterMarkerEl(existing.el, count);
-                                existing.count = count;
-                            }
+                            syncExistingClusterMarker(existing, coords, count, {
+                                updateCount(record, nextCount) {
+                                    updateClusterMarkerEl(record.el, nextCount);
+                                },
+                            });
                         } else {
                             const el = createClusterMarkerEl(count);
                             el.addEventListener('click', (e) => {
@@ -1248,11 +1250,7 @@ const VenueMap = forwardRef(({
                     }
                 });
 
-                Object.keys(markersRef.current).forEach(id => {
-                    if (!newMarkers[id]) {
-                        markersRef.current[id].marker.remove();
-                    }
-                });
+                removeStaleMarkers(markersRef.current, newMarkers);
                 markersRef.current = newMarkers;
             });
         };
