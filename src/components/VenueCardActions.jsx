@@ -43,28 +43,26 @@ export default function VenueCardActions({
   return (
     <>
       <motion.div
-        className="rounded-2xl overflow-hidden"
-        style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.20)' }}
+        className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35 }}
       >
-        <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
+        <div className="p-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <span className="font-black uppercase tracking-widest" style={{ fontSize: '14px', color: '#D97706' }}>How's the Vibe? ✨</span>
-            {/* Slate 700 (#334155) for high-glare legibility on amber background */}
-            <span className="font-bold" style={{ fontSize: '12px', color: '#334155' }}>{verdict.icon} {verdict.text}</span>
+            <span className="font-bold uppercase tracking-widest text-[14px] text-slate-900">How's the Vibe? ✨</span>
+            <span className="font-medium text-[12px] text-slate-600">{verdict.icon} {verdict.text}</span>
           </div>
           {/* Single swipe row — scrollbar-hide maps to the custom utility in src/index.css */}
           <div className="flex gap-2 flex-nowrap overflow-x-auto scrollbar-hide pb-1">
             {(safeTags.length ? safeTags : safeVibes.length ? safeVibes : ['Chill']).map((t, i) => (
-              <span key={i} className="font-bold whitespace-nowrap" style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '999px', background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.18)', color: '#0369A1' }}>{t}</span>
+              <span key={i} className="font-semibold uppercase whitespace-nowrap text-[11px] tracking-wide px-3.5 py-2 rounded-full bg-slate-50 border border-slate-200 text-slate-700">{t}</span>
             ))}
           </div>
-          {/* PRIMARY CTA — Capture the Vibe */}
+          {/* PRIMARY CTA — Capture the Vibe (amber accent) */}
           <motion.label
             className="flex items-center justify-center gap-2 w-full rounded-2xl cursor-pointer"
-            style={{ minHeight: '54px', background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)', border: '1px solid rgba(14,165,233,0.3)', boxShadow: '0 4px 20px rgba(14,165,233,0.25)' }}
+            style={{ minHeight: '54px', background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', border: '1px solid rgba(245,158,11,0.3)', boxShadow: '0 4px 20px rgba(245,158,11,0.25)' }}
             whileTap={{ scale: 0.97 }}
           >
             <motion.span className="font-black" style={{ fontSize: '15px', color: '#FFFFFF' }} animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}>📸 Capture the Vibe</motion.span>
@@ -88,16 +86,15 @@ export default function VenueCardActions({
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 24 }}
-        className="flex items-center gap-2 rounded-2xl px-3 py-2"
-        style={{ background: `${verdict.color}0f`, border: `1px solid ${verdict.color}30`, boxShadow: `0 0 24px ${verdict.color}12` }}
+        className="flex items-center gap-2 bg-white rounded-2xl border border-slate-100 shadow-sm px-3 py-2"
       >
         <Float range={3} duration={3} delay={0}><span className="text-xl">{verdict.icon}</span></Float>
         <span className="font-black text-[0.75rem]" style={{ color: verdict.color }}>{verdict.text}</span>
       </motion.div>
 
       {isRainStartingSoon && minutesUntilRain > 0 && (
-        <div className="w-full rounded-full py-2 px-4 mb-4 flex items-center justify-center shadow-lg" style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.30)' }}>
-          <span className="font-semibold text-sm" style={{ color: '#D97706' }}>⚠️ Rain expected in {minutesUntilRain} mins</span>
+        <div className="w-full bg-white rounded-full border border-amber-200 shadow-sm py-2 px-4 mb-4 flex items-center justify-center">
+          <span className="font-semibold text-sm text-amber-600">⚠️ Rain expected in {minutesUntilRain} mins</span>
         </div>
       )}
 
@@ -105,11 +102,11 @@ export default function VenueCardActions({
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-2 rounded-2xl px-3 py-2"
-          style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', boxShadow: '0 0 24px rgba(239,68,68,0.10)' }}
+          className="flex items-center gap-2 bg-white rounded-2xl border border-amber-200 shadow-sm px-3 py-2"
+          style={{ boxShadow: '0 0 24px rgba(245,158,11,0.10)' }}
         >
           <motion.span className="text-xl" animate={{ scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}>🔥</motion.span>
-          <span className="font-black text-sm" style={{ color: '#DC2626' }}>
+          <span className="font-black text-sm" style={{ color: '#B45309' }}>
             {liveFeaturesForVenue?.fireplaceOn ? 'Fireplace Active — On Now' : 'Outdoor Heaters — On Now'}
           </span>
         </motion.div>
@@ -117,7 +114,7 @@ export default function VenueCardActions({
 
       {heating && !['no heating','indoor only','heated outdoor'].includes(heating) && (
         <Float range={4} duration={4} delay={0.1}>
-          <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
+          <div className="flex items-center gap-2 bg-white rounded-2xl border border-amber-200 shadow-sm px-3 py-2">
             <motion.span className="text-xl" animate={{ scale: [1, 1.15, 0.95, 1.1, 1], rotate: [-3, 3, -2, 2, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}>🔥</motion.span>
             <span className="text-sm font-black" style={{ color: '#D97706' }}>
               {heating === 'electric-fireplace' ? 'Premium Electric Fireplace' : heating === 'traditional-fireplace' ? 'Traditional Gas Fireplace' : 'Fireplace Active'}
@@ -128,24 +125,24 @@ export default function VenueCardActions({
 
       {actualHappyHour && !isHotelOrStay && (
         <Float range={3} duration={6} delay={0.4}>
-          <div className="flex items-center justify-between rounded-2xl px-3 py-2" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.18)' }}>
+          <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-100 shadow-sm px-3 py-2">
             <div>
-              <span className="text-orange-500 text-[0.7rem] font-black uppercase tracking-widest block mb-0.5">🍻 Happy Hour · {actualHappyHour.start} – {actualHappyHour.end}</span>
-              <span className="font-black text-[15px]" style={{ color: '#1E293B' }}>{actualHappyHour.deal}</span>
+              <span className="text-amber-600 text-[11px] font-semibold uppercase tracking-widest block mb-0.5">🍻 Happy Hour · {actualHappyHour.start} – {actualHappyHour.end}</span>
+              <span className="font-bold text-[15px] text-slate-900">{actualHappyHour.deal}</span>
             </div>
             {isHappyHourNow(actualHappyHour) && (
-              <motion.span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ml-3 flex-shrink-0" style={{ background: '#F97316', color: '#fff' }} animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>LIVE</motion.span>
+              <motion.span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ml-3 flex-shrink-0 bg-amber-500 text-white" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}>LIVE</motion.span>
             )}
           </div>
         </Float>
       )}
 
       {liveFeaturesForVenue && Object.values(liveFeaturesForVenue).some(Boolean) && (
-        <div className="flex flex-wrap gap-2 rounded-2xl p-3" style={{ background: 'rgba(14,165,233,0.04)', border: '1px solid rgba(14,165,233,0.10)' }}>
+        <div className="flex flex-wrap gap-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
           {Object.entries(liveFeaturesForVenue).map(([key, active], i) =>
             active && FEATURE_BADGES[key] ? (
               <Float key={key} range={2} duration={4 + i * 0.3} delay={i * 0.05}>
-                <span className="text-[10px] font-black px-3 py-1.5 rounded-full" style={{ background: 'rgba(14,165,233,0.08)', color: '#0369A1', border: '1px solid rgba(14,165,233,0.18)' }}>{FEATURE_BADGES[key]}</span>
+                <span className="text-[11px] font-semibold uppercase px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-slate-700">{FEATURE_BADGES[key]}</span>
               </Float>
             ) : null
           )}
@@ -153,9 +150,9 @@ export default function VenueCardActions({
       )}
 
       {cozyWeatherActive && (
-        <div className="flex items-center gap-2 rounded-2xl px-3 py-2" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.16)' }}>
+        <div className="flex items-center gap-2 bg-white rounded-2xl border border-slate-100 shadow-sm px-3 py-2">
           <Float range={4} duration={4}><span>☕</span></Float>
-          <span className="text-sm font-black" style={{ color: '#6366F1' }}>Cozy Indoor · Heaters · Shelter</span>
+          <span className="text-sm font-bold text-slate-700">Cozy Indoor · Heaters · Shelter</span>
         </div>
       )}
     </>

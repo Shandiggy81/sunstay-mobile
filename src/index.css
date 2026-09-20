@@ -2,6 +2,17 @@
 
 @import "tailwindcss";
 
+/* ── Sunstay design tokens (Tailwind v4 theme) ──────────────
+   Accent:        amber-500  → bg-accent / text-accent
+   Dark neutral:  slate-900  → bg-ink / text-ink
+   Light neutral: slate-50   → bg-surface / text-surface   */
+@theme {
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --color-accent: #f59e0b;  /* amber-500 */
+  --color-ink: #0f172a;     /* slate-900 */
+  --color-surface: #f8fafc; /* slate-50  */
+}
+
 /* Base styles.
    This reset lives inside Tailwind's `base` layer on purpose. Unlayered rules
    outrank every `@layer`, so a bare `* { margin: 0; padding: 0 }` silently beat
@@ -1123,10 +1134,10 @@ body,
    ════════════════════════════════════════════════════════ */
 
 .wind-comfort-panel {
-  background: rgba(255, 255, 255, 0.35);
+  background: #ffffff;
   border-radius: 12px;
   padding: 12px;
-  border: 1px solid rgba(14, 165, 233, 0.08);
+  border: 1px solid #f1f5f9; /* slate-100 */
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1670,10 +1681,10 @@ body,
 }
 
 .map-glass-btn--active {
-  background: rgba(14, 165, 233, 0.18);
-  border-color: rgba(14, 165, 233, 0.5);
-  color: #0369a1;
-  box-shadow: 0 4px 18px rgba(14, 165, 233, 0.22), 0 1px 4px rgba(0, 0, 0, 0.06);
+  background: rgba(245, 158, 11, 0.16);   /* amber-500 */
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #b45309;                          /* amber-700 */
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.22), 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 /* Time Slider */
@@ -3269,8 +3280,8 @@ body,
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.20), 0 1px 4px rgba(135, 206, 235, 0.30);
-  border: 2px solid #87CEEB;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.20), 0 1px 4px rgba(245, 158, 11, 0.25);
+  border: 2px solid #f59e0b; /* amber-500 */
   background: white;
   transition: all 0.25s ease;
 }
@@ -3278,14 +3289,14 @@ body,
 /* Mapbox popup styling */
 .mapboxgl-popup-content {
   background: white;
-  border: 2px solid #87CEEB;
+  border: 1px solid #f1f5f9; /* slate-100 */
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(135, 206, 235, 0.3);
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(15, 23, 42, 0.08);
   padding: 12px 16px;
 }
 
 .mapboxgl-popup-tip {
-  border-top-color: #87CEEB;
+  border-top-color: #ffffff;
 }
 
 .ss-map-marker:hover .ss-marker-pill {

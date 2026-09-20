@@ -39,3 +39,16 @@ export function amenityChipsAllowed(branch) {
 export function tabPanelRemountKey(venueId, activeTab) {
   return `${venueId ?? 'venue'}:${activeTab ?? 'Overview'}`;
 }
+
+/**
+ * Entering a tab must start at the top of that tab's own content.
+ * Overview's leftover scrollTop / scrollHeight must not carry over.
+ */
+export function resetVenueDetailScroller(scroller) {
+  if (!scroller) return { scrollTop: null };
+  if (typeof scroller.scrollTo === 'function') {
+    scroller.scrollTo(0, 0);
+  }
+  scroller.scrollTop = 0;
+  return { scrollTop: scroller.scrollTop };
+}
