@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { getSunData } from '../utils/getSunData';
 import { shouldFetchRemote } from '../hooks/shouldFetchRemote';
 import { normalizeHourlyForecast, countDirectSunHours } from '../utils/normalizeHourlyForecast';
+import {
+  resolveForecastView,
+  forecastItemCount,
+  forecastDataPresent,
+} from '../utils/resolveForecastView';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -37,18 +42,34 @@ if (typeof document !== 'undefined' && !document.getElementById('ss-pulse-kf')) 
   document.head.appendChild(style);
 }
 
-export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
+export default function HourlyForecastStrip({ lat, lng, enabled = true, onViewState }) {
   const [hourly, setHourly]                   = useState([]);
   const [loading, setLoading]                 = useState(true);
+  const [error, setError]                     = useState(false);
   const [sunshineMinsToday, setSunshineMinsToday] = useState(null);
 
   const latNum = lat != null ? Number(lat) : NaN;
   const lngNum = lng != null ? Number(lng) : NaN;
   const hasCoords = Number.isFinite(latNum) && Number.isFinite(lngNum);
+  const view = resolveForecastView({ loading, error, items: hourly });
+  const itemCount = forecastItemCount(hourly);
+  const dataPresent = forecastDataPresent(hourly);
+
+  useEffect(() => {
+    onViewState?.({
+      loading,
+      error,
+      view,
+      itemCount,
+      dataPresent,
+      branch: 'hourly-forecast-strip',
+    });
+  }, [loading, error, view, itemCount, dataPresent, onViewState]);
 
   useEffect(() => {
     if (!shouldFetchRemote({ enabled, lat, lng }) || !hasCoords) {
       setLoading(false);
+      setError(false);
       if (!enabled) return;
       setHourly([]);
       return;
@@ -56,6 +77,7 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
 
     let cancelled = false;
     setLoading(true);
+    setError(false);
 
     const params = new URLSearchParams({
       latitude:      String(latNum),
@@ -71,6 +93,7 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
         if (cancelled) return;
 
         setHourly(normalizeHourlyForecast(data, { now: new Date(), limit: 12 }));
+        setError(false);
 
         const directSunHours = countDirectSunHours(data, 24);
         setSunshineMinsToday(directSunHours === null ? null : directSunHours * 60);
@@ -79,6 +102,7 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
         if (cancelled) return;
         setHourly([]);
         setSunshineMinsToday(null);
+        setError(true);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
 
@@ -86,15 +110,27 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, latNum, lngNum]);
 
+  const stateAttrs = {
+    'data-forecast-state': view,
+    'data-forecast-count': String(itemCount),
+    'data-forecast-data': dataPresent ? 'yes' : 'no',
+    'data-render-branch': 'hourly-forecast-strip',
+  };
+
   // ── Loading state ─────────────────────────────────────────────
-  if (loading) {
+  if (view === 'loading') {
     return (
-      <div style={{
-        background: '#1a1d27',
-        borderRadius: 12,
-        padding: '10px 0 4px',
-        margin: 0,
-      }}>
+      <div
+        {...stateAttrs}
+        role="status"
+        aria-label="Loading sun forecast"
+        style={{
+          background: '#1a1d27',
+          borderRadius: 12,
+          padding: '10px 0 4px',
+          margin: 0,
+        }}
+      >
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8, paddingLeft: 12, paddingRight: 12, paddingTop: 4 }}>
           {Array.from({ length: 6 }).map((_, i) => <ShimmerCard key={i} />)}
         </div>
@@ -102,17 +138,50 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
     );
   }
 
-  // ── No data fallback ──────────────────────────────────────────
-  if (!Array.isArray(hourly) || !hourly.length) {
+  // ── Fetch failure ─────────────────────────────────────────────
+  if (view === 'error') {
     return (
-      <div style={{
-        background: '#1a1d27',
-        borderRadius: 12,
-        padding: '10px 16px',
-        margin: 0,
-        textAlign: 'center',
-      }}>
-        <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Forecast data unavailable</span>
+      <div
+        {...stateAttrs}
+        role="alert"
+        style={{
+          background: '#FFF1F2',
+          borderRadius: 12,
+          padding: '14px 16px',
+          margin: 0,
+          border: '1px solid rgba(225,29,72,0.18)',
+        }}
+      >
+        <span style={{ fontSize: 13, color: '#9F1239', fontWeight: 700, display: 'block' }}>
+          Couldn’t load the sun forecast
+        </span>
+        <span style={{ fontSize: 12, color: '#BE123C', fontWeight: 500 }}>
+          Check your connection and open this tab again.
+        </span>
+      </div>
+    );
+  }
+
+  // ── Empty timeline ────────────────────────────────────────────
+  if (view === 'empty') {
+    return (
+      <div
+        {...stateAttrs}
+        role="status"
+        style={{
+          background: '#FFFBEB',
+          borderRadius: 12,
+          padding: '14px 16px',
+          margin: 0,
+          border: '1px solid rgba(245,158,11,0.22)',
+        }}
+      >
+        <span style={{ fontSize: 13, color: '#92400E', fontWeight: 700, display: 'block' }}>
+          No hourly sun data yet
+        </span>
+        <span style={{ fontSize: 12, color: '#B45309', fontWeight: 500 }}>
+          The timeline for this venue is empty. Overview still works.
+        </span>
       </div>
     );
   }
@@ -125,7 +194,9 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true }) {
   const endHour   = sunData?.endHour   ?? 18;
 
   return (
-    <div style={{
+    <div
+      {...stateAttrs}
+      style={{
       background: '#1a1d27',
       borderRadius: 12,
       padding: '10px 0 6px',
