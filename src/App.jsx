@@ -26,6 +26,12 @@ import {
     ENABLE_SHEET_MOTION,
     crashTestId,
 } from './utils/iosCrashIsolation';
+import {
+    attachPageLifecycleProbes,
+    logReactRenderError,
+    setIsolationContext,
+} from './utils/iosCrashLog';
+import IsolationDevLog from './components/IsolationDevLog';
 import { useVenueFeatures } from './hooks/useVenueFeatures';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
@@ -436,6 +442,13 @@ const AppContent = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    useEffect(() => {
+        setIsolationContext({
+            route: `${window.location.pathname}${window.location.search}`,
+        });
+        return attachPageLifecycleProbes(window);
+    }, []);
+
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
@@ -587,6 +600,10 @@ const AppContent = () => {
         if (!venue) return;
         setSelectedVenue(venue);
         setMobileSheetState('peek');
+        setIsolationContext({
+            venue: venue.name || venue.title || String(venue.id ?? ''),
+            tab: 'Overview',
+        });
         const lng = Number(venue.lng);
         const lat = Number(venue.lat);
         if (mapRef.current?.resizeAndFly && Number.isFinite(lng) && Number.isFinite(lat)) {
@@ -594,7 +611,10 @@ const AppContent = () => {
         }
     }, []);
 
-    const handleCloseCard  = useCallback(() => setSelectedVenue(null), []);
+    const handleCloseCard  = useCallback(() => {
+        setSelectedVenue(null);
+        setIsolationContext({ venue: '', tab: '' });
+    }, []);
     const toggleChat       = useCallback(() => setIsChatOpen(p => !p), []);
     const closeChat        = useCallback(() => setIsChatOpen(false), []);
     const handleOwnerDashboardClose = useCallback(() => setShowOwnerDashboard(false), []);
@@ -797,9 +817,13 @@ const AppContent = () => {
             <div
                 className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
                 data-crash-isolation={isolationTestId}
+                data-mapbox={ENABLE_MAPBOX ? 'on' : 'off'}
+                data-sheet-motion={ENABLE_SHEET_MOTION ? 'on' : 'off'}
+                data-pull-refresh={ENABLE_MASCOT_PULL_REFRESH ? 'on' : 'off'}
                 data-debug-mascot={DEBUG_MASCOT_RENDER ? 'on' : 'off'}
             >
                 {DEBUG_MASCOT_RENDER ? <DebugStaticSunny /> : null}
+                <IsolationDevLog />
                 <WeatherBackground />
 
                 <TopBar
@@ -1074,6 +1098,7 @@ const AppContent = () => {
                             <SheetEl
                                 {...sheetMotionProps}
                                 className={sheetClassName}
+                                data-sheet-surface={ENABLE_SHEET_MOTION ? 'framer-motion' : 'static-div'}
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
@@ -1180,7 +1205,10 @@ const AppContent = () => {
                                 onClick={() => setMobileSheetState('peek')}
                                 className="ss-mobile-sheet-backdrop"
                             />
-                            <div className={sheetClassName}>
+                            <div
+                                className={sheetClassName}
+                                data-sheet-surface="static-div"
+                            >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
                                     <h3>Venues</h3>
@@ -1317,11 +1345,17 @@ const AppContent = () => {
 class ErrorBoundary extends Component {
     state = { hasError: false, error: null };
     static getDerivedStateFromError(error) { return { hasError: true, error }; }
-    componentDidCatch(error, info) { console.error('Sunstay Error:', error, info); }
+    componentDidCatch(error, info) {
+        console.error('Sunstay Error:', error, info);
+        logReactRenderError(error, 'AppErrorBoundary');
+    }
     render() {
         if (this.state.hasError) {
             return (
-                <div className="flex items-center justify-center h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-6">
+                <div
+                    data-react-render-error="1"
+                    className="flex items-center justify-center h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-6"
+                >
                     <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                         className="text-center max-w-md bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl"
                     >

@@ -1,4 +1,5 @@
 import React from 'react';
+import { logReactRenderError } from '../utils/iosCrashLog';
 
 /**
  * Temporary boundary around venue detail content.
@@ -12,12 +13,8 @@ class VenueDetailErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('[VenueDetailErrorBoundary]', {
-      error,
-      message: error?.message,
-      stack: error?.stack,
-      componentStack: info?.componentStack,
-    });
+    console.error('[VenueDetailErrorBoundary]', error?.message);
+    logReactRenderError(error, 'VenueDetailErrorBoundary');
   }
 
   render() {
@@ -27,6 +24,7 @@ class VenueDetailErrorBoundary extends React.Component {
       <div
         role="alert"
         data-venue-detail-error="1"
+        data-react-render-error="1"
         data-render-branch="error"
         className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5"
       >

@@ -1,4 +1,5 @@
 import React from 'react';
+import { logReactRenderError } from '../utils/iosCrashLog';
 
 // Mapbox tokens are always prefixed 'pk.' — matches the same check already
 // used in VenueMap.jsx, so both components agree on what counts as valid.
@@ -19,6 +20,7 @@ class MapErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('Map Intelligence Error:', error, errorInfo);
+    logReactRenderError(error, 'MapErrorBoundary');
     
     // Silent retry: only once within the first failure
     if (this.state.retryCount < 1) {
@@ -52,6 +54,7 @@ class MapErrorBoundary extends React.Component {
 
       return (
         <div
+          data-react-render-error="1"
           className={`absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-[32px] backdrop-blur-sm ${
             hasValidToken ? 'bg-orange-950/20' : 'bg-gradient-to-br from-orange-950 to-slate-900'
           }`}

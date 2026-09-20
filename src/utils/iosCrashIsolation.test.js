@@ -20,17 +20,26 @@ describe('iOS crash isolation flags', () => {
         assert.equal(typeof ENABLE_SHEET_MOTION, 'boolean');
     });
 
-    it('defaults keep every live feature on so Safari starts at matrix D', () => {
-        assert.equal(ENABLE_MASCOT_PULL_REFRESH, true);
+    it('defaults keep every live feature on so Safari starts at matrix A', () => {
         assert.equal(ENABLE_MAPBOX, true);
         assert.equal(ENABLE_SHEET_MOTION, true);
+        assert.equal(ENABLE_MASCOT_PULL_REFRESH, true);
+        assert.equal(crashTestId({
+            map: ENABLE_MAPBOX,
+            motion: ENABLE_SHEET_MOTION,
+            pull: ENABLE_MASCOT_PULL_REFRESH,
+        }), 'A');
     });
 
-    it('maps the A–D matrix to independent feature combinations', () => {
-        assert.equal(crashTestId({ pull: false, map: true, motion: true }), 'A');
-        assert.equal(crashTestId({ pull: true, map: false, motion: true }), 'B');
-        assert.equal(crashTestId({ pull: true, map: true, motion: false }), 'C');
-        assert.equal(crashTestId({ pull: true, map: true, motion: true }), 'D');
+    it('maps the A–E matrix to independent feature combinations', () => {
+        assert.equal(crashTestId({ map: true, motion: true, pull: true }), 'A');
+        assert.equal(crashTestId({ map: false, motion: true, pull: true }), 'B');
+        assert.equal(crashTestId({ map: true, motion: false, pull: true }), 'C');
+        assert.equal(crashTestId({ map: true, motion: true, pull: false }), 'D');
+        assert.equal(crashTestId({ map: false, motion: false, pull: false }), 'E');
+        assert.equal(crashTestId({ map: false, motion: false, pull: true }), 'custom');
+        assert.equal(crashTestId({ map: false, motion: true, pull: false }), 'custom');
+        assert.equal(crashTestId({ map: true, motion: false, pull: false }), 'custom');
     });
 
     it('selects a real fallback surface when a flag is off', () => {

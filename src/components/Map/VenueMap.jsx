@@ -23,6 +23,12 @@ import {
     localTimeToSliderMinutes,
 } from '../../utils/todMinutes';
 import { motion } from 'framer-motion';
+import {
+    ISOLATION_EVENT_KINDS,
+    classifyMapboxErrorMessage,
+    logIsolationEvent,
+    setIsolationContext,
+} from '../../utils/iosCrashLog';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -698,6 +704,8 @@ const VenueMap = forwardRef(({
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
+    const [mapFailureKind, setMapFailureKind] = useState('');
+    const [webglLost, setWebglLost] = useState(false);
 
     const { weather, calculateSunstayScore } = useWeather();
     const { setBbox } = useMicroclimateActions();
@@ -796,13 +804,32 @@ const VenueMap = forwardRef(({
     // ── Initialise map ONCE ─────────────────────────────────────────
     useEffect(() => {
         if (map.current) return;
-        if (!MAPBOX_TOKEN?.startsWith('pk.')) { setMapError(true); return; }
+        if (!MAPBOX_TOKEN?.startsWith('pk.')) {
+            setMapError(true);
+            setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAPBOX_ERROR,
+                message: 'missing-or-invalid-token',
+                source: 'VenueMap',
+            });
+            return;
+        }
         if (!mapContainer.current) return;
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
         let disposed = false;
         let resizeObserver;
-        const loadTimeout = setTimeout(() => { if (!disposed) setMapError(true); }, 15000);
+        const logMap = (kind, message) => {
+            if (disposed) return;
+            setIsolationContext({ mapEvent: message });
+            logIsolationEvent({ kind, message, source: 'VenueMap' });
+        };
+        const loadTimeout = setTimeout(() => {
+            if (disposed) return;
+            setMapError(true);
+            setMapFailureKind(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING);
+            logMap(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING, 'map-load-timeout');
+        }, 15000);
 
         // Detect touch/mobile devices up front. MSAA antialiasing sharpens the
         // 3D building edges but raises GPU memory pressure, which is a known
@@ -835,6 +862,7 @@ const VenueMap = forwardRef(({
             map.current.on('load', () => {
                 if (disposed || !map.current) return;
                 clearTimeout(loadTimeout);
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'load');
                 // Hide Mapbox Standard's default POI labels so they don't compete
                 // with our custom venue markers. (Standard exposes basemap config
                 // properties instead of individual symbol layers.)
@@ -867,15 +895,24 @@ const VenueMap = forwardRef(({
                 map.current.touchZoomRotate.disableRotation();
                 setMapLoaded(true);
                 setMapError(false);
+                setMapFailureKind('');
+            });
+
+            map.current.on('style.load', () => {
+                if (disposed) return;
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'style.load');
             });
 
             map.current.on('error', (e) => {
                 if (disposed) return;
                 const msg = e.error?.message || e.message || '';
                 if (isSuppressedMapError(msg)) return;
+                const kind = classifyMapboxErrorMessage(msg);
+                logMap(kind, msg || 'map-error');
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
                     setMapError(true);
+                    setMapFailureKind(kind);
                 }
             });
 
@@ -884,12 +921,26 @@ const VenueMap = forwardRef(({
                 'top-right'
             );
             const canvas = map.current.getCanvas();
-            const handleWebglContextLost = (event) => event.preventDefault();
-            canvas.addEventListener('webglcontextlost', handleWebglContextLost, false);
+            const handleWebglContextLost = (event) => {
+                event.preventDefault();
+                setWebglLost(true);
+                logMap(ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST, 'webglcontextlost');
+            };
+            const handleWebglContextRestored = () => {
+                setWebglLost(false);
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'webglcontextrestored');
+            };
+            if (canvas && typeof canvas.addEventListener === 'function') {
+                canvas.addEventListener('webglcontextlost', handleWebglContextLost, false);
+                canvas.addEventListener('webglcontextrestored', handleWebglContextRestored, false);
+            }
             map.current._sunstayWebglContextLostHandler = handleWebglContextLost;
-        } catch {
+            map.current._sunstayWebglContextRestoredHandler = handleWebglContextRestored;
+        } catch (err) {
             clearTimeout(loadTimeout);
             setMapError(true);
+            setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
+            logMap(ISOLATION_EVENT_KINDS.MAPBOX_ERROR, err?.message || 'map-init-failed');
         }
 
         return () => {
@@ -899,8 +950,12 @@ const VenueMap = forwardRef(({
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             const canvas = map.current?.getCanvas();
             const contextLostHandler = map.current?._sunstayWebglContextLostHandler;
+            const contextRestoredHandler = map.current?._sunstayWebglContextRestoredHandler;
             if (canvas && contextLostHandler) {
                 canvas.removeEventListener('webglcontextlost', contextLostHandler, false);
+            }
+            if (canvas && contextRestoredHandler) {
+                canvas.removeEventListener('webglcontextrestored', contextRestoredHandler, false);
             }
             Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
             markersRef.current = {};
@@ -1293,6 +1348,7 @@ const VenueMap = forwardRef(({
         <div className="relative h-full w-full max-lg:[&_.mapboxgl-ctrl-top-right]:hidden lg:[&_.mapboxgl-ctrl-bottom-right]:bottom-2 [&_.mapboxgl-ctrl-bottom-right]:bottom-[calc(env(safe-area-inset-bottom)+90px)] [&_.mapboxgl-ctrl-bottom-right]:right-[6.75rem]">
             <div
                 ref={mapContainer}
+                data-map-webgl-lost={webglLost ? '1' : '0'}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
 
@@ -1402,7 +1458,12 @@ const VenueMap = forwardRef(({
             )}
 
             {(!mapLoaded || mapError) && (
-                <div style={styles.overlay}>
+                <div
+                    style={styles.overlay}
+                    data-map-failure-kind={mapError
+                        ? (mapFailureKind || ISOLATION_EVENT_KINDS.MAPBOX_ERROR)
+                        : ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING}
+                >
                     {mapError ? (
                         <div style={{ textAlign: 'center', padding: 24 }}>
                             <div style={{ fontSize: 48, marginBottom: 16 }}>🗺️</div>

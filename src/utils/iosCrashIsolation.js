@@ -5,28 +5,32 @@
  *
  * Flip one const at a time, then reload Safari between groups.
  *
- * | Test | Mascot pull | Mapbox | Sheet motion |
- * |------|------------:|-------:|-------------:|
- * | A    | Off         | On     | On           |
- * | B    | On          | Off    | On           |
- * | C    | On          | On     | Off          |
- * | D    | On          | On     | On           |
+ * | Test | Mapbox | Sheet motion | Pull refresh |
+ * |------|-------:|-------------:|-------------:|
+ * | A    | On     | On           | On           |
+ * | B    | Off    | On           | On           |
+ * | C    | On     | Off          | On           |
+ * | D    | On     | On           | Off          |
+ * | E    | Off    | Off          | Off          |
  *
- * Also: static Sunny with pull off, repeated sheet open/close, repeated
- * refreshes, and long scrolling. Reload Safari between groups.
+ * Same Safari sequence for every row: fresh reload, expand the venue sheet,
+ * open Railway Hotel, switch Overview / Sun Forecast / Amenities, scroll,
+ * close and reopen, repeat. Do not unmount the map or change Mapbox init
+ * while running this matrix.
  */
 
 export const DEBUG_MASCOT_RENDER = false;
 
-export const ENABLE_MASCOT_PULL_REFRESH = true;
 export const ENABLE_MAPBOX = true;
 export const ENABLE_SHEET_MOTION = true;
+export const ENABLE_MASCOT_PULL_REFRESH = true;
 
-export function crashTestId({ pull, map, motion }) {
-    if (!pull && map && motion) return 'A';
-    if (pull && !map && motion) return 'B';
-    if (pull && map && !motion) return 'C';
-    if (pull && map && motion) return 'D';
+export function crashTestId({ map, motion, pull }) {
+    if (map && motion && pull) return 'A';
+    if (!map && motion && pull) return 'B';
+    if (map && !motion && pull) return 'C';
+    if (map && motion && !pull) return 'D';
+    if (!map && !motion && !pull) return 'E';
     return 'custom';
 }
 
