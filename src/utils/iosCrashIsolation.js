@@ -16,7 +16,7 @@
  * refreshes, and long scrolling. Reload Safari between groups.
  */
 
-export const DEBUG_MASCOT_RENDER = true;
+export const DEBUG_MASCOT_RENDER = false;
 
 export const ENABLE_MASCOT_PULL_REFRESH = true;
 export const ENABLE_MAPBOX = true;

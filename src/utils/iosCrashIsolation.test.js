@@ -14,6 +14,7 @@ import {
 describe('iOS crash isolation flags', () => {
     it('exposes real boolean flags (temporary, flip one at a time)', () => {
         assert.equal(typeof DEBUG_MASCOT_RENDER, 'boolean');
+        assert.equal(DEBUG_MASCOT_RENDER, false);
         assert.equal(typeof ENABLE_MASCOT_PULL_REFRESH, 'boolean');
         assert.equal(typeof ENABLE_MAPBOX, 'boolean');
         assert.equal(typeof ENABLE_SHEET_MOTION, 'boolean');
