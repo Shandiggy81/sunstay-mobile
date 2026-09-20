@@ -1,4 +1,4 @@
-import React, { useState, Component, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions } from './context/MicroclimateContext';
 import { boundsOfVenues, markerScoreFromMicroclimate } from './utils/microclimate';
@@ -28,7 +28,6 @@ import {
 } from './utils/iosCrashIsolation';
 import {
     attachPageLifecycleProbes,
-    logReactRenderError,
     setIsolationContext,
 } from './utils/iosCrashLog';
 import IsolationDevLog from './components/IsolationDevLog';
@@ -45,6 +44,7 @@ import sunBadgeImg from './assets/sun-badge.jpg';
 import fireIconImg from './assets/fire-icon.jpg';
 import mascotLogoImg from './assets/sunny-mascot.jpg';
 import MapErrorBoundary from './components/MapErrorBoundary';
+import AppErrorBoundary from './components/AppErrorBoundary';
 import NetworkErrorModal from './components/common/NetworkErrorModal';
 import EmptyVenueState from './components/common/EmptyVenueState';
 
@@ -1342,52 +1342,22 @@ const AppContent = () => {
     );
 };
 
-// ── Error Boundary ────────────────────────────────────────────────────
-class ErrorBoundary extends Component {
-    state = { hasError: false, error: null };
-    static getDerivedStateFromError(error) { return { hasError: true, error }; }
-    componentDidCatch(error, info) {
-        console.error('Sunstay Error:', error, info);
-        logReactRenderError(error, 'AppErrorBoundary');
-    }
-    render() {
-        if (this.state.hasError) {
-            return (
-                <div
-                    data-react-render-error="1"
-                    className="flex items-center justify-center h-screen bg-gradient-to-br from-amber-50 to-orange-100 p-6"
-                >
-                    <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                        className="text-center max-w-md bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl"
-                    >
-                        <div className="text-5xl mb-4">🌥️</div>
-                        <h2 className="text-2xl font-black text-gray-800 mb-2">Oops! Something went wrong</h2>
-                        <p className="text-gray-600 mb-4 text-sm">{this.state.error?.message || 'An unexpected error occurred.'}</p>
-                        <button onClick={() => window.location.reload()}
-                            className="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold rounded-xl shadow-lg"
-                        >☀️ Reload App</button>
-                    </motion.div>
-                </div>
-            );
-        }
-        return this.props.children;
-    }
-}
-
 // <AppContent /> is constructed here, so MicroclimateProvider's own state
 // updates (viewport bbox, slider scrub) reuse the same element and React skips
 // re-rendering the tree. Only components reading a microclimate value update.
 const App = () => (
-    <ErrorBoundary>
+    <>
         <WeatherProvider>
             <MicroclimateProvider>
-                <AppContent />
+                <AppErrorBoundary>
+                    <AppContent />
+                </AppErrorBoundary>
             </MicroclimateProvider>
         </WeatherProvider>
         {/* Outside the providers: the offline boundary watches the connection
             itself and must not depend on weather or microclimate state. */}
         <NetworkErrorModal />
-    </ErrorBoundary>
+    </>
 );
 
 export default App;
