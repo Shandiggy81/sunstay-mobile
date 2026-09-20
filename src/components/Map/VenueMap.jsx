@@ -30,6 +30,7 @@ import {
     setIsolationContext,
 } from '../../utils/iosCrashLog';
 import { removeStaleMarkers, syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
+import { webglRecoveryView } from '../../utils/webglRecoveryView';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -1341,6 +1342,8 @@ const VenueMap = forwardRef(({
         }
     }, [mapLoaded, showRadar]);
 
+    const webglRecovery = webglRecoveryView(webglLost);
+
     // ── Render ──────────────────────────────────────────────────────
     return (
         <div className="relative h-full w-full max-lg:[&_.mapboxgl-ctrl-top-right]:hidden lg:[&_.mapboxgl-ctrl-bottom-right]:bottom-2 [&_.mapboxgl-ctrl-bottom-right]:bottom-[calc(env(safe-area-inset-bottom)+90px)] [&_.mapboxgl-ctrl-bottom-right]:right-[6.75rem]">
@@ -1349,6 +1352,25 @@ const VenueMap = forwardRef(({
                 data-map-webgl-lost={webglLost ? '1' : '0'}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
+            {webglRecovery.mounted ? (
+                <div
+                    data-webgl-recovery="1"
+                    role={webglRecovery.role}
+                    aria-live="polite"
+                    className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/45 backdrop-blur-[2px]"
+                    style={{ pointerEvents: webglRecovery.blocksInteraction ? 'auto' : 'none' }}
+                >
+                    <div className={`flex items-center gap-3 rounded-2xl px-5 py-3 shadow-lg ${webglRecovery.surfaceClass}`}>
+                        <span
+                            className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
+                            aria-hidden="true"
+                        />
+                        <span className="text-sm font-semibold tracking-tight">
+                            {webglRecovery.message}
+                        </span>
+                    </div>
+                </div>
+            ) : null}
 
             {/* Dedicated rain-radar overlay toggle (RainViewer/Xweather). Visible even while Mapbox loads. lg:right-14 clears native zoom. */}
             {!mapError && (
