@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo, useRef } from 'react';
+import React, { memo, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { X, Wind, Sun, Armchair, Flame, ExternalLink, Navigation, Share2, ChevronDown, Crosshair } from 'lucide-react';
 import { getSunPositionForMap } from '../utils/sunPosition';
@@ -752,8 +752,22 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     setActiveTab('Overview');
   }, [venue?.id]);
 
-  React.useEffect(() => {
-    resetVenueDetailScroller(scrollerRef.current);
+  useLayoutEffect(() => {
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) resetVenueDetailScroller(scrollerRef.current);
+    };
+    run();
+    // Tab focus can scroll the shared sheet after commit; reset again on the
+    // next two frames so Sun Forecast always opens at scrollTop 0.
+    const frame = requestAnimationFrame(() => {
+      run();
+      requestAnimationFrame(run);
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
   }, [activeTab, venue?.id]);
 
   React.useEffect(() => {
