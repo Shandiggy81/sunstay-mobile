@@ -242,6 +242,9 @@ const MapScreen = () => {
         }
     }, []);
 
+    // Demo/explore path only. The live map (VenueMap) styles pins from cached
+    // venues_in_bbox columns (effective_sun, effective_wind, sun_hour_fraction)
+    // and uses client weather solely when a venue has no profile.
     const getMarkerColor = useCallback((w) => {
         if (!w) return 'sunny';
         const condition = (w.weather?.[0]?.main || '').toLowerCase();
@@ -323,6 +326,15 @@ const MapScreen = () => {
             <ChatWidget
                 isOpen={isChatOpen}
                 onClose={() => setIsChatOpen(false)}
+                selectedVenue={selectedVenue}
+                onSetFilters={(tags) => setActiveFilters(Array.isArray(tags) ? tags : [])}
+                onPanToVenue={(venueId) => {
+                    const venue = resolveVenue(venueId);
+                    if (!venue) return false;
+                    setMapMode('map');
+                    handleVenueSelect(venue);
+                    return true;
+                }}
                 onFindWheelchair={() => { setActiveFilters(['wheelchair']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
                 onFindDogFriendly={() => { setActiveFilters(['pet-friendly']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}
                 onFindSmoking={() => { setActiveFilters(['smoking']); setSelectedVenue(null); setMapMode('map'); setIsChatOpen(false); setSheetMode('list'); }}

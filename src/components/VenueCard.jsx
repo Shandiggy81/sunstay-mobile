@@ -1,11 +1,12 @@
-import React, { memo, useState, useMemo, useRef } from 'react';
+import React, { memo, useState, useMemo, useRef, useLayoutEffect } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { X, Wind, Sun, Armchair, Flame, ExternalLink, Navigation, Share2, ChevronDown } from 'lucide-react';
+import { X, Wind, Sun, Armchair, Flame, ExternalLink, Navigation, Share2, ChevronDown, Crosshair } from 'lucide-react';
 import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import WeatherWidget from './WeatherWidget';
 import HourlyForecastStrip from './HourlyForecastStrip';
-import LiveSunTimeline from './LiveSunTimeline';
+import SunForecastPanel from './SunForecastPanel';
+import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
@@ -15,14 +16,117 @@ import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
+import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
+import { useMicroclimateState } from '../context/MicroclimateContext';
+import {
+  formatReadingTime,
+  formatSunHours,
+  localHourForMinutes,
+  lookupMicroclimateEntry,
+  melbourneHourNow,
+  readMicroclimate,
+  sunCurveTotals,
+} from '../utils/microclimate';
 import { seedVenues } from '../data/seedVenues.js';
-import { getVenueSunStatus, checkIfShaded, getSunWindow } from '../utils/solarMath.js';
+import { getVenueSunStatus, getSunWindow } from '../utils/solarMath.js';
 import { calculateHourlyExposure } from '../utils/solarCalculator.js';
 import { canUsePointerTilt } from '../utils/canUsePointerTilt';
 import { resolveOverviewScore } from '../utils/resolveOverviewScore';
+import {
+  amenityChipsAllowed,
+  resetVenueDetailScroller,
+  resolveVenueDetailBranch,
+  tabPanelRemountKey,
+  VENUE_DETAIL_BRANCH,
+} from '../utils/venueDetailTabs';
 
+
+// ── Surface tokens ─────────────────────────────────────────
+// Shared Tailwind strings so every panel in the sheet uses the same iOS-style
+// elevation, hairline border and radius instead of drifting per block.
+const CARD =
+  'rounded-3xl border border-slate-900/[0.06] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]';
+// Caption2 (11px) is the smallest size iOS uses for labels; slate-600 keeps
+// these micro-labels above 7:1 contrast on white.
+const MICRO_LABEL =
+  'text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600';
+
+// ── Live microclimate panel ────────────────────────────────
+// Surfaces the cached venues_in_bbox readings: sun_now / sun_hour_fraction
+// (Melbourne-local hour), effective_sun, effective_wind and comfort_hint.
+// Rendered only when the venue actually has a profile row, so venues outside
+// the seeded set are unchanged.
+const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) {
+  if (!reading?.available) return null;
+
+  const pct = reading.sunFraction == null ? 0 : Math.round(reading.sunFraction * 100);
+  const isEstimate = reading.confidence != null && reading.confidence < 0.5;
+
+  return (
+    <div className="my-1 rounded-2xl border border-amber-500/15 bg-gradient-to-br from-amber-50 to-white p-3.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className={MICRO_LABEL}>Microclimate at {atLabel}</span>
+        {reading.isLiveSun ? (
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
+            Live
+          </span>
+        ) : null}
+      </div>
+
+      <div className="flex items-baseline gap-2">
+        <span className="text-[26px] font-bold leading-none tabular-nums tracking-[-0.02em] text-slate-900">
+          {reading.sunPercent}
+        </span>
+        {reading.sunLabel ? (
+          <span className="truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-700">
+            {reading.sunLabel}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Same 0–100 scale as the number above, so the bar is a redundant
+          encoding rather than a second thing to interpret. */}
+      <div
+        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-900/[0.08]"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Sun availability at ${atLabel}`}
+      >
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-[width] duration-200 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      {(reading.windLabel || reading.comfortHint) && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          {reading.windLabel ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/10 px-2.5 py-1 text-[12px] font-semibold text-sky-700">
+              <Wind size={12} aria-hidden="true" />
+              {reading.windLabel}
+            </span>
+          ) : null}
+          {reading.comfortHint ? (
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-600">
+              {reading.comfortHint}
+            </span>
+          ) : null}
+        </div>
+      )}
+
+      {isEstimate ? (
+        <p className="mt-2.5 text-[11px] font-medium leading-snug text-slate-500">
+          Modelled from street geometry, not measured on site.
+        </p>
+      ) : null}
+    </div>
+  );
+});
 
 // ── Helpers ────────────────────────────────────────────────
 const ACCOMMODATION_VIBES = [
@@ -48,6 +152,8 @@ const getDeterministicSunHours = (id) => {
   }
   return 6 + (Math.abs(hash) % 4);
 };
+
+const tabSlug = (tab) => String(tab).toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 const formatHourLabel = (hour) => {
   if (!Number.isFinite(hour)) return null;
@@ -84,10 +190,10 @@ const LiveSkyCondition = ({ cloudcover, windGusts, precipProbability = 0 }) => {
   if (precipProbability > 85) sky = { label: 'Heavy Rain', emoji: '⛈️' };
   else if (precipProbability >= 50) sky = { label: 'Steady Rain', emoji: '🌧️' };
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-      <span style={{ color: '#0f172a', fontSize: '15px', fontWeight: 700 }}>{sky.emoji} {sky.label}</span>
+    <div className={`${CARD} p-4`}>
+      <span className="text-[15px] font-semibold tracking-[-0.01em] text-slate-900">{sky.emoji} {sky.label}</span>
       {windGusts > 0 && (
-        <p style={{ color: '#64748B', fontSize: '11px', marginTop: '6px' }}>Wind gusts peaking at {Math.round(windGusts)} km/h</p>
+        <p className="mt-1.5 text-[13px] font-medium text-slate-600">Wind gusts peaking at {Math.round(windGusts)} km/h</p>
       )}
     </div>
   );
@@ -96,8 +202,8 @@ const LiveSkyCondition = ({ cloudcover, windGusts, precipProbability = 0 }) => {
 const ShieldBar = ({ label, value, color, delay = 0 }) => (
   <div className="flex flex-col gap-1.5">
     <div className="flex justify-between">
-      <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#94A3B8' }}>{label}</span>
-      <span className="text-[9px] font-black" style={{ color: '#64748B' }}>{Math.round(value * 100)}%</span>
+      <span className={MICRO_LABEL}>{label}</span>
+      <span className="text-[11px] font-bold tabular-nums text-slate-700">{Math.round(value * 100)}%</span>
     </div>
     <div className="h-1.5 rounded-full" style={{ background: 'rgba(0,0,0,0.07)' }}>
       <motion.div
@@ -111,18 +217,25 @@ const ShieldBar = ({ label, value, color, delay = 0 }) => (
   </div>
 );
 
-const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, minutesUntilRain, cloudcover }) => {
+const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction, isRainStartingSoon, minutesUntilRain, cloudcover }) => {
   if (!balconyData) return null;
-  const sunHoursNum = outdoorSun?.balcony ?? balconyData?.hours ?? 0;
+  // Prefer the RPC curve total so 0 hours still render as "0h", not a falsy
+  // letter fallback ("Oh Sun Today") or a hashed seed value.
+  const sunHoursNum = Number.isFinite(curveHours)
+    ? curveHours
+    : (outdoorSun?.balcony ?? balconyData?.hours ?? 0);
   const cloudPct = Array.isArray(cloudcover)
     ? cloudcover[new Date().getHours()] ?? cloudcover[0] ?? 0
     : typeof cloudcover === 'number' ? cloudcover : 0;
-  const isSunNow = sunHoursNum > 0 && cloudPct < 70;
+  // "Sun now" follows the slider's current slot, not the daily total (which
+  // stays > 0 after sunset and used to keep the badge on at 8 PM).
+  const isLitNow = Number.isFinite(sunFraction) ? sunFraction > 0 : sunHoursNum > 0;
+  const isSunNow = isLitNow && cloudPct < 70;
   const rainSoon = isRainStartingSoon && minutesUntilRain >= 0 && minutesUntilRain <= 60;
   const cloudSoon = cloudPct >= 50 && cloudPct < 80;
   return (
     <motion.div
-      className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-3"
+      className={`${CARD} flex flex-col gap-3 p-4`}
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 24 }}
@@ -132,20 +245,20 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
           <motion.span className="text-xl" animate={isSunNow ? { scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] } : {}} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}>
             {isSunNow ? '☀️' : '🪟'}
           </motion.span>
-          <div>
-            <span className="text-[0.7rem] font-black uppercase tracking-widest block" style={{ color: isSunNow ? '#D97706' : '#64748B' }}>
-              {balconyData.type === 'pool' ? 'Pool & Outdoor Area' : 'Balcony'}
+          <div className="min-w-0">
+            <span className={`block ${isSunNow ? 'text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700' : MICRO_LABEL}`}>
+              {balconyData.type === 'pool' ? 'Pool & Outdoor Area' : balconyData.type === 'outdoor' ? 'Daily sun' : 'Balcony'}
             </span>
-            <span className="font-black text-lg leading-tight" style={{ color: '#1E293B' }}>{sunHoursNum}h Sun Today</span>
+            <span className="block text-[17px] font-bold leading-snug tracking-[-0.01em] text-slate-900 tabular-nums">{formatSunHours(sunHoursNum)} Sun Today</span>
           </div>
         </div>
         {isSunNow && (
-          <motion.span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex-shrink-0" style={{ background: '#F59E0B', color: '#fff' }} animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>SUN NOW</motion.span>
+          <motion.span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>Sun now</motion.span>
         )}
       </div>
-      <div className="flex items-center justify-between text-[11px]" style={{ color: '#64748B' }}>
+      <div className="flex items-center justify-between gap-3 text-[13px] text-slate-600">
         {balconyData.direction && <span className="font-semibold">📍 {balconyData.direction} facing</span>}
-        {balconyData.views && <span className="font-medium">{balconyData.views}</span>}
+        {balconyData.views && <span className="truncate font-medium">{balconyData.views}</span>}
       </div>
       {rainSoon && (
         <motion.div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-slate-50 border border-slate-200" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
@@ -158,13 +271,13 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, isRainStartingSoon, min
       {!rainSoon && cloudSoon && (
         <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.20)' }}>
           <span>⛅</span>
-          <span className="font-semibold text-[12px]" style={{ color: '#64748B' }}>Clouds building — {cloudPct}% cover right now</span>
+          <span className="text-[13px] font-semibold text-slate-600">Clouds building — {cloudPct}% cover right now</span>
         </div>
       )}
       {isSunNow && !rainSoon && !cloudSoon && (
         <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.18)' }}>
           <span>✨</span>
-          <span className="font-semibold text-[12px]" style={{ color: '#92400E' }}>Direct sunshine on the {balconyData.type === 'pool' ? 'pool deck' : 'balcony'} right now</span>
+          <span className="text-[13px] font-semibold" style={{ color: '#92400E' }}>Direct sunshine on the {balconyData.type === 'pool' ? 'pool deck' : 'balcony'} right now</span>
         </div>
       )}
     </motion.div>
@@ -180,13 +293,13 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
     roomIntelligence.balcony && { icon: '🪟', label: 'Private Balcony' },
   ].filter(Boolean);
   return (
-    <motion.div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-      <span className="text-slate-500 text-[11px] font-semibold uppercase tracking-widest block mb-2">🛎 Room Intelligence</span>
-      <div className="grid grid-cols-2 gap-2">
+    <motion.div className={`${CARD} p-4`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+      <span className="mb-2.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">🛎 Room Intelligence</span>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
         {items.map((item, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span>{item.icon}</span>
-            <span className="text-[11px] font-semibold" style={{ color: '#475569' }}>{item.label}</span>
+          <div key={i} className="flex min-w-0 items-center gap-2">
+            <span aria-hidden="true">{item.icon}</span>
+            <span className="truncate text-[13px] font-semibold text-slate-700">{item.label}</span>
           </div>
         ))}
       </div>
@@ -214,19 +327,21 @@ const SolarExposureTimeline = memo(({ exposure }) => {
 
   return (
     <section
-      className="mt-1 rounded-2xl border border-amber-200/70 bg-amber-50/40 p-3.5"
+      className="mt-1 rounded-3xl border border-amber-500/20 bg-amber-50/60 p-4"
       aria-labelledby="solar-exposure-heading"
     >
       <div className="flex items-center justify-between gap-3">
-        <h3 id="solar-exposure-heading" className="text-[10px] font-black uppercase tracking-widest text-amber-800">
+        <h3 id="solar-exposure-heading" className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-800">
           Direct Sun · 8 AM–8 PM
         </h3>
-        <span className="shrink-0 rounded-full border border-amber-200 bg-white px-2 py-1 text-[10px] font-black text-amber-700">
+        <span className="shrink-0 rounded-full border border-amber-500/20 bg-white px-2.5 py-1 text-[11px] font-bold tabular-nums text-amber-800">
           ☀️ {directHours} hrs today
         </span>
       </div>
 
-      <div className="mt-3 flex min-h-[44px] items-center gap-1.5" role="list" aria-label="Hourly direct sun exposure">
+      {/* Each hour is a full 44px-tall hit area with a slim visual bar inside,
+          so the tap target meets the iOS minimum without thickening the chart. */}
+      <div className="mt-2 flex items-center gap-1" role="list" aria-label="Hourly direct sun exposure">
         {exposure.map((hour, index) => {
           const isActive = activeIndex === index;
           return (
@@ -237,24 +352,29 @@ const SolarExposureTimeline = memo(({ exposure }) => {
               onClick={() => setActiveIndex(index)}
               onFocus={() => setActiveIndex(index)}
               onPointerDown={() => setActiveIndex(index)}
-              className={`h-2 min-w-0 flex-1 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 ${
-                hour.hasDirectSun ? 'bg-amber-400' : 'bg-slate-200 dark:bg-slate-700'
-              } ${isActive ? 'scale-y-150 shadow-sm' : 'hover:scale-y-125'}`}
+              className="group flex h-11 min-w-0 flex-1 items-center justify-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               aria-label={`${hour.label}: ${hour.hasDirectSun ? 'Direct Sun' : 'Shaded'}`}
               aria-pressed={isActive}
-            />
+            >
+              <span
+                aria-hidden="true"
+                className={`w-full rounded-full transition-all duration-200 ease-out ${
+                  hour.hasDirectSun ? 'bg-amber-400' : 'bg-slate-300'
+                } ${isActive ? 'h-4 ring-2 ring-amber-500/35' : 'h-2.5 group-hover:h-3.5'}`}
+              />
+            </button>
           );
         })}
       </div>
 
-      <div className="mt-1.5 flex justify-between px-0.5 text-[9px] font-bold text-slate-500" aria-hidden="true">
+      <div className="flex justify-between px-0.5 text-[11px] font-semibold tabular-nums text-slate-600" aria-hidden="true">
         <span>8 AM</span>
         <span>12 PM</span>
         <span>4 PM</span>
         <span>8 PM</span>
       </div>
 
-      <p className="mt-2 min-h-[18px] text-[11px] font-semibold text-slate-700" aria-live="polite">
+      <p className="mt-2.5 min-h-[20px] text-[13px] font-medium leading-snug text-slate-700" aria-live="polite">
         {activeHour ? statusLabel : 'Tap an hour for its direct sun status'}
       </p>
     </section>
@@ -263,21 +383,25 @@ const SolarExposureTimeline = memo(({ exposure }) => {
 SolarExposureTimeline.displayName = 'SolarExposureTimeline';
 
 // ── Sunstay Score Hero Badge ────────────────────────────────────
+// Every score state (loading, unavailable, resolved) reserves the same height so
+// the sheet never reflows when the weather request settles.
+const SCORE_SHELL = `${CARD} min-h-[102px] w-full px-5 py-4`;
+
 const WeatherUnavailableChip = ({ label = 'Weather temporarily unavailable' }) => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 w-full">
-    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 text-slate-600 border border-slate-200 px-3 py-1.5 text-[12px] font-bold">
+  <div className={`${SCORE_SHELL} flex items-center`}>
+    <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-slate-900/[0.08] bg-slate-100 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700">
       {label}
     </span>
   </div>
 );
 
 const SunstayScoreSkeleton = () => (
-  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 w-full" aria-hidden="true">
+  <div className={SCORE_SHELL} aria-hidden="true">
     <div className="flex items-center gap-4">
-      <div className="h-[62px] w-[62px] rounded-full animate-pulse bg-slate-200" />
-      <div className="flex-1 flex flex-col gap-2">
-        <div className="h-3 w-28 animate-pulse bg-slate-200 rounded" />
-        <div className="h-5 w-40 animate-pulse bg-slate-200 rounded" />
+      <div className="h-[68px] w-[68px] animate-pulse rounded-full bg-slate-200" />
+      <div className="flex flex-1 flex-col gap-2.5">
+        <div className="h-3 w-28 animate-pulse rounded-full bg-slate-200" />
+        <div className="h-5 w-40 animate-pulse rounded-full bg-slate-200" />
       </div>
     </div>
   </div>
@@ -304,40 +428,40 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
 
   return (
     <motion.div
-      className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 flex items-center gap-4 w-full"
+      className={`${SCORE_SHELL} flex items-center gap-4`}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 280, damping: 26, delay: 0.08 }}
     >
       {/* Circular score ring */}
-      <div className="relative flex-shrink-0 flex items-center justify-center" style={{ width: 62, height: 62 }}>
-        <svg width="62" height="62" viewBox="0 0 62 62" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="5" />
+      <div className="relative flex h-[68px] w-[68px] flex-shrink-0 items-center justify-center">
+        <svg width="68" height="68" viewBox="0 0 68 68" style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
+          <circle cx="34" cy="34" r="29" fill="none" stroke="rgba(15,23,42,0.08)" strokeWidth="6" />
           <motion.circle
-            cx="31" cy="31" r="26" fill="none"
-            stroke={fill} strokeWidth="5"
+            cx="34" cy="34" r="29" fill="none"
+            stroke={fill} strokeWidth="6"
             strokeLinecap="round"
-            strokeDasharray={`${2 * Math.PI * 26}`}
-            initial={{ strokeDashoffset: 2 * Math.PI * 26 }}
-            animate={{ strokeDashoffset: 2 * Math.PI * 26 * (1 - pct / 100) }}
+            strokeDasharray={`${2 * Math.PI * 29}`}
+            initial={{ strokeDashoffset: 2 * Math.PI * 29 }}
+            animate={{ strokeDashoffset: 2 * Math.PI * 29 * (1 - pct / 100) }}
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[16px] font-black leading-none" style={{ color: text }}>{pct}</span>
+          <span className="text-[20px] font-bold leading-none tabular-nums tracking-[-0.02em]" style={{ color: text }}>{pct}</span>
         </div>
       </div>
 
       {/* Labels */}
-      <div className="flex flex-col gap-1 min-w-0">
+      <div className="flex min-w-0 flex-col gap-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-[0.72rem] font-black uppercase tracking-widest" style={{ color: text }}>Sunstay Score</span>
-          <span className="text-lg leading-none">{emoji}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: text }}>Sunstay Score</span>
+          <span className="text-base leading-none" aria-hidden="true">{emoji}</span>
         </div>
-        <span className="text-lg font-black leading-tight" style={{ color: '#1E293B' }}>{label}</span>
+        <span className="text-[19px] font-bold leading-snug tracking-[-0.015em] text-slate-900">{label}</span>
         {showWindow && (
           <motion.span
-            className="text-[12px] font-bold leading-tight mt-0.5"
+            className="text-[13px] font-semibold leading-snug"
             style={{ color: text }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -346,7 +470,7 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
             {`☀️ Golden window starts in ${bestWindow.startsInHours}h`}
           </motion.span>
         )}
-        {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && (
+        {!showWindow && bestWindow?.type === 'CURRENT_PEAK' && pct >= 75 && (
           <motion.span
             className="text-[12px] font-bold leading-tight mt-0.5"
             style={{ color: '#B45309' }}
@@ -396,18 +520,18 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
     <div className="flex flex-col gap-2 mt-1 w-full">
       <div
         ref={forecastHeaderRef}
-        className={`w-full flex items-center justify-between px-4 py-3.5 bg-white rounded-2xl border shadow-sm select-none ${isExpanded ? 'border-amber-200' : 'border-slate-100'}`}
+        className={`flex w-full select-none items-center justify-between gap-3 rounded-2xl border bg-white px-4 py-3.5 shadow-sm ${isExpanded ? 'border-amber-200' : 'border-slate-100'}`}
         style={{ scrollMarginTop: 8 }}
       >
-        <div className="flex items-center gap-3 min-w-0 pr-2">
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/20 text-base flex-shrink-0">
+        <div className="flex min-w-0 items-center gap-3 pr-2">
+          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-amber-500/20 bg-amber-500/10 text-base" aria-hidden="true">
             📊
           </span>
           <div className="min-w-0">
-            <span className="text-[14px] font-extrabold text-slate-900 block leading-tight">
+            <span className="block text-[15px] font-semibold leading-snug tracking-[-0.01em] text-slate-900">
               Detailed Forecast & Intelligence
             </span>
-            <span className="text-[11px] font-semibold text-slate-500 block mt-0.5">
+            <span className="mt-0.5 block text-[13px] font-medium text-slate-600">
               {isExpanded ? 'Tap the arrow to hide forecast' : 'Tap the arrow for detailed forecast'}
             </span>
           </div>
@@ -419,7 +543,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
           aria-expanded={isExpanded}
           aria-controls={panelId}
           aria-label={isExpanded ? 'Hide detailed forecast' : 'Show detailed forecast'}
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] w-11 h-11 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0 cursor-pointer transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+          className="flex h-11 w-11 min-h-[44px] min-w-[44px] flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-amber-500 text-white shadow-sm transition-transform duration-150 ease-out active:scale-[0.98] active:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
         >
           <ChevronDown
             size={20}
@@ -437,42 +561,50 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
         <div className="min-h-0 overflow-hidden" inert={isExpanded ? undefined : true}>
           <div className="flex flex-col gap-3 pt-1 pb-1">
             {/* Secondary Metrics (UV, Wind, & Pristine Air) */}
-            <div className="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 scrollbar-hide">
-              <div className="flex items-center gap-3 p-3 rounded-2xl border bg-white border-slate-100 shadow-sm shrink-0 min-w-[140px]" style={{ minHeight: '44px' }}>
-                <span className="text-xl flex-shrink-0">🔆</span>
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
+              <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
+                <span className="flex-shrink-0 text-xl" aria-hidden="true">🔆</span>
                 <div className="min-w-0">
-                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">UV Index</span>
-                  <span className="text-[15px] font-extrabold text-slate-900 block mt-0.5">{uvIndex ?? '–'}</span>
+                  <span className={`block ${MICRO_LABEL}`}>UV Index</span>
+                  <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{uvIndex ?? '–'}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-2xl border bg-white border-slate-100 shadow-sm shrink-0 min-w-[140px]" style={{ minHeight: '44px' }}>
-                <span className="text-xl flex-shrink-0">🌬️</span>
+              <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
+                <span className="flex-shrink-0 text-xl" aria-hidden="true">🌬️</span>
                 <div className="min-w-0">
-                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">Wind</span>
-                  <span className="text-[15px] font-extrabold text-slate-900 block mt-0.5">{wind !== undefined ? `${Math.round(wind)} km/h` : '–'}</span>
+                  <span className={`block ${MICRO_LABEL}`}>Wind</span>
+                  <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{wind !== undefined ? `${Math.round(wind)} km/h` : '–'}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-2xl border bg-white border-slate-100 shadow-sm shrink-0 min-w-[140px]" style={{ minHeight: '44px' }}>
-                <span className="text-xl flex-shrink-0">🌿</span>
+              <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
+                <span className="flex-shrink-0 text-xl" aria-hidden="true">🌿</span>
                 <div className="min-w-0">
-                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-500 block">Air Quality</span>
-                  <span className="text-[15px] font-extrabold text-slate-900 block mt-0.5 truncate">{aqLabel ?? '–'}</span>
+                  <span className={`block ${MICRO_LABEL}`}>Air Quality</span>
+                  <span className="mt-0.5 block truncate text-[17px] font-bold tracking-[-0.01em] text-slate-900">{aqLabel ?? '–'}</span>
                 </div>
               </div>
             </div>
 
             {/* Hourly Comfort Forecast */}
+            {/* Each panel below renders a live third-party weather payload whose
+                shape is outside our control. They get a boundary apiece so one
+                bad payload degrades only its own panel — never the sheet, and
+                never its sibling panels. */}
             {lat && lng && (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-4 pt-3 pb-1.5 flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-600">Hourly Comfort Forecast</span>
+              <ForecastErrorBoundary>
+                <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+                  <div className="flex items-center justify-between px-4 pb-1.5 pt-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-600">Hourly Comfort Forecast</span>
+                  </div>
+                  <HourlyForecastStrip lat={lat} lng={lng} dark enabled={isExpanded} />
                 </div>
-                <HourlyForecastStrip lat={lat} lng={lng} dark enabled={isExpanded} />
-              </div>
+              </ForecastErrorBoundary>
             )}
 
             {/* Wind & Comfort Intelligence */}
-            <WindComfortPanel venue={venue} />
+            <ForecastErrorBoundary>
+              <WindComfortPanel venue={venue} />
+            </ForecastErrorBoundary>
             {children}
           </div>
         </div>
@@ -488,8 +620,14 @@ function resolveVenueWebsiteUrl(venue) {
   return url || null;
 }
 
+// iOS toolbar buttons: 50px tall capsules, primary action given more width than
+// the two secondary actions so the hierarchy reads at a glance.
 const footerActionClass =
-  'flex flex-1 items-center justify-center gap-1 min-h-[44px] px-2 rounded-xl text-[12px] font-bold leading-tight text-center transition-transform active:scale-[0.98]';
+  'flex items-center justify-center gap-1.5 min-h-[50px] px-2.5 rounded-2xl text-[13px] font-semibold leading-tight tracking-[-0.01em] text-center transition-transform duration-150 active:scale-[0.97]';
+const footerSecondaryClass =
+  `${footerActionClass} flex-1 bg-white text-slate-800 border border-slate-900/[0.08] shadow-[0_1px_2px_rgba(15,23,42,0.05)]`;
+const footerPrimaryClass =
+  `${footerActionClass} flex-[1.5] bg-amber-500 text-slate-950 shadow-[0_2px_10px_rgba(245,158,11,0.35)]`;
 
 function VenueCardFooterActions({ venue, canNavigate }) {
   const [shareLabel, setShareLabel] = useState('Share');
@@ -533,23 +671,23 @@ function VenueCardFooterActions({ venue, canNavigate }) {
   }
 
   return (
-    <div className="flex flex-row gap-2">
+    <div className="flex flex-row gap-2.5">
       {websiteUrl ? (
         <a
           href={websiteUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={`${footerActionClass} bg-white text-slate-800 border border-slate-200`}
+          className={footerSecondaryClass}
         >
-          <ExternalLink size={14} aria-hidden="true" />
+          <ExternalLink size={15} aria-hidden="true" />
           Website
         </a>
       ) : (
         <span
-          className={`${footerActionClass} bg-white text-slate-800 border border-slate-200 opacity-40 pointer-events-none`}
+          className={`${footerSecondaryClass} pointer-events-none opacity-40`}
           aria-disabled="true"
         >
-          <ExternalLink size={14} aria-hidden="true" />
+          <ExternalLink size={15} aria-hidden="true" />
           Website
         </span>
       )}
@@ -559,20 +697,20 @@ function VenueCardFooterActions({ venue, canNavigate }) {
           href={directionsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={`${footerActionClass} bg-amber-500 text-[#0F172A] shadow-sm`}
+          className={footerPrimaryClass}
           aria-label="Get Directions"
         >
-          <Navigation size={14} aria-hidden="true" />
+          <Navigation size={15} aria-hidden="true" />
           Get Directions
         </a>
       ) : (
         <button
           type="button"
           disabled
-          className={`${footerActionClass} bg-amber-500 text-[#0F172A] shadow-sm opacity-40 cursor-not-allowed`}
+          className={`${footerPrimaryClass} cursor-not-allowed opacity-40`}
           aria-label="Get Directions unavailable"
         >
-          <Navigation size={14} aria-hidden="true" />
+          <Navigation size={15} aria-hidden="true" />
           Get Directions
         </button>
       )}
@@ -581,10 +719,10 @@ function VenueCardFooterActions({ venue, canNavigate }) {
         type="button"
         onClick={handleShare}
         disabled={!websiteUrl}
-        className={`${footerActionClass} bg-white text-slate-800 border border-slate-200 disabled:opacity-40 disabled:pointer-events-none`}
+        className={`${footerSecondaryClass} disabled:pointer-events-none disabled:opacity-40`}
         aria-label={shareLabel === 'Copied!' ? 'Copied!' : 'Share venue'}
       >
-        <Share2 size={14} aria-hidden="true" />
+        <Share2 size={15} aria-hidden="true" />
         {shareLabel}
       </button>
     </div>
@@ -599,12 +737,45 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [forecastOpen, setForecastOpen] = useState(false);
+  const scrollerRef = useRef(null);
+  const detailBranch = resolveVenueDetailBranch(activeTab);
+  const forecastEnabled = forecastOpen || activeTab === 'Sun Forecast';
 
   React.useEffect(() => {
     setImageError(false);
     setImageLoaded(false);
     setForecastOpen(false);
+    setActiveTab('Overview');
   }, [venue?.id]);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) resetVenueDetailScroller(scrollerRef.current);
+    };
+    run();
+    // Tab focus can scroll the shared sheet after commit; reset again on the
+    // next two frames so Sun Forecast always opens at scrollTop 0.
+    const frame = requestAnimationFrame(() => {
+      run();
+      requestAnimationFrame(run);
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [activeTab, venue?.id]);
+
+  React.useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.info('[venue-detail]', {
+        activeTab,
+        branch: detailBranch,
+        forecastLoading: forecastEnabled && activeTab === 'Sun Forecast',
+        renderedBranch: detailBranch,
+      });
+    }
+  }, [activeTab, detailBranch, forecastEnabled]);
 
   React.useEffect(() => {
     const venueLat = Number(venue?.lat);
@@ -622,6 +793,26 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     setLocalSunData(null);
     setSunWindow(null);
   }, [venue]);
+
+  // Server-side microclimate for this venue, read at the time-of-day slider's
+  // position. Same `venues_in_bbox` row + `todMinutes` the map markers use, so
+  // the sheet score cannot drift from the active pin. Empty until the viewport
+  // fetch lands, and empty for venues with no profile row.
+  const { todMinutes, byId: microById } = useMicroclimateState();
+  const microclimateEntry = useMemo(
+    () => lookupMicroclimateEntry(microById, venue?.id),
+    [microById, venue?.id],
+  );
+  const microclimate = useMemo(
+    () => readMicroclimate(microclimateEntry, todMinutes),
+    [microclimateEntry, todMinutes],
+  );
+  const microclimateAtLabel = useMemo(() => formatReadingTime(todMinutes), [todMinutes]);
+  const curveTotals = useMemo(
+    () => sunCurveTotals(microclimateEntry?.sun_hour_fraction),
+    [microclimateEntry],
+  );
+  const hasCurveTotals = curveTotals.totalHours != null;
 
   const dragControls = useDragControls();
   const mouseX = useMotionValue(0);
@@ -677,6 +868,16 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const safeVibes = Array.isArray(vibe) ? vibe : (vibe ? [vibe] : []);
   const fallbackName = venue?.venueName ?? venue?.name ?? venue?.title ?? 'Unnamed venue';
   const displayName = fallbackName;
+  // `vibe` is null on ~19% of Supabase rows and `suburb` can be blank, so the
+  // subtitle is assembled from present parts only — never "· CBD" or "Pub ·".
+  const subtitleText = useMemo(() => {
+    const vibeText = safeVibes
+      .map(v => String(v ?? '').trim())
+      .filter(Boolean)
+      .join(', ');
+    const suburbText = String(suburb ?? '').trim();
+    return [vibeText, suburbText].filter(Boolean).join(' · ');
+  }, [safeVibes, suburb]);
   const isHotelOrStay = checkIsAccommodation(venue);
   const venueImage = venue?.image_url ?? venue?.imageUrl ?? venue?.image ?? venue?.hero_image ?? venue?.photoUrl ?? venue?.photo;
   const showVenueImage = Boolean(venueImage) && !imageError;
@@ -689,13 +890,15 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     loading: weatherLoading,
     getSunstayScoreResult,
     venue,
+    microclimateEntry,
+    todMinutes,
   });
   const score = overviewScore.score;
   const uvIndex    = weather?.rawWeather?.uvIndex ?? venue?.weatherNow?.uvIndex ?? 3;
   const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { weatherCode } = weather || {};
-  const { aqLabel } = useOpenAQ(lat, lng, { enabled: forecastOpen });
+  const { aqLabel } = useOpenAQ(lat, lng, { enabled: forecastEnabled });
   const windSpeedValue = venue?.windSpeed ?? weatherData?.windSpeed ?? weather?.windSpeed ?? weather?.rawWeather?.windSpeed;
   const windSpeedDisplay = windSpeedValue != null
     ? (typeof windSpeedValue === 'number' ? `${Math.round(windSpeedValue)} km/h` : windSpeedValue)
@@ -745,7 +948,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     [hasValidCoordinates, lat, lng, outdoorAspect, outdoorMinAltitude],
   );
   const heatingLabel = venue?.hasHeating || venue?.heating ? 'Heated Lamps' : 'Natural Breeze';
-  useOpenUV(lat, lng, { enabled: forecastOpen });
+  useOpenUV(lat, lng, { enabled: forecastEnabled });
   const cloudcover = weather?.cloudCover
     ?? (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null)
     ?? (Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover : null);
@@ -763,22 +966,35 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   // All four values — isRainStartingSoon + minutesUntilRain feed BalconySunshineBlock
   // and VenueCardActions; rainArrivalMins + rainArrivalLabel feed the nowcast banner
-  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: forecastOpen });
+  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: forecastEnabled });
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
   const sunHours = useMemo(() => {
+    if (hasCurveTotals) {
+      return {
+        outdoor: formatSunHours(curveTotals.totalHours, { digits: 1 }),
+        covered: formatSunHours(Math.max(0, curveTotals.totalHours - 2), { digits: 1 }),
+        labels: { outdoor: 'Outdoor', covered: 'Covered' },
+      };
+    }
     if (isHotelOrStay && (outdoorSun.balcony > 0 || outdoorSun.pool > 0))
       return { outdoor: `${outdoorSun.balcony}h`, covered: `${outdoorSun.pool}h`, labels: { outdoor: 'Balcony', covered: 'Pool' } };
     const sunHoursFallback = getDeterministicSunHours(venue?.id);
     return { outdoor: `${sunHoursFallback}h`, covered: `${Math.max(4, sunHoursFallback - 2)}h`, labels: { outdoor: 'Outdoor', covered: 'Covered' } };
-  }, [isHotelOrStay, outdoorSun, venue?.id]);
-  const directSunHours = Number.parseFloat(sunHours.outdoor) || 0;
+  }, [hasCurveTotals, curveTotals.totalHours, isHotelOrStay, outdoorSun, venue?.id]);
+  const directSunHours = hasCurveTotals
+    ? curveTotals.totalHours
+    : (Number.parseFloat(sunHours.outdoor) || 0);
+  // Include 0h from the RPC curve so a fully shaded venue still shows "0.0h"
+  // rather than hiding the overlay or substituting a hashed 6–9h seed.
+  const hasSunHours = Number.isFinite(directSunHours) && (hasCurveTotals || directSunHours > 0);
   const peakSunWindow = useMemo(() => {
+    if (hasCurveTotals) return curveTotals.peakWindow;
     const start = formatHourLabel(sunData?.startHour);
     const end = formatHourLabel(sunData?.endHour);
     return start && end ? `${start} – ${end}` : null;
-  }, [sunData]);
+  }, [hasCurveTotals, curveTotals.peakWindow, sunData]);
 
   const weatherCondition = useMemo(() => {
     if (weather?.weather?.[0]?.main) return weather.weather[0].main.toLowerCase();
@@ -824,6 +1040,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
       localSunData ||
       sunData ||
       balconyData ||
+      hasCurveTotals ||
       (isHotelOrStay && (outdoorSun?.balcony > 0 || outdoorSun?.pool > 0))
     );
     if (hasSunData) {
@@ -861,7 +1078,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     }
 
     return tabs;
-  }, [localSunData, sunData, balconyData, isHotelOrStay, outdoorSun, venue?.roomTypes, roomIntelligence, actualHappyHour, shielding, safeTags, weather]);
+  }, [localSunData, sunData, balconyData, hasCurveTotals, isHotelOrStay, outdoorSun, venue?.roomTypes, roomIntelligence, actualHappyHour, shielding, safeTags, weather]);
 
   // Safety fallback: if activeTab was pruned out for this venue, reset to first available tab
   React.useEffect(() => {
@@ -873,7 +1090,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const verdict = useMemo(() => {
     if (weatherLoading) return { icon: '☁️', text: 'Checking conditions', color: '#94A3B8' };
     if (weatherUnavailable) return { icon: '☁️', text: 'Weather temporarily unavailable', color: '#64748B' };
-    const currentHour = new Date().getHours();
+    const currentHour = localHourForMinutes(todMinutes) ?? melbourneHourNow() ?? new Date().getHours();
     const isNight = currentHour >= 20 || currentHour < 6;
     const cloudNow = Array.isArray(cloudcover) ? (cloudcover[currentHour] ?? cloudcover[0] ?? 0) : (typeof cloudcover === 'number' ? cloudcover : 50);
     if (isNight) {
@@ -890,7 +1107,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     if (Number.isFinite(score) && score > 75)      return { icon: '☀️',  text: 'Prime Outdoor Conditions', color: '#F59E0B' };
     if (Number.isFinite(score) && score >= 50)     return { icon: '🌤️',  text: 'Good Afternoon Sun Expected', color: '#475569' };
     return               { icon: '☁️',  text: 'Overcast — Cosy Vibes Today', color: '#64748B' };
-  }, [precipProb, precipProbability, wind, score, cloudcover, weatherLoading, weatherUnavailable]);
+  }, [precipProb, precipProbability, wind, score, cloudcover, weatherLoading, weatherUnavailable, todMinutes]);
 
   const scoreLabel = useMemo(() => {
     if (overviewScore.loading) return null;
@@ -935,7 +1152,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-        className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-black/30 backdrop-blur-sm"
+        className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/40 backdrop-blur-md"
         onClick={onClose}
       >
         <motion.article
@@ -951,7 +1168,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             boxShadow: '0 -8px 60px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid #f1f5f9', /* slate-100 */
           }}
-          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-3xl bg-white/90 backdrop-blur-2xl border-t border-white/40 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] border-t border-white/60 bg-white/90 backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
           onPointerEnter={enableTilt ? handlePointerEnter : undefined}
           onPointerMove={enableTilt ? handlePointerMove : undefined}
           onPointerLeave={enableTilt ? handlePointerLeave : undefined}
@@ -961,10 +1178,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
-          <div className="relative z-20 isolate shrink-0 overflow-hidden bg-white px-4 [transform-style:flat]">
-            {/* 1. Extracted Drag Handle for top of sheet */}
+          <div className="relative z-20 isolate shrink-0 overflow-hidden border-b border-slate-900/[0.06] bg-white px-4 [transform-style:flat]">
+            {/* 1. Extracted Drag Handle for top of sheet — 36x5 iOS grabber with a
+                   44px-tall drag surface so the gesture is easy to land. */}
             <div
-              className="flex w-full justify-center pt-1 pb-3 lg:hidden"
+              className="flex h-11 w-full items-center justify-center lg:hidden"
               onPointerDown={e => dragControls.start(e)}
               style={{ touchAction: 'none' }}
             >
@@ -975,16 +1193,17 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <div className="sticky top-0 z-20 bg-white pt-1 pb-2 flex items-start justify-end gap-3">
               <motion.button
                 onClick={onClose}
-                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3 bg-white text-slate-900 shadow-md rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="flex h-11 w-11 min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-slate-900/[0.06] text-slate-700 ring-1 ring-inset ring-slate-900/[0.06] transition-colors active:bg-slate-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
                 whileTap={{ scale: 0.92 }}
                 aria-label="Close venue details"
               >
-                <X size={18} />
+                <X size={19} strokeWidth={2.5} />
               </motion.button>
             </div>
           </div>
 
           <div
+            ref={scrollerRef}
             data-venue-card-scroller
             className="relative z-10 isolate min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col gap-2 bg-white [transform-style:flat]"
           >
@@ -998,7 +1217,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     alt={fallbackName}
                     loading="lazy"
                     decoding="async"
-                    className={`absolute inset-0 w-full h-full object-cover ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                     onLoad={() => setImageLoaded(true)}
                     onError={() => { setImageError(true); setImageLoaded(false); }}
                   />
@@ -1023,10 +1242,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                         <path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" />
                       </svg>
                     </div>
-                    <span className="relative z-10 text-[11px] font-black uppercase tracking-widest text-amber-200/90 drop-shadow-sm">
+                    <span className="relative z-10 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-200 drop-shadow-sm">
                       SunStay Melbourne
                     </span>
-                    <span className="relative z-10 text-[10px] font-semibold text-slate-300/80 mt-0.5">
+                    <span className="relative z-10 mt-0.5 text-[13px] font-medium text-slate-200">
                       {safeVenue?.suburb || 'Solar Intelligence'}
                     </span>
                   </div>
@@ -1040,98 +1259,139 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               <div className="absolute inset-0 z-[2] bg-gradient-to-t from-slate-900 to-transparent pointer-events-none" aria-hidden="true" />
 
               {/* Venue title — crisp bold white, pinned bottom-left */}
-              <div className="absolute bottom-0 left-0 right-0 z-[3] p-4 pb-3 flex flex-col pointer-events-none">
-                <h2 className="text-white font-bold tracking-tight text-2xl leading-tight truncate mb-0.5">
+              <div className="absolute bottom-0 left-0 right-0 z-[3] flex flex-col p-4 pb-3 pointer-events-none">
+                <h2 className="mb-0.5 truncate text-2xl font-bold leading-tight tracking-tight text-white">
                   {fallbackName}
                 </h2>
-                <p className="text-white/90 font-medium text-sm truncate">
-                  {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
+                <p className="truncate text-sm font-medium text-white/90">
+                  {subtitleText || suburb}
                 </p>
+                {!showHeroSkeleton && (hasSunHours || peakSunWindow) ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {hasSunHours ? (
+                      <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-slate-950/45 px-3 py-1 text-[13px] font-semibold text-white ring-1 ring-inset ring-white/25 backdrop-blur-md">
+                        <span aria-hidden="true">☀️</span>
+                        <span className="tabular-nums">{formatSunHours(directSunHours, { digits: 1 })}</span> direct sun
+                      </span>
+                    ) : null}
+                    {peakSunWindow ? (
+                      <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-slate-950/45 px-3 py-1 text-[13px] font-semibold tabular-nums text-white ring-1 ring-inset ring-white/25 backdrop-blur-md">
+                        Peak {peakSunWindow}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
 
             {/* Map Centre Action & Signal Line */}
-            <div className="flex items-center justify-between gap-4 mb-2 px-1 shrink-0">
-              <div className="flex items-center gap-2 text-slate-800">
-                <span className="text-xl">{verdict.icon}</span>
-                <span className="font-bold text-sm">{verdict.text}</span>
+            <div className="mb-2 flex shrink-0 items-center justify-between gap-3 px-1">
+              <div className="flex min-w-0 items-center gap-2 text-slate-900">
+                <span className="text-xl" aria-hidden="true">{verdict.icon}</span>
+                <span className="truncate text-[15px] font-semibold tracking-[-0.01em]">{verdict.text}</span>
               </div>
               {onCenter && (
                 <button
+                  type="button"
                   onClick={() => onCenter(venue)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-slate-700 border border-slate-100 font-bold text-sm shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
                   style={{ minWidth: 44, minHeight: 44 }}
                   aria-label="Centre on map"
+                  title="Centre on map"
                 >
-                  <span>📍</span> Centre on map
+                  <Crosshair size={18} strokeWidth={2.25} aria-hidden="true" />
                 </button>
               )}
             </div>
 
-            {/* Tabbed Navigation (Dynamically Pruned) */}
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide border-b border-slate-200 bg-slate-50 pt-1 pb-0 mb-4 px-1 shrink-0">
-              {availableTabs.map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`min-h-[44px] px-3.5 py-2 text-sm font-black whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                    activeTab === tab
-                      ? 'text-amber-600 border-amber-500'
-                      : 'text-slate-500 border-transparent hover:text-slate-700'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
+            {/* Tabbed Navigation (Dynamically Pruned) — iOS segmented control.
+                Up to three sections share the width evenly like a static segmented
+                control; beyond that the track scrolls horizontally (Apple Maps /
+                Airbnb style) so long labels such as "Sun Forecast" never clip. */}
+            <div
+              role="tablist"
+              aria-label="Venue detail sections"
+              className="mb-4 flex shrink-0 gap-1 overflow-x-auto overscroll-x-contain rounded-2xl bg-slate-900/[0.05] p-1 scrollbar-hide"
+            >
+              {availableTabs.map(tab => {
+                const isActiveTab = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    id={`venue-tab-${tabSlug(tab)}`}
+                    aria-selected={isActiveTab}
+                    aria-controls={`venue-tabpanel-${tabSlug(tab)}`}
+                    onClick={() => setActiveTab(tab)}
+                    className={`min-h-11 shrink-0 cursor-pointer whitespace-nowrap rounded-xl px-3.5 text-[14px] font-semibold tracking-[-0.01em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+                      availableTabs.length <= 3 ? 'flex-1' : 'flex-none'
+                    } ${
+                      isActiveTab
+                        ? 'bg-white text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]'
+                        : 'text-slate-600 active:bg-white/50'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Tab Content */}
-            <div className="flex flex-col gap-4 pb-4">
-              {activeTab === 'Overview' && (
+            {/* Tab Content — remount on tab change so Overview height/chips
+                cannot leak into Sun Forecast. */}
+            <VenueDetailErrorBoundary>
+            <div
+              key={tabPanelRemountKey(venue?.id, activeTab)}
+              role="tabpanel"
+              id={`venue-tabpanel-${tabSlug(activeTab)}`}
+              aria-labelledby={`venue-tab-${tabSlug(activeTab)}`}
+              data-active-tab={activeTab}
+              data-render-branch={detailBranch}
+              className="flex min-h-0 w-full flex-col gap-4 pb-4"
+            >
+              {import.meta.env.DEV ? (
+                <p
+                  data-venue-tab-debug="tabpanel"
+                  className="rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-600"
+                >
+                  tab={activeTab} · branch={detailBranch}
+                </p>
+              ) : null}
+              {detailBranch === VENUE_DETAIL_BRANCH.OVERVIEW && (
                 <>
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-3">
-                    {Number.isFinite(directSunHours) && (
-                      <span className="font-black text-amber-500 text-lg">
-                        {directSunHours.toFixed(1)} hours direct sun today
-                      </span>
-                    )}
-                    {peakSunWindow && (
-                      <span className="font-bold text-amber-700 text-sm">
-                        ☀️ Peak sun: {peakSunWindow}
-                      </span>
-                    )}
-                    {(() => {
-                      const isOutdoor = !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
-                      if (!isOutdoor) return null;
-                      const quote = getWeatherGuaranteeQuote({
-                        bookingValue: venue?.bookingPrice || 120,
-                        rainProbability: weather?.precipProbability ?? 0,
-                        expectedRainMm: weather?.rainMm ?? 0,
-                        cloudCover: weather?.cloudCover ?? 0,
-                        isOutdoor,
-                      });
-                      if (!quote) return null;
-                      return (
-                        <div style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 5,
-                          marginTop: 4,
-                          padding: '4px 10px', borderRadius: 999,
-                          background: 'rgba(15,15,30,0.04)',
-                          border: `1px solid ${quote.riskColor}44`,
-                        }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: quote.riskColor, display: 'inline-block' }} />
-                          <span style={{ fontSize: 11, fontWeight: 700, color: quote.riskColor, letterSpacing: '0.04em' }}>
+                  {(() => {
+                    const isOutdoor = !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
+                    if (!isOutdoor) return null;
+                    const quote = getWeatherGuaranteeQuote({
+                      bookingValue: venue?.bookingPrice || 120,
+                      rainProbability: weather?.precipProbability ?? 0,
+                      expectedRainMm: weather?.rainMm ?? 0,
+                      cloudCover: weather?.cloudCover ?? 0,
+                      isOutdoor,
+                    });
+                    if (!quote) return null;
+                    return (
+                      <div className={`${CARD} flex min-h-[56px] items-center p-3.5`}>
+                        <span
+                          className="inline-flex min-h-8 items-center gap-2 rounded-full border bg-slate-900/[0.03] px-3 py-1.5"
+                          style={{ borderColor: `${quote.riskColor}44` }}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="inline-block h-1.5 w-1.5 rounded-full"
+                            style={{ background: quote.riskColor }}
+                          />
+                          <span className="text-[13px] font-semibold tracking-[0.01em]" style={{ color: quote.riskColor }}>
                             {quote.riskBand} Rain Risk
                           </span>
-                          <span style={{ fontSize: 11, color: '#64748B', marginLeft: 2 }}>
-                            · Guarantee available
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
+                          <span className="text-[13px] font-medium text-slate-600">· Guarantee available</span>
+                        </span>
+                      </div>
+                    );
+                  })()}
 
-                  {weatherLoading ? (
+                  {overviewScore.loading ? (
                     <SunstayScoreSkeleton />
                   ) : (
                     <SunstayScoreBadge
@@ -1152,56 +1412,57 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     onOpen={() => setForecastOpen(true)}
                   />
 
-                  {/* Microclimate Grid */}
-                  <div className="grid grid-cols-2 gap-2.5 my-3">
-                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">Wind & Shelter</span>
-                        <Wind size={14} className="text-slate-600 shrink-0" aria-hidden="true" />
+                  <MicroclimatePanel reading={microclimate} atLabel={microclimateAtLabel} />
+
+                  {/* Microclimate Grid — fixed cell height + truncation keeps the
+                      grid stable whether a field resolves, falls back, or is long. */}
+                  <div className="my-1 grid grid-cols-2 gap-2.5">
+                    <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-slate-900/[0.06] bg-slate-50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className={MICRO_LABEL}>Wind &amp; Shelter</span>
+                        <Wind size={15} className="shrink-0 text-slate-600" aria-hidden="true" />
                       </div>
-                      <div>
-                        <span className="text-xs font-semibold text-slate-800 block truncate">{windSpeedDisplay}</span>
-                        <span className="text-[10px] font-medium text-slate-500 block truncate">{windShelter}</span>
+                      <div className="min-w-0">
+                        <span className="block truncate text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900">{windSpeedDisplay}</span>
+                        <span className="block truncate text-[13px] font-medium text-slate-600">{windShelter}</span>
                       </div>
                     </div>
 
-                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">UV & Solar</span>
-                        <Sun size={14} className="text-amber-500 shrink-0" aria-hidden="true" />
+                    <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-slate-900/[0.06] bg-slate-50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className={MICRO_LABEL}>UV &amp; Solar</span>
+                        <Sun size={15} className="shrink-0 text-amber-500" aria-hidden="true" />
                       </div>
-                      <div>
-                        <span className="text-xs font-semibold text-slate-800 block truncate">UV {uvValue}</span>
-                        <span className="text-[10px] font-medium text-slate-500 block truncate">{uvGuideline}</span>
+                      <div className="min-w-0">
+                        <span className="block truncate text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900">UV {uvValue}</span>
+                        <span className="block truncate text-[13px] font-medium text-slate-600">{uvGuideline}</span>
                       </div>
                     </div>
 
-                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">Seating Layout</span>
-                        <Armchair size={14} className="text-slate-600 shrink-0" aria-hidden="true" />
+                    <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-slate-900/[0.06] bg-slate-50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className={MICRO_LABEL}>Seating</span>
+                        <Armchair size={15} className="shrink-0 text-slate-600" aria-hidden="true" />
                       </div>
-                      <div>
-                        <span className="text-xs font-semibold text-slate-800 block truncate">{seatingLayout}</span>
-                        <span className="text-[10px] font-medium text-slate-500 block truncate">
+                      <div className="min-w-0">
+                        <span className="block truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-900">{seatingLayout}</span>
+                        <span className="block truncate text-[13px] font-medium text-slate-600">
                           {hasCoveredSeating ? 'Covered' : 'Open Air'}
                         </span>
                       </div>
                     </div>
 
-                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col justify-between min-h-[82px]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="tracking-wider text-xs font-semibold uppercase text-slate-500">Heating / Cozy</span>
-                        <Flame size={14} className="text-amber-500 shrink-0" aria-hidden="true" />
+                    <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-slate-900/[0.06] bg-slate-50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className={MICRO_LABEL}>Heating / Cozy</span>
+                        <Flame size={15} className="shrink-0 text-amber-500" aria-hidden="true" />
                       </div>
-                      <div>
-                        <span className="text-xs font-semibold text-slate-800 block truncate">{heatingLabel}</span>
-                        <span className="text-[10px] font-medium text-slate-500 block truncate">{outdoorComfort}</span>
+                      <div className="min-w-0">
+                        <span className="block truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-900">{heatingLabel}</span>
+                        <span className="block truncate text-[13px] font-medium text-slate-600">{outdoorComfort}</span>
                       </div>
                     </div>
                   </div>
-
-                  <SolarExposureTimeline exposure={solarExposure} />
 
                   {rainArrivalMins !== null && rainArrivalMins <= 45 && (
                     <motion.div
@@ -1215,22 +1476,22 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                         boxShadow: '0 4px 14px rgba(245,158,11,0.06)',
                       }}
                     >
-                      <div className="flex items-center justify-center text-xl bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 flex-shrink-0">
+                      <div className="flex flex-shrink-0 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 p-2 text-xl" aria-hidden="true">
                         🛰️
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block">
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-800">
                           Predictive Radar Alert
                         </span>
-                        <p className="text-sm font-black text-slate-900 leading-tight mt-0.5">
+                        <p className="mt-0.5 text-[15px] font-bold leading-snug tracking-[-0.01em] text-slate-900">
                           {rainArrivalLabel}
                         </p>
-                        <span className="text-[11px] text-slate-700 font-medium block mt-0.5">
+                        <span className="mt-0.5 block text-[13px] font-medium leading-snug text-slate-700">
                           Precipitation detected nearby. Consider covered or indoor seating.
                         </span>
                       </div>
                       <motion.span
-                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500 text-white shadow-sm flex-shrink-0"
+                        className="flex-shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white shadow-sm"
                         animate={{ opacity: [1, 0.4, 1] }}
                         transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                       >
@@ -1241,87 +1502,65 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
                   <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
 
-                  <VenueCardActions
-                    verdict={verdict}
-                    safeTags={safeTags}
-                    safeVibes={safeVibes}
-                    isRainStartingSoon={isRainStartingSoon}
-                    minutesUntilRain={minutesUntilRain}
-                    liveFeaturesForVenue={liveFeaturesForVenue}
-                    heating={heating}
-                    actualHappyHour={actualHappyHour}
-                    isHotelOrStay={isHotelOrStay}
-                    cozyWeatherActive={cozyWeatherActive}
-                    setShowOwnerDashboard={setShowOwnerDashboard}
-                    setSelectedVenue={setSelectedVenue}
-                    venue={venue}
-                  />
+                  {amenityChipsAllowed(detailBranch) ? (
+                    <VenueCardActions
+                      verdict={verdict}
+                      safeTags={safeTags}
+                      safeVibes={safeVibes}
+                      isRainStartingSoon={isRainStartingSoon}
+                      minutesUntilRain={minutesUntilRain}
+                      liveFeaturesForVenue={liveFeaturesForVenue}
+                      heating={heating}
+                      actualHappyHour={actualHappyHour}
+                      isHotelOrStay={isHotelOrStay}
+                      cozyWeatherActive={cozyWeatherActive}
+                      setShowOwnerDashboard={setShowOwnerDashboard}
+                      setSelectedVenue={setSelectedVenue}
+                      venue={venue}
+                    />
+                  ) : null}
                 </>
               )}
 
-              {activeTab === 'Sun Forecast' && (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
-                  {localSunData && (
-                    <div className="flex flex-col gap-3">
-                      <h3 className="font-black text-slate-900 text-[15px]">Live 2D Solar Position</h3>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-slate-600 font-bold">Altitude (Elevation Angle)</span>
-                        <span className="font-black text-slate-900">{localSunData.altitude?.toFixed(1) ?? '–'}°</span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-slate-600 font-bold">Azimuth (Compass Angle)</span>
-                        <span className="font-black text-slate-900">{localSunData.azimuth?.toFixed(1) ?? '–'}°</span>
-                      </div>
-                      {(() => {
-                        const obstacleHeight = venue.obstacle_height ?? 2;
-                        const obstacleDistance = venue.obstacle_distance ?? 1;
-                        const isShaded = checkIfShaded(localSunData.altitude, obstacleHeight, obstacleDistance);
-                        let statusText = '☀️ Direct Sun';
-                        let statusClass = 'bg-amber-50 text-amber-500 border border-amber-100';
-
-                        if (!localSunData.isSunUp) {
-                          statusText = '🌙 Night (Sun is Down)';
-                          statusClass = 'bg-slate-50 text-slate-500 border border-slate-200';
-                        } else if (isShaded) {
-                          statusText = '🏢 Shaded by Surroundings';
-                          statusClass = 'bg-slate-50 text-slate-500 border border-slate-200';
-                        } else if (contextIsRaining) {
-                          statusText = '🌧️ Raining Currently';
-                          statusClass = 'bg-slate-100 text-slate-600 border border-slate-200';
-                        } else if (contextCloudCover > 75) {
-                          statusText = '☁️ Overcast (Geometrically clear)';
-                          statusClass = 'bg-slate-100 text-slate-600 border border-slate-200';
-                        } else if (sunWindow) {
-                          const timeStr = sunWindow.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                          statusText = `☀️ Direct Sun (Until ${timeStr})`;
-                        }
-                        return (
-                          <div className={`mt-1 p-3 rounded-xl font-bold text-sm text-center ${statusClass}`}>
-                            {statusText}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {(balconyData || (isHotelOrStay && outdoorSun.balcony > 0)) && (
+              {detailBranch === VENUE_DETAIL_BRANCH.SUN_FORECAST && (
+                <SunForecastPanel
+                  lat={lat}
+                  lng={lng}
+                  enabled
+                  localSunData={localSunData}
+                  sunWindow={sunWindow}
+                  venue={venue}
+                  contextIsRaining={contextIsRaining}
+                  contextCloudCover={contextCloudCover}
+                  sunData={sunData}
+                  hourlyData={hourlyData}
+                  cloudcover={cloudcover}
+                  displaySunrise={displaySunrise}
+                  displaySunset={displaySunset}
+                  peakStart={peakStartDecimal}
+                  peakEnd={peakEndDecimal}
+                >
+                  <SolarExposureTimeline exposure={solarExposure} />
+                  {(balconyData || hasCurveTotals || (isHotelOrStay && outdoorSun.balcony > 0)) && (
                     <BalconySunshineBlock
-                      balconyData={balconyData || { hours: outdoorSun.balcony, direction: null, views: null, type: 'balcony' }}
+                      balconyData={balconyData || { hours: hasCurveTotals ? curveTotals.totalHours : outdoorSun.balcony, direction: null, views: null, type: isHotelOrStay ? 'balcony' : 'outdoor' }}
                       outdoorSun={outdoorSun}
+                      curveHours={hasCurveTotals ? curveTotals.totalHours : null}
+                      sunFraction={microclimate.sunFraction}
                       isRainStartingSoon={isRainStartingSoon}
                       minutesUntilRain={minutesUntilRain}
                       cloudcover={cloudcover}
                     />
                   )}
-                </div>
+                </SunForecastPanel>
               )}
 
-              {activeTab === 'Rooms' && (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
+              {detailBranch === VENUE_DETAIL_BRANCH.ROOMS && (
+                <div className={`${CARD} flex flex-col gap-4 p-4`}>
                   {roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
                   {Array.isArray(venue?.roomTypes) && venue.roomTypes.length > 0 && (
                     <div className="flex flex-col gap-2.5">
-                      <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400 block px-1">
+                      <span className={`block px-1 ${MICRO_LABEL}`}>
                         Room Solar Profiles
                       </span>
                       {venue.roomTypes.map((room, i) => (
@@ -1332,38 +1571,38 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 </div>
               )}
 
-              {activeTab === 'Happy Hour' && actualHappyHour && (
+              {detailBranch === VENUE_DETAIL_BRANCH.HAPPY_HOUR && actualHappyHour && (
                 <div
-                  className="bg-white rounded-2xl border border-amber-200/80 shadow-sm p-5 flex flex-col gap-3.5"
+                  className="flex flex-col gap-3.5 rounded-3xl border border-amber-500/20 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]"
                   style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' }}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-2xl p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">🍸</span>
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-800 block">
+                  <div className="flex items-center gap-3">
+                    <span className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2 text-2xl" aria-hidden="true">🍸</span>
+                    <div className="min-w-0">
+                      <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-800">
                         Partner Deal · Happy Hour
                       </span>
-                      <h4 className="text-base font-black text-slate-900 leading-tight">
+                      <h4 className="text-[17px] font-bold leading-snug tracking-[-0.01em] text-slate-900">
                         {actualHappyHour.deal || 'Daily Drink Specials'}
                       </h4>
                     </div>
                   </div>
 
                   {actualHappyHour.start && actualHappyHour.end && (
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-700 bg-white/80 backdrop-blur-sm px-3.5 py-2.5 rounded-xl border border-amber-200">
+                    <div className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-white/80 px-3.5 text-[15px] font-medium text-slate-700 backdrop-blur-sm">
                       <span>⏰ Hours</span>
-                      <span className="text-amber-900 font-black">{actualHappyHour.start} – {actualHappyHour.end}</span>
+                      <span className="font-semibold tabular-nums text-amber-900">{actualHappyHour.start} – {actualHappyHour.end}</span>
                     </div>
                   )}
 
                   {Array.isArray(actualHappyHour.days) && actualHappyHour.days.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[11px] font-bold text-slate-600">Available Days</span>
+                    <div className="flex flex-col gap-2">
+                      <span className={MICRO_LABEL}>Available Days</span>
                       <div className="flex flex-wrap gap-1.5">
                         {actualHappyHour.days.map((day, idx) => (
                           <span
                             key={idx}
-                            className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-black text-xs border border-amber-300"
+                            className="rounded-lg border border-amber-500/25 bg-amber-100 px-2.5 py-1 text-[13px] font-semibold text-amber-900"
                           >
                             {day}
                           </span>
@@ -1374,14 +1613,14 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 </div>
               )}
 
-              {activeTab === 'Amenities' && (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-4">
+              {detailBranch === VENUE_DETAIL_BRANCH.AMENITIES && (
+                <div className={`${CARD} flex flex-col gap-4 p-4`}>
                   {weatherLoading ? (
-                    <div className="h-32 animate-pulse bg-slate-200 rounded-xl w-full" />
+                    <div className="h-32 w-full animate-pulse rounded-2xl bg-slate-200" />
                   ) : weatherUnavailable ? (
                     <WeatherUnavailableChip />
                   ) : !weather ? (
-                    <div className="h-32 animate-pulse bg-slate-200 rounded-xl w-full" />
+                    <div className="h-32 w-full animate-pulse rounded-2xl bg-slate-200" />
                   ) : (
                     <VenueCardWeather
                       score={score}
@@ -1400,22 +1639,22 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   )}
 
                     {shielding && (
-                    <motion.div className="flex flex-col gap-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-                      <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400">Venue Shielding</span>
+                    <motion.div className="flex flex-col gap-2.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+                      <span className={MICRO_LABEL}>Venue Shielding</span>
                       {shielding?.windbreak != null && <ShieldBar label="Windbreak" value={Math.min(1, Math.max(0, Number(shielding.windbreak)))} color="#64748B" delay={0.1} />}
                       {shielding?.rainCover != null && <ShieldBar label="Rain Cover" value={Math.min(1, Math.max(0, Number(shielding.rainCover)))} color="#94A3B8" delay={0.2} />}
                       {shielding?.shade     != null && <ShieldBar label="Shade"      value={Math.min(1, Math.max(0, Number(shielding.shade)))}    color="#F59E0B" delay={0.3} />}
                     </motion.div>
                     )}
 
-                  {safeTags && safeTags.length > 0 && (
-                    <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100">
-                      <span className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400">Venue Features & Tags</span>
+                  {amenityChipsAllowed(detailBranch) && safeTags && safeTags.length > 0 && (
+                    <div className="flex flex-col gap-2 border-t border-slate-900/[0.06] pt-3">
+                      <span className={MICRO_LABEL}>Venue Features &amp; Tags</span>
                       <div className="flex flex-wrap gap-1.5">
                         {safeTags.map((tag, idx) => (
                           <span
                             key={idx}
-                            className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200"
+                            className="rounded-lg border border-slate-900/[0.08] bg-slate-100 px-2.5 py-1 text-[13px] font-semibold text-slate-700"
                           >
                             {tag}
                           </span>
@@ -1426,11 +1665,12 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 </div>
               )}
             </div>
+            </VenueDetailErrorBoundary>
 
           </div>
 
             {/* Sticky Bottom CTA — in-flow so it cannot bleed into the TopBar */}
-            <div className="relative z-20 shrink-0 border-t border-slate-200 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <div className="relative z-20 shrink-0 border-t border-slate-900/[0.08] bg-white/85 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl backdrop-saturate-150">
               <VenueCardFooterActions venue={safeVenue} canNavigate={hasValidCoordinates} />
             </div>
         </motion.article>

@@ -1,0 +1,4 @@
+# Function-level settings. Project: fksuqgvsazoxarocmaii (Sunstay global v2)
+
+[functions.chat-sunny]
+verify_jwt = true

@@ -13,11 +13,16 @@
   --color-surface: #f8fafc; /* slate-50  */
 }
 
-/* Base styles */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Base styles.
+   This reset lives inside Tailwind's `base` layer on purpose. Unlayered rules
+   outrank every `@layer`, so a bare `* { margin: 0; padding: 0 }` silently beat
+   the `p-*` / `m-*` utilities and they applied nowhere in the app. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 body {
@@ -1506,27 +1511,6 @@ body,
   color: #9ca3af;
 }
 
-.hourly-expand-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  padding: 6px 0;
-  margin-top: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #6b7280;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.hourly-expand-btn:hover {
-  color: #374151;
-}
-
 /* Hour Detail Card */
 .wind-hour-detail {
   overflow: hidden;
@@ -2935,6 +2919,7 @@ body,
   display: flex;
   flex-direction: column;
   padding-right: 4px;
+  overscroll-behavior-y: contain;
 }
 
 .ss-venue-list::-webkit-scrollbar {
@@ -2948,61 +2933,6 @@ body,
 .ss-venue-list::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 4px;
-}
-
-.ss-venue-list-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 240px;
-  padding: 32px 20px;
-  gap: 8px;
-  color: #6b7280;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.ss-venue-list-empty-mascot {
-  width: 80px;
-  height: 80px;
-  border-radius: 20px;
-  object-fit: cover;
-  object-position: center;
-  margin-bottom: 4px;
-  box-shadow: 0 8px 20px rgba(251, 146, 60, 0.25);
-}
-
-.ss-venue-list-empty p {
-  margin: 0;
-  color: #1f2937;
-}
-
-.ss-venue-list-empty-sub {
-  font-size: 13px;
-  font-weight: 500;
-  color: #6b7280;
-  max-width: 240px;
-  line-height: 1.45;
-}
-
-.ss-venue-list-empty button {
-  min-height: 48px;
-  min-width: 44px;
-  padding: 10px 18px;
-  border-radius: 12px;
-  background: #f59e0b;
-  color: #0f172a;
-  border: none;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.ss-venue-list-empty button:hover {
-  background: #d97706;
 }
 
 
@@ -3774,6 +3704,13 @@ body,
   flex-direction: column;
 }
 
+/* The zero-results card reserves 6rem of headroom for the mascots' overhang,
+   which does not fit the default sheet height. Give it back to the list so the
+   Clear Filters button stays above the fold. */
+.ss-mobile-sheet--empty {
+  height: 78dvh;
+}
+
 .ss-mobile-sheet-head {
   padding: 24px 16px 12px;
   position: relative;
@@ -3806,6 +3743,145 @@ body,
   display: flex;
   flex-direction: column;
   padding: 8px 12px 0;
+  overscroll-behavior-y: contain;
+}
+
+.ss-mascot-ptr {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  overscroll-behavior-y: contain;
+}
+
+.ss-mascot-ptr__list,
+.ss-mascot-ptr__scroller {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior-y: contain;
+}
+
+.ss-mascot-ptr__actor {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.ss-mascot-ptr__actor--interactive {
+  pointer-events: auto;
+}
+
+.ss-mascot-ptr__actor--pulling,
+.ss-mascot-ptr__actor--ready {
+  transition: none;
+}
+
+.ss-mascot-ptr__actor--idle,
+.ss-mascot-ptr__actor--success,
+.ss-mascot-ptr__actor--error {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+}
+
+.ss-mascot-ptr__img {
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  object-fit: cover;
+  object-position: center;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 10px 22px rgba(245, 158, 11, 0.28),
+    0 2px 6px rgba(15, 23, 42, 0.12);
+}
+
+@keyframes ss-mascot-breathe {
+  0%,
+  100% {
+    transform: translate(-50%, var(--ss-ptr-y)) scale(var(--ss-ptr-scale));
+  }
+
+  50% {
+    transform: translate(-50%, calc(var(--ss-ptr-y) - 5px)) scale(calc(var(--ss-ptr-scale) * 1.03));
+  }
+}
+
+.ss-mascot-ptr__actor--refreshing {
+  animation: ss-mascot-breathe 1.6s ease-in-out infinite;
+}
+
+.ss-mascot-ptr__retry {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 9999px;
+  background: #111827;
+  color: #fff7ed;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.ss-venue-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 9999px;
+  background: rgba(255, 251, 235, 0.95);
+  color: #b45309;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(180, 83, 9, 0.12);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.ss-venue-refresh-btn:hover {
+  background: #fef3c7;
+}
+
+.ss-venue-refresh-btn:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+.ss-venue-refresh-btn:disabled,
+.ss-venue-refresh-btn--busy {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.ss-venue-refresh-status {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.ss-venue-refresh-status--error {
+  color: #b91c1c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-mascot-ptr__actor--refreshing {
+    animation: none;
+  }
 }
 
 

@@ -5,7 +5,40 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# Retired: mascots used to live at this unhashed public/ path. First-match
+# wins, so this must sit above the SPA splat — otherwise a miss is rewritten
+# to index.html and then cached as an immutable "image" by the *.png header.
+[[redirects]]
+  from = "/assets/mascots/*"
+  to = "/404"
+  status = 404
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Vite emits hashed files under /assets/<name>-<hash>.<ext>. Content-addressed
+# names make these safe to cache forever; a new file is a new URL. Match by
+# extension so a missing path (which the SPA rewrite serves as index.html)
+# does not get cached as an immutable "image". Brucey is still preloaded on
+# idle so the offline modal can paint him from cache when the network is gone.
+[[headers]]
+  for = "/assets/*.js"
+[headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.css"
+[headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.png"
+[headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.jpg"
+[headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"

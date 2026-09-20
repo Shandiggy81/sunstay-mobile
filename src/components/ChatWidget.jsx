@@ -1,6 +1,26 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MessageCircle, Send, Sun, Cloud, CloudRain, Wind, Thermometer } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useMicroclimateActions, useMicroclimateState } from '../context/MicroclimateContext';
+import {
+  applySunnyToolCalls,
+  buildSunnyContext,
+  parseChatSunnyResponse,
+  postChatSunny,
+  toLlmMessages,
+} from '../utils/sunnyTools';
+import thunderBuddy from '../assets/mascots/thunder-buddy.png';
+import sunnySunglasses from '../assets/sunny-mascot.jpg';
+import { resolveChatAvatarKind } from '../utils/resolveChatAvatar';
+
+const sunnyDefault = sunnySunglasses;
+
+const CHAT_AVATARS = {
+  thunder: { src: thunderBuddy, alt: 'Thunder Buddy' },
+  sunny: { src: sunnySunglasses, alt: 'Sunny' },
+  default: { src: sunnyDefault, alt: 'Sunny' },
+};
 
 // ─── Weather helpers ───────────────────────────────────────────────────────────
 const getWeatherMood = (weather) => {
@@ -117,6 +137,9 @@ const ChatWidget = ({
   isOpen,
   onClose,
   weather = null,
+  selectedVenue = null,
+  onSetFilters,
+  onPanToVenue,
   onFindWheelchair,
   onFindDogFriendly,
   onFindSmoking,
@@ -141,7 +164,10 @@ const ChatWidget = ({
     onFindWindSheltered,
   };
   const mood = getWeatherMood(weather);
+  const avatar = CHAT_AVATARS[resolveChatAvatarKind(weather)];
   const quickReplies = buildQuickReplies(weather);
+  const { byId, todMinutes } = useMicroclimateState();
+  const { setTodMinutes } = useMicroclimateActions();
 
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -222,6 +248,55 @@ const ChatWidget = ({
     setHasActed(false);
   };
 
+  const askSunny = async (history) => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !anonKey) return false;
+
+    let accessToken = anonKey;
+    try {
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.access_token) accessToken = data.session.access_token;
+      }
+    } catch {
+      // Anon JWT is enough for verify_jwt when no session is present.
+    }
+
+    setIsTyping(true);
+    // sunnyContext is POST-only — never appended to the on-screen transcript.
+    const result = await postChatSunny({
+      supabaseUrl,
+      anonKey,
+      accessToken,
+      messages: toLlmMessages(history),
+      sunnyContext: buildSunnyContext({
+        timeOfDay: todMinutes,
+        activeVenue: selectedVenue,
+        visibleById: byId,
+      }),
+    });
+    if (!result.ok) {
+      setIsTyping(false);
+      return false;
+    }
+
+    const parsed = parseChatSunnyResponse(result.payload);
+    const notes = applySunnyToolCalls(parsed.toolCalls, {
+      setTimeOfDay: setTodMinutes,
+      setFilters: onSetFilters,
+      panToVenue: onPanToVenue,
+    });
+    const reply = (parsed.reply || '').trim()
+      || (parsed.toolCalls.length ? 'On it — updating the map.' : '');
+    if (!reply && notes.length === 0) return false;
+
+    if (reply) await addBotMsg(reply);
+    for (const note of notes) await addBotMsg(note, 450);
+    if (parsed.toolCalls.length) setHasActed(true);
+    return true;
+  };
+
   const handleFreeText = async (e) => {
     e.preventDefault();
     const text = inputValue.trim();
@@ -229,6 +304,10 @@ const ChatWidget = ({
     setInputValue('');
     addUserMsg(text);
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+
+    const history = [...messages, { type: 'user', text }];
+    const handled = await askSunny(history);
+    if (handled) return;
 
     const intent = matchIntent(text);
     if (intent) {
@@ -239,7 +318,7 @@ const ChatWidget = ({
         return;
       }
     }
-    // Fallback — no match
+    // Fallback — no match / function unavailable
     await addBotMsg("Hmm, I'm not sure about that one! Try one of the quick options below, or ask me about sunny spots, rooftops, dog-friendly, or indoor venues 😊", 1000);
   };
 
@@ -261,8 +340,16 @@ const ChatWidget = ({
             <div className={`bg-gradient-to-r ${mood.gradient} px-5 py-4 flex items-center justify-between flex-shrink-0`}>
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/50 shadow-md">
-                    <img src="/sunny-chatbot.png" alt="Sunny" className="w-full h-full object-cover" />
+                  <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full shadow-sm ring-2 ring-white/50">
+                    <img
+                      key={avatar.src}
+                      src={avatar.src}
+                      alt={avatar.alt}
+                      width={48}
+                      height={48}
+                      draggable={false}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   <motion.span
                     className="absolute -bottom-0.5 -right-0.5 text-base leading-none"

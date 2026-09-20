@@ -6,6 +6,7 @@ import {
     TrendingDown, Minus, Info,
 } from 'lucide-react';
 import { useWeather } from '../context/WeatherContext';
+import { finiteOrNull } from '../utils/finiteOrNull';
 import {
     getWindProfile,
     getWindWarning,
@@ -17,9 +18,30 @@ import {
     getWindImpactExplanation,
 } from '../data/windIntelligence';
 
+// ── Unavailable State ─────────────────────────────────────────────
+// Shown when the venue has no usable temperature reading. Keeps the section
+// heading in place so the accordion does not appear to lose content.
+
+const WindComfortUnavailable = () => (
+    <div className="wind-comfort-panel">
+        <div className="wind-section-header">
+            <div className="wind-section-title-group">
+                <Shield size={16} className="text-blue-500" />
+                <h3 className="wind-section-title">Wind &amp; Comfort Intelligence</h3>
+            </div>
+        </div>
+        <div className="wind-venue-note">
+            <Info size={13} className="text-blue-400 flex-shrink-0 mt-0.5" />
+            <p>Forecast data unavailable for this venue right now.</p>
+        </div>
+    </div>
+);
+
 // ── Wind Warning Badge ────────────────────────────────────────────
 
 const WindWarningBadge = ({ warning }) => {
+    if (!warning) return null;
+
     const dotColors = {
         green: 'bg-emerald-500',
         yellow: 'bg-amber-500',
@@ -28,17 +50,19 @@ const WindWarningBadge = ({ warning }) => {
     };
 
     return (
-        <div className={`wind-warning-badge ${warning.bgColor} border ${warning.borderColor}`}>
+        <div className={`wind-warning-badge ${warning.bgColor ?? ''} border ${warning.borderColor ?? ''}`}>
             <div className="flex items-center gap-2">
-                <span className={`wind-warning-dot ${dotColors[warning.level]}`} />
-                <span className={`wind-warning-label ${warning.color}`}>
-                    {warning.icon} {warning.label}
+                <span className={`wind-warning-dot ${dotColors[warning.level] ?? 'bg-slate-400'}`} />
+                <span className={`wind-warning-label ${warning.color ?? ''}`}>
+                    {warning.icon} {warning.label ?? 'Wind conditions unavailable'}
                 </span>
             </div>
-            <p className="wind-warning-advice">{warning.advice}</p>
-            <p className="wind-warning-detail">
-                Effective wind: {warning.effectiveWind} km/h at venue
-            </p>
+            {warning.advice ? <p className="wind-warning-advice">{warning.advice}</p> : null}
+            {Number.isFinite(warning.effectiveWind) ? (
+                <p className="wind-warning-detail">
+                    Effective wind: {warning.effectiveWind} km/h at venue
+                </p>
+            ) : null}
         </div>
     );
 };
@@ -46,10 +70,15 @@ const WindWarningBadge = ({ warning }) => {
 // ── Comfort Gauge ─────────────────────────────────────────────────
 
 const ComfortGauge = ({ apparentTemp, comfort, actualTemp }) => {
-    // Position on a -5 to 45°C scale
+    // Position on a -5 to 45°C scale. An unusable reading would make `position`
+    // NaN and emit `left: NaN%`, so park the needle mid-scale instead.
     const min = -5;
     const max = 45;
-    const position = Math.max(0, Math.min(100, ((apparentTemp - min) / (max - min)) * 100));
+    const feels = finiteOrNull(apparentTemp);
+    const actual = finiteOrNull(actualTemp);
+    const position = feels === null
+        ? 50
+        : Math.max(0, Math.min(100, ((feels - min) / (max - min)) * 100));
 
     const zoneColors = [
         { start: 0, end: 20, color: '#3b82f6', label: 'Cold' },
@@ -64,13 +93,13 @@ const ComfortGauge = ({ apparentTemp, comfort, actualTemp }) => {
         <div className="comfort-gauge">
             <div className="comfort-gauge-temps">
                 <div className="comfort-gauge-actual">
-                    <span className="comfort-gauge-temp-number">{actualTemp}°C</span>
+                    <span className="comfort-gauge-temp-number">{actual === null ? '–' : `${actual}°C`}</span>
                     <span className="comfort-gauge-temp-label">Actual</span>
                 </div>
                 <div className="comfort-gauge-arrow">→</div>
                 <div className={`comfort-gauge-feels`}>
-                    <span className={`comfort-gauge-temp-number ${comfort.color}`}>
-                        {apparentTemp}°C
+                    <span className={`comfort-gauge-temp-number ${comfort?.color ?? ''}`}>
+                        {feels === null ? '–' : `${feels}°C`}
                     </span>
                     <span className="comfort-gauge-temp-label">Feels Like</span>
                 </div>
@@ -110,7 +139,16 @@ const ComfortGauge = ({ apparentTemp, comfort, actualTemp }) => {
 
 const HourlyForecastStrip = ({ forecast, onHourTap }) => {
     const [expanded, setExpanded] = useState(false);
-    const visible = expanded ? forecast.slice(0, 24) : forecast.slice(0, 12);
+    const rows = Array.isArray(forecast) ? forecast : [];
+    const visible = expanded ? rows.slice(0, 24) : rows.slice(0, 12);
+
+    if (!visible.length) {
+        return (
+            <p className="hourly-forecast-section text-[12px] font-semibold text-slate-400">
+                Hourly forecast data unavailable
+            </p>
+        );
+    }
 
     return (
         <div className="hourly-forecast-section">
@@ -129,28 +167,29 @@ const HourlyForecastStrip = ({ forecast, onHourTap }) => {
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.02 }}
-                            className={`hourly-item ${h.isCurrent ? 'hourly-item-current' : ''}`}
+                            className={`hourly-item ${h?.isCurrent ? 'hourly-item-current' : ''}`}
                             onClick={() => onHourTap && onHourTap(h)}
                         >
-                            <span className="hourly-label">{h.label}</span>
-                            <span className="hourly-icon">{h.comfort.icon}</span>
-                            <span className={`hourly-feels ${h.comfort.color}`}>
-                                {h.feelsLike}°
+                            <span className="hourly-label">{h?.label ?? '–'}</span>
+                            <span className="hourly-icon">{h?.comfort?.icon ?? '❓'}</span>
+                            <span className={`hourly-feels ${h?.comfort?.color ?? ''}`}>
+                                {Number.isFinite(h?.feelsLike) ? `${h.feelsLike}°` : '–'}
                             </span>
                             <div
                                 className="hourly-wind-dot"
-                                style={{ background: dotColors[h.windWarning.level] }}
-                                title={`${h.wind}km/h — ${h.windWarning.label}`}
+                                style={{ background: dotColors[h?.windWarning?.level] ?? '#94a3b8' }}
+                                title={`${h?.wind ?? '–'}km/h — ${h?.windWarning?.label ?? 'unknown'}`}
                             />
-                            <span className="hourly-wind">{h.wind}</span>
+                            <span className="hourly-wind">{Number.isFinite(h?.wind) ? h.wind : '–'}</span>
                         </motion.div>
                     );
                 })}
             </div>
-            {forecast.length > 12 && (
+            {rows.length > 12 && (
                 <button
+                    type="button"
                     onClick={() => setExpanded(!expanded)}
-                    className="hourly-expand-btn"
+                    className="mt-1.5 flex min-h-11 w-full cursor-pointer items-center justify-center gap-1 rounded-xl text-[12px] font-semibold text-slate-500 transition-colors active:bg-slate-900/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                 >
                     {expanded ? 'Show less' : 'Show full 24 hours'}
                     <ChevronDown
@@ -172,10 +211,18 @@ const WindComfortPanel = ({ venue }) => {
     const windData = useMemo(() => {
         if (!weather || !venue) return null;
 
-        const temp = weather.main?.temp;
-        const feelsLikeApi = weather.main?.feels_like;
-        const windSpeed = weather.wind?.speed;
-        const humidity = weather.main?.humidity;
+        // The weather payload is assembled from several upstream providers, so
+        // treat every reading as optional and reject anything non-finite before
+        // it can reach the gauge as "NaN°C".
+        const temp = finiteOrNull(weather.main?.temp);
+        const feelsLikeApi = finiteOrNull(weather.main?.feels_like);
+        const windSpeed = finiteOrNull(weather.wind?.speed) ?? 0;
+        const humidity = finiteOrNull(weather.main?.humidity);
+
+        // Temperature drives the gauge, the comfort zone and every hourly row.
+        // Without it there is nothing to model, so fall through to the
+        // unavailable state rather than rendering a panel full of NaN.
+        if (temp === null) return null;
 
         const windProfile = getWindProfile(venue);
         const windWarning = getWindWarning(windSpeed, venue);
@@ -190,25 +237,25 @@ const WindComfortPanel = ({ venue }) => {
 
         return {
             temp: Math.round(temp),
-            feelsLikeApi: Math.round(feelsLikeApi),
+            feelsLikeApi: feelsLikeApi === null ? null : Math.round(feelsLikeApi),
             windSpeed,
             humidity,
             windProfile,
             windWarning,
-            apparentTemp: Math.round(apparentTemp),
+            apparentTemp: apparentTemp === null ? null : Math.round(apparentTemp),
             comfort,
-            hourlyForecast,
+            hourlyForecast: Array.isArray(hourlyForecast) ? hourlyForecast : [],
             windTrend,
             optimalBooking,
             windImpact,
         };
     }, [weather, venue]);
 
-    if (!windData) return null;
+    if (!windData) return <WindComfortUnavailable />;
 
-    const TrendIcon = windData.windTrend.direction === 'building'
+    const TrendIcon = windData.windTrend?.direction === 'building'
         ? TrendingUp
-        : windData.windTrend.direction === 'calming'
+        : windData.windTrend?.direction === 'calming'
             ? TrendingDown
             : Minus;
 
@@ -226,7 +273,7 @@ const WindComfortPanel = ({ venue }) => {
             <WindWarningBadge warning={windData.windWarning} />
 
             {/* ── Venue Wind Note ─────────────────────────── */}
-            {windData.windProfile.venueNote && (
+            {windData.windProfile?.venueNote && (
                 <div className="wind-venue-note">
                     <Info size={13} className="text-blue-400 flex-shrink-0 mt-0.5" />
                     <p>{windData.windProfile.venueNote}</p>
@@ -241,13 +288,13 @@ const WindComfortPanel = ({ venue }) => {
             />
 
             {/* ── Comfort Zone Badge ─────────────────────── */}
-            <div className={`wind-comfort-badge ${windData.comfort.bgColor} border ${windData.comfort.borderColor}`}>
-                <span className="text-lg">{windData.comfort.icon}</span>
+            <div className={`wind-comfort-badge ${windData.comfort?.bgColor ?? ''} border ${windData.comfort?.borderColor ?? ''}`}>
+                <span className="text-lg">{windData.comfort?.icon ?? '❓'}</span>
                 <div>
-                    <p className={`wind-comfort-label ${windData.comfort.color}`}>
-                        {windData.comfort.label}
+                    <p className={`wind-comfort-label ${windData.comfort?.color ?? ''}`}>
+                        {windData.comfort?.label ?? 'Comfort unavailable'}
                     </p>
-                    <p className="wind-comfort-advice">{windData.comfort.advice}</p>
+                    <p className="wind-comfort-advice">{windData.comfort?.advice ?? 'Weather data unavailable'}</p>
                 </div>
             </div>
 
@@ -263,7 +310,7 @@ const WindComfortPanel = ({ venue }) => {
             <div className="wind-trend-row">
                 <TrendIcon size={14} className="text-gray-500" />
                 <span className="wind-trend-label">
-                    {windData.windTrend.icon} {windData.windTrend.label}
+                    {windData.windTrend?.icon} {windData.windTrend?.label ?? 'Wind trend unavailable'}
                 </span>
             </div>
 
@@ -295,30 +342,36 @@ const WindComfortPanel = ({ venue }) => {
                         exit={{ opacity: 0, height: 0 }}
                         className="wind-hour-detail"
                     >
-                        <div className={`wind-hour-card ${selectedHour.comfort.bgColor} border ${selectedHour.comfort.borderColor}`}>
+                        <div className={`wind-hour-card ${selectedHour.comfort?.bgColor ?? ''} border ${selectedHour.comfort?.borderColor ?? ''}`}>
                             <div className="wind-hour-card-header">
                                 <span className="font-bold text-gray-800">
-                                    {selectedHour.label === 'Now' ? 'Right Now' : `At ${selectedHour.label}`}
+                                    {selectedHour.label === 'Now' ? 'Right Now' : `At ${selectedHour.label ?? '–'}`}
                                 </span>
-                                <span className="text-lg">{selectedHour.comfort.icon}</span>
+                                <span className="text-lg">{selectedHour.comfort?.icon ?? '❓'}</span>
                             </div>
                             <div className="wind-hour-stats">
                                 <div>
                                     <span className="wind-hour-stat-label">Temp</span>
-                                    <span className="wind-hour-stat-value">{selectedHour.temp}°C</span>
+                                    <span className="wind-hour-stat-value">
+                                        {Number.isFinite(selectedHour.temp) ? `${selectedHour.temp}°C` : '–'}
+                                    </span>
                                 </div>
                                 <div>
                                     <span className="wind-hour-stat-label">Feels Like</span>
-                                    <span className={`wind-hour-stat-value ${selectedHour.comfort.color}`}>
-                                        {selectedHour.feelsLike}°C
+                                    <span className={`wind-hour-stat-value ${selectedHour.comfort?.color ?? ''}`}>
+                                        {Number.isFinite(selectedHour.feelsLike) ? `${selectedHour.feelsLike}°C` : '–'}
                                     </span>
                                 </div>
                                 <div>
                                     <span className="wind-hour-stat-label">Wind</span>
-                                    <span className="wind-hour-stat-value">{selectedHour.wind} km/h</span>
+                                    <span className="wind-hour-stat-value">
+                                        {Number.isFinite(selectedHour.wind) ? `${selectedHour.wind} km/h` : '–'}
+                                    </span>
                                 </div>
                             </div>
-                            <p className="wind-hour-advice">{selectedHour.comfort.advice}</p>
+                            {selectedHour.comfort?.advice ? (
+                                <p className="wind-hour-advice">{selectedHour.comfort.advice}</p>
+                            ) : null}
                         </div>
                     </motion.div>
                 )}
@@ -334,12 +387,12 @@ const WindComfortPanel = ({ venue }) => {
                     <div className="wind-booking-card">
                         <div className="wind-booking-time">
                             <span className="wind-booking-time-range">
-                                {windData.optimalBooking.startLabel} — {windData.optimalBooking.endLabel}
+                                {windData.optimalBooking.startLabel ?? '–'} — {windData.optimalBooking.endLabel ?? '–'}
                             </span>
                             <ChevronRight size={16} className="text-gray-400" />
                         </div>
                         <p className="wind-booking-reason">
-                            {windData.optimalBooking.reason}
+                            {windData.optimalBooking.reason ?? 'Best conditions in the forecast window'}
                         </p>
                         <p className="wind-booking-tip">
                             Best time for this outdoor area before conditions change

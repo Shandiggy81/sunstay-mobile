@@ -8,7 +8,14 @@ import SunCalc from 'suncalc';
 import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
+import { useMicroclimateActions, useMicroclimateState } from '../../context/MicroclimateContext';
 import { melbourneDate } from '../../utils/sunPosition';
+import {
+    readMicroclimate,
+    pinStateFromMicroclimate,
+    markerScoreFromMicroclimate,
+    lookupMicroclimateEntry,
+} from '../../utils/microclimate';
 import {
     TOD_DAY_START_MIN as DAY_START_MIN,
     TOD_DAY_END_MIN as DAY_END_MIN,
@@ -30,18 +37,23 @@ const PIN_STATES = {
     cloudy:   { emoji: '☁️',  bg: '#e2e8f0', border: '#cbd5e1', color: '#64748b' },
 };
 
-function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive) {
-    // If a custom weatherColorFn is provided, let it take priority
-    if (typeof weatherColorFn === 'function') {
-        const fnResult = weatherColorFn(weather, venue);
-        if (fnResult && PIN_STATES[fnResult]) return fnResult;
-    }
-
-    // Cozy filter active: highlight cozy venues differently
+function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive, microReading) {
+    // Cozy filter is a user intent overlay, not a weather recompute.
     if (cozyFilterActive) {
         const live = liveVenueFeatures?.[venue.id] || {};
         if (live.fireplaceOn || venue.fireplaceOn) return 'heater';
         if (live.heatersOn || live.roofClosed || venue.hasCozy) return 'cozy';
+    }
+
+    // Cached RPC profile wins: marker colour comes from effective_sun /
+    // sun_hour_fraction / effective_wind, never from client weather APIs.
+    const profilePin = pinStateFromMicroclimate(microReading);
+    if (profilePin && PIN_STATES[profilePin]) return profilePin;
+
+    // Soft fallback only when the venue has no microclimate profile.
+    if (typeof weatherColorFn === 'function') {
+        const fnResult = weatherColorFn(weather, venue);
+        if (fnResult && PIN_STATES[fnResult]) return fnResult;
     }
 
     const live = liveVenueFeatures?.[venue.id] || {};
@@ -61,6 +73,21 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
     if (apparentTemp <= 11) return 'cold';
     if (apparentTemp >= 18 && cloudCover <= 35 && precipProb < 20) return 'sunny';
     return 'default';
+}
+
+function readingForVenue(microById, venueId, todMinutes) {
+    const entry = lookupMicroclimateEntry(microById, venueId);
+    if (!entry) return null;
+    return readMicroclimate(entry, todMinutes);
+}
+
+function markerScoreForVenue(reading, venue, calculateSunstayScore) {
+    const profileScore = markerScoreFromMicroclimate(reading);
+    if (profileScore != null) return profileScore;
+    const rawScore = typeof calculateSunstayScore === 'function'
+        ? calculateSunstayScore(venue)
+        : null;
+    return Number.isFinite(rawScore) ? Math.round(rawScore) : null;
 }
 
 const isFiniteCoord = (v) => Number.isFinite(Number(v));
@@ -116,6 +143,16 @@ function getBoundsFromVenues(venues) {
 function visibleVenueSetKey(venues) {
     return venues.map((v) => String(v.id)).sort().join('|');
 }
+
+// ── Map overlay chrome ──────────────────────────────────────────────────
+// Apple-Maps-style grouped control stack: one translucent material container
+// with hairline dividers, 44px hit areas, and no per-button shadows.
+const CONTROL_GROUP =
+    'flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/70 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 divide-y divide-slate-900/[0.07]';
+const CONTROL_BUTTON =
+    'flex h-11 w-11 min-h-11 min-w-11 cursor-pointer items-center justify-center text-[19px] leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600';
+const CONTROL_BUTTON_IDLE = 'bg-transparent text-slate-800 active:bg-slate-900/10';
+const CONTROL_TOUCH_STYLE = { touchAction: 'auto', WebkitTapHighlightColor: 'transparent' };
 
 // ── Mini Sunstay Score badge (mirrors the list card + detail sheet ramp) ──
 const SCORE_BADGE_TIERS = [
@@ -406,8 +443,11 @@ function computeSunLight(minutes, lat, lng) {
 // off so the pitched Standard map stays interactive. A full lights+shadows
 // pass runs once on settle. Score preview commits only on pointer-up /
 // cancel / blur / keyup — never the live scrub path.
-function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
+function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes = null }) {
     const { setScorePreviewMinutes } = useWeather();
+    // Writer-only: publishing the scrub position re-renders the microclimate
+    // readouts, not this component or the map.
+    const { setTodMinutes } = useMicroclimateActions();
     const [sliderMinutes, setSliderMinutes] = useState(() => localTimeToSliderMinutes());
     const minutesRef = useRef(sliderMinutes);
     const lightTimerRef = useRef(null);
@@ -518,11 +558,38 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         resumeMapPan();
     }, [cancelPendingLight, resumeMapPan]);
 
+    // Publish the slider's opening position once it mounts. Minutes are
+    // Melbourne wall-clock (AEST/AEDT), matching the sun curve index and
+    // the "is this the current hour?" comparison.
+    useEffect(() => {
+        setTodMinutes(minutesRef.current);
+    }, [setTodMinutes]);
+
+    // Sunny (and any other writer) publishes through MicroclimateContext.
+    // Keep the thumb + 3D lights in lockstep when that value changes
+    // without this slider firing the input.
+    useEffect(() => {
+        if (todMinutes == null) return;
+        const n = Number(todMinutes);
+        if (!Number.isFinite(n)) return;
+        const clamped = Math.min(DAY_END_MIN, Math.max(DAY_START_MIN, Math.round(n)));
+        if (clamped === minutesRef.current) return;
+        minutesRef.current = clamped;
+        setSliderMinutes(clamped);
+        applyLight(clamped, { castShadows: true });
+        if (typeof setScorePreviewMinutes === 'function') {
+            setScorePreviewMinutes(clamped);
+        }
+    }, [todMinutes, applyLight, setScorePreviewMinutes]);
+
     const handleScrub = (e) => {
         const v = Number(e.target.value);
         minutesRef.current = v;
         setSliderMinutes(v);
         scheduleScrubLight(v);
+        // Microclimate is a local lookup against the venue's hourly curve, so
+        // unlike the score it can follow the thumb without a refetch.
+        setTodMinutes(v);
     };
 
     const settleScrub = () => {
@@ -535,6 +602,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
         if (typeof setScorePreviewMinutes === 'function') {
             setScorePreviewMinutes(v);
         }
+        setTodMinutes(v);
     };
 
     const handleRangePointerDown = (e) => {
@@ -563,16 +631,16 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false }) {
             aria-hidden={isVenueSelected}
             inert={isVenueSelected || undefined}
         >
-            <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 px-4 py-2.5 shadow-lg backdrop-blur-md">
+            <div className="flex items-center gap-3 rounded-[22px] border border-white/60 bg-white/72 px-4 py-2.5 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150">
                 <span className="select-none text-xl leading-none" aria-hidden="true">🌇</span>
                 <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-center justify-between">
-                        <label htmlFor="tod-slider" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                        <label htmlFor="tod-slider" className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
                             Time of day
                         </label>
                         <span
                             aria-live="polite"
-                            className="text-xs font-bold tabular-nums text-slate-800"
+                            className="text-[13px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900"
                         >
                             {clock}
                         </span>
@@ -632,6 +700,11 @@ const VenueMap = forwardRef(({
     const [mapError,     setMapError]     = useState(false);
 
     const { weather, calculateSunstayScore } = useWeather();
+    const { setBbox } = useMicroclimateActions();
+    // Reader: cached venues_in_bbox rows + slider minutes. Pin colour/size
+    // use these fields (effective_sun, effective_wind, sun_hour_fraction)
+    // rather than recomputing sun from client weather when a profile exists.
+    const { byId: microById, todMinutes } = useMicroclimateState();
 
     const safeVenues = useMemo(
         () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
@@ -894,9 +967,13 @@ const VenueMap = forwardRef(({
             : safeVenues;
 
         const geojsonFeatures = visibleVenues.map(venue => {
-            const rawScore = typeof calculateSunstayScore === 'function'
-                ? calculateSunstayScore(venue)
-                : 75;
+            const reading = readingForVenue(microById, venue.id, todMinutes);
+            const profileScore = markerScoreFromMicroclimate(reading);
+            const rawScore = profileScore ?? (
+                typeof calculateSunstayScore === 'function'
+                    ? calculateSunstayScore(venue)
+                    : 75
+            );
             const weight = Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75;
             return {
                 type: 'Feature',
@@ -962,7 +1039,7 @@ const VenueMap = forwardRef(({
                 comfortMapOn ? 'visible' : 'none'
             );
         }
-    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore]);
+    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore, microById, todMinutes]);
 
     // ── fitBounds once ──────────────────────────────────────────────
     useEffect(() => {
@@ -1077,17 +1154,16 @@ const VenueMap = forwardRef(({
                         const venueLat = Number(venue.lat);
                         if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
 
+                        const microReading = readingForVenue(microById, venue.id, todMinutes);
                         const pinKey = getPinStateKey(
                             venue,
                             weather,
                             live,
                             weatherColorFnRef.current,
                             cozyFilterActiveRef.current,
+                            microReading,
                         );
-                        const rawScore = typeof calculateSunstayScore === 'function'
-                            ? calculateSunstayScore(venue)
-                            : null;
-                        const score = Number.isFinite(rawScore) ? Math.round(rawScore) : null;
+                        const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
 
                         let existing = markersRef.current[markerId];
 
@@ -1137,7 +1213,41 @@ const VenueMap = forwardRef(({
                 map.current.off('moveend', syncMarkers);
             }
         };
-    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore]);
+    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, todMinutes]);
+
+    // ── viewport bbox → microclimate fetch ──────────────────────────
+    // Reported on settle rather than on every move frame; the hook debounces
+    // again and ignores responses from a viewport the user has already left.
+    useEffect(() => {
+        if (!mapLoaded || !map.current) return undefined;
+        const instance = map.current;
+
+        const publishBounds = () => {
+            try {
+                const bounds = instance.getBounds();
+                if (!bounds) return;
+                setBbox({
+                    minLng: bounds.getWest(),
+                    minLat: bounds.getSouth(),
+                    maxLng: bounds.getEast(),
+                    maxLat: bounds.getNorth(),
+                });
+            } catch (e) {
+                console.warn('[VenueMap] could not read viewport bounds:', e?.message);
+            }
+        };
+
+        publishBounds();
+        instance.on('moveend', publishBounds);
+        instance.on('zoomend', publishBounds);
+
+        return () => {
+            try {
+                instance.off('moveend', publishBounds);
+                instance.off('zoomend', publishBounds);
+            } catch { /* noop */ }
+        };
+    }, [mapLoaded, setBbox]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {
@@ -1183,7 +1293,7 @@ const VenueMap = forwardRef(({
         <div className="relative h-full w-full max-lg:[&_.mapboxgl-ctrl-top-right]:hidden lg:[&_.mapboxgl-ctrl-bottom-right]:bottom-2 [&_.mapboxgl-ctrl-bottom-right]:bottom-[calc(env(safe-area-inset-bottom)+90px)] [&_.mapboxgl-ctrl-bottom-right]:right-[6.75rem]">
             <div
                 ref={mapContainer}
-                style={{ width: '100%', height: '100%', touchAction: 'pan-y' }}
+                style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
 
             {/* Dedicated rain-radar overlay toggle (RainViewer/Xweather). Visible even while Mapbox loads. lg:right-14 clears native zoom. */}
@@ -1192,17 +1302,24 @@ const VenueMap = forwardRef(({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setShowRadar(!showRadar); }}
                     onTouchEnd={e => e.stopPropagation()}
-                    className={`absolute top-4 right-4 z-50 flex min-h-11 items-center gap-2 px-4 py-2.5 rounded-full shadow-lg font-bold text-sm backdrop-blur-md transition-all lg:right-14 ${
+                    className={`absolute right-4 top-4 z-50 flex min-h-11 items-center gap-2 rounded-full px-4 text-[14px] font-semibold tracking-[-0.01em] shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 transition-colors lg:right-14 ${
                         showRadar
-                            ? 'bg-blue-600/95 text-white border-2 border-blue-400'
-                            : 'bg-white/95 text-gray-800 border border-gray-200/80 hover:bg-gray-50'
+                            ? 'bg-blue-600/90 text-white ring-1 ring-inset ring-white/30'
+                            : 'bg-white/72 text-slate-800 ring-1 ring-inset ring-slate-900/10 active:bg-white/90'
                     }`}
-                    style={{ touchAction: 'auto' }}
+                    style={{ touchAction: 'auto', WebkitTapHighlightColor: 'transparent' }}
                     aria-label={showRadar ? 'Hide rain radar' : 'Show rain radar'}
                     aria-pressed={showRadar}
                     title={showRadar ? 'Hide live rain radar' : 'Show live rain radar'}
                 >
-                    <span>🌧️</span>
+                    {showRadar ? (
+                        <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/80" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+                        </span>
+                    ) : (
+                        <span aria-hidden="true">🌧️</span>
+                    )}
                     <span>{showRadar ? 'Radar Active' : 'Live Radar'}</span>
                 </button>
             )}
@@ -1216,7 +1333,7 @@ const VenueMap = forwardRef(({
                         </div>
                     ) : null}
                     {mapLoaded && !mapError ? (
-                        <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} />
+                        <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} todMinutes={todMinutes} />
                     ) : null}
                 </div>
             </div>
@@ -1224,95 +1341,58 @@ const VenueMap = forwardRef(({
             {/* FAB stack */}
             {mapLoaded && !mapError && (
                 <div
-                    className="absolute top-20 right-4 z-20 flex flex-col gap-2"
+                    className="absolute right-4 top-20 z-20 flex flex-col items-end gap-3"
                     style={{
                         touchAction:     'auto',
                         pointerEvents:   'auto',
                     }}
                     onTouchEnd={e => e.stopPropagation()}
                 >
-
-                    {/* Comfort Heatmap FAB */}
-                    <button
-                        onClick={() => setComfortMapOn(prev => !prev)}
-                        onTouchEnd={e => { e.stopPropagation(); }}
-                        title={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
-                        style={{
-                            width:               44,
-                            height:              44,
-                            borderRadius:        '50%',
-                            border:              comfortMapOn ? '2px solid #D97706' : '2px solid rgba(255,255,255,0.3)',
-                            background:          comfortMapOn ? 'rgba(217,119,6,0.9)' : 'rgba(15,15,30,0.85)',
-                            backdropFilter:      'blur(8px)',
-                            WebkitBackdropFilter:'blur(8px)',
-                            color:               '#fff',
-                            fontSize:            20,
-                            cursor:              'pointer',
-                            display:             'flex',
-                            alignItems:          'center',
-                            justifyContent:      'center',
-                            boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
-                            transition:          'background 200ms ease, border-color 200ms ease',
-                            WebkitTapHighlightColor: 'transparent',
-                            touchAction:         'auto',
-                        }}
-                        aria-label={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
-                        aria-pressed={comfortMapOn}
-                    >
-                        🔥
-                    </button>
-
-                    {/* Cloud Cover FAB */}
-                    {WEATHER_API_KEY && (
+                    <div className={CONTROL_GROUP}>
+                        {/* Comfort Heatmap FAB */}
                         <button
-                            onClick={() => setCloudOn(prev => !prev)}
+                            type="button"
+                            onClick={() => setComfortMapOn(prev => !prev)}
                             onTouchEnd={e => { e.stopPropagation(); }}
-                            title={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
-                            style={{
-                                width:               44,
-                                height:              44,
-                                borderRadius:        '50%',
-                                border:              cloudOn ? '2px solid #9CA3AF' : '2px solid rgba(255,255,255,0.3)',
-                                background:          cloudOn ? 'rgba(156,163,175,0.9)' : 'rgba(15,15,30,0.85)',
-                                backdropFilter:      'blur(8px)',
-                                WebkitBackdropFilter:'blur(8px)',
-                                color:               '#fff',
-                                fontSize:            20,
-                                cursor:              'pointer',
-                                display:             'flex',
-                                alignItems:          'center',
-                                justifyContent:      'center',
-                                boxShadow:           '0 2px 10px rgba(0,0,0,0.4)',
-                                transition:          'background 200ms ease, border-color 200ms ease',
-                                WebkitTapHighlightColor: 'transparent',
-                                touchAction:         'auto',
-                            }}
-                            aria-label={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
-                            aria-pressed={cloudOn}
+                            title={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
+                            className={`${CONTROL_BUTTON} ${
+                                comfortMapOn
+                                    ? 'bg-amber-500/90 text-white active:bg-amber-500'
+                                    : CONTROL_BUTTON_IDLE
+                            }`}
+                            style={CONTROL_TOUCH_STYLE}
+                            aria-label={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
+                            aria-pressed={comfortMapOn}
                         >
-                            ☁️
+                            🔥
                         </button>
-                    )}
+
+                        {/* Cloud Cover FAB */}
+                        {WEATHER_API_KEY && (
+                            <button
+                                type="button"
+                                onClick={() => setCloudOn(prev => !prev)}
+                                onTouchEnd={e => { e.stopPropagation(); }}
+                                title={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
+                                className={`${CONTROL_BUTTON} ${
+                                    cloudOn
+                                        ? 'bg-slate-500/90 text-white active:bg-slate-500'
+                                        : CONTROL_BUTTON_IDLE
+                                }`}
+                                style={CONTROL_TOUCH_STYLE}
+                                aria-label={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
+                                aria-pressed={cloudOn}
+                            >
+                                ☁️
+                            </button>
+                        )}
+                    </div>
 
                     {/* Cozy weather indicator — shows when cozyWeatherActive */}
                     {cozyWeatherActive && (
                         <div
                             title="Cozy weather conditions active"
-                            style={{
-                                width:               44,
-                                height:              44,
-                                borderRadius:        '50%',
-                                border:              '2px solid #F59E0B',
-                                background:          'rgba(251,191,36,0.15)',
-                                backdropFilter:      'blur(8px)',
-                                WebkitBackdropFilter:'blur(8px)',
-                                display:             'flex',
-                                alignItems:          'center',
-                                justifyContent:      'center',
-                                fontSize:            20,
-                                boxShadow:           '0 2px 10px rgba(0,0,0,0.3)',
-                                pointerEvents:       'none',
-                            }}
+                            className="pointer-events-none flex h-11 w-11 items-center justify-center rounded-full border border-amber-500/40 bg-amber-300/25 text-[19px] leading-none shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150"
                             aria-label="Cozy weather active"
                         >
                             🧥
