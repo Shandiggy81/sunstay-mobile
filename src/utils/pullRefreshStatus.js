@@ -39,6 +39,16 @@ export function nextPullPhase(phase, event = {}) {
     if (type === 'refresh-error' && phase === 'refreshing') return 'error';
     if (type === 'retry' && phase === 'error') return 'refreshing';
     if (type === 'dismiss' && (phase === 'success' || phase === 'error')) return 'idle';
+    if (
+        type === 'cancel'
+        || type === 'unmount'
+        || type === 'sheet-close'
+        || type === 'venue-change'
+        || type === 'threshold-miss'
+        || type === 'reset'
+    ) {
+        return 'idle';
+    }
 
     return phase;
 }

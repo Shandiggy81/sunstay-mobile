@@ -8,12 +8,17 @@ import React, {
 } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import sunnyMascot from '../assets/sunny-mascot.jpg';
-import { computePull, PULL_MAX_DISTANCE } from '../utils/computePull';
+import { computePull } from '../utils/computePull';
 import { shouldBeginPull } from '../utils/shouldBeginPull';
 import { nextPullPhase, pullRefreshStatus } from '../utils/pullRefreshStatus';
-
-const MASCOT_PX = 48;
-const HIDDEN_Y = -(MASCOT_PX + 24);
+import {
+    MASCOT_INDICATOR_SLOT_PX,
+    MASCOT_PX,
+    pullTransformFromState,
+    refreshingPullTransform,
+    resolvePullTermination,
+    schedulePullFrame,
+} from '../utils/mascotPullTransform';
 
 function findScroller(root) {
     if (!root) return null;
@@ -29,10 +34,18 @@ function resolveRefreshResult(result) {
     return 'success';
 }
 
+function applyOwnedTransform(setDistance, setScale, transform) {
+    setDistance(transform.distance);
+    setScale(transform.scale);
+}
+
 /**
  * Gesture wrapper for the venue list. Activates only when the sheet is
- * expanded and the scroller is pinned at the top. Uses CSS transforms so the
- * clay Sunny asset never gets pixel-stretched.
+ * expanded and the scroller is pinned at the top.
+ *
+ * Transform owner: React `distance`/`scale`/`phase` written to the actor's
+ * DOM `style.transform` (and CSS vars for the breathe animation). Framer
+ * Motion is not the owner — there is no Motion `y` to reset.
  */
 const MascotPullRefresh = forwardRef(function MascotPullRefresh({
     children,
@@ -53,10 +66,14 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         pointerId: null,
     });
     const successTimerRef = useRef(null);
+    const frameRef = useRef(null);
 
     const [phase, setPhase] = useState('idle');
     const [distance, setDistance] = useState(0);
     const [scale, setScale] = useState(1);
+    const distanceRef = useRef(0);
+    const scaleRef = useRef(1);
+    const terminateRef = useRef(() => {});
     const prefersReducedMotion = useReducedMotion();
 
     const applyPhase = useCallback((next) => {
@@ -64,10 +81,36 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         setPhase(next);
     }, []);
 
-    const resetPull = useCallback(() => {
-        setDistance(0);
-        setScale(1);
+    const endSession = useCallback(() => {
+        const session = sessionRef.current;
+        session.tracking = false;
+        session.confirmed = false;
+        session.pointerId = null;
+        session.lastDy = 0;
     }, []);
+
+    const terminateGesture = useCallback((reason) => {
+        if (successTimerRef.current) {
+            clearTimeout(successTimerRef.current);
+            successTimerRef.current = null;
+        }
+        frameRef.current?.cancel();
+        const result = resolvePullTermination(reason, {
+            phase: phaseRef.current,
+            distance: distanceRef.current,
+            scale: scaleRef.current,
+        });
+        applyPhase(result.phase);
+        if (result.resetTransform) {
+            distanceRef.current = result.transform.distance;
+            scaleRef.current = result.transform.scale;
+            applyOwnedTransform(setDistance, setScale, result.transform);
+        }
+        endSession();
+        return result;
+    }, [applyPhase, endSession]);
+
+    terminateRef.current = terminateGesture;
 
     const runRefresh = useCallback(async () => {
         if (phaseRef.current === 'refreshing') return { ok: true, skipped: true };
@@ -77,62 +120,83 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         }
 
         applyPhase('refreshing');
-        setDistance(PULL_MAX_DISTANCE);
-        setScale(1.12);
+        const refreshing = refreshingPullTransform();
+        distanceRef.current = refreshing.distance;
+        scaleRef.current = refreshing.scale;
+        applyOwnedTransform(setDistance, setScale, refreshing);
 
+        let outcome = 'success';
         try {
             const result = await onRefresh?.();
-            const outcome = resolveRefreshResult(result);
+            outcome = resolveRefreshResult(result) === 'error' ? 'failure' : 'success';
             applyPhase(nextPullPhase('refreshing', {
-                type: outcome === 'error' ? 'refresh-error' : 'refresh-success',
+                type: outcome === 'failure' ? 'refresh-error' : 'refresh-success',
             }));
-            if (outcome === 'success') {
-                setScale(1.2);
-                successTimerRef.current = window.setTimeout(() => {
-                    applyPhase('idle');
-                    resetPull();
-                    successTimerRef.current = null;
-                }, prefersReducedMotion ? 200 : 1400);
-            }
             return result;
         } catch (error) {
+            outcome = 'failure';
             applyPhase('error');
             return { ok: false, error };
+        } finally {
+            endSession();
+            frameRef.current?.cancel();
+            if (outcome === 'success' && phaseRef.current === 'success') {
+                const parked = pullTransformFromState({
+                    phase: 'success',
+                    distance: 40,
+                    scale: 1.12,
+                });
+                distanceRef.current = parked.distance;
+                scaleRef.current = parked.scale;
+                applyOwnedTransform(setDistance, setScale, parked);
+                successTimerRef.current = window.setTimeout(() => {
+                    terminateGesture('success');
+                    successTimerRef.current = null;
+                }, prefersReducedMotion ? 200 : 1400);
+            } else {
+                terminateGesture(outcome === 'failure' ? 'failure' : 'success');
+            }
         }
-    }, [applyPhase, onRefresh, prefersReducedMotion, resetPull]);
+    }, [applyPhase, endSession, onRefresh, prefersReducedMotion, terminateGesture]);
 
     useImperativeHandle(ref, () => ({
         refresh: () => runRefresh(),
-    }), [runRefresh]);
+        reset: () => terminateGesture('venue-change'),
+    }), [runRefresh, terminateGesture]);
 
     useEffect(() => {
         onStatusChange?.(pullRefreshStatus(phase));
     }, [phase, onStatusChange]);
 
     useEffect(() => () => {
-        if (successTimerRef.current) clearTimeout(successTimerRef.current);
+        terminateRef.current('unmount');
     }, []);
 
     useEffect(() => {
-        if (!enabled && (phaseRef.current === 'pulling' || phaseRef.current === 'ready')) {
-            applyPhase('idle');
-            resetPull();
-        }
-    }, [enabled, applyPhase, resetPull]);
+        if (!enabled) terminateRef.current('sheet-close');
+    }, [enabled]);
 
     useEffect(() => {
         const root = rootRef.current;
         if (!root || !enabled) return undefined;
 
         const session = sessionRef.current;
-
         const scrollTopOfList = () => findScroller(root)?.scrollTop || 0;
 
-        const endSession = () => {
-            session.tracking = false;
-            session.confirmed = false;
-            session.pointerId = null;
-        };
+        const raf = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+            ? (cb) => window.requestAnimationFrame(cb)
+            : (cb) => { cb(); return 0; };
+        raf.cancel = typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function'
+            ? (id) => window.cancelAnimationFrame(id)
+            : undefined;
+        const scheduler = schedulePullFrame(raf, ({ pullDistance, pullScale, ready }) => {
+            distanceRef.current = pullDistance;
+            scaleRef.current = pullScale;
+            setDistance(pullDistance);
+            setScale(pullScale);
+            applyPhase(nextPullPhase(phaseRef.current, { type: 'move', ready }));
+        });
+        frameRef.current = scheduler;
 
         const onPointerDown = (event) => {
             const current = phaseRef.current;
@@ -173,9 +237,11 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
 
             event.preventDefault();
             const pull = computePull(deltaY);
-            setDistance(pull.distance);
-            setScale(pull.scale);
-            applyPhase(nextPullPhase(phaseRef.current, { type: 'move', ready: pull.ready }));
+            scheduler.schedule({
+                pullDistance: pull.distance,
+                pullScale: pull.scale,
+                ready: pull.ready,
+            });
         };
 
         const onPointerUp = () => {
@@ -190,8 +256,15 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
                 runRefresh();
                 return;
             }
-            applyPhase('idle');
-            resetPull();
+            terminateGesture('threshold-miss');
+        };
+
+        const onPointerCancel = () => {
+            if (phaseRef.current === 'refreshing') {
+                endSession();
+                return;
+            }
+            terminateGesture('touchcancel');
         };
 
         const onTouchMove = (event) => {
@@ -201,19 +274,20 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         root.addEventListener('pointerdown', onPointerDown, { passive: true });
         root.addEventListener('pointermove', onPointerMove, { passive: false });
         root.addEventListener('pointerup', onPointerUp);
-        root.addEventListener('pointercancel', onPointerUp);
+        root.addEventListener('pointercancel', onPointerCancel);
         root.addEventListener('touchmove', onTouchMove, { passive: false });
 
         return () => {
+            scheduler.cancel();
             root.removeEventListener('pointerdown', onPointerDown);
             root.removeEventListener('pointermove', onPointerMove);
             root.removeEventListener('pointerup', onPointerUp);
-            root.removeEventListener('pointercancel', onPointerUp);
+            root.removeEventListener('pointercancel', onPointerCancel);
             root.removeEventListener('touchmove', onTouchMove);
         };
-    }, [enabled, applyPhase, resetPull, runRefresh]);
+    }, [enabled, applyPhase, endSession, runRefresh, terminateGesture]);
 
-    const translateY = phase === 'idle' ? HIDDEN_Y : HIDDEN_Y + distance;
+    const visual = pullTransformFromState({ phase, distance, scale });
     const visible = showMascot && phase !== 'idle';
     const actorClass = [
         'ss-mascot-ptr__actor',
@@ -225,40 +299,47 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         <div
             ref={rootRef}
             className={`ss-mascot-ptr ${className}`.trim()}
+            data-ptr-phase={phase}
+            data-ptr-owner={visual.owner}
             style={{ overscrollBehaviorY: 'contain' }}
         >
             {showMascot ? (
                 <div
-                    className={actorClass}
-                    data-phase={phase}
-                    style={{
-                        '--ss-ptr-y': `${translateY}px`,
-                        '--ss-ptr-scale': String(scale),
-                        transform: `translate(-50%, ${translateY}px) scale(${scale})`,
-                        opacity: visible || phase === 'error' ? 1 : 0,
-                    }}
+                    className={`ss-mascot-ptr__indicator${phase === 'error' ? ' ss-mascot-ptr__indicator--interactive' : ''}`}
+                    data-ptr-slot="indicator"
+                    style={{ height: MASCOT_INDICATOR_SLOT_PX }}
                     aria-hidden={phase === 'error' ? undefined : true}
                 >
-                    <img
-                        src={sunnyMascot}
-                        alt=""
-                        width={MASCOT_PX}
-                        height={MASCOT_PX}
-                        className="ss-mascot-ptr__img w-12 h-12"
-                        draggable={false}
-                    />
-                    {phase === 'error' ? (
-                        <button
-                            type="button"
-                            className="ss-mascot-ptr__retry"
-                            onClick={() => {
-                                applyPhase(nextPullPhase('error', { type: 'retry' }));
-                                runRefresh();
-                            }}
-                        >
-                            Retry
-                        </button>
-                    ) : null}
+                    <div
+                        className={actorClass}
+                        data-phase={phase}
+                        style={{
+                            ...visual.cssVars,
+                            transform: visual.transform,
+                            opacity: visible || phase === 'error' ? 1 : 0,
+                        }}
+                    >
+                        <img
+                            src={sunnyMascot}
+                            alt=""
+                            width={MASCOT_PX}
+                            height={MASCOT_PX}
+                            className="ss-mascot-ptr__img w-12 h-12"
+                            draggable={false}
+                        />
+                        {phase === 'error' ? (
+                            <button
+                                type="button"
+                                className="ss-mascot-ptr__retry"
+                                onClick={() => {
+                                    applyPhase(nextPullPhase('error', { type: 'retry' }));
+                                    runRefresh();
+                                }}
+                            >
+                                Retry
+                            </button>
+                        ) : null}
+                    </div>
                 </div>
             ) : null}
             <div className="ss-mascot-ptr__list">{children}</div>

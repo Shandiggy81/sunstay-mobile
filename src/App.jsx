@@ -598,6 +598,7 @@ const AppContent = () => {
 
     const handleVenueSelect = useCallback((venue) => {
         if (!venue) return;
+        pullRefreshRef.current?.reset?.();
         setSelectedVenue(venue);
         setMobileSheetState('peek');
         setIsolationContext({
