@@ -41,6 +41,8 @@ import {
   tabPanelRemountKey,
   VENUE_DETAIL_BRANCH,
 } from '../utils/venueDetailTabs';
+import { ENABLE_SHEET_MOTION, sheetSurfaceMode } from '../utils/iosCrashIsolation';
+import { setIsolationContext } from '../utils/iosCrashLog';
 
 
 // ── Surface tokens ─────────────────────────────────────────
@@ -767,6 +769,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   }, [activeTab, venue?.id]);
 
   React.useEffect(() => {
+    setIsolationContext({
+      venue: venue?.venueName || venue?.name || venue?.title || String(venue?.id ?? ''),
+      tab: activeTab,
+    });
     if (import.meta.env.DEV) {
       console.info('[venue-detail]', {
         activeTab,
@@ -775,7 +781,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
         renderedBranch: detailBranch,
       });
     }
-  }, [activeTab, detailBranch, forecastEnabled]);
+  }, [activeTab, detailBranch, forecastEnabled, venue?.id, venue?.venueName, venue?.name, venue?.title]);
 
   React.useEffect(() => {
     const venueLat = Number(venue?.lat);
@@ -1147,22 +1153,39 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const blobA = isRain ? 'rgba(100,116,139,0.10)' : 'rgba(245,158,11,0.10)';
   const blobB = isRain ? 'rgba(148,163,184,0.08)' : 'rgba(245,158,11,0.06)';
   const liveFeaturesForVenue = venue?.id ? liveVenueFeatures?.[venue.id] : null;
+  const OverlayEl = ENABLE_SHEET_MOTION ? motion.div : 'div';
+  const ArticleEl = ENABLE_SHEET_MOTION ? motion.article : 'article';
+  const overlayMotionProps = ENABLE_SHEET_MOTION
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.25 } }
+    : {};
+  const articleMotionProps = ENABLE_SHEET_MOTION
+    ? {
+        drag: 'y',
+        dragControls,
+        dragListener: false,
+        dragConstraints: { top: 0, bottom: 0 },
+        dragElastic: 0.15,
+        onDragEnd: (_, i) => { if (i.offset.y > 100 || i.velocity.y > 400) onClose(); },
+        initial: { y: '100%' },
+        animate: { y: 0 },
+        exit: { y: '100%' },
+        transition: { type: 'spring', damping: 30, stiffness: 280 },
+      }
+    : {};
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+      <OverlayEl
+        {...overlayMotionProps}
         className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/40 backdrop-blur-md"
         onClick={onClose}
+        data-sheet-motion={ENABLE_SHEET_MOTION ? 'on' : 'off'}
       >
-        <motion.article
+        <ArticleEl
+          {...articleMotionProps}
           aria-label={fallbackName}
           onClick={e => e.stopPropagation()}
-          drag="y" dragControls={dragControls} dragListener={false}
-          dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.15}
-          onDragEnd={(_, i) => { if (i.offset.y > 100 || i.velocity.y > 400) onClose(); }}
-          initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 280 }}
+          data-sheet-surface={sheetSurfaceMode()}
           style={{
             ...(enableTilt ? { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200 } : null),
             boxShadow: '0 -8px 60px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,1)',
@@ -1183,8 +1206,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                    44px-tall drag surface so the gesture is easy to land. */}
             <div
               className="flex h-11 w-full items-center justify-center lg:hidden"
-              onPointerDown={e => dragControls.start(e)}
-              style={{ touchAction: 'none' }}
+              onPointerDown={ENABLE_SHEET_MOTION ? (e => dragControls.start(e)) : undefined}
+              style={ENABLE_SHEET_MOTION ? { touchAction: 'none' } : undefined}
             >
               <div style={{ width: 44, height: 5, borderRadius: 999, background: '#cbd5e1' /* slate-300 */ }} />
             </div>
@@ -1673,8 +1696,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <div className="relative z-20 shrink-0 border-t border-slate-900/[0.08] bg-white/85 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl backdrop-saturate-150">
               <VenueCardFooterActions venue={safeVenue} canNavigate={hasValidCoordinates} />
             </div>
-        </motion.article>
-      </motion.div>
+        </ArticleEl>
+      </OverlayEl>
     </AnimatePresence>
   );
 }

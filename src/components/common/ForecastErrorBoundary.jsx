@@ -1,5 +1,6 @@
 import React from 'react';
 import { CloudOff } from 'lucide-react';
+import { logReactRenderError } from '../../utils/iosCrashLog';
 
 /**
  * Confines a render failure to one panel.
@@ -23,6 +24,7 @@ class ForecastErrorBoundary extends React.Component {
 
     componentDidCatch(error, info) {
         console.error('Forecast panel failed to render:', error, info);
+        logReactRenderError(error, 'ForecastErrorBoundary');
     }
 
     render() {
