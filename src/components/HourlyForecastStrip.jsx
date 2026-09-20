@@ -7,6 +7,7 @@ import {
   forecastItemCount,
   forecastDataPresent,
 } from '../utils/resolveForecastView';
+import ForecastFallbackCard from './common/ForecastFallbackCard';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -141,48 +142,26 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, onViewSt
   // ── Fetch failure ─────────────────────────────────────────────
   if (view === 'error') {
     return (
-      <div
+      <ForecastFallbackCard
         {...stateAttrs}
-        role="alert"
-        style={{
-          background: '#FFF1F2',
-          borderRadius: 12,
-          padding: '14px 16px',
-          margin: 0,
-          border: '1px solid rgba(225,29,72,0.18)',
-        }}
+        variant="error"
+        title="Couldn’t load the sun forecast"
       >
-        <span style={{ fontSize: 13, color: '#9F1239', fontWeight: 700, display: 'block' }}>
-          Couldn’t load the sun forecast
-        </span>
-        <span style={{ fontSize: 12, color: '#BE123C', fontWeight: 500 }}>
-          Check your connection and open this tab again.
-        </span>
-      </div>
+        Check your connection and open this tab again.
+      </ForecastFallbackCard>
     );
   }
 
   // ── Empty timeline ────────────────────────────────────────────
   if (view === 'empty') {
     return (
-      <div
+      <ForecastFallbackCard
         {...stateAttrs}
-        role="status"
-        style={{
-          background: '#FFFBEB',
-          borderRadius: 12,
-          padding: '14px 16px',
-          margin: 0,
-          border: '1px solid rgba(245,158,11,0.22)',
-        }}
+        variant="empty"
+        title="No hourly sun data yet"
       >
-        <span style={{ fontSize: 13, color: '#92400E', fontWeight: 700, display: 'block' }}>
-          No hourly sun data yet
-        </span>
-        <span style={{ fontSize: 12, color: '#B45309', fontWeight: 500 }}>
-          The timeline for this venue is empty. Overview still works.
-        </span>
-      </div>
+        The timeline for this venue is empty. Overview still works.
+      </ForecastFallbackCard>
     );
   }
 
