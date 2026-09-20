@@ -124,4 +124,15 @@ describe('react and page probes', () => {
         assert.equal(event.source, 'VenueDetailErrorBoundary');
         assert.notEqual(event.kind, ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST);
     });
+
+    it('records Mapbox errors as the last map event without calling them WebGL loss', () => {
+        logIsolationEvent({
+            kind: ISOLATION_EVENT_KINDS.MAPBOX_ERROR,
+            message: 'missing-or-invalid-token',
+            source: 'VenueMap',
+        });
+        const ctx = getIsolationContext();
+        assert.equal(ctx.mapEvent, 'missing-or-invalid-token');
+        assert.notEqual(ctx.mapEvent, ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST);
+    });
 });

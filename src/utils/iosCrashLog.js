@@ -135,7 +135,12 @@ export function logIsolationEvent({ kind, message, source } = {}) {
         tab: context.tab,
     };
     events = [...events, entry].slice(-MAX_ISOLATION_EVENTS);
-    if (kind === ISOLATION_EVENT_KINDS.MAP_LIFECYCLE || kind === ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST) {
+    const mapRelated = kind === ISOLATION_EVENT_KINDS.MAP_LIFECYCLE
+        || kind === ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST
+        || kind === ISOLATION_EVENT_KINDS.MAPBOX_STYLE_ERROR
+        || kind === ISOLATION_EVENT_KINDS.MAPBOX_TILE_ERROR
+        || kind === ISOLATION_EVENT_KINDS.MAPBOX_ERROR;
+    if (mapRelated) {
         context.mapEvent = clipIsolationText(message || kind, 80);
     }
     writeStorage();

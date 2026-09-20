@@ -44,9 +44,9 @@ export default function IsolationDevLog() {
             aria-hidden="true"
         >
             <p>test {testId}</p>
-            <p>map:{mapSurfaceMode()}</p>
-            <p>motion:{sheetSurfaceMode()}</p>
-            <p>pull:{venueListMode()}</p>
+            <p>flag-map:{mapSurfaceMode()}</p>
+            <p>flag-motion:{sheetSurfaceMode()}</p>
+            <p>flag-pull:{venueListMode()}</p>
             {lines.map((line) => (
                 <p key={line}>{line}</p>
             ))}
