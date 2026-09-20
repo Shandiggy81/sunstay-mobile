@@ -94,6 +94,7 @@ export function useVenues() {
             return { ok: false, empty: false, rows: null, error: err };
         } finally {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            userRefreshRef.current = false;
             if (mountedRef.current) setIsLoading(false);
         }
     }, []);

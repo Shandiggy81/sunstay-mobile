@@ -3752,12 +3752,29 @@ body,
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   overscroll-behavior-y: contain;
+}
+
+.ss-mascot-ptr__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  overflow: hidden;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.ss-mascot-ptr__indicator--interactive {
+  pointer-events: auto;
 }
 
 .ss-mascot-ptr__list,
 .ss-mascot-ptr__scroller {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -3770,7 +3787,7 @@ body,
   position: absolute;
   top: 8px;
   left: 50%;
-  z-index: 6;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
