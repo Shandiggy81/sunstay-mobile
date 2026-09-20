@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import HourlyForecastStrip from './HourlyForecastStrip';
 import LiveSunTimeline from './LiveSunTimeline';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
@@ -80,16 +80,6 @@ export default function SunForecastPanel({
 
   const handleViewState = useCallback((next) => {
     setStripState(next);
-    if (import.meta.env.DEV) {
-      console.info('[sun-forecast]', {
-        activeTab: 'Sun Forecast',
-        forecastLoading: next.loading,
-        forecastDataPresent: next.dataPresent,
-        forecastItemCount: next.itemCount,
-        renderedBranch: 'sun-forecast',
-        view: next.view,
-      });
-    }
   }, []);
 
   const view = stripState.view || resolveForecastView({
@@ -100,12 +90,6 @@ export default function SunForecastPanel({
   const itemCount = Number.isFinite(stripState.itemCount) ? stripState.itemCount : 0;
   const dataPresent = Boolean(stripState.dataPresent);
 
-  useEffect(() => {
-    if (!import.meta.env.DEV) return undefined;
-    console.info('[sun-forecast] mount', { enabled, hasCoords: Number.isFinite(Number(lat)) });
-    return () => console.info('[sun-forecast] unmount');
-  }, [enabled, lat]);
-
   return (
     <div
       data-render-branch="sun-forecast"
@@ -115,15 +99,6 @@ export default function SunForecastPanel({
       data-forecast-data={dataPresent ? 'yes' : 'no'}
       className="flex w-full min-h-0 flex-col gap-4"
     >
-      {import.meta.env.DEV ? (
-        <p
-          data-venue-tab-debug="sun-forecast"
-          className="rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-600"
-        >
-          tab=Sun Forecast · branch=sun-forecast · state={view} · count={itemCount} · data={dataPresent ? 'yes' : 'no'}
-        </p>
-      ) : null}
-
       <ForecastErrorBoundary>
         <SolarPositionCard
           localSunData={localSunData}

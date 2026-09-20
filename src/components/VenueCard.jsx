@@ -36,6 +36,7 @@ import { canUsePointerTilt } from '../utils/canUsePointerTilt';
 import { resolveOverviewScore } from '../utils/resolveOverviewScore';
 import {
   amenityChipsAllowed,
+  resetVenueDetailScroller,
   resolveVenueDetailBranch,
   tabPanelRemountKey,
   VENUE_DETAIL_BRANCH,
@@ -752,19 +753,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   }, [venue?.id]);
 
   React.useEffect(() => {
-    scrollerRef.current?.scrollTo?.(0, 0);
+    resetVenueDetailScroller(scrollerRef.current);
   }, [activeTab, venue?.id]);
-
-  React.useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.info('[venue-detail]', {
-        activeTab,
-        branch: detailBranch,
-        forecastLoading: forecastEnabled && activeTab === 'Sun Forecast',
-        renderedBranch: detailBranch,
-      });
-    }
-  }, [activeTab, detailBranch, forecastEnabled]);
 
   React.useEffect(() => {
     const venueLat = Number(venue?.lat);
@@ -1339,14 +1329,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               data-render-branch={detailBranch}
               className="flex min-h-0 w-full flex-col gap-4 pb-4"
             >
-              {import.meta.env.DEV ? (
-                <p
-                  data-venue-tab-debug="tabpanel"
-                  className="rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-600"
-                >
-                  tab={activeTab} · branch={detailBranch}
-                </p>
-              ) : null}
               {detailBranch === VENUE_DETAIL_BRANCH.OVERVIEW && (
                 <>
                   {(() => {

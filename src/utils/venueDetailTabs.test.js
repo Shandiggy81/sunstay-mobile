@@ -5,6 +5,7 @@ import {
   resolveVenueDetailBranch,
   amenityChipsAllowed,
   tabPanelRemountKey,
+  resetVenueDetailScroller,
 } from './venueDetailTabs.js';
 
 test('maps each venue detail tab to an exclusive render branch', () => {
@@ -29,4 +30,24 @@ test('tab panel remount key changes when the active tab changes', () => {
   const forecast = tabPanelRemountKey('venue-1', 'Sun Forecast');
   assert.notEqual(overview, forecast);
   assert.match(forecast, /Sun Forecast/);
+});
+
+test('resetVenueDetailScroller always returns to scrollTop 0', () => {
+  const scroller = {
+    scrollTop: 840,
+    scrollTo(x, y) {
+      if (typeof x === 'object') {
+        this.scrollTop = x.top ?? 0;
+        return;
+      }
+      this.scrollTop = y ?? 0;
+    },
+  };
+  const result = resetVenueDetailScroller(scroller);
+  assert.equal(scroller.scrollTop, 0);
+  assert.equal(result.scrollTop, 0);
+
+  const leftover = { scrollTop: 505 };
+  assert.equal(resetVenueDetailScroller(leftover).scrollTop, 0);
+  assert.equal(resetVenueDetailScroller(null).scrollTop, null);
 });
