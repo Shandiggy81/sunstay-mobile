@@ -41,6 +41,43 @@ export function tabPanelRemountKey(venueId, activeTab) {
 }
 
 /**
+ * Tabpanel is a flex child of the sheet scroller. `min-h-0` + default
+ * flex-shrink lets leftover column space crush it to a 0–~160px box so
+ * Overview / Sun Forecast / Amenities look blank below the hero. Size to
+ * content and let the scroller own overflow.
+ */
+export const VENUE_DETAIL_TABPANEL_CLASS =
+  'flex w-full shrink-0 flex-col gap-4 pb-4';
+
+export function venueDetailTabpanelClass() {
+  return VENUE_DETAIL_TABPANEL_CLASS;
+}
+
+export function errorBoundaryRemountKey(venueId) {
+  return `venue-detail-error:${venueId ?? 'none'}`;
+}
+
+export function venueOverlayPresenceKey(venueId) {
+  return `venue-overlay:${venueId ?? 'none'}`;
+}
+
+export function venueDetailEmptyBranchCard(branch, { hasDeal = true } = {}) {
+  if (branch === VENUE_DETAIL_BRANCH.UNKNOWN) {
+    return {
+      title: 'This section has no details',
+      body: 'Try another tab, or close the venue and open it again.',
+    };
+  }
+  if (branch === VENUE_DETAIL_BRANCH.HAPPY_HOUR && !hasDeal) {
+    return {
+      title: 'No happy hour listed',
+      body: 'This venue does not have a happy hour deal right now.',
+    };
+  }
+  return null;
+}
+
+/**
  * Entering a tab must start at the top of that tab's own content.
  * Overview's leftover scrollTop / scrollHeight must not carry over.
  */

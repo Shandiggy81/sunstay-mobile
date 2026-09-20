@@ -37,12 +37,17 @@ import { resolveOverviewScore } from '../utils/resolveOverviewScore';
 import {
   amenityChipsAllowed,
   resetVenueDetailScroller,
+  errorBoundaryRemountKey,
   resolveVenueDetailBranch,
   tabPanelRemountKey,
+  venueDetailEmptyBranchCard,
+  venueDetailTabpanelClass,
+  venueOverlayPresenceKey,
   VENUE_DETAIL_BRANCH,
 } from '../utils/venueDetailTabs';
 import { ENABLE_SHEET_MOTION, sheetSurfaceMode } from '../utils/iosCrashIsolation';
 import { setIsolationContext } from '../utils/iosCrashLog';
+import { formatVenueDetailProbe, readVenueDetailLayoutProbe } from '../utils/venueDetailLayoutProbe';
 
 
 // ── Surface tokens ─────────────────────────────────────────
@@ -739,7 +744,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [forecastOpen, setForecastOpen] = useState(false);
+  const [layoutProbe, setLayoutProbe] = useState('');
   const scrollerRef = useRef(null);
+  const tabpanelRef = useRef(null);
   const detailBranch = resolveVenueDetailBranch(activeTab);
   const forecastEnabled = forecastOpen || activeTab === 'Sun Forecast';
 
@@ -767,6 +774,23 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
       cancelAnimationFrame(frame);
     };
   }, [activeTab, venue?.id]);
+
+  useLayoutEffect(() => {
+    if (!import.meta.env.DEV) return undefined;
+    const tabpanel = tabpanelRef.current
+      || document.getElementById(`venue-tabpanel-${tabSlug(activeTab)}`);
+    const probe = readVenueDetailLayoutProbe({
+      venueId: venue?.id,
+      activeTab,
+      branch: detailBranch,
+      tabpanel,
+      errorCaught: !!document.querySelector('[data-venue-detail-error]'),
+    });
+    const line = formatVenueDetailProbe(probe);
+    setLayoutProbe(line);
+    console.info('[venue-detail-layout]', line);
+    return undefined;
+  }, [activeTab, detailBranch, venue?.id]);
 
   React.useEffect(() => {
     setIsolationContext({
@@ -1176,6 +1200,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   return (
     <AnimatePresence>
       <OverlayEl
+        key={venueOverlayPresenceKey(venue?.id)}
         {...overlayMotionProps}
         className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/40 backdrop-blur-md"
         onClick={onClose}
@@ -1363,15 +1388,20 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
             {/* Tab Content — remount on tab change so Overview height/chips
                 cannot leak into Sun Forecast. */}
-            <VenueDetailErrorBoundary>
+            <VenueDetailErrorBoundary
+              key={errorBoundaryRemountKey(venue?.id)}
+              venueId={venue?.id}
+              onClose={onClose}
+            >
             <div
               key={tabPanelRemountKey(venue?.id, activeTab)}
+              ref={tabpanelRef}
               role="tabpanel"
               id={`venue-tabpanel-${tabSlug(activeTab)}`}
               aria-labelledby={`venue-tab-${tabSlug(activeTab)}`}
               data-active-tab={activeTab}
               data-render-branch={detailBranch}
-              className="flex min-h-0 w-full flex-col gap-4 pb-4"
+              className={venueDetailTabpanelClass()}
             >
               {import.meta.env.DEV ? (
                 <p
@@ -1379,6 +1409,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   className="rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-600"
                 >
                   tab={activeTab} · branch={detailBranch}
+                  {layoutProbe ? ` · ${layoutProbe}` : ''}
                 </p>
               ) : null}
               {detailBranch === VENUE_DETAIL_BRANCH.OVERVIEW && (
@@ -1594,6 +1625,16 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 </div>
               )}
 
+              {detailBranch === VENUE_DETAIL_BRANCH.HAPPY_HOUR && !actualHappyHour && (() => {
+                const empty = venueDetailEmptyBranchCard(detailBranch, { hasDeal: false });
+                return (
+                  <div className={`${CARD} flex flex-col gap-2 p-4`} role="status">
+                    <p className="text-[15px] font-semibold text-slate-900">{empty.title}</p>
+                    <p className="text-[13px] font-medium text-slate-600">{empty.body}</p>
+                  </div>
+                );
+              })()}
+
               {detailBranch === VENUE_DETAIL_BRANCH.HAPPY_HOUR && actualHappyHour && (
                 <div
                   className="flex flex-col gap-3.5 rounded-3xl border border-amber-500/20 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]"
@@ -1687,6 +1728,16 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   )}
                 </div>
               )}
+
+              {detailBranch === VENUE_DETAIL_BRANCH.UNKNOWN && (() => {
+                const empty = venueDetailEmptyBranchCard(detailBranch);
+                return (
+                  <div className={`${CARD} flex flex-col gap-2 p-4`} role="status">
+                    <p className="text-[15px] font-semibold text-slate-900">{empty.title}</p>
+                    <p className="text-[13px] font-medium text-slate-600">{empty.body}</p>
+                  </div>
+                );
+              })()}
             </div>
             </VenueDetailErrorBoundary>
 
