@@ -2,7 +2,7 @@ import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react'
 import { X, ChevronUp, SlidersHorizontal, Map, List } from 'lucide-react';
 import VenueListCard from './VenueListCard';
 import VenueDetail from '../VenueDetail';
-import FiltersPanel from '../FiltersPanel';
+
 import { useWeather } from '../../context/WeatherContext';
 import { sortVenuesBySunstayScore } from '../../utils/sortVenuesBySunstayScore';
 import { Virtuoso } from 'react-virtuoso';
@@ -304,13 +304,7 @@ const ExploreSheet = ({
                 {sheetContent()}
             </div>
 
-            <FiltersPanel
-                isOpen={effectiveFiltersOpen}
-                onClose={closeFilters}
-                filterCategories={filterCategories}
-                activeFilters={activeFilters}
-                onFilterToggle={onFilterToggle}
-            />
+
         </>
     );
 };

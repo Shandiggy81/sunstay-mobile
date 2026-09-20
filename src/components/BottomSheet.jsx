@@ -3,7 +3,7 @@ import { motion, useMotionValue } from 'framer-motion';
 import { SlidersHorizontal, X, ChevronUp } from 'lucide-react';
 import VenueDetail from './VenueDetail';
 import VenueRow from './VenueRow';
-import FiltersPanel from './FiltersPanel';
+
 import { resetSheetDragOffset } from '../utils/sheetDragReset';
 
 const PEEK_H = 72;
@@ -186,13 +186,7 @@ const BottomSheet = ({
                 </motion.div>
             )}
 
-            <FiltersPanel
-                isOpen={effectiveFiltersOpen}
-                onClose={closeFilters}
-                filterCategories={filterCategories}
-                activeFilters={activeFilters}
-                onFilterToggle={onFilterToggle}
-            />
+
         </>
     );
 };
