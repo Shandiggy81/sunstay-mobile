@@ -12,6 +12,7 @@ import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
 import { useOpenUV } from '../hooks/useOpenUV';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
+import { checkIsAccommodation } from '../utils/accommodation';
 import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
@@ -136,21 +137,6 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
 });
 
 // ── Helpers ────────────────────────────────────────────────
-const ACCOMMODATION_VIBES = [
-  'hotel', 'airbnb', 'apartment', 'loft', 'penthouse',
-  'suite', 'villa', 'resort', 'motel', 'hostel', 'bnb',
-  'bed and breakfast', 'serviced', 'boutique hotel', 'accommodation',
-  'stay', 'lodge', 'inn', 'townhouse', 'studio', 'warehouse loft',
-];
-
-function checkIsAccommodation(venue) {
-  if (!venue) return false;
-  const typeStr = (venue.type || '').toLowerCase();
-  const vibeStr = (Array.isArray(venue.vibe) ? venue.vibe.join(' ') : (venue.vibe || '')).toLowerCase();
-  if (typeStr.length > 0) return true;
-  return ACCOMMODATION_VIBES.some(kw => vibeStr.includes(kw) || typeStr.includes(kw));
-}
-
 const getDeterministicSunHours = (id) => {
   const idString = String(id || 'default-id');
   let hash = 0;

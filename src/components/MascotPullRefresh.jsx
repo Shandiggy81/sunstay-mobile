@@ -19,6 +19,11 @@ import {
     resolvePullTermination,
     schedulePullFrame,
 } from '../utils/mascotPullTransform';
+import {
+    clearPullPointerSession,
+    shouldAcceptPullPointerDown,
+    shouldHandlePullPointer,
+} from '../utils/pullPointerSession';
 
 function findScroller(root) {
     if (!root) return null;
@@ -82,11 +87,7 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
     }, []);
 
     const endSession = useCallback(() => {
-        const session = sessionRef.current;
-        session.tracking = false;
-        session.confirmed = false;
-        session.pointerId = null;
-        session.lastDy = 0;
+        clearPullPointerSession(sessionRef.current);
     }, []);
 
     const terminateGesture = useCallback((reason) => {
@@ -199,6 +200,8 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         frameRef.current = scheduler;
 
         const onPointerDown = (event) => {
+            if (!event.isPrimary || session.tracking) return;
+            if (!shouldAcceptPullPointerDown(event, session)) return;
             const current = phaseRef.current;
             if (current === 'refreshing' || current === 'success') return;
             if (scrollTopOfList() !== 0) return;
@@ -211,7 +214,8 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         };
 
         const onPointerMove = (event) => {
-            if (!session.tracking) return;
+            if (!session.tracking || event.pointerId !== session.pointerId) return;
+            if (!shouldHandlePullPointer(event, session)) return;
             const deltaX = event.clientX - session.startX;
             const deltaY = event.clientY - session.startY;
             session.lastDy = deltaY;
@@ -244,8 +248,9 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
             });
         };
 
-        const onPointerUp = () => {
-            if (!session.tracking) return;
+        const onPointerUp = (event) => {
+            if (!session.tracking || event.pointerId !== session.pointerId) return;
+            if (!shouldHandlePullPointer(event, session)) return;
             const confirmed = session.confirmed;
             const pull = computePull(session.lastDy);
             endSession();
@@ -259,7 +264,19 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
             terminateGesture('threshold-miss');
         };
 
-        const onPointerCancel = () => {
+        const onPointerCancel = (event) => {
+            if (!session.tracking || event.pointerId !== session.pointerId) return;
+            if (!shouldHandlePullPointer(event, session)) return;
+            if (phaseRef.current === 'refreshing') {
+                endSession();
+                return;
+            }
+            terminateGesture('touchcancel');
+        };
+
+        const onLostPointerCapture = (event) => {
+            if (!session.tracking || event.pointerId !== session.pointerId) return;
+            if (!shouldHandlePullPointer(event, session)) return;
             if (phaseRef.current === 'refreshing') {
                 endSession();
                 return;
@@ -275,6 +292,7 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         root.addEventListener('pointermove', onPointerMove, { passive: false });
         root.addEventListener('pointerup', onPointerUp);
         root.addEventListener('pointercancel', onPointerCancel);
+        root.addEventListener('lostpointercapture', onLostPointerCapture);
         root.addEventListener('touchmove', onTouchMove, { passive: false });
 
         return () => {
@@ -283,6 +301,7 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
             root.removeEventListener('pointermove', onPointerMove);
             root.removeEventListener('pointerup', onPointerUp);
             root.removeEventListener('pointercancel', onPointerCancel);
+            root.removeEventListener('lostpointercapture', onLostPointerCapture);
             root.removeEventListener('touchmove', onTouchMove);
         };
     }, [enabled, applyPhase, endSession, runRefresh, terminateGesture]);

@@ -1,9 +1,10 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { motion, useMotionValue } from 'framer-motion';
 import { SlidersHorizontal, X, ChevronUp } from 'lucide-react';
 import VenueDetail from './VenueDetail';
 import VenueRow from './VenueRow';
 import FiltersPanel from './FiltersPanel';
+import { resetSheetDragOffset } from '../utils/sheetDragReset';
 
 const PEEK_H = 72;
 const LIST_H = '40vh';
@@ -27,6 +28,9 @@ const BottomSheet = ({
     const dragY = useMotionValue(0);
     const startState = useRef(state);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    useEffect(() => {
+        resetSheetDragOffset(dragY);
+    }, [state, dragY]);
     const effectiveFiltersOpen = externalFiltersOpen || filtersOpen;
     const closeFilters = () => { setFiltersOpen(false); onExternalFiltersClose?.(); };
 
