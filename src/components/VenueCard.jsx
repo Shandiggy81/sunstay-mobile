@@ -5,7 +5,8 @@ import { getSunPositionForMap } from '../utils/sunPosition';
 import { venues } from '../data/venues';
 import WeatherWidget from './WeatherWidget';
 import HourlyForecastStrip from './HourlyForecastStrip';
-import LiveSunTimeline from './LiveSunTimeline';
+import SunForecastPanel from './SunForecastPanel';
+import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
@@ -29,10 +30,16 @@ import {
   sunCurveTotals,
 } from '../utils/microclimate';
 import { seedVenues } from '../data/seedVenues.js';
-import { getVenueSunStatus, checkIfShaded, getSunWindow } from '../utils/solarMath.js';
+import { getVenueSunStatus, getSunWindow } from '../utils/solarMath.js';
 import { calculateHourlyExposure } from '../utils/solarCalculator.js';
 import { canUsePointerTilt } from '../utils/canUsePointerTilt';
 import { resolveOverviewScore } from '../utils/resolveOverviewScore';
+import {
+  amenityChipsAllowed,
+  resolveVenueDetailBranch,
+  tabPanelRemountKey,
+  VENUE_DETAIL_BRANCH,
+} from '../utils/venueDetailTabs';
 
 
 // ── Surface tokens ─────────────────────────────────────────
@@ -733,12 +740,31 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [forecastOpen, setForecastOpen] = useState(false);
+  const scrollerRef = useRef(null);
+  const detailBranch = resolveVenueDetailBranch(activeTab);
+  const forecastEnabled = forecastOpen || activeTab === 'Sun Forecast';
 
   React.useEffect(() => {
     setImageError(false);
     setImageLoaded(false);
     setForecastOpen(false);
+    setActiveTab('Overview');
   }, [venue?.id]);
+
+  React.useEffect(() => {
+    scrollerRef.current?.scrollTo?.(0, 0);
+  }, [activeTab, venue?.id]);
+
+  React.useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.info('[venue-detail]', {
+        activeTab,
+        branch: detailBranch,
+        forecastLoading: forecastEnabled && activeTab === 'Sun Forecast',
+        renderedBranch: detailBranch,
+      });
+    }
+  }, [activeTab, detailBranch, forecastEnabled]);
 
   React.useEffect(() => {
     const venueLat = Number(venue?.lat);
@@ -861,7 +887,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { weatherCode } = weather || {};
-  const { aqLabel } = useOpenAQ(lat, lng, { enabled: forecastOpen });
+  const { aqLabel } = useOpenAQ(lat, lng, { enabled: forecastEnabled });
   const windSpeedValue = venue?.windSpeed ?? weatherData?.windSpeed ?? weather?.windSpeed ?? weather?.rawWeather?.windSpeed;
   const windSpeedDisplay = windSpeedValue != null
     ? (typeof windSpeedValue === 'number' ? `${Math.round(windSpeedValue)} km/h` : windSpeedValue)
@@ -911,7 +937,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     [hasValidCoordinates, lat, lng, outdoorAspect, outdoorMinAltitude],
   );
   const heatingLabel = venue?.hasHeating || venue?.heating ? 'Heated Lamps' : 'Natural Breeze';
-  useOpenUV(lat, lng, { enabled: forecastOpen });
+  useOpenUV(lat, lng, { enabled: forecastEnabled });
   const cloudcover = weather?.cloudCover
     ?? (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null)
     ?? (Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover : null);
@@ -929,7 +955,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   // All four values — isRainStartingSoon + minutesUntilRain feed BalconySunshineBlock
   // and VenueCardActions; rainArrivalMins + rainArrivalLabel feed the nowcast banner
-  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: forecastOpen });
+  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: forecastEnabled });
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
@@ -1173,6 +1199,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           </div>
 
           <div
+            ref={scrollerRef}
             data-venue-card-scroller
             className="relative z-10 isolate min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2 flex flex-col gap-2 bg-white [transform-style:flat]"
           >
@@ -1300,14 +1327,27 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               })}
             </div>
 
-            {/* Tab Content */}
+            {/* Tab Content — remount on tab change so Overview height/chips
+                cannot leak into Sun Forecast. */}
+            <VenueDetailErrorBoundary>
             <div
+              key={tabPanelRemountKey(venue?.id, activeTab)}
               role="tabpanel"
               id={`venue-tabpanel-${tabSlug(activeTab)}`}
               aria-labelledby={`venue-tab-${tabSlug(activeTab)}`}
-              className="flex flex-col gap-4 pb-4"
+              data-active-tab={activeTab}
+              data-render-branch={detailBranch}
+              className="flex min-h-0 w-full flex-col gap-4 pb-4"
             >
-              {activeTab === 'Overview' && (
+              {import.meta.env.DEV ? (
+                <p
+                  data-venue-tab-debug="tabpanel"
+                  className="rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-600"
+                >
+                  tab={activeTab} · branch={detailBranch}
+                </p>
+              ) : null}
+              {detailBranch === VENUE_DETAIL_BRANCH.OVERVIEW && (
                 <>
                   {(() => {
                     const isOutdoor = !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
@@ -1413,8 +1453,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     </div>
                   </div>
 
-                  <SolarExposureTimeline exposure={solarExposure} />
-
                   {rainArrivalMins !== null && rainArrivalMins <= 45 && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.95, y: -6 }}
@@ -1453,69 +1491,45 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
                   <LiveSkyCondition cloudcover={cloudcover} windGusts={windGusts} precipProbability={precipProbability} />
 
-                  <VenueCardActions
-                    verdict={verdict}
-                    safeTags={safeTags}
-                    safeVibes={safeVibes}
-                    isRainStartingSoon={isRainStartingSoon}
-                    minutesUntilRain={minutesUntilRain}
-                    liveFeaturesForVenue={liveFeaturesForVenue}
-                    heating={heating}
-                    actualHappyHour={actualHappyHour}
-                    isHotelOrStay={isHotelOrStay}
-                    cozyWeatherActive={cozyWeatherActive}
-                    setShowOwnerDashboard={setShowOwnerDashboard}
-                    setSelectedVenue={setSelectedVenue}
-                    venue={venue}
-                  />
+                  {amenityChipsAllowed(detailBranch) ? (
+                    <VenueCardActions
+                      verdict={verdict}
+                      safeTags={safeTags}
+                      safeVibes={safeVibes}
+                      isRainStartingSoon={isRainStartingSoon}
+                      minutesUntilRain={minutesUntilRain}
+                      liveFeaturesForVenue={liveFeaturesForVenue}
+                      heating={heating}
+                      actualHappyHour={actualHappyHour}
+                      isHotelOrStay={isHotelOrStay}
+                      cozyWeatherActive={cozyWeatherActive}
+                      setShowOwnerDashboard={setShowOwnerDashboard}
+                      setSelectedVenue={setSelectedVenue}
+                      venue={venue}
+                    />
+                  ) : null}
                 </>
               )}
 
-              {activeTab === 'Sun Forecast' && (
-                <div className={`${CARD} flex flex-col gap-4 p-4`}>
-                  {localSunData && (
-                    <div className="flex flex-col gap-3">
-                      <h3 className="text-[17px] font-bold tracking-[-0.01em] text-slate-900">Live 2D Solar Position</h3>
-                      <div className="flex items-center justify-between gap-3 text-[15px]">
-                        <span className="font-medium text-slate-600">Altitude (Elevation Angle)</span>
-                        <span className="font-semibold tabular-nums text-slate-900">{localSunData.altitude?.toFixed(1) ?? '–'}°</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-[15px]">
-                        <span className="font-medium text-slate-600">Azimuth (Compass Angle)</span>
-                        <span className="font-semibold tabular-nums text-slate-900">{localSunData.azimuth?.toFixed(1) ?? '–'}°</span>
-                      </div>
-                      {(() => {
-                        const obstacleHeight = venue.obstacle_height ?? 2;
-                        const obstacleDistance = venue.obstacle_distance ?? 1;
-                        const isShaded = checkIfShaded(localSunData.altitude, obstacleHeight, obstacleDistance);
-                        let statusText = '☀️ Direct Sun';
-                        let statusClass = 'bg-amber-50 text-amber-800 border border-amber-500/20';
-
-                        if (!localSunData.isSunUp) {
-                          statusText = '🌙 Night (Sun is Down)';
-                          statusClass = 'bg-slate-50 text-slate-700 border border-slate-900/[0.08]';
-                        } else if (isShaded) {
-                          statusText = '🏢 Shaded by Surroundings';
-                          statusClass = 'bg-slate-50 text-slate-700 border border-slate-900/[0.08]';
-                        } else if (contextIsRaining) {
-                          statusText = '🌧️ Raining Currently';
-                          statusClass = 'bg-slate-100 text-slate-700 border border-slate-900/[0.08]';
-                        } else if (contextCloudCover > 75) {
-                          statusText = '☁️ Overcast (Geometrically clear)';
-                          statusClass = 'bg-slate-100 text-slate-700 border border-slate-900/[0.08]';
-                        } else if (sunWindow) {
-                          const timeStr = sunWindow.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-                          statusText = `☀️ Direct Sun (Until ${timeStr})`;
-                        }
-                        return (
-                          <div className={`mt-1 flex min-h-11 items-center justify-center rounded-2xl px-3 text-center text-[15px] font-semibold ${statusClass}`}>
-                            {statusText}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
+              {detailBranch === VENUE_DETAIL_BRANCH.SUN_FORECAST && (
+                <SunForecastPanel
+                  lat={lat}
+                  lng={lng}
+                  enabled
+                  localSunData={localSunData}
+                  sunWindow={sunWindow}
+                  venue={venue}
+                  contextIsRaining={contextIsRaining}
+                  contextCloudCover={contextCloudCover}
+                  sunData={sunData}
+                  hourlyData={hourlyData}
+                  cloudcover={cloudcover}
+                  displaySunrise={displaySunrise}
+                  displaySunset={displaySunset}
+                  peakStart={peakStartDecimal}
+                  peakEnd={peakEndDecimal}
+                >
+                  <SolarExposureTimeline exposure={solarExposure} />
                   {(balconyData || hasCurveTotals || (isHotelOrStay && outdoorSun.balcony > 0)) && (
                     <BalconySunshineBlock
                       balconyData={balconyData || { hours: hasCurveTotals ? curveTotals.totalHours : outdoorSun.balcony, direction: null, views: null, type: isHotelOrStay ? 'balcony' : 'outdoor' }}
@@ -1527,10 +1541,10 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       cloudcover={cloudcover}
                     />
                   )}
-                </div>
+                </SunForecastPanel>
               )}
 
-              {activeTab === 'Rooms' && (
+              {detailBranch === VENUE_DETAIL_BRANCH.ROOMS && (
                 <div className={`${CARD} flex flex-col gap-4 p-4`}>
                   {roomIntelligence && <RoomIntelligencePanel roomIntelligence={roomIntelligence} />}
                   {Array.isArray(venue?.roomTypes) && venue.roomTypes.length > 0 && (
@@ -1546,7 +1560,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 </div>
               )}
 
-              {activeTab === 'Happy Hour' && actualHappyHour && (
+              {detailBranch === VENUE_DETAIL_BRANCH.HAPPY_HOUR && actualHappyHour && (
                 <div
                   className="flex flex-col gap-3.5 rounded-3xl border border-amber-500/20 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]"
                   style={{ background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' }}
@@ -1588,7 +1602,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 </div>
               )}
 
-              {activeTab === 'Amenities' && (
+              {detailBranch === VENUE_DETAIL_BRANCH.AMENITIES && (
                 <div className={`${CARD} flex flex-col gap-4 p-4`}>
                   {weatherLoading ? (
                     <div className="h-32 w-full animate-pulse rounded-2xl bg-slate-200" />
@@ -1622,7 +1636,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     </motion.div>
                     )}
 
-                  {safeTags && safeTags.length > 0 && (
+                  {amenityChipsAllowed(detailBranch) && safeTags && safeTags.length > 0 && (
                     <div className="flex flex-col gap-2 border-t border-slate-900/[0.06] pt-3">
                       <span className={MICRO_LABEL}>Venue Features &amp; Tags</span>
                       <div className="flex flex-wrap gap-1.5">
@@ -1640,6 +1654,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 </div>
               )}
             </div>
+            </VenueDetailErrorBoundary>
 
           </div>
 
