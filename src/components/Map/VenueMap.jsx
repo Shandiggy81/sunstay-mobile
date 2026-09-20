@@ -31,6 +31,8 @@ import {
 } from '../../utils/iosCrashLog';
 import { removeStaleMarkers, syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
+import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
+import { createDebouncer } from '../../utils/debounce';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -447,10 +449,12 @@ function computeSunLight(minutes, lat, lng) {
 
 // Floating slider that scrubs the global 3D-building light. Local React
 // state drives the thumb + clock while dragging so the UI stays at input
-// rate. During scrub, map.setLights is throttled (~100ms) with cast-shadows
-// off so the pitched Standard map stays interactive. A full lights+shadows
-// pass runs once on settle. Score preview commits only on pointer-up /
-// cancel / blur / keyup — never the live scrub path.
+// rate. Cluster/heatmap rebuilds publish through a 150ms debounce so the
+// GeoJSON path does not run on every input sample. During scrub, map.setLights
+// is throttled (~100ms) with cast-shadows off so the pitched Standard map
+// stays interactive. A full lights+shadows pass runs once on settle. Score
+// preview commits only on pointer-up / cancel / blur / keyup — never the
+// live scrub path.
 function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes = null }) {
     const { setScorePreviewMinutes } = useWeather();
     // Writer-only: publishing the scrub position re-renders the microclimate
@@ -461,6 +465,13 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     const lightTimerRef = useRef(null);
     const lastLightApplyAtRef = useRef(0);
     const panPausedRef = useRef(false);
+    const publishTodRef = useRef(null);
+
+    useEffect(() => {
+        const publish = createDebouncer((mins) => setTodMinutes(mins), TOD_SCRUB_DEBOUNCE_MS);
+        publishTodRef.current = publish;
+        return () => publish.cancel();
+    }, [setTodMinutes]);
 
     const applyLight = useCallback((mins, { castShadows = true } = {}) => {
         const map = mapRef.current;
@@ -578,6 +589,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     // without this slider firing the input.
     useEffect(() => {
         if (todMinutes == null) return;
+        if (panPausedRef.current) return;
         const n = Number(todMinutes);
         if (!Number.isFinite(n)) return;
         const clamped = Math.min(DAY_END_MIN, Math.max(DAY_START_MIN, Math.round(n)));
@@ -595,9 +607,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
         minutesRef.current = v;
         setSliderMinutes(v);
         scheduleScrubLight(v);
-        // Microclimate is a local lookup against the venue's hourly curve, so
-        // unlike the score it can follow the thumb without a refetch.
-        setTodMinutes(v);
+        publishTodRef.current?.(v);
     };
 
     const settleScrub = () => {
@@ -606,10 +616,10 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
         setSliderMinutes((prev) => (prev === v ? prev : v));
         lastLightApplyAtRef.current = performance.now();
         applyLight(v, { castShadows: true });
-        // Score uses settled minutes only — never the live scrub path.
         if (typeof setScorePreviewMinutes === 'function') {
             setScorePreviewMinutes(v);
         }
+        publishTodRef.current?.cancel();
         setTodMinutes(v);
     };
 
@@ -715,6 +725,7 @@ const VenueMap = forwardRef(({
     // use these fields (effective_sun, effective_wind, sun_hour_fraction)
     // rather than recomputing sun from client weather when a profile exists.
     const { byId: microById, todMinutes } = useMicroclimateState();
+    const clusterTodMinutes = todMinutes;
 
     const safeVenues = useMemo(
         () => (Array.isArray(venues) ? venues.filter(isRenderableVenue) : []),
@@ -1024,7 +1035,7 @@ const VenueMap = forwardRef(({
             : safeVenues;
 
         const geojsonFeatures = visibleVenues.map(venue => {
-            const reading = readingForVenue(microById, venue.id, todMinutes);
+            const reading = readingForVenue(microById, venue.id, clusterTodMinutes);
             const profileScore = markerScoreFromMicroclimate(reading);
             const rawScore = profileScore ?? (
                 typeof calculateSunstayScore === 'function'
@@ -1096,7 +1107,7 @@ const VenueMap = forwardRef(({
                 comfortMapOn ? 'visible' : 'none'
             );
         }
-    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore, microById, todMinutes]);
+    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore, microById, clusterTodMinutes]);
 
     // ── fitBounds once ──────────────────────────────────────────────
     useEffect(() => {
@@ -1212,7 +1223,7 @@ const VenueMap = forwardRef(({
                         const venueLat = Number(venue.lat);
                         if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
 
-                        const microReading = readingForVenue(microById, venue.id, todMinutes);
+                        const microReading = readingForVenue(microById, venue.id, clusterTodMinutes);
                         const pinKey = getPinStateKey(
                             venue,
                             weather,
@@ -1267,7 +1278,7 @@ const VenueMap = forwardRef(({
                 map.current.off('moveend', syncMarkers);
             }
         };
-    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, todMinutes]);
+    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, clusterTodMinutes]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces
