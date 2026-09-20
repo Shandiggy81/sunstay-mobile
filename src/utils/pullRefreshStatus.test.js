@@ -25,6 +25,14 @@ describe('nextPullPhase', () => {
     it('lets the fallback button start a refresh from idle', () => {
         assert.equal(nextPullPhase('idle', { type: 'refresh-start' }), 'refreshing');
     });
+
+    it('returns idle on cancel, unmount, sheet close, and venue change', () => {
+        assert.equal(nextPullPhase('pulling', { type: 'cancel' }), 'idle');
+        assert.equal(nextPullPhase('ready', { type: 'cancel' }), 'idle');
+        assert.equal(nextPullPhase('refreshing', { type: 'unmount' }), 'idle');
+        assert.equal(nextPullPhase('success', { type: 'sheet-close' }), 'idle');
+        assert.equal(nextPullPhase('error', { type: 'venue-change' }), 'idle');
+    });
 });
 
 describe('pullRefreshStatus', () => {
