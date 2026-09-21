@@ -2,6 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ListFilter } from 'lucide-react';
 import headerLogo from '../assets/logo-header.png';
+import { presentWind } from '../utils/presentWind';
+import { resolveFiltersControls } from '../utils/filtersControls';
 
 const LOGO_W = 251;
 const LOGO_H = 192;
@@ -12,7 +14,8 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
     const temp = weather ? Math.round(weather.main?.temp || 0) : null;
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
     const description = weather?.weather?.[0]?.description || '';
-    const windSpeed = Math.round((weather?.wind?.speed || 0) * 3.6);
+    const windView = presentWind(weather);
+    const filtersUi = resolveFiltersControls();
     const humidity = weather?.main?.humidity || 0;
     const cloudiness = weather?.clouds?.all ?? null;
 
@@ -75,9 +78,12 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                 {/* Right side stats with divider — always rendered (with dashes
                     before weather resolves) so the bar never reflows on load. */}
                 <div className="relative z-10 h-[52px] w-px flex-shrink-0 self-center bg-slate-900/10" aria-hidden="true" />
-                <div className="relative z-10 flex w-[78px] flex-shrink-0 flex-col items-start gap-2">
-                    <span className="whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
-                        <span aria-hidden="true">💨</span> {weather ? `${windSpeed} km/h` : STAT_PLACEHOLDER}
+                <div className="relative z-10 flex min-w-[78px] max-w-[120px] flex-shrink-0 flex-col items-start gap-2">
+                    <span className="flex flex-col items-start gap-0.5 whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
+                        <span><span aria-hidden="true">💨</span> {weather ? (windView.speedLabel ?? STAT_PLACEHOLDER) : STAT_PLACEHOLDER}</span>
+                        {windView.gustLabel ? (
+                            <span className="pl-[1.15rem] text-[11px] font-semibold text-slate-500">{windView.gustLabel}</span>
+                        ) : null}
                     </span>
                     <span className="whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
                         <span aria-hidden="true">🌧</span> {weather ? `${Math.round(rainChance)}%` : STAT_PLACEHOLDER}
@@ -87,18 +93,19 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                     </span>
                 </div>
 
-                {typeof onFiltersOpen === 'function' && (
+                {typeof onFiltersOpen === 'function' && filtersUi.headerVisible && (
                     <button
                         type="button"
                         onClick={(e) => {
                             e.stopPropagation();
                             onFiltersOpen(e);
                         }}
-                        className="relative z-10 flex h-11 w-11 min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-slate-800 shadow-[0_1px_3px_rgba(15,23,42,0.12)] ring-1 ring-inset ring-slate-900/[0.08] backdrop-blur-xl transition-colors touch-manipulation active:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-                        aria-label="Open filters"
-                        title="Open filters"
+                        className="relative z-10 flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-white/80 px-3 text-[13px] font-semibold text-slate-800 shadow-[0_1px_3px_rgba(15,23,42,0.12)] ring-1 ring-inset ring-slate-900/[0.08] backdrop-blur-xl transition-colors touch-manipulation active:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                        aria-label={filtersUi.headerAccessibleName}
+                        title={filtersUi.headerLabel}
                     >
-                        <ListFilter size={18} strokeWidth={2.25} aria-hidden="true" />
+                        <ListFilter size={16} strokeWidth={2.25} aria-hidden="true" />
+                        <span>{filtersUi.headerLabel}</span>
                     </button>
                 )}
             </div>
