@@ -481,7 +481,7 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
 };
 
 // ── Collapsible Deep Dive Accordion ──────────────────────────────
-const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, children, onOpen }) => {
+const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, windView = {}, children, onOpen }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const forecastHeaderRef = useRef(null);
   const panelId = `venue-forecast-details-${venue?.id ?? 'panel'}`;
@@ -1451,6 +1451,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     uvIndex={uvIndex}
                     aqLabel={aqLabel}
                     wind={wind}
+                    windView={windView}
                     onOpen={() => setForecastOpen(true)}
                   />
 
@@ -1683,6 +1684,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       scoreMeaningLabel={scoreMeaningLabel}
                       feelsLike={feelsLike}
                       wind={wind}
+                      windView={windView}
                       precipProb={precipProb}
                       minTemp={minTemp}
                       maxTemp={maxTemp}
