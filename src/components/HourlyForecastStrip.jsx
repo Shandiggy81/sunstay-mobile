@@ -86,6 +86,7 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, onViewSt
       hourly:        'temperature_2m,apparent_temperature,weather_code,weathercode,precipitation_probability,cloud_cover,cloudcover,wind_gusts_10m,windgusts_10m,precipitation,visibility,sunshine_duration,shortwave_radiation,direct_normal_irradiance',
       timezone:      'auto',
       forecast_days: '1',
+      wind_speed_unit: 'kmh',
     });
 
     fetch(`https://api.open-meteo.com/v1/forecast?${params}`)

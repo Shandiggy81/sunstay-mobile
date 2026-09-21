@@ -24,6 +24,7 @@ export function useOpenMeteo(lat, lng) {
       sunshineDuration:  0,
       cloudCover:        current.cloudCoverPct ?? current.clouds?.all ?? 0,
       windSpeed:         current.wind?.speed ?? 0,
+      windKmh:           current.windKmh ?? null,
       windGusts:         current.windGusts ?? 0,
       precipitation:     0,
       weatherCode:       current.weather?.[0]?.id ?? 0,

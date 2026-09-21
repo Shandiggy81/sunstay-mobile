@@ -19,6 +19,7 @@ import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import { presentWind } from '../utils/presentWind';
+import { hourlyWindGustsKmh } from '../utils/windUnits';
 import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
 import { useMicroclimateState } from '../context/MicroclimateContext';
@@ -973,8 +974,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   const _currentHour = new Date().getHours();
   const windGusts = weather?.windGusts
-    ?? (Array.isArray(hourlyData?.wind_gusts_10m) ? (hourlyData.wind_gusts_10m[_currentHour] ?? hourlyData.wind_gusts_10m[0] ?? 0) * 3.6 : null)
-    ?? (Array.isArray(hourlyData?.windgusts_10m) ? (hourlyData.windgusts_10m[_currentHour] ?? hourlyData.windgusts_10m[0] ?? 0) : null);
+    ?? hourlyWindGustsKmh(hourlyData, _currentHour)
+    ?? null;
 
   const precipProbability = weather?.precipProbability ?? precipProb ?? 0;
   const sunshineMins = weather?.sunshineDuration ? Math.round(weather.sunshineDuration / 60) : null;

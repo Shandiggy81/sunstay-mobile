@@ -1,3 +1,5 @@
+import { toWindGustsKmh } from './windUnits.js';
+
 /**
  * Sunstay Score Engine v2.1
  *
@@ -13,7 +15,9 @@ export function calculateLiveSunScore(weather) {
     apparentTemp = 20,
     precipProbability = 0,
     cloudCover = 0,
-    windGusts = 0,
+    windGusts,
+    windGustsKmh,
+    windGustsMs,
     isDay = 1,
     uvIndex = null,
   } = weather;
@@ -26,8 +30,11 @@ export function calculateLiveSunScore(weather) {
   const comfortScore = Math.max(0, Math.round(25 - (tempDelta * tempDelta * 0.3)));
   const rainPenalty = Math.min(15, Math.round(Math.max(0, precipProbability - 10) * 0.2));
   const cloudPenalty = Math.min(10, Math.round(Math.max(0, cloudCover - 40) * 0.18));
-  const windKmh = windGusts > 10 ? windGusts : windGusts * 3.6;
-  const windPenalty = Math.min(5, Math.round(Math.max(0, windKmh - 30) * 0.15));
+  const gustsKmh = toWindGustsKmh(windGustsKmh)
+    ?? toWindGustsKmh(windGusts)
+    ?? toWindGustsKmh(windGustsMs, { from: 'ms' })
+    ?? 0;
+  const windPenalty = Math.min(5, Math.round(Math.max(0, gustsKmh - 30) * 0.15));
 
   const raw = solarScore + uvScore + comfortScore - rainPenalty - cloudPenalty - windPenalty;
   const score = Math.max(0, Math.min(100, raw));

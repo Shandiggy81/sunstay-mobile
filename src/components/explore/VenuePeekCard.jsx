@@ -2,10 +2,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, X } from 'lucide-react';
 import { getSunBadge } from './WeatherBadgeRow';
+import { peekCardGustChip } from '../../utils/windUnits';
 
 const VenuePeekCard = ({ venue, weather, onExpand, onClose }) => {
     if (!venue) return null;
     const badge = getSunBadge(weather);
+    const gustChip = peekCardGustChip(weather);
     const primaryTag = (venue.tags || []).find(t =>
         ['Beer Garden', 'Rooftop', 'Waterfront', 'Outdoor Seating', 'Fireplace', 'Heaters'].includes(t)
     );
@@ -36,9 +38,9 @@ const VenuePeekCard = ({ venue, weather, onExpand, onClose }) => {
                                 {weather.precipProbability < 30 ? '🌤️' : weather.precipProbability < 60 ? '🌦️' : '🌧️'} {weather.precipProbability}% rain
                             </span>
                         )}
-                        {((weather?.windGusts ?? 0) * 3.6) > 20 && (
+                        {gustChip.visible && (
                             <span className="text-xs bg-gray-50 text-gray-600 px-2 py-0.5 rounded-full">
-                                💨 {Math.round(weather.windGusts * 3.6)}km/h gusts
+                                💨 {gustChip.label}
                             </span>
                         )}
                     </div>

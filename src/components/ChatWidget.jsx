@@ -13,6 +13,7 @@ import {
 import thunderBuddy from '../assets/mascots/thunder-buddy.png';
 import sunnySunglasses from '../assets/sunny-mascot.jpg';
 import { resolveChatAvatarKind } from '../utils/resolveChatAvatar';
+import { chatWindKmh, chatWindLabel } from '../utils/windUnits';
 
 const sunnyDefault = sunnySunglasses;
 
@@ -27,7 +28,7 @@ const getWeatherMood = (weather) => {
   if (!weather) return { emoji: '😎', label: 'Ready to help', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
   const temp = weather.current?.temp ?? 20;
   const cloud = weather.current?.cloudCover ?? 0;
-  const wind = weather.current?.windSpeed ?? 0;
+  const wind = chatWindKmh(weather) ?? 0;
   const uv = weather.current?.uvIndex ?? 0;
   const code = weather.current?.weatherCode ?? 0;
   const isRain = code >= 500 && code < 600;
@@ -43,13 +44,13 @@ const buildGreeting = (weather) => {
   if (!weather) return "G'day! I'm Sunny ☀️ Tell me what kind of spot you're after today!";
   const temp = weather.current?.temp ?? 20;
   const cloud = weather.current?.cloudCover ?? 0;
-  const wind = weather.current?.windSpeed ?? 0;
+  const wind = chatWindKmh(weather) ?? 0;
   const uv = weather.current?.uvIndex ?? 0;
   const code = weather.current?.weatherCode ?? 0;
   const isRain = code >= 500 && code < 600;
   if (isRain) return `G'day! It's ${temp}°C and raining out there right now 🌧️ Let me find you a cosy indoor spot — what kind of vibe are you after?`;
   if (uv >= 8) return `G'day! UV is sitting at ${uv} right now ☀️ Pretty intense — I'd recommend shaded or covered venues. What are you after?`;
-  if (wind > 30) return `G'day! It's ${temp}°C but pretty windy at ${Math.round(wind)}km/h 💨 Wind-sheltered spots are the move today. What sounds good?`;
+  if (wind > 30) return `G'day! It's ${temp}°C but pretty windy at ${chatWindLabel(weather) ?? `${Math.round(wind)} km/h`} 💨 Wind-sheltered spots are the move today. What sounds good?`;
   if (cloud > 70) return `G'day! It's ${temp}°C and overcast today ☁️ Perfect weather for a cosy indoor or covered spot. What kind of venue are you after?`;
   if (temp >= 26) return `G'day! It's a beautiful ${temp}°C and sunny out right now ☀️ Perfect rooftop weather! What kind of spot are you looking for?`;
   return `G'day! I'm Sunny — it's ${temp}°C out there right now 😎 What kind of venue are you after today?`;
@@ -77,7 +78,7 @@ const buildQuickReplies = (weather) => {
   const code = weather?.current?.weatherCode ?? 0;
   const isRain = code >= 500 && code < 600;
   const uv = weather?.current?.uvIndex ?? 'moderate';
-  const wind = weather?.current?.windSpeed ?? 0;
+  const wind = chatWindKmh(weather) ?? 0;
 
   const all = [
     { intent: 'sunny',      text: '☀️ Sunny outdoor spots',          response: `Ripper! UV's at ${uv} right now — showing venues with the best sun exposure. ☀️`,          action: 'onFindSunny' },
@@ -381,7 +382,7 @@ const ChatWidget = ({
               <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center gap-3 flex-shrink-0">
                 <Thermometer className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                 <span className="text-xs font-semibold text-amber-700">
-                  {weather.current.temp}°C · UV {weather.current.uvIndex} · Wind {Math.round(weather.current.windSpeed)}km/h · Cloud {weather.current.cloudCover}%
+                  {weather.current.temp}°C · UV {weather.current.uvIndex} · Wind {chatWindLabel(weather) ?? '–'} · Cloud {weather.current.cloudCover}%
                 </span>
               </div>
             )}

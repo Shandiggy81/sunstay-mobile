@@ -72,7 +72,7 @@ test('normalizeHourlyForecast accepts both Open-Meteo field spellings', () => {
     );
     assert.equal(legacy[0].code, 61);
     assert.equal(legacy[0].clouds, 80);
-    assert.equal(legacy[0].gusts, 36);
+    assert.equal(legacy[0].gusts, 10);
 
     const current = normalizeHourlyForecast(
         payload(1, { weather_code: [3], cloud_cover: [50] }),
@@ -80,6 +80,30 @@ test('normalizeHourlyForecast accepts both Open-Meteo field spellings', () => {
     );
     assert.equal(current[0].code, 3);
     assert.equal(current[0].clouds, 50);
+});
+
+test('normalizeHourlyForecast keeps Open-Meteo km/h gusts without a second conversion', () => {
+    const rows = normalizeHourlyForecast(
+        payload(1, { wind_gusts_10m: [50] }),
+        { now: NOW }
+    );
+    assert.equal(rows[0].gusts, 50);
+    assert.notEqual(rows[0].gusts, Math.round(50 * 3.6));
+});
+
+test('normalizeHourlyForecast converts genuine m/s gusts only when asked', () => {
+    const rows = normalizeHourlyForecast(
+        payload(1, { wind_gusts_10m: [10] }),
+        { now: NOW, windSpeedUnit: 'ms' }
+    );
+    assert.equal(rows[0].gusts, 36);
+});
+
+test('normalizeHourlyForecast treats missing, zero, and non-finite gusts as 0', () => {
+    assert.equal(normalizeHourlyForecast(payload(1), { now: NOW })[0].gusts, 0);
+    assert.equal(normalizeHourlyForecast(payload(1, { wind_gusts_10m: [0] }), { now: NOW })[0].gusts, 0);
+    assert.equal(normalizeHourlyForecast(payload(1, { wind_gusts_10m: [null] }), { now: NOW })[0].gusts, 0);
+    assert.equal(normalizeHourlyForecast(payload(1, { wind_gusts_10m: [NaN] }), { now: NOW })[0].gusts, 0);
 });
 
 test('normalizeHourlyForecast skips invalid timestamps and past hours', () => {

@@ -11,13 +11,14 @@
  */
 
 import { finiteOrNull, firstFinite } from './finiteOrNull.js';
+import { toWindGustsKmh } from './windUnits.js';
 
 /**
  * @param {object} payload Raw Open-Meteo forecast response.
  * @param {{ now?: Date, limit?: number }} [options]
  * @returns {Array<object>} Rows from `now` onwards, never longer than `limit`.
  */
-export function normalizeHourlyForecast(payload, { now = new Date(), limit = 12 } = {}) {
+export function normalizeHourlyForecast(payload, { now = new Date(), limit = 12, windSpeedUnit = 'kmh' } = {}) {
     const hourly = payload?.hourly;
     const times = hourly?.time;
     // A truthy-but-not-array `time` is the shape that used to throw on `.map`.
@@ -36,7 +37,10 @@ export function normalizeHourlyForecast(payload, { now = new Date(), limit = 12 
         const temp = finiteOrNull(hourly.temperature_2m?.[i]);
         if (temp === null) continue;
 
-        const gustsMs = firstFinite(hourly.wind_gusts_10m?.[i], hourly.windgusts_10m?.[i]) ?? 0;
+        const gustsKmh = toWindGustsKmh(
+            firstFinite(hourly.wind_gusts_10m?.[i], hourly.windgusts_10m?.[i]),
+            { from: windSpeedUnit }
+        ) ?? 0;
 
         rows.push({
             time,
@@ -45,7 +49,7 @@ export function normalizeHourlyForecast(payload, { now = new Date(), limit = 12 
             code: firstFinite(hourly.weather_code?.[i], hourly.weathercode?.[i]) ?? 0,
             precip: firstFinite(hourly.precipitation_probability?.[i]) ?? 0,
             clouds: firstFinite(hourly.cloud_cover?.[i], hourly.cloudcover?.[i]) ?? 0,
-            gusts: Math.round(gustsMs * 3.6),
+            gusts: Math.round(gustsKmh),
             rainMm: (firstFinite(hourly.precipitation?.[i]) ?? 0).toFixed(1),
             visibility: Math.round((firstFinite(hourly.visibility?.[i]) ?? 10000) / 1000),
             sunshineMins: Math.round((firstFinite(hourly.sunshine_duration?.[i]) ?? 0) / 60),
