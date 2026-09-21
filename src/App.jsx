@@ -12,10 +12,12 @@ import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
-    Wind, Sun, Cloud, X, Locate, Crosshair, ListFilter
+    Wind, Sun, Cloud, X, Locate, Crosshair
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
 import { pullRefreshStatus } from './utils/pullRefreshStatus';
+import { sheetDragCompositing } from './utils/sheetDragCompositing';
+import { ENABLE_MANUAL_VENUE_REFRESH } from './utils/manualVenueRefresh';
 import MascotPullRefresh from './components/MascotPullRefresh';
 import VenueRefreshButton from './components/VenueRefreshButton';
 import DebugStaticSunny from './components/DebugStaticSunny';
@@ -376,13 +378,18 @@ const AppContent = () => {
     const pullRefreshRef = useRef(null);
     const [refreshStatus, setRefreshStatus] = useState('');
     const requestRefresh = useCallback(async () => {
-        if (pullRefreshRef.current?.refresh) {
-            return pullRefreshRef.current.refresh();
+        try {
+            if (pullRefreshRef.current?.refresh) {
+                return await pullRefreshRef.current.refresh();
+            }
+            setRefreshStatus(pullRefreshStatus('refreshing'));
+            const result = await refetch();
+            setRefreshStatus(pullRefreshStatus(result?.error ? 'error' : 'success'));
+            return result;
+        } catch (error) {
+            setRefreshStatus(pullRefreshStatus('error'));
+            return { ok: false, error };
         }
-        setRefreshStatus(pullRefreshStatus('refreshing'));
-        const result = await refetch();
-        setRefreshStatus(pullRefreshStatus(result?.error ? 'error' : 'success'));
-        return result;
     }, [refetch]);
     const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
     const { setFallbackBbox } = useMicroclimateActions();
@@ -451,6 +458,7 @@ const AppContent = () => {
 
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
+    const [sheetDragging, setSheetDragging]         = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
     // Immediate input; filter/score/GeoJSON/fitBounds wait until typing settles.
@@ -613,6 +621,7 @@ const AppContent = () => {
     }, []);
 
     const handleCloseCard  = useCallback(() => {
+        pullRefreshRef.current?.reset?.();
         setSelectedVenue(null);
         setIsolationContext({ venue: '', tab: '' });
     }, []);
@@ -746,27 +755,12 @@ const AppContent = () => {
 
     const selectedVenueScore = weather?.score ?? weather?.rawWeather?.score ?? 70;
 
-    const filtersControl = useMemo(() => (
-        <button
-            type="button"
-            className="flex min-h-12 cursor-pointer items-center gap-2 rounded-full bg-slate-900/90 px-6 text-[14px] font-semibold tracking-[-0.01em] text-white shadow-[0_8px_28px_-8px_rgba(15,23,42,0.6)] ring-1 ring-inset ring-white/15 backdrop-blur-xl transition-transform duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            onClick={openMobileFilters}
-            disabled={mobileFilterOpen}
-            aria-expanded={mobileFilterOpen}
-            aria-label="Open filters"
-        >
-            <ListFilter size={18} strokeWidth={2.25} aria-hidden="true" />
-            <span>Filters</span>
-            {activeFilters.length > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 text-[11px] font-bold tabular-nums text-slate-950">
-                    {activeFilters.length}
-                </span>
-            )}
-        </button>
-    ), [openMobileFilters, mobileFilterOpen, activeFilters.length]);
-
+    const sheetDrag = sheetDragCompositing({ dragging: sheetDragging });
     const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
-    const sheetClassName = `ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''}`;
+    const sheetClassName = `ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''} ${sheetDrag.className}`.trim();
+    useEffect(() => {
+        if (!sheetExpanded) setSheetDragging(false);
+    }, [sheetExpanded]);
     const SheetEl = ENABLE_SHEET_MOTION ? motion.div : 'div';
     const BackdropEl = ENABLE_SHEET_MOTION ? motion.div : 'div';
     const sheetMotionProps = ENABLE_SHEET_MOTION
@@ -774,7 +768,9 @@ const AppContent = () => {
             drag: 'y',
             dragConstraints: { top: 0, bottom: 0 },
             dragElastic: 0.1,
+            onDragStart: () => setSheetDragging(true),
             onDragEnd: (_, { offset, velocity }) => {
+                setSheetDragging(false);
                 if (offset.y > 100 || velocity.y > 500) setMobileSheetState('peek');
             },
             initial: { y: '100%' },
@@ -868,10 +864,12 @@ const AppContent = () => {
                         <div className="ss-sidebar-count">
                             <span className="inline-flex items-center gap-2">
                                 {matchingCount} venue{matchingCount !== 1 ? 's' : ''}
-                                <VenueRefreshButton
-                                    onRefresh={requestRefresh}
-                                    isRefreshing={isRefreshing}
-                                />
+                                {ENABLE_MANUAL_VENUE_REFRESH ? (
+                                    <VenueRefreshButton
+                                        onRefresh={requestRefresh}
+                                        isRefreshing={isRefreshing}
+                                    />
+                                ) : null}
                             </span>
                             <span className="inline-flex items-center gap-2">
                                 {isRefreshing ? <span className="ss-venue-refresh-status">Updating…</span> : null}
@@ -939,7 +937,6 @@ const AppContent = () => {
                                             cozyWeatherActive={cozyWeatherActive}
                                             cozyFilterActive={cozyFilterActive}
                                             isExpanded={mobileMapExpanded}
-                                            filtersControl={filtersControl}
                                         />
                                     </Suspense>
                                 </MapErrorBoundary>
@@ -1078,10 +1075,12 @@ const AppContent = () => {
                         <div className="ss-mobile-sheet-grab" />
                         <span className="inline-flex items-center gap-2">
                             {matchingCount} venues nearby
-                            <VenueRefreshButton
-                                onRefresh={requestRefresh}
-                                isRefreshing={isRefreshing}
-                            />
+                            {ENABLE_MANUAL_VENUE_REFRESH ? (
+                                <VenueRefreshButton
+                                    onRefresh={requestRefresh}
+                                    isRefreshing={isRefreshing}
+                                />
+                            ) : null}
                         </span>
                         {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
                     </div>
@@ -1100,16 +1099,19 @@ const AppContent = () => {
                                 {...sheetMotionProps}
                                 className={sheetClassName}
                                 data-sheet-surface={ENABLE_SHEET_MOTION ? 'framer-motion' : 'static-div'}
+                                data-sheet-dragging={sheetDragging ? '1' : '0'}
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
                                     <h3>Venues</h3>
                                     <p className="inline-flex items-center justify-center gap-2">
                                         {matchingCount} results
-                                        <VenueRefreshButton
-                                            onRefresh={requestRefresh}
-                                            isRefreshing={isRefreshing}
-                                        />
+                                        {ENABLE_MANUAL_VENUE_REFRESH ? (
+                                            <VenueRefreshButton
+                                                onRefresh={requestRefresh}
+                                                isRefreshing={isRefreshing}
+                                            />
+                                        ) : null}
                                     </p>
                                     {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
                                     {!isRefreshing && refreshStatus.startsWith('Venue refresh failed') ? (
@@ -1215,10 +1217,12 @@ const AppContent = () => {
                                     <h3>Venues</h3>
                                     <p className="inline-flex items-center justify-center gap-2">
                                         {matchingCount} results
-                                        <VenueRefreshButton
-                                            onRefresh={requestRefresh}
-                                            isRefreshing={isRefreshing}
-                                        />
+                                        {ENABLE_MANUAL_VENUE_REFRESH ? (
+                                            <VenueRefreshButton
+                                                onRefresh={requestRefresh}
+                                                isRefreshing={isRefreshing}
+                                            />
+                                        ) : null}
                                     </p>
                                     {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
                                     {!isRefreshing && refreshStatus.startsWith('Venue refresh failed') ? (
