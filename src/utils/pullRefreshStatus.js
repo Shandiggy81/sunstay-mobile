@@ -1,3 +1,22 @@
+export const PTR_SUCCESS_HOLD_MS = 1000;
+export const PTR_SUCCESS_HOLD_REDUCED_MS = 200;
+
+export function resolveRefreshHoldMs(reducedMotion = false) {
+    return reducedMotion ? PTR_SUCCESS_HOLD_REDUCED_MS : PTR_SUCCESS_HOLD_MS;
+}
+
+export function keepRefreshingUntilSettled(phase, { settled = false, outcome = 'success' } = {}) {
+    if (phase === 'refreshing' && !settled) return 'refreshing';
+    if (phase === 'refreshing' && settled) {
+        return outcome === 'failure' || outcome === 'error' ? 'error' : 'success';
+    }
+    return phase;
+}
+
+export function venueRefreshBusy({ userRefresh = false } = {}) {
+    return Boolean(userRefresh);
+}
+
 const STATUS = {
     idle: '',
     pulling: 'Pull to refresh venues',
