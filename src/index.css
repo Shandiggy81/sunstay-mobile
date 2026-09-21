@@ -3694,8 +3694,10 @@ body,
   height: 60dvh;
   z-index: 40;
   background: rgba(255, 255, 255, 0.96);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  --ss-sheet-backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: var(--ss-sheet-backdrop-filter);
+  backdrop-filter: var(--ss-sheet-backdrop-filter);
+  transform-origin: bottom;
   border-radius: 24px 24px 0 0;
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.08);
   border-top: 1px solid rgba(255, 255, 255, 0.6);
@@ -3709,6 +3711,11 @@ body,
    Clear Filters button stays above the fold. */
 .ss-mobile-sheet--empty {
   height: 78dvh;
+}
+
+.ss-mobile-sheet--dragging {
+  will-change: transform;
+  --ss-sheet-backdrop-filter: none;
 }
 
 .ss-mobile-sheet-head {
