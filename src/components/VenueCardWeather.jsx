@@ -12,7 +12,7 @@ const Float = ({ children, delay = 0, range = 4, duration = 4, className = '' })
   </motion.div>
 );
 
-const StatChip = ({ icon, label, value, delay = 0, className = 'flex-1 min-w-0' }) => (
+const StatChip = ({ icon, label, value, subValue, delay = 0, className = 'flex-1 min-w-0' }) => (
   <Float delay={delay} range={3} duration={4.5} className={className}>
     <motion.div
       className="flex flex-col items-center justify-center w-full bg-white rounded-2xl border border-slate-100 shadow-sm min-h-[44px]"
@@ -22,6 +22,9 @@ const StatChip = ({ icon, label, value, delay = 0, className = 'flex-1 min-w-0' 
     >
       <span className="text-xl mb-1">{icon}</span>
       <span className="leading-none text-[15px] font-bold text-slate-900">{value}</span>
+      {subValue ? (
+        <span className="mt-0.5 text-center text-[10px] font-medium leading-tight text-slate-600">{subValue}</span>
+      ) : null}
       <span className="uppercase tracking-widest font-semibold mt-1 text-[10px] text-slate-500">{label}</span>
     </motion.div>
   </Float>
@@ -51,7 +54,7 @@ const SparkLine = ({ data, color, label, unit }) => {
 
 export default function VenueCardWeather({
   score, scoreLabel, scoreMeaningLabel,
-  feelsLike, wind, precipProb, minTemp, maxTemp, uvIndex, aqLabel,
+  feelsLike, wind, windView, precipProb, minTemp, maxTemp, uvIndex, aqLabel,
   hourlyData, getWeatherDisplay,
 }) {
   const [graphExpanded, setGraphExpanded] = useState(false);
@@ -72,7 +75,13 @@ export default function VenueCardWeather({
         {/* Consolidated Weather Metrics: Single compact horizontal row of Feels Like, Wind, and Rain */}
         <div className="grid grid-cols-3 gap-2.5 w-full">
           <StatChip icon="🌡️" label="Feels Like" value={`${Math.round(feelsLike)}°`} delay={0} />
-          <StatChip icon="💨" label="Wind" value={wind ? `${Math.round(wind)} km/h` : '–'} delay={0.08} />
+          <StatChip
+            icon="💨"
+            label="Wind"
+            value={windView?.speedLabel ?? (wind ? `${Math.round(wind)} km/h` : '–')}
+            subValue={windView?.gustLabel ?? null}
+            delay={0.08}
+          />
           <StatChip icon="🌂" label="Rain" value={precipProb ? `${precipProb}%` : '0%'} delay={0.16} />
         </div>
       </motion.div>

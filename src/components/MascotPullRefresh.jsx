@@ -10,7 +10,7 @@ import { useReducedMotion } from 'framer-motion';
 import sunnyMascot from '../assets/sunny-mascot.jpg';
 import { computePull } from '../utils/computePull';
 import { shouldBeginPull } from '../utils/shouldBeginPull';
-import { nextPullPhase, pullRefreshStatus } from '../utils/pullRefreshStatus';
+import { nextPullPhase, pullRefreshStatus, resolveRefreshHoldMs } from '../utils/pullRefreshStatus';
 import {
     MASCOT_INDICATOR_SLOT_PX,
     MASCOT_PX,
@@ -153,7 +153,7 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
                 successTimerRef.current = window.setTimeout(() => {
                     terminateGesture('success');
                     successTimerRef.current = null;
-                }, prefersReducedMotion ? 200 : 1400);
+                }, resolveRefreshHoldMs(prefersReducedMotion));
             } else {
                 terminateGesture(outcome === 'failure' ? 'failure' : 'success');
             }

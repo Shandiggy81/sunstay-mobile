@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { demoVenues } from '../data/demoVenues';
 import { interpretVenueResponse } from './interpretVenueResponse';
+import { venueRefreshBusy } from '../utils/pullRefreshStatus';
 
 /**
  * useVenues hook
@@ -26,6 +27,7 @@ import { interpretVenueResponse } from './interpretVenueResponse';
 export function useVenues() {
     const [venues, setVenues] = useState(demoVenues);
     const [isLoading, setIsLoading] = useState(false);
+    const [userRefresh, setUserRefresh] = useState(false);
     const [source, setSource] = useState('fallback');
     const [error, setError] = useState(null);
 
@@ -46,6 +48,8 @@ export function useVenues() {
     const fetchLiveVenues = useCallback(async () => {
         if (!supabase) {
             console.info('[useVenues] Supabase client not initialized, running on static demoVenues.');
+            userRefreshRef.current = false;
+            if (mountedRef.current) setUserRefresh(false);
             return { ok: true, skipped: true, empty: false, rows: null, error: null };
         }
 
@@ -95,12 +99,16 @@ export function useVenues() {
         } finally {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             userRefreshRef.current = false;
-            if (mountedRef.current) setIsLoading(false);
+            if (mountedRef.current) {
+                setIsLoading(false);
+                setUserRefresh(false);
+            }
         }
     }, []);
 
     const refetch = useCallback(() => {
         userRefreshRef.current = true;
+        setUserRefresh(true);
         return fetchLiveVenues();
     }, [fetchLiveVenues]);
 
@@ -112,7 +120,7 @@ export function useVenues() {
         venues,
         setVenues,
         isLoading,
-        isRefreshing: isLoading && userRefreshRef.current,
+        isRefreshing: venueRefreshBusy({ userRefresh }),
         source,
         error,
         refetch,

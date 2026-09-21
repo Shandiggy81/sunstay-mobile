@@ -18,6 +18,7 @@ import VenueCardSun from './VenueCardSun';
 import VenueCardActions from './VenueCardActions';
 import WindComfortPanel from './WindComfortPanel';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
+import { presentWind } from '../utils/presentWind';
 import RoomSunCard from './RoomSunCard';
 import { useWeather } from '../context/WeatherContext';
 import { useMicroclimateState } from '../context/MicroclimateContext';
@@ -480,7 +481,7 @@ const SunstayScoreBadge = ({ score, bestWindow, scoreLabel, unavailable }) => {
 };
 
 // ── Collapsible Deep Dive Accordion ──────────────────────────────
-const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, children, onOpen }) => {
+const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, windView = {}, children, onOpen }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const forecastHeaderRef = useRef(null);
   const panelId = `venue-forecast-details-${venue?.id ?? 'panel'}`;
@@ -566,7 +567,10 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, ch
                 <span className="flex-shrink-0 text-xl" aria-hidden="true">🌬️</span>
                 <div className="min-w-0">
                   <span className={`block ${MICRO_LABEL}`}>Wind</span>
-                  <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{wind !== undefined ? `${Math.round(wind)} km/h` : '–'}</span>
+                  <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{windView.speedLabel ?? '–'}</span>
+                  {windView.gustLabel ? (
+                    <span className="mt-0.5 block text-[12px] font-medium text-slate-600">{windView.gustLabel}</span>
+                  ) : null}
                 </div>
               </div>
               <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
@@ -901,7 +905,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   const hourlyData = weather?.rawWeather?.hourly ?? (weather?.rawWeather?.time ? weather.rawWeather : null) ?? null;
   const temp       = weather?.rawWeather?.temp ?? weather?.main?.temp ?? weather?.temp ?? 22;
-  const wind       = weather?.rawWeather?.wind ?? weather?.wind?.speed ?? 0;
+  const windView   = presentWind(weather);
+  const wind       = windView.speedKmh ?? 0;
   const overviewScore = resolveOverviewScore({
     loading: weatherLoading,
     getSunstayScoreResult,
@@ -915,10 +920,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { weatherCode } = weather || {};
   const { aqLabel } = useOpenAQ(lat, lng, { enabled: forecastEnabled });
-  const windSpeedValue = venue?.windSpeed ?? weatherData?.windSpeed ?? weather?.windSpeed ?? weather?.rawWeather?.windSpeed;
-  const windSpeedDisplay = windSpeedValue != null
-    ? (typeof windSpeedValue === 'number' ? `${Math.round(windSpeedValue)} km/h` : windSpeedValue)
-    : '18 km/h';
+  const windSpeedDisplay = windView.speedLabel ?? '–';
   const windbreak = Number(shielding?.windbreak);
   const windShelter = typeof venue?.windShelter === 'string'
     ? venue.windShelter
@@ -1449,6 +1451,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     uvIndex={uvIndex}
                     aqLabel={aqLabel}
                     wind={wind}
+                    windView={windView}
                     onOpen={() => setForecastOpen(true)}
                   />
 
@@ -1464,6 +1467,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       </div>
                       <div className="min-w-0">
                         <span className="block truncate text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900">{windSpeedDisplay}</span>
+                        {windView.gustLabel ? (
+                          <span className="block truncate text-[13px] font-medium text-slate-600">{windView.gustLabel}</span>
+                        ) : null}
                         <span className="block truncate text-[13px] font-medium text-slate-600">{windShelter}</span>
                       </div>
                     </div>
@@ -1678,6 +1684,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       scoreMeaningLabel={scoreMeaningLabel}
                       feelsLike={feelsLike}
                       wind={wind}
+                      windView={windView}
                       precipProb={precipProb}
                       minTemp={minTemp}
                       maxTemp={maxTemp}

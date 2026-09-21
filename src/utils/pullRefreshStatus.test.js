@@ -1,6 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { nextPullPhase, pullRefreshStatus } from './pullRefreshStatus.js';
+import {
+    PTR_SUCCESS_HOLD_MS,
+    keepRefreshingUntilSettled,
+    nextPullPhase,
+    pullRefreshStatus,
+    resolveRefreshHoldMs,
+    venueRefreshBusy,
+} from './pullRefreshStatus.js';
 
 describe('nextPullPhase', () => {
     it('enters pulling then ready while the finger is down', () => {
@@ -44,5 +51,25 @@ describe('pullRefreshStatus', () => {
         assert.equal(pullRefreshStatus('refreshing'), 'Refreshing venues');
         assert.equal(pullRefreshStatus('success'), 'Venues updated');
         assert.equal(pullRefreshStatus('error'), 'Venue refresh failed. Retry available.');
+    });
+});
+
+describe('mascot refresh lifecycle', () => {
+    it('stays in refreshing until the refresh promise settles', () => {
+        assert.equal(keepRefreshingUntilSettled('refreshing', { settled: false }), 'refreshing');
+        assert.equal(keepRefreshingUntilSettled('refreshing', { settled: true, outcome: 'success' }), 'success');
+        assert.equal(keepRefreshingUntilSettled('refreshing', { settled: true, outcome: 'failure' }), 'error');
+    });
+
+    it('holds success for about one second, then returns to idle', () => {
+        assert.equal(PTR_SUCCESS_HOLD_MS, 1000);
+        assert.equal(resolveRefreshHoldMs(false), 1000);
+        assert.equal(resolveRefreshHoldMs(true), 200);
+    });
+
+    it('clears Updating busy state when the user refresh finishes, including failure', () => {
+        assert.equal(venueRefreshBusy({ userRefresh: true, loading: true }), true);
+        assert.equal(venueRefreshBusy({ userRefresh: false, loading: false }), false);
+        assert.equal(venueRefreshBusy({ userRefresh: false, loading: true }), false);
     });
 });
