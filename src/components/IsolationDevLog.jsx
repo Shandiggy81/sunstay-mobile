@@ -3,8 +3,13 @@ import {
     ENABLE_MAPBOX,
     ENABLE_MASCOT_PULL_REFRESH,
     ENABLE_SHEET_MOTION,
+    MATRIX_HUD,
+    SHEET_BACKDROP_MODE,
+    SHEET_WILL_CHANGE_MODE,
+    VENUE_RENDER_LIMIT,
     crashTestId,
     mapSurfaceMode,
+    renderMatrixTestId,
     sheetSurfaceMode,
     venueListMode,
 } from '../utils/iosCrashIsolation';
@@ -22,16 +27,21 @@ export default function IsolationDevLog() {
     const [, setTick] = useState(0);
 
     useEffect(() => {
-        if (!import.meta.env.DEV) return undefined;
+        if (!import.meta.env.DEV && !MATRIX_HUD) return undefined;
         return subscribeIsolationLog(() => setTick((n) => n + 1));
     }, []);
 
-    if (!import.meta.env.DEV) return null;
+    if (!import.meta.env.DEV && !MATRIX_HUD) return null;
 
     const testId = crashTestId({
         map: ENABLE_MAPBOX,
         motion: ENABLE_SHEET_MOTION,
         pull: ENABLE_MASCOT_PULL_REFRESH,
+    });
+    const cardMatrix = renderMatrixTestId({
+        map: ENABLE_MAPBOX,
+        limit: VENUE_RENDER_LIMIT,
+        motion: ENABLE_SHEET_MOTION,
     });
     const lines = formatIsolationHudLines();
     const recent = getIsolationEvents().slice(-8);
@@ -44,9 +54,13 @@ export default function IsolationDevLog() {
             aria-hidden="true"
         >
             <p>test {testId}</p>
+            <p>cards {cardMatrix}</p>
             <p>flag-map:{mapSurfaceMode()}</p>
             <p>flag-motion:{sheetSurfaceMode()}</p>
             <p>flag-pull:{venueListMode()}</p>
+            <p>flag-limit:{VENUE_RENDER_LIMIT ?? 'all'}</p>
+            <p>flag-will:{SHEET_WILL_CHANGE_MODE}</p>
+            <p>flag-blur:{SHEET_BACKDROP_MODE}</p>
             {lines.map((line) => (
                 <p key={line}>{line}</p>
             ))}

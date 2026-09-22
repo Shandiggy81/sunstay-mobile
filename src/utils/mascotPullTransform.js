@@ -42,6 +42,25 @@ export function idlePullTransform() {
     return pullTransformFromState({ phase: 'idle', distance: 0, scale: 1 });
 }
 
+/**
+ * Write the React-owned transform onto the actor node immediately.
+ * The breathe animation overrides `transform` until it is cleared, so
+ * termination also sets `animation` to none.
+ */
+export function applyActorDomOwner(node, visual, { opacity = 0, refreshing = false } = {}) {
+    if (!node?.style || !visual) return;
+    node.style.transform = visual.transform;
+    node.style.opacity = String(opacity);
+    node.style.animation = refreshing ? '' : 'none';
+    const vars = visual.cssVars || {};
+    if (vars['--ss-ptr-y'] != null && typeof node.style.setProperty === 'function') {
+        node.style.setProperty('--ss-ptr-y', vars['--ss-ptr-y']);
+    }
+    if (vars['--ss-ptr-scale'] != null && typeof node.style.setProperty === 'function') {
+        node.style.setProperty('--ss-ptr-scale', vars['--ss-ptr-scale']);
+    }
+}
+
 export function refreshingPullTransform() {
     return pullTransformFromState({
         phase: 'refreshing',

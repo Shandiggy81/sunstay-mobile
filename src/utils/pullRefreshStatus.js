@@ -26,8 +26,15 @@ const STATUS = {
     error: 'Venue refresh failed. Retry available.',
 };
 
-export function pullRefreshStatus(phase) {
+export const VENUE_REFRESH_TIMEOUT_STATUS = 'Venue refresh timed out. Retry available.';
+
+export function pullRefreshStatus(phase, { timedOut = false } = {}) {
+    if (phase === 'error' && timedOut) return VENUE_REFRESH_TIMEOUT_STATUS;
     return STATUS[phase] ?? '';
+}
+
+export function refreshFailureVisible(status) {
+    return status === STATUS.error || status === VENUE_REFRESH_TIMEOUT_STATUS;
 }
 
 export function nextPullPhase(phase, event = {}) {

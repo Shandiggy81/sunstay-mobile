@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     clearPullPointerSession,
+    releasePullPointerCapture,
     shouldAcceptPullPointerDown,
     shouldHandlePullPointer,
 } from './pullPointerSession.js';
@@ -59,5 +60,19 @@ describe('clearPullPointerSession', () => {
         assert.equal(cleared.pointerId, null);
         assert.equal(cleared.lastDy, 0);
         assert.equal(active.pointerId, null);
+    });
+});
+
+describe('releasePullPointerCapture', () => {
+    it('releases the captured pointer before the session id is cleared', () => {
+        const released = [];
+        const root = {
+            hasPointerCapture: (id) => id === 4,
+            releasePointerCapture: (id) => released.push(id),
+        };
+        assert.equal(releasePullPointerCapture(root, { pointerId: 4 }), true);
+        assert.deepEqual(released, [4]);
+        assert.equal(releasePullPointerCapture(root, { pointerId: null }), false);
+        assert.equal(releasePullPointerCapture(null, { pointerId: 4 }), false);
     });
 });
