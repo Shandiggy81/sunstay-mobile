@@ -41,12 +41,21 @@
  *
  * localStorage keys: ss-mapbox, ss-sheet-motion, ss-pull-refresh,
  * ss-venue-render-limit, ss-sheet-will-change, ss-sheet-backdrop,
- * ss-matrix-hud, ss-refresh-hang. Values are 0/1, off/drag, or 15/30/45/59/all.
+ * ss-matrix-hud, ss-refresh-hang, ss-map-lifecycle. Values are 0/1, off/drag,
+ * 15/30/45/59/all, or keep/unmount-expanded.
  *
  * Do not change Mapbox init or unmount while running this matrix.
+ *
+ * Map lifecycle is a separate opt-in. It does not change Mapbox constructor
+ * options. Unset, `keep`, and any unknown value leave the map mounted:
+ * ?matrixHud=1&mapLifecycle=keep
+ * ?matrixHud=1&mapLifecycle=unmount-expanded
+ * The second URL unmounts Mapbox only while the venue sheet is stably fully
+ * expanded. Drag frames do not mount or unmount it.
  */
 
 import { classifyVenueRenderLimit } from './venueRenderLimit.js';
+import { parseMapLifecycle } from './mapLifecycle.js';
 
 function parseEnabled(value, fallback) {
     if (value == null || value === '') return fallback;
@@ -102,6 +111,7 @@ export function resolveIosIsolation(source = {}) {
         sheetBackdrop: parseBackdropMode(read('sheetBackdrop', 'ss-sheet-backdrop', env.VITE_IOS_SHEET_BACKDROP)),
         matrixHud: parseEnabled(read('matrixHud', 'ss-matrix-hud', env.VITE_IOS_MATRIX_HUD), false),
         refreshHang: parseEnabled(read('refreshHang', 'ss-refresh-hang', env.VITE_IOS_REFRESH_HANG), false),
+        mapLifecycle: parseMapLifecycle(read('mapLifecycle', 'ss-map-lifecycle', env.VITE_IOS_MAP_LIFECYCLE)),
         renderMatrix: renderMatrixTestId({ map: mapbox, limit: venueLimit, motion: sheetMotion }),
     };
 }
@@ -128,6 +138,7 @@ export const SHEET_WILL_CHANGE_MODE = resolvedIsolation.sheetWillChange;
 export const SHEET_BACKDROP_MODE = resolvedIsolation.sheetBackdrop;
 export const MATRIX_HUD = resolvedIsolation.matrixHud;
 export const VENUE_REFRESH_HANG = resolvedIsolation.refreshHang;
+export const MAP_LIFECYCLE = resolvedIsolation.mapLifecycle;
 
 export function renderMatrixTestId({ map, limit, motion }) {
     if (limit == null) return 'default';

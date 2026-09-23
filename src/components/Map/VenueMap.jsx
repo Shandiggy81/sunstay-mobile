@@ -33,6 +33,25 @@ import { removeStaleMarkers, syncExistingClusterMarker } from '../../utils/syncC
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
+import { MAP_LIFECYCLE } from '../../utils/iosCrashIsolation';
+import {
+    MAP_LIFECYCLE_UNMOUNT_EXPANDED,
+    cameraForRemount,
+    captureMapCamera,
+    getMapLifecycleSnapshot,
+    releaseMapOwners,
+    restoreMapCamera,
+    trackCameraRestore,
+    trackMapMount,
+    trackMapRemove,
+} from '../../utils/mapLifecycle';
+import {
+    claimMapboxMount,
+    mapMemoryOptions,
+    noteMapboxContextLost,
+    releaseMapboxMount,
+    suppressMobileGpuLayers,
+} from '../../utils/mapGpuGuard';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -709,6 +728,8 @@ const VenueMap = forwardRef(({
     const hasFlownToBounds = useRef(false);
     const filterBoundsKeyRef = useRef(null);
     const rafRef           = useRef(null);
+    const mapInitLockRef   = useRef(false);
+    const pendingTimersRef = useRef(new Set());
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
@@ -781,7 +802,8 @@ const VenueMap = forwardRef(({
 
         resizeAndFly: ([lng, lat]) => {
             if (!map.current) return;
-            setTimeout(() => {
+            const timer = setTimeout(() => {
+                pendingTimersRef.current.delete(timer);
                 map.current?.resize();
                 map.current?.flyTo({
                     center:    [lng, lat],
@@ -792,6 +814,7 @@ const VenueMap = forwardRef(({
                     padding:   FLY_TO_PADDING,
                 });
             }, 300);
+            pendingTimersRef.current.add(timer);
         },
 
         locateUser: ({ lng, lat, zoom = 14, duration = 1100 } = {}) => {
@@ -816,7 +839,7 @@ const VenueMap = forwardRef(({
 
     // ── Initialise map ONCE ─────────────────────────────────────────
     useEffect(() => {
-        if (map.current) return;
+        if (mapInitLockRef.current || map.current) return;
         if (!MAPBOX_TOKEN?.startsWith('pk.')) {
             setMapError(true);
             setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
@@ -828,10 +851,35 @@ const VenueMap = forwardRef(({
             return;
         }
         if (!mapContainer.current) return;
+        const mountClaim = claimMapboxMount();
+        if (!mountClaim.ok) {
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                message: mountClaim.reason === 'context-loss-cooldown'
+                    ? 'context-loss-cooldown'
+                    : 'mount-locked',
+                source: 'VenueMap',
+            });
+            if (mountClaim.reason === 'context-loss-cooldown') setWebglLost(true);
+            return undefined;
+        }
+        mapInitLockRef.current = true;
+        if (!trackMapMount()) {
+            releaseMapboxMount();
+            mapInitLockRef.current = false;
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                message: 'duplicate-refused',
+                source: 'VenueMap',
+            });
+            return undefined;
+        }
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
         let disposed = false;
+        let cleaned = false;
         let resizeObserver;
+        let resizeFrame = 0;
         const logMap = (kind, message) => {
             if (disposed) return;
             setIsolationContext({ mapEvent: message });
@@ -851,6 +899,16 @@ const VenueMap = forwardRef(({
         const isMobileDevice = typeof navigator !== 'undefined'
             && (navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
 
+        const memoryOptions = mapMemoryOptions(isMobileDevice);
+        const reduceMobileGpu = () => {
+            if (!isMobileDevice || disposed || !map.current) return;
+            const reduced = suppressMobileGpuLayers(map.current);
+            logMap(
+                ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                `gpu-cut objects=${reduced.objects ? 1 : 0} terrain=${reduced.terrain ? 1 : 0} extrusion=${reduced.extrusion}`,
+            );
+        };
+
         try {
             map.current = new mapboxgl.Map({
                 container:           mapContainer.current,
@@ -861,14 +919,28 @@ const VenueMap = forwardRef(({
                 maxZoom:             18,
                 pitch:               45,
                 bearing:             -17.6,
-                antialias:           !isMobileDevice,
+                antialias:           memoryOptions.antialias,
                 cooperativeGestures: false,
                 fadeDuration:        0,
-                maxTileCacheSize:    20,
+                maxTileCacheSize:    memoryOptions.maxTileCacheSize,
+                ...(memoryOptions.config ? { config: memoryOptions.config } : {}),
             });
 
+            if (MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED) {
+                const cameraResult = trackCameraRestore(restoreMapCamera(map.current, cameraForRemount()));
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `camera-${cameraResult}`);
+                if (getMapLifecycleSnapshot().mountCount >= 2) {
+                    logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:overlays-tod-reset');
+                }
+            }
+            const mounted = getMapLifecycleSnapshot();
+            logMap(
+                ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                `mount count=${mounted.mountCount} live=${mounted.liveInstances}`,
+            );
+
             resizeObserver = new ResizeObserver(() => {
-                requestAnimationFrame(() => map.current?.resize());
+                resizeFrame = requestAnimationFrame(() => map.current?.resize());
             });
             resizeObserver.observe(mapContainer.current);
 
@@ -884,6 +956,7 @@ const VenueMap = forwardRef(({
                 } catch (e) {
                     console.warn('[VenueMap] hide POI labels failed:', e?.message);
                 }
+                reduceMobileGpu();
                 const initializeWeatherController = () => {
                     if (controllerRef.current) return;
                     if (!XWEATHER_KEY) return;
@@ -914,6 +987,7 @@ const VenueMap = forwardRef(({
             map.current.on('style.load', () => {
                 if (disposed) return;
                 logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'style.load');
+                reduceMobileGpu();
             });
 
             map.current.on('error', (e) => {
@@ -934,18 +1008,30 @@ const VenueMap = forwardRef(({
                 'top-right'
             );
             const canvas = map.current.getCanvas();
+            let contextLossHandled = false;
+            let contextLossTimer = 0;
             const handleWebglContextLost = (event) => {
-                event.preventDefault();
+                event.stopImmediatePropagation();
+                event.stopPropagation();
+                if (contextLossHandled) return;
+                contextLossHandled = true;
+                noteMapboxContextLost();
                 setWebglLost(true);
                 logMap(ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST, 'webglcontextlost');
+                contextLossTimer = setTimeout(() => {
+                    pendingTimersRef.current.delete(contextLossTimer);
+                    teardownMap();
+                }, 0);
+                pendingTimersRef.current.add(contextLossTimer);
             };
-            const handleWebglContextRestored = () => {
-                setWebglLost(false);
-                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'webglcontextrestored');
+            const handleWebglContextRestored = (event) => {
+                event.stopImmediatePropagation();
+                event.stopPropagation();
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'webglcontextrestored-ignored');
             };
             if (canvas && typeof canvas.addEventListener === 'function') {
-                canvas.addEventListener('webglcontextlost', handleWebglContextLost, false);
-                canvas.addEventListener('webglcontextrestored', handleWebglContextRestored, false);
+                canvas.addEventListener('webglcontextlost', handleWebglContextLost, true);
+                canvas.addEventListener('webglcontextrestored', handleWebglContextRestored, true);
             }
             map.current._sunstayWebglContextLostHandler = handleWebglContextLost;
             map.current._sunstayWebglContextRestoredHandler = handleWebglContextRestored;
@@ -954,28 +1040,44 @@ const VenueMap = forwardRef(({
             setMapError(true);
             setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
             logMap(ISOLATION_EVENT_KINDS.MAPBOX_ERROR, err?.message || 'map-init-failed');
+            if (!map.current) {
+                trackMapRemove(null);
+                releaseMapboxMount();
+                mapInitLockRef.current = false;
+            }
         }
 
-        return () => {
+        function teardownMap() {
+            if (cleaned) return;
+            cleaned = true;
             disposed = true;
             clearTimeout(loadTimeout);
+            for (const timer of pendingTimersRef.current) clearTimeout(timer);
+            pendingTimersRef.current.clear();
             resizeObserver?.disconnect();
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            const canvas = map.current?.getCanvas();
+            if (resizeFrame) cancelAnimationFrame(resizeFrame);
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+            const camera = MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED
+                ? captureMapCamera(map.current)
+                : null;
+            let canvas = null;
+            try { canvas = map.current?.getCanvas?.() ?? null; } catch { canvas = null; }
             const contextLostHandler = map.current?._sunstayWebglContextLostHandler;
             const contextRestoredHandler = map.current?._sunstayWebglContextRestoredHandler;
+            const listeners = [];
             if (canvas && contextLostHandler) {
-                canvas.removeEventListener('webglcontextlost', contextLostHandler, false);
+                listeners.push({ target: canvas, type: 'webglcontextlost', handler: contextLostHandler, capture: true });
             }
             if (canvas && contextRestoredHandler) {
-                canvas.removeEventListener('webglcontextrestored', contextRestoredHandler, false);
+                listeners.push({ target: canvas, type: 'webglcontextrestored', handler: contextRestoredHandler, capture: true });
             }
-            Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
-            markersRef.current = {};
-            if (userMarkerRef.current) {
-                try { userMarkerRef.current.remove(); } catch { /* noop */ }
-                userMarkerRef.current = null;
-            }
+            const markers = Object.values(markersRef.current)
+                .map((entry) => entry?.marker)
+                .filter(Boolean);
+            if (userMarkerRef.current) markers.push(userMarkerRef.current);
 
             if (controllerRef.current) {
                 try {
@@ -994,23 +1096,39 @@ const VenueMap = forwardRef(({
             // Mapbox Standard renders 3D buildings natively (no custom building
             // layer to remove); we still defensively tear down this component's
             // own analytical layers/sources before disposing the map.
-            if (map.current) {
-                if (map.current.isStyleLoaded && map.current.isStyleLoaded()) {
-                    try {
-                        [CLOUD_LAYER_ID, HEATMAP_LAYER_ID, CLUSTER_LAYER_ID].forEach((id) => {
-                            if (map.current.getLayer(id)) map.current.removeLayer(id);
-                        });
-                        [CLOUD_SOURCE_ID, HEATMAP_SOURCE_ID, CLUSTER_SOURCE_ID].forEach((id) => {
-                            if (map.current.getSource(id)) map.current.removeSource(id);
-                        });
-                    } catch (err) {
-                        console.warn('Style cleanup skipped:', err);
-                    }
+            if (map.current?.isStyleLoaded?.()) {
+                try {
+                    [CLOUD_LAYER_ID, HEATMAP_LAYER_ID, CLUSTER_LAYER_ID].forEach((id) => {
+                        if (map.current.getLayer(id)) map.current.removeLayer(id);
+                    });
+                    [CLOUD_SOURCE_ID, HEATMAP_SOURCE_ID, CLUSTER_SOURCE_ID].forEach((id) => {
+                        if (map.current.getSource(id)) map.current.removeSource(id);
+                    });
+                } catch (err) {
+                    console.warn('Style cleanup skipped:', err);
                 }
-                map.current.remove();
-                map.current = null;
             }
-        };
+            const released = releaseMapOwners({
+                markers,
+                listeners,
+                map: map.current,
+            });
+            markersRef.current = {};
+            userMarkerRef.current = null;
+            map.current = null;
+            const snapshot = trackMapRemove(camera);
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                message: `remove count=${snapshot.removeCount} live=${snapshot.liveInstances} markers=${released.markerCleanups} listeners=${released.listenerCleanups}`,
+                source: 'VenueMap',
+            });
+            if (mapInitLockRef.current) {
+                releaseMapboxMount();
+                mapInitLockRef.current = false;
+            }
+        }
+
+        return () => teardownMap();
     }, []);
 
 
@@ -1372,10 +1490,12 @@ const VenueMap = forwardRef(({
                     style={{ pointerEvents: webglRecovery.blocksInteraction ? 'auto' : 'none' }}
                 >
                     <div className={`flex items-center gap-3 rounded-2xl px-5 py-3 shadow-lg ${webglRecovery.surfaceClass}`}>
-                        <span
-                            className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
-                            aria-hidden="true"
-                        />
+                        {webglRecovery.hasSpinner ? (
+                            <span
+                                className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
+                                aria-hidden="true"
+                            />
+                        ) : null}
                         <span className="text-sm font-semibold tracking-tight">
                             {webglRecovery.message}
                         </span>

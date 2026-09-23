@@ -3,6 +3,7 @@ import {
     ENABLE_MAPBOX,
     ENABLE_MASCOT_PULL_REFRESH,
     ENABLE_SHEET_MOTION,
+    MAP_LIFECYCLE,
     MATRIX_HUD,
     SHEET_BACKDROP_MODE,
     SHEET_WILL_CHANGE_MODE,
@@ -19,6 +20,7 @@ import {
     getIsolationEvents,
     subscribeIsolationLog,
 } from '../utils/iosCrashLog';
+import { getMapLifecycleSnapshot } from '../utils/mapLifecycle';
 
 /**
  * DEV-only HUD. Renders small strings only — never API payloads.
@@ -46,6 +48,7 @@ export default function IsolationDevLog() {
     });
     const lines = formatIsolationHudLines();
     const recent = getIsolationEvents().slice(-8);
+    const mapSession = getMapLifecycleSnapshot();
 
     return (
         <aside
@@ -62,6 +65,14 @@ export default function IsolationDevLog() {
             <p>flag-limit:{VENUE_RENDER_MODE === 'progressive' ? 'progressive' : (VENUE_RENDER_LIMIT ?? 'all')}</p>
             <p>flag-will:{SHEET_WILL_CHANGE_MODE}</p>
             <p>flag-blur:{SHEET_BACKDROP_MODE}</p>
+            <p>flag-life:{MAP_LIFECYCLE}</p>
+            <p>map-mounts:{mapSession.mountCount}</p>
+            <p>map-removes:{mapSession.removeCount}</p>
+            <p>map-live:{mapSession.liveInstances}</p>
+            <p>map-camera:{mapSession.cameraRestore}</p>
+            <p>map-duplicate:{mapSession.duplicateDetected ? '1' : '0'}</p>
+            {mapSession.lastUnmountAt != null ? <p>map-unmount-at:{mapSession.lastUnmountAt}</p> : null}
+            {mapSession.lastRemountDurationMs != null ? <p>map-remount-ms:{mapSession.lastRemountDurationMs}</p> : null}
             {lines.map((line) => (
                 <p key={line}>{line}</p>
             ))}

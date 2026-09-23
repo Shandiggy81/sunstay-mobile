@@ -37,11 +37,15 @@ import {
     SHEET_WILL_CHANGE_MODE,
     VENUE_RENDER_LIMIT,
     VENUE_RENDER_MODE,
+    MAP_LIFECYCLE,
     crashTestId,
     renderMatrixTestId,
 } from './utils/iosCrashIsolation';
+import { shouldMountMap } from './utils/mapLifecycle';
 import {
+    ISOLATION_EVENT_KINDS,
     attachPageLifecycleProbes,
+    logIsolationEvent,
     setIsolationContext,
 } from './utils/iosCrashLog';
 import IsolationDevLog from './components/IsolationDevLog';
@@ -814,6 +818,24 @@ const AppContent = () => {
         backdrop: SHEET_BACKDROP_MODE,
     });
     const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
+    const mapMounted = shouldMountMap({
+        mapboxEnabled: ENABLE_MAPBOX,
+        lifecycle: MAP_LIFECYCLE,
+        sheetExpanded,
+    });
+    const mapLifecycleMountedRef = useRef(null);
+    useEffect(() => {
+        if (MAP_LIFECYCLE !== 'unmount-expanded') return undefined;
+        const previous = mapLifecycleMountedRef.current;
+        mapLifecycleMountedRef.current = mapMounted;
+        if (previous === null || previous === mapMounted) return undefined;
+        logIsolationEvent({
+            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+            message: mapMounted ? 'stable-visible-remount' : 'stable-expanded-unmount',
+            source: 'App',
+        });
+        return undefined;
+    }, [mapMounted]);
     const sheetClassName = `ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''} ${sheetDrag.className}`.trim();
     useEffect(() => {
         if (!sheetExpanded) setSheetDragging(false);
@@ -889,6 +911,8 @@ const AppContent = () => {
                 data-load-more={hasMoreVenues ? '1' : '0'}
                 data-sheet-will-change={SHEET_WILL_CHANGE_MODE}
                 data-sheet-backdrop={SHEET_BACKDROP_MODE}
+                data-map-lifecycle={MAP_LIFECYCLE}
+                data-map-mounted={mapMounted ? '1' : '0'}
             >
                 {DEBUG_MASCOT_RENDER ? <DebugStaticSunny /> : null}
                 <IsolationDevLog />
@@ -999,22 +1023,31 @@ const AppContent = () => {
                     <section className={`ss-map-area relative flex min-h-0 flex-1 flex-col ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
                         <div className="ss-map-container min-h-0 flex-1">
                             {ENABLE_MAPBOX ? (
-                                <MapErrorBoundary>
-                                    <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
-                                        <VenueMap
-                                            ref={mapRef}
-                                            venues={venues}
-                                            onVenueSelect={handleVenueSelect}
-                                            selectedVenue={selectedVenue}
-                                            filteredVenueIds={stableFilteredIds}
-                                            liveVenueFeatures={liveVenueFeatures}
-                                            weatherColorFn={getMarkerWeatherColor}
-                                            cozyWeatherActive={cozyWeatherActive}
-                                            cozyFilterActive={cozyFilterActive}
-                                            isExpanded={mobileMapExpanded}
-                                        />
-                                    </Suspense>
-                                </MapErrorBoundary>
+                                mapMounted ? (
+                                    <MapErrorBoundary>
+                                        <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
+                                            <VenueMap
+                                                ref={mapRef}
+                                                venues={venues}
+                                                onVenueSelect={handleVenueSelect}
+                                                selectedVenue={selectedVenue}
+                                                filteredVenueIds={stableFilteredIds}
+                                                liveVenueFeatures={liveVenueFeatures}
+                                                weatherColorFn={getMarkerWeatherColor}
+                                                cozyWeatherActive={cozyWeatherActive}
+                                                cozyFilterActive={cozyFilterActive}
+                                                isExpanded={mobileMapExpanded}
+                                            />
+                                        </Suspense>
+                                    </MapErrorBoundary>
+                                ) : (
+                                    <div
+                                        data-testid="map-lifecycle-unmounted"
+                                        data-map-lifecycle="unmounted"
+                                        className="h-full w-full bg-slate-900"
+                                        aria-hidden="true"
+                                    />
+                                )
                             ) : (
                                 <div
                                     data-testid="mapbox-isolation-fallback"

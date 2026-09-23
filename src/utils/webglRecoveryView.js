@@ -9,9 +9,9 @@ export function webglRecoveryView(lost = false) {
     return {
         mounted: true,
         blocksInteraction: true,
-        message: 'Reconnecting map...',
+        message: 'Map paused',
         role: 'status',
-        hasSpinner: true,
+        hasSpinner: false,
         surfaceClass: 'border border-amber-200 bg-amber-50 text-slate-900',
     };
 }
