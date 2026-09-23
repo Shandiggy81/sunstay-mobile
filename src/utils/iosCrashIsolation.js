@@ -3,27 +3,135 @@
  * Delete this file, its test, DebugStaticSunny, and every import after the
  * crash matrix is finished. Do not treat these as product feature flags.
  *
- * Flip one const at a time, then reload Safari between groups.
+ * Reload Safari between rows. Query params override localStorage, which
+ * overrides VITE_IOS_* env values. Unset means the product default.
  *
- * | Test | Mapbox | Sheet motion | Pull refresh |
- * |------|-------:|-------------:|-------------:|
- * | A    | On     | On           | On           |
- * | B    | Off    | On           | On           |
- * | C    | On     | Off          | On           |
- * | D    | On     | On           | Off          |
- * | E    | Off    | Off          | Off          |
+ * Card-count matrix (leading hypothesis only — 59 cards are not a confirmed
+ * cause). `venueLimit` does not change filtering, ordering, or the total
+ * count. Default is `all` (no cap). Demo data has 48 venues, so 59 still
+ * renders every demo card; a larger Supabase payload is capped at 59.
  *
- * Same Safari sequence for every row: fresh reload, expand the venue sheet,
- * open Railway Hotel, switch Overview / Sun Forecast / Amenities, scroll,
- * close and reopen, repeat. Do not unmount the map or change Mapbox init
- * while running this matrix.
+ * | Test | Mapbox | Render limit | Sheet motion | URL |
+ * |------|-------:|-------------:|-------------:|-----|
+ * | A    | On     | 59           | On           | ?matrixHud=1&venueLimit=59 |
+ * | B    | Off    | 59           | On           | ?matrixHud=1&mapbox=0&venueLimit=59 |
+ * | C    | On     | 15           | On           | ?matrixHud=1&venueLimit=15 |
+ * | D    | On     | 59           | Off          | ?matrixHud=1&venueLimit=59&sheetMotion=0 |
+ * | E    | Off    | 15           | Off          | ?matrixHud=1&mapbox=0&venueLimit=15&sheetMotion=0 |
+ *
+ * Also compare 15 / 30 / 45 / 59 with Mapbox and sheet motion left on:
+ * ?matrixHud=1&venueLimit=15|30|45|59
+ *
+ * Record for each row: Safari terminated (yes/no); exact action before
+ * failure; map failed first (yes/no, only with a context-loss signal);
+ * mascot stuck first (yes/no); repetitions before failure; reload restored
+ * the app (yes/no). A blank map is not WebGL loss without that signal.
+ *
+ * Sheet compositing, tested separately while sheet motion is on:
+ * - ?sheetWillChange=off
+ * - ?sheetWillChange=drag          (default: will-change only while dragging)
+ * - ?sheetBackdrop=drag            (default: backdrop-filter none while dragging)
+ * - ?sheetBackdrop=always          (keep blur while dragging)
+ *
+ * Mascot timeout check, separate from the crash matrix:
+ * ?refreshHang=1  (user refresh waits until the 5s abort; Updating must clear)
+ *
+ * localStorage keys: ss-mapbox, ss-sheet-motion, ss-pull-refresh,
+ * ss-venue-render-limit, ss-sheet-will-change, ss-sheet-backdrop,
+ * ss-matrix-hud, ss-refresh-hang. Values are 0/1, off/drag, or 15/30/45/59/all.
+ *
+ * Do not change Mapbox init or unmount while running this matrix.
  */
 
-export const DEBUG_MASCOT_RENDER = false;
+import { parseVenueRenderLimit } from './venueRenderLimit.js';
 
-export const ENABLE_MAPBOX = true;
-export const ENABLE_SHEET_MOTION = true;
-export const ENABLE_MASCOT_PULL_REFRESH = true;
+function parseEnabled(value, fallback) {
+    if (value == null || value === '') return fallback;
+    const normalized = String(value).trim().toLowerCase();
+    if (['0', 'false', 'off', 'no'].includes(normalized)) return false;
+    if (['1', 'true', 'on', 'yes'].includes(normalized)) return true;
+    return fallback;
+}
+
+function parseWillChangeMode(value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (['off', 'none', '0', 'false'].includes(normalized)) return 'off';
+    return 'while-dragging';
+}
+
+function parseBackdropMode(value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    if (['always', 'on', 'keep', '1'].includes(normalized)) return 'always';
+    return 'none-while-dragging';
+}
+
+function readOverride(search, storage, env, queryKey, storageKey, envValue) {
+    if (search.has(queryKey)) return search.get(queryKey);
+    if (storage && typeof storage.getItem === 'function') {
+        try {
+            const stored = storage.getItem(storageKey);
+            if (stored != null && stored !== '') return stored;
+        } catch {
+            // Private mode can throw on storage access.
+        }
+    }
+    if (envValue != null && envValue !== '') return String(envValue);
+    return null;
+}
+
+export function resolveIosIsolation(source = {}) {
+    const search = new URLSearchParams(source.search || '');
+    const storage = source.storage ?? null;
+    const env = source.env || {};
+    const read = (queryKey, storageKey, envValue) => readOverride(search, storage, env, queryKey, storageKey, envValue);
+    const venueLimit = parseVenueRenderLimit(read('venueLimit', 'ss-venue-render-limit', env.VITE_IOS_VENUE_RENDER_LIMIT));
+    const mapbox = parseEnabled(read('mapbox', 'ss-mapbox', env.VITE_IOS_MAPBOX), true);
+    const sheetMotion = parseEnabled(read('sheetMotion', 'ss-sheet-motion', env.VITE_IOS_SHEET_MOTION), true);
+    return {
+        debugMascot: parseEnabled(read('debugMascot', 'ss-debug-mascot', env.VITE_IOS_DEBUG_MASCOT), false),
+        mapbox,
+        sheetMotion,
+        pullRefresh: parseEnabled(read('pullRefresh', 'ss-pull-refresh', env.VITE_IOS_PULL_REFRESH), true),
+        venueRenderLimit: venueLimit,
+        sheetWillChange: parseWillChangeMode(read('sheetWillChange', 'ss-sheet-will-change', env.VITE_IOS_SHEET_WILL_CHANGE)),
+        sheetBackdrop: parseBackdropMode(read('sheetBackdrop', 'ss-sheet-backdrop', env.VITE_IOS_SHEET_BACKDROP)),
+        matrixHud: parseEnabled(read('matrixHud', 'ss-matrix-hud', env.VITE_IOS_MATRIX_HUD), false),
+        refreshHang: parseEnabled(read('refreshHang', 'ss-refresh-hang', env.VITE_IOS_REFRESH_HANG), false),
+        renderMatrix: renderMatrixTestId({ map: mapbox, limit: venueLimit, motion: sheetMotion }),
+    };
+}
+
+function browserIsolationSource() {
+    const env = import.meta.env ?? {};
+    if (typeof window === 'undefined') {
+        return { search: '', storage: null, env };
+    }
+    let storage = null;
+    try { storage = window.localStorage; } catch { storage = null; }
+    return { search: window.location?.search || '', storage, env };
+}
+
+const resolvedIsolation = resolveIosIsolation(browserIsolationSource());
+
+export const DEBUG_MASCOT_RENDER = resolvedIsolation.debugMascot;
+export const ENABLE_MAPBOX = resolvedIsolation.mapbox;
+export const ENABLE_SHEET_MOTION = resolvedIsolation.sheetMotion;
+export const ENABLE_MASCOT_PULL_REFRESH = resolvedIsolation.pullRefresh;
+export const VENUE_RENDER_LIMIT = resolvedIsolation.venueRenderLimit;
+export const SHEET_WILL_CHANGE_MODE = resolvedIsolation.sheetWillChange;
+export const SHEET_BACKDROP_MODE = resolvedIsolation.sheetBackdrop;
+export const MATRIX_HUD = resolvedIsolation.matrixHud;
+export const VENUE_REFRESH_HANG = resolvedIsolation.refreshHang;
+
+export function renderMatrixTestId({ map, limit, motion }) {
+    if (limit == null) return 'default';
+    if (map && limit === 59 && motion) return 'A';
+    if (!map && limit === 59 && motion) return 'B';
+    if (map && limit === 15 && motion) return 'C';
+    if (map && limit === 59 && !motion) return 'D';
+    if (!map && limit === 15 && !motion) return 'E';
+    return 'custom';
+}
 
 export function crashTestId({ map, motion, pull }) {
     if (map && motion && pull) return 'A';

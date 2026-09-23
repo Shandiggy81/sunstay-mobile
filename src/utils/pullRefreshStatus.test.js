@@ -5,6 +5,7 @@ import {
     keepRefreshingUntilSettled,
     nextPullPhase,
     pullRefreshStatus,
+    refreshFailureVisible,
     resolveRefreshHoldMs,
     venueRefreshBusy,
 } from './pullRefreshStatus.js';
@@ -51,6 +52,10 @@ describe('pullRefreshStatus', () => {
         assert.equal(pullRefreshStatus('refreshing'), 'Refreshing venues');
         assert.equal(pullRefreshStatus('success'), 'Venues updated');
         assert.equal(pullRefreshStatus('error'), 'Venue refresh failed. Retry available.');
+        assert.equal(pullRefreshStatus('error', { timedOut: true }), 'Venue refresh timed out. Retry available.');
+        assert.equal(refreshFailureVisible(pullRefreshStatus('error')), true);
+        assert.equal(refreshFailureVisible(pullRefreshStatus('error', { timedOut: true })), true);
+        assert.equal(refreshFailureVisible(pullRefreshStatus('success')), false);
     });
 });
 

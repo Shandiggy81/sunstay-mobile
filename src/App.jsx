@@ -15,8 +15,9 @@ import {
     Wind, Sun, Cloud, X, Locate, Crosshair
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
-import { pullRefreshStatus } from './utils/pullRefreshStatus';
+import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
+import { sliceVenuesForRender } from './utils/venueRenderLimit';
 import { ENABLE_MANUAL_VENUE_REFRESH } from './utils/manualVenueRefresh';
 import MascotPullRefresh from './components/MascotPullRefresh';
 import VenueRefreshButton from './components/VenueRefreshButton';
@@ -26,7 +27,12 @@ import {
     ENABLE_MAPBOX,
     ENABLE_MASCOT_PULL_REFRESH,
     ENABLE_SHEET_MOTION,
+    MATRIX_HUD,
+    SHEET_BACKDROP_MODE,
+    SHEET_WILL_CHANGE_MODE,
+    VENUE_RENDER_LIMIT,
     crashTestId,
+    renderMatrixTestId,
 } from './utils/iosCrashIsolation';
 import {
     attachPageLifecycleProbes,
@@ -559,6 +565,10 @@ const AppContent = () => {
         () => sortVenuesBySunstayScore(filteredVenues, calculateSunstayScore),
         [filteredVenues, calculateSunstayScore, previewMinutes]
     );
+    const renderedVenues = useMemo(
+        () => sliceVenuesForRender(sortedVenues, VENUE_RENDER_LIMIT),
+        [sortedVenues]
+    );
 
     const filteredVenueIds = useMemo(
         () => filteredVenues.map(venue => venue.id),
@@ -733,12 +743,12 @@ const AppContent = () => {
 
     useEffect(() => {
         if (!selectedVenue) return undefined;
-        const index = sortedVenues.findIndex((v) => v.id === selectedVenue.id);
+        const index = renderedVenues.findIndex((v) => v.id === selectedVenue.id);
         if (index < 0) return undefined;
         sidebarVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         mobileVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         return undefined;
-    }, [selectedVenue, sortedVenues]);
+    }, [selectedVenue, renderedVenues]);
 
     const selectedLiveFeatureState = selectedVenue?.id ? liveVenueFeatures?.[selectedVenue.id] : null;
     const selectedVenueLiveFeatures = useMemo(() => {
@@ -755,7 +765,11 @@ const AppContent = () => {
 
     const selectedVenueScore = weather?.score ?? weather?.rawWeather?.score ?? 70;
 
-    const sheetDrag = sheetDragCompositing({ dragging: sheetDragging });
+    const sheetDrag = sheetDragCompositing({
+        dragging: sheetDragging,
+        willChange: SHEET_WILL_CHANGE_MODE,
+        backdrop: SHEET_BACKDROP_MODE,
+    });
     const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
     const sheetClassName = `ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''} ${sheetDrag.className}`.trim();
     useEffect(() => {
@@ -787,6 +801,11 @@ const AppContent = () => {
         map: ENABLE_MAPBOX,
         motion: ENABLE_SHEET_MOTION,
     });
+    const cardMatrixId = renderMatrixTestId({
+        map: ENABLE_MAPBOX,
+        limit: VENUE_RENDER_LIMIT,
+        motion: ENABLE_SHEET_MOTION,
+    });
 
     return (
         <>
@@ -814,10 +833,17 @@ const AppContent = () => {
             <div
                 className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
                 data-crash-isolation={isolationTestId}
+                data-render-matrix={cardMatrixId}
                 data-mapbox={ENABLE_MAPBOX ? 'on' : 'off'}
                 data-sheet-motion={ENABLE_SHEET_MOTION ? 'on' : 'off'}
                 data-pull-refresh={ENABLE_MASCOT_PULL_REFRESH ? 'on' : 'off'}
                 data-debug-mascot={DEBUG_MASCOT_RENDER ? 'on' : 'off'}
+                data-matrix-hud={MATRIX_HUD ? 'on' : 'off'}
+                data-venue-limit={VENUE_RENDER_LIMIT ?? 'all'}
+                data-rendered-venues={renderedVenues.length}
+                data-matching-venues={matchingCount}
+                data-sheet-will-change={SHEET_WILL_CHANGE_MODE}
+                data-sheet-backdrop={SHEET_BACKDROP_MODE}
             >
                 {DEBUG_MASCOT_RENDER ? <DebugStaticSunny /> : null}
                 <IsolationDevLog />
@@ -873,7 +899,7 @@ const AppContent = () => {
                             </span>
                             <span className="inline-flex items-center gap-2">
                                 {isRefreshing ? <span className="ss-venue-refresh-status">Updating…</span> : null}
-                                {!isRefreshing && refreshStatus.startsWith('Venue refresh failed') ? (
+                                {!isRefreshing && refreshFailureVisible(refreshStatus) ? (
                                     <span className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</span>
                                 ) : null}
                                 {(activeFilters.length > 0 || searchQuery.trim()) && (
@@ -895,7 +921,7 @@ const AppContent = () => {
                                     <LiveVenueList
                                         className="ss-mascot-ptr__scroller"
                                         virtuosoRef={sidebarVirtuosoRef}
-                                        venues={sortedVenues}
+                                        venues={renderedVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}
@@ -908,7 +934,7 @@ const AppContent = () => {
                                 <LiveVenueList
                                     className="ss-venue-list"
                                     virtuosoRef={sidebarVirtuosoRef}
-                                    venues={sortedVenues}
+                                    venues={renderedVenues}
                                     selectedVenue={selectedVenue}
                                     onVenueSelect={handleVenueSelect}
                                     weather={weather}
@@ -1100,6 +1126,8 @@ const AppContent = () => {
                                 className={sheetClassName}
                                 data-sheet-surface={ENABLE_SHEET_MOTION ? 'framer-motion' : 'static-div'}
                                 data-sheet-dragging={sheetDragging ? '1' : '0'}
+                                data-sheet-will-change={sheetDrag.willChange}
+                                data-sheet-backdrop={sheetDrag.backdropFilter}
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
@@ -1114,7 +1142,7 @@ const AppContent = () => {
                                         ) : null}
                                     </p>
                                     {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
-                                    {!isRefreshing && refreshStatus.startsWith('Venue refresh failed') ? (
+                                    {!isRefreshing && refreshFailureVisible(refreshStatus) ? (
                                         <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
                                     ) : null}
                                 </div>
@@ -1173,7 +1201,7 @@ const AppContent = () => {
                                             virtuosoRef={mobileVirtuosoRef}
                                             onPointerDownCapture={stopSheetPointer}
                                             safeAreaFooter
-                                            venues={sortedVenues}
+                                            venues={renderedVenues}
                                             selectedVenue={selectedVenue}
                                             onVenueSelect={handleVenueSelect}
                                             weather={weather}
@@ -1188,7 +1216,7 @@ const AppContent = () => {
                                         virtuosoRef={mobileVirtuosoRef}
                                         onPointerDownCapture={stopSheetPointer}
                                         safeAreaFooter
-                                        venues={sortedVenues}
+                                        venues={renderedVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}
@@ -1211,6 +1239,9 @@ const AppContent = () => {
                             <div
                                 className={sheetClassName}
                                 data-sheet-surface="static-div"
+                                data-sheet-dragging={sheetDragging ? '1' : '0'}
+                                data-sheet-will-change={sheetDrag.willChange}
+                                data-sheet-backdrop={sheetDrag.backdropFilter}
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
@@ -1225,7 +1256,7 @@ const AppContent = () => {
                                         ) : null}
                                     </p>
                                     {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
-                                    {!isRefreshing && refreshStatus.startsWith('Venue refresh failed') ? (
+                                    {!isRefreshing && refreshFailureVisible(refreshStatus) ? (
                                         <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
                                     ) : null}
                                 </div>
@@ -1284,7 +1315,7 @@ const AppContent = () => {
                                             virtuosoRef={mobileVirtuosoRef}
                                             onPointerDownCapture={stopSheetPointer}
                                             safeAreaFooter
-                                            venues={sortedVenues}
+                                            venues={renderedVenues}
                                             selectedVenue={selectedVenue}
                                             onVenueSelect={handleVenueSelect}
                                             weather={weather}
@@ -1299,7 +1330,7 @@ const AppContent = () => {
                                         virtuosoRef={mobileVirtuosoRef}
                                         onPointerDownCapture={stopSheetPointer}
                                         safeAreaFooter
-                                        venues={sortedVenues}
+                                        venues={renderedVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}

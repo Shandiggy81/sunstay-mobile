@@ -14,13 +14,21 @@ import { nextPullPhase, pullRefreshStatus, resolveRefreshHoldMs } from '../utils
 import {
     MASCOT_INDICATOR_SLOT_PX,
     MASCOT_PX,
+    applyActorDomOwner,
     pullTransformFromState,
     refreshingPullTransform,
-    resolvePullTermination,
     schedulePullFrame,
 } from '../utils/mascotPullTransform';
 import {
+    actorOpacityForPhase,
+    applyMascotTermination,
+    isStaleRefresh,
+    pointerLossEffect,
+    settleRefreshResult,
+} from '../utils/mascotRefreshLifecycle';
+import {
     clearPullPointerSession,
+    releasePullPointerCapture,
     shouldAcceptPullPointerDown,
     shouldHandlePullPointer,
 } from '../utils/pullPointerSession';
@@ -32,11 +40,6 @@ function findScroller(root) {
         || root.querySelector('.overscroll-contain')
         || root
     );
-}
-
-function resolveRefreshResult(result) {
-    if (result && result.ok === false && result.error) return 'error';
-    return 'success';
 }
 
 function applyOwnedTransform(setDistance, setScale, transform) {
@@ -61,7 +64,9 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
     className = '',
 }, ref) {
     const rootRef = useRef(null);
+    const actorRef = useRef(null);
     const phaseRef = useRef('idle');
+    const refreshGenRef = useRef(0);
     const sessionRef = useRef({
         tracking: false,
         confirmed: false,
@@ -76,6 +81,7 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
     const [phase, setPhase] = useState('idle');
     const [distance, setDistance] = useState(0);
     const [scale, setScale] = useState(1);
+    const [statusDetail, setStatusDetail] = useState({ timedOut: false });
     const distanceRef = useRef(0);
     const scaleRef = useRef(1);
     const terminateRef = useRef(() => {});
@@ -86,8 +92,20 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         setPhase(next);
     }, []);
 
+    const refreshFlightRef = useRef(false);
+
     const endSession = useCallback(() => {
+        const root = rootRef.current;
+        const pointerId = sessionRef.current.pointerId;
         clearPullPointerSession(sessionRef.current);
+        releasePullPointerCapture(root, { pointerId });
+    }, []);
+
+    const paintActor = useCallback((visual, nextPhase, opacity) => {
+        applyActorDomOwner(actorRef.current, visual, {
+            opacity,
+            refreshing: nextPhase === 'refreshing',
+        });
     }, []);
 
     const terminateGesture = useCallback((reason) => {
@@ -96,52 +114,92 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
             successTimerRef.current = null;
         }
         frameRef.current?.cancel();
-        const result = resolvePullTermination(reason, {
+        const next = applyMascotTermination({
             phase: phaseRef.current,
             distance: distanceRef.current,
             scale: scaleRef.current,
-        });
-        applyPhase(result.phase);
-        if (result.resetTransform) {
-            distanceRef.current = result.transform.distance;
-            scaleRef.current = result.transform.scale;
-            applyOwnedTransform(setDistance, setScale, result.transform);
-        }
+            generation: refreshGenRef.current,
+            showMascot,
+            timedOut: false,
+        }, reason);
+        refreshGenRef.current = next.generation;
+        phaseRef.current = next.phase;
+        distanceRef.current = next.distance;
+        scaleRef.current = next.scale;
+        setPhase(next.phase);
+        setDistance(next.distance);
+        setScale(next.scale);
+        if (next.phase !== 'error') setStatusDetail({ timedOut: false });
+        paintActor(next.transform, next.phase, next.opacity);
         endSession();
-        return result;
-    }, [applyPhase, endSession]);
+        return next;
+    }, [endSession, paintActor, showMascot]);
 
     terminateRef.current = terminateGesture;
 
+    const commitSettlement = useCallback((settled) => {
+        phaseRef.current = settled.phase;
+        distanceRef.current = settled.distance;
+        scaleRef.current = settled.scale;
+        setPhase(settled.phase);
+        setDistance(settled.distance);
+        setScale(settled.scale);
+        setStatusDetail({ timedOut: Boolean(settled.timedOut) });
+        paintActor(settled.transform, settled.phase, settled.opacity);
+    }, [paintActor]);
+
     const runRefresh = useCallback(async () => {
-        if (phaseRef.current === 'refreshing') return { ok: true, skipped: true };
+        if (refreshFlightRef.current) return { ok: true, skipped: true };
+        refreshFlightRef.current = true;
         if (successTimerRef.current) {
             clearTimeout(successTimerRef.current);
             successTimerRef.current = null;
         }
 
+        const gen = refreshGenRef.current;
         applyPhase('refreshing');
+        setStatusDetail({ timedOut: false });
         const refreshing = refreshingPullTransform();
         distanceRef.current = refreshing.distance;
         scaleRef.current = refreshing.scale;
         applyOwnedTransform(setDistance, setScale, refreshing);
+        paintActor(refreshing, 'refreshing', actorOpacityForPhase('refreshing', showMascot));
 
         let outcome = 'success';
         try {
             const result = await onRefresh?.();
-            outcome = resolveRefreshResult(result) === 'error' ? 'failure' : 'success';
-            applyPhase(nextPullPhase('refreshing', {
-                type: outcome === 'failure' ? 'refresh-error' : 'refresh-success',
-            }));
+            const settled = settleRefreshResult({
+                phase: phaseRef.current,
+                distance: distanceRef.current,
+                scale: scaleRef.current,
+                generation: refreshGenRef.current,
+                showMascot,
+            }, gen, result);
+            if (settled.ignored || isStaleRefresh(refreshGenRef.current, gen)) {
+                return { ok: false, stale: true, ignored: true };
+            }
+            outcome = settled.outcome;
+            commitSettlement(settled);
             return result;
         } catch (error) {
-            outcome = 'failure';
-            applyPhase('error');
-            return { ok: false, error };
+            const settled = settleRefreshResult({
+                phase: phaseRef.current,
+                distance: distanceRef.current,
+                scale: scaleRef.current,
+                generation: refreshGenRef.current,
+                showMascot,
+            }, gen, { ok: false, error });
+            if (settled.ignored || isStaleRefresh(refreshGenRef.current, gen)) {
+                return { ok: false, stale: true, ignored: true, error };
+            }
+            outcome = settled.outcome;
+            commitSettlement(settled);
+            return { ok: false, error, timedOut: Boolean(settled.timedOut) };
         } finally {
+            refreshFlightRef.current = false;
             endSession();
             frameRef.current?.cancel();
-            if (outcome === 'success' && phaseRef.current === 'success') {
+            if (!isStaleRefresh(refreshGenRef.current, gen) && outcome === 'success' && phaseRef.current === 'success') {
                 const parked = pullTransformFromState({
                     phase: 'success',
                     distance: 40,
@@ -150,15 +208,14 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
                 distanceRef.current = parked.distance;
                 scaleRef.current = parked.scale;
                 applyOwnedTransform(setDistance, setScale, parked);
+                paintActor(parked, 'success', actorOpacityForPhase('success', showMascot));
                 successTimerRef.current = window.setTimeout(() => {
                     terminateGesture('success');
                     successTimerRef.current = null;
                 }, resolveRefreshHoldMs(prefersReducedMotion));
-            } else {
-                terminateGesture(outcome === 'failure' ? 'failure' : 'success');
             }
         }
-    }, [applyPhase, endSession, onRefresh, prefersReducedMotion, terminateGesture]);
+    }, [applyPhase, commitSettlement, endSession, onRefresh, paintActor, prefersReducedMotion, showMascot, terminateGesture]);
 
     useImperativeHandle(ref, () => ({
         refresh: () => runRefresh(),
@@ -166,8 +223,8 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
     }), [runRefresh, terminateGesture]);
 
     useEffect(() => {
-        onStatusChange?.(pullRefreshStatus(phase));
-    }, [phase, onStatusChange]);
+        onStatusChange?.(pullRefreshStatus(phase, statusDetail));
+    }, [phase, statusDetail, onStatusChange]);
 
     useEffect(() => () => {
         terminateRef.current('unmount');
@@ -264,20 +321,10 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
             terminateGesture('threshold-miss');
         };
 
-        const onPointerCancel = (event) => {
+        const onPointerLoss = (event) => {
             if (!session.tracking || event.pointerId !== session.pointerId) return;
             if (!shouldHandlePullPointer(event, session)) return;
-            if (phaseRef.current === 'refreshing') {
-                endSession();
-                return;
-            }
-            terminateGesture('touchcancel');
-        };
-
-        const onLostPointerCapture = (event) => {
-            if (!session.tracking || event.pointerId !== session.pointerId) return;
-            if (!shouldHandlePullPointer(event, session)) return;
-            if (phaseRef.current === 'refreshing') {
+            if (pointerLossEffect(phaseRef.current) === 'release-only') {
                 endSession();
                 return;
             }
@@ -291,8 +338,8 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
         root.addEventListener('pointerdown', onPointerDown, { passive: true });
         root.addEventListener('pointermove', onPointerMove, { passive: false });
         root.addEventListener('pointerup', onPointerUp);
-        root.addEventListener('pointercancel', onPointerCancel);
-        root.addEventListener('lostpointercapture', onLostPointerCapture);
+        root.addEventListener('pointercancel', onPointerLoss);
+        root.addEventListener('lostpointercapture', onPointerLoss);
         root.addEventListener('touchmove', onTouchMove, { passive: false });
 
         return () => {
@@ -300,14 +347,14 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
             root.removeEventListener('pointerdown', onPointerDown);
             root.removeEventListener('pointermove', onPointerMove);
             root.removeEventListener('pointerup', onPointerUp);
-            root.removeEventListener('pointercancel', onPointerCancel);
-            root.removeEventListener('lostpointercapture', onLostPointerCapture);
+            root.removeEventListener('pointercancel', onPointerLoss);
+            root.removeEventListener('lostpointercapture', onPointerLoss);
             root.removeEventListener('touchmove', onTouchMove);
         };
     }, [enabled, applyPhase, endSession, runRefresh, terminateGesture]);
 
     const visual = pullTransformFromState({ phase, distance, scale });
-    const visible = showMascot && phase !== 'idle';
+    const opacity = actorOpacityForPhase(phase, showMascot);
     const actorClass = [
         'ss-mascot-ptr__actor',
         `ss-mascot-ptr__actor--${phase}`,
@@ -330,12 +377,15 @@ const MascotPullRefresh = forwardRef(function MascotPullRefresh({
                     aria-hidden={phase === 'error' ? undefined : true}
                 >
                     <div
+                        ref={actorRef}
                         className={actorClass}
                         data-phase={phase}
+                        data-ptr-opacity={opacity}
                         style={{
                             ...visual.cssVars,
                             transform: visual.transform,
-                            opacity: visible || phase === 'error' ? 1 : 0,
+                            opacity,
+                            animation: phase === 'refreshing' ? undefined : 'none',
                         }}
                     >
                         <img

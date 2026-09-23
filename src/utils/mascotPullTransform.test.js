@@ -4,6 +4,7 @@ import {
     HIDDEN_Y,
     MASCOT_INDICATOR_SLOT_PX,
     MASCOT_LAYER_Z,
+    applyActorDomOwner,
     idlePullTransform,
     mascotPullSurface,
     pullTransformFromState,
@@ -31,6 +32,22 @@ describe('mascot pull transform ownership', () => {
         assert.equal(idle.scale, 1);
         assert.equal(idle.distance, 0);
         assert.equal(idle.transform, `translate(-50%, ${HIDDEN_Y}px) scale(1)`);
+    });
+
+    it('writes the idle transform and opacity onto the actor node', () => {
+        const props = {};
+        const node = {
+            style: {
+                setProperty(name, value) { props[name] = value; },
+            },
+        };
+        const idle = idlePullTransform();
+        applyActorDomOwner(node, idle, { opacity: 0, refreshing: false });
+        assert.equal(node.style.transform, idle.transform);
+        assert.equal(node.style.opacity, '0');
+        assert.equal(node.style.animation, 'none');
+        assert.equal(props['--ss-ptr-y'], idle.cssVars['--ss-ptr-y']);
+        assert.equal(props['--ss-ptr-scale'], idle.cssVars['--ss-ptr-scale']);
     });
 });
 

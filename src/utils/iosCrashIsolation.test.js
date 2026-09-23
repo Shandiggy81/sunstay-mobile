@@ -7,6 +7,8 @@ import {
     ENABLE_SHEET_MOTION,
     crashTestId,
     mapSurfaceMode,
+    renderMatrixTestId,
+    resolveIosIsolation,
     sheetSurfaceMode,
     venueListMode,
 } from './iosCrashIsolation.js';
@@ -49,5 +51,57 @@ describe('iOS crash isolation flags', () => {
         assert.equal(mapSurfaceMode(false), 'static-fallback');
         assert.equal(sheetSurfaceMode(true), 'framer-motion');
         assert.equal(sheetSurfaceMode(false), 'static-div');
+    });
+});
+
+describe('card-count isolation overrides', () => {
+    function storage(seed = {}) {
+        const data = { ...seed };
+        return {
+            getItem: (key) => (Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null),
+        };
+    }
+
+    it('shows every venue unless a 15/30/45/59 override is set', () => {
+        const defaults = resolveIosIsolation({});
+        assert.equal(defaults.venueRenderLimit, null);
+        assert.equal(defaults.mapbox, true);
+        assert.equal(defaults.sheetMotion, true);
+        assert.equal(defaults.refreshHang, false);
+        assert.equal(defaults.matrixHud, false);
+        assert.equal(defaults.sheetWillChange, 'while-dragging');
+        assert.equal(defaults.sheetBackdrop, 'none-while-dragging');
+        assert.equal(defaults.renderMatrix, 'default');
+    });
+
+    it('lets the query string override storage for the A–E card matrix', () => {
+        assert.equal(renderMatrixTestId({ map: true, limit: 59, motion: true }), 'A');
+        assert.equal(renderMatrixTestId({ map: false, limit: 59, motion: true }), 'B');
+        assert.equal(renderMatrixTestId({ map: true, limit: 15, motion: true }), 'C');
+        assert.equal(renderMatrixTestId({ map: true, limit: 59, motion: false }), 'D');
+        assert.equal(renderMatrixTestId({ map: false, limit: 15, motion: false }), 'E');
+        assert.equal(renderMatrixTestId({ map: true, limit: 30, motion: true }), 'custom');
+
+        const fromQuery = resolveIosIsolation({
+            search: '?mapbox=0&venueLimit=15&sheetMotion=0&matrixHud=1&sheetWillChange=off&refreshHang=1',
+            storage: storage({ 'ss-venue-render-limit': '59', 'ss-mapbox': '1' }),
+        });
+        assert.equal(fromQuery.renderMatrix, 'E');
+        assert.equal(fromQuery.venueRenderLimit, 15);
+        assert.equal(fromQuery.mapbox, false);
+        assert.equal(fromQuery.sheetMotion, false);
+        assert.equal(fromQuery.matrixHud, true);
+        assert.equal(fromQuery.sheetWillChange, 'off');
+        assert.equal(fromQuery.refreshHang, true);
+    });
+
+    it('reads localStorage when the query does not set the flag', () => {
+        const flags = resolveIosIsolation({
+            search: '',
+            storage: storage({ 'ss-venue-render-limit': '30', 'ss-sheet-backdrop': 'always' }),
+        });
+        assert.equal(flags.venueRenderLimit, 30);
+        assert.equal(flags.sheetBackdrop, 'always');
+        assert.equal(flags.renderMatrix, 'custom');
     });
 });
