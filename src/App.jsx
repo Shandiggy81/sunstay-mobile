@@ -18,6 +18,11 @@ import { useVenues } from './hooks/useVenues';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
 import { sliceVenuesForRender } from './utils/venueRenderLimit';
+import {
+    INITIAL_VISIBLE_VENUES,
+    VENUES_PER_LOAD,
+    venueResultIdentity,
+} from './utils/progressiveVenueList';
 import { ENABLE_MANUAL_VENUE_REFRESH } from './utils/manualVenueRefresh';
 import MascotPullRefresh from './components/MascotPullRefresh';
 import VenueRefreshButton from './components/VenueRefreshButton';
@@ -31,6 +36,7 @@ import {
     SHEET_BACKDROP_MODE,
     SHEET_WILL_CHANGE_MODE,
     VENUE_RENDER_LIMIT,
+    VENUE_RENDER_MODE,
     crashTestId,
     renderMatrixTestId,
 } from './utils/iosCrashIsolation';
@@ -272,6 +278,24 @@ const SafeAreaListFooter = () => (
     <div aria-hidden="true" style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
 );
 
+const VenueListFooter = ({ context }) => (
+    <>
+        {context?.showLoadMore ? (
+            <div className="ss-load-more-venues-wrap">
+                <button
+                    type="button"
+                    className="ss-load-more-venues"
+                    onClick={context.onLoadMore}
+                    aria-label="Load more venues"
+                >
+                    Load more venues
+                </button>
+            </div>
+        ) : null}
+        {context?.safeAreaFooter ? <SafeAreaListFooter /> : null}
+    </>
+);
+
 const LiveVenueList = memo(function LiveVenueList({
     venues,
     selectedVenue,
@@ -282,12 +306,15 @@ const LiveVenueList = memo(function LiveVenueList({
     virtuosoRef,
     onPointerDownCapture,
     safeAreaFooter = false,
+    showLoadMore = false,
+    onLoadMore,
 }) {
     if (venues.length === 0) {
         return (
             <div
                 className={className}
                 onPointerDownCapture={onPointerDownCapture}
+                data-visible-venues={0}
                 style={{ overscrollBehaviorY: 'contain' }}
             >
                 {empty}
@@ -296,18 +323,20 @@ const LiveVenueList = memo(function LiveVenueList({
     }
 
     return (
-        <div
-            className={className}
-            onPointerDownCapture={onPointerDownCapture}
-            style={{ overscrollBehaviorY: 'contain' }}
-        >
+            <div
+                className={className}
+                onPointerDownCapture={onPointerDownCapture}
+                data-visible-venues={venues.length}
+                style={{ overscrollBehaviorY: 'contain' }}
+            >
             <Virtuoso
                 ref={virtuosoRef}
                 data={venues}
                 computeItemKey={(_index, venue) => venue.id}
+                context={{ showLoadMore, onLoadMore, safeAreaFooter }}
                 style={{ flex: 1, minHeight: 0, height: '100%', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}
                 className="overscroll-contain"
-                components={safeAreaFooter ? { Footer: SafeAreaListFooter } : {}}
+                components={(showLoadMore || safeAreaFooter) ? { Footer: VenueListFooter } : {}}
                 itemContent={(_index, venue) => (
                     <div className="pb-2">
                         <VenueListCard
@@ -565,10 +594,22 @@ const AppContent = () => {
         () => sortVenuesBySunstayScore(filteredVenues, calculateSunstayScore),
         [filteredVenues, calculateSunstayScore, previewMinutes]
     );
-    const renderedVenues = useMemo(
-        () => sliceVenuesForRender(sortedVenues, VENUE_RENDER_LIMIT),
-        [sortedVenues]
-    );
+    const resultIdentity = useMemo(() => venueResultIdentity(sortedVenues), [sortedVenues]);
+    const [visibleVenueCount, setVisibleVenueCount] = useState(INITIAL_VISIBLE_VENUES);
+    const [windowIdentity, setWindowIdentity] = useState(resultIdentity);
+    if (windowIdentity !== resultIdentity) {
+        setWindowIdentity(resultIdentity);
+        setVisibleVenueCount(INITIAL_VISIBLE_VENUES);
+    }
+    const renderedVenues = useMemo(() => {
+        if (VENUE_RENDER_MODE === 'diagnostic-all') return sortedVenues;
+        if (VENUE_RENDER_MODE === 'diagnostic-cap') return sliceVenuesForRender(sortedVenues, VENUE_RENDER_LIMIT);
+        return sortedVenues.slice(0, visibleVenueCount);
+    }, [sortedVenues, visibleVenueCount]);
+    const hasMoreVenues = VENUE_RENDER_MODE === 'progressive' && visibleVenueCount < sortedVenues.length;
+    const handleLoadMoreVenues = useCallback(() => {
+        setVisibleVenueCount((count) => count + VENUES_PER_LOAD);
+    }, []);
 
     const filteredVenueIds = useMemo(
         () => filteredVenues.map(venue => venue.id),
@@ -741,14 +782,16 @@ const AppContent = () => {
         return () => clearTimeout(t);
     }, [locateHint]);
 
+    const renderedVenuesRef = useRef(renderedVenues);
+    renderedVenuesRef.current = renderedVenues;
     useEffect(() => {
         if (!selectedVenue) return undefined;
-        const index = renderedVenues.findIndex((v) => v.id === selectedVenue.id);
+        const index = renderedVenuesRef.current.findIndex((v) => v.id === selectedVenue.id);
         if (index < 0) return undefined;
         sidebarVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         mobileVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         return undefined;
-    }, [selectedVenue, renderedVenues]);
+    }, [selectedVenue]);
 
     const selectedLiveFeatureState = selectedVenue?.id ? liveVenueFeatures?.[selectedVenue.id] : null;
     const selectedVenueLiveFeatures = useMemo(() => {
@@ -839,9 +882,11 @@ const AppContent = () => {
                 data-pull-refresh={ENABLE_MASCOT_PULL_REFRESH ? 'on' : 'off'}
                 data-debug-mascot={DEBUG_MASCOT_RENDER ? 'on' : 'off'}
                 data-matrix-hud={MATRIX_HUD ? 'on' : 'off'}
-                data-venue-limit={VENUE_RENDER_LIMIT ?? 'all'}
+                data-venue-limit={VENUE_RENDER_MODE === 'progressive' ? 'progressive' : (VENUE_RENDER_LIMIT ?? 'all')}
+                data-venue-window={VENUE_RENDER_MODE}
                 data-rendered-venues={renderedVenues.length}
                 data-matching-venues={matchingCount}
+                data-load-more={hasMoreVenues ? '1' : '0'}
                 data-sheet-will-change={SHEET_WILL_CHANGE_MODE}
                 data-sheet-backdrop={SHEET_BACKDROP_MODE}
             >
@@ -922,6 +967,8 @@ const AppContent = () => {
                                         className="ss-mascot-ptr__scroller"
                                         virtuosoRef={sidebarVirtuosoRef}
                                         venues={renderedVenues}
+                                        showLoadMore={hasMoreVenues}
+                                        onLoadMore={handleLoadMoreVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}
@@ -935,6 +982,8 @@ const AppContent = () => {
                                     className="ss-venue-list"
                                     virtuosoRef={sidebarVirtuosoRef}
                                     venues={renderedVenues}
+                                        showLoadMore={hasMoreVenues}
+                                        onLoadMore={handleLoadMoreVenues}
                                     selectedVenue={selectedVenue}
                                     onVenueSelect={handleVenueSelect}
                                     weather={weather}
@@ -1202,6 +1251,8 @@ const AppContent = () => {
                                             onPointerDownCapture={stopSheetPointer}
                                             safeAreaFooter
                                             venues={renderedVenues}
+                                            showLoadMore={hasMoreVenues}
+                                            onLoadMore={handleLoadMoreVenues}
                                             selectedVenue={selectedVenue}
                                             onVenueSelect={handleVenueSelect}
                                             weather={weather}
@@ -1217,6 +1268,8 @@ const AppContent = () => {
                                         onPointerDownCapture={stopSheetPointer}
                                         safeAreaFooter
                                         venues={renderedVenues}
+                                        showLoadMore={hasMoreVenues}
+                                        onLoadMore={handleLoadMoreVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}
@@ -1316,6 +1369,8 @@ const AppContent = () => {
                                             onPointerDownCapture={stopSheetPointer}
                                             safeAreaFooter
                                             venues={renderedVenues}
+                                            showLoadMore={hasMoreVenues}
+                                            onLoadMore={handleLoadMoreVenues}
                                             selectedVenue={selectedVenue}
                                             onVenueSelect={handleVenueSelect}
                                             weather={weather}
@@ -1331,6 +1386,8 @@ const AppContent = () => {
                                         onPointerDownCapture={stopSheetPointer}
                                         safeAreaFooter
                                         venues={renderedVenues}
+                                        showLoadMore={hasMoreVenues}
+                                        onLoadMore={handleLoadMoreVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}

@@ -7,6 +7,7 @@ import {
     SHEET_BACKDROP_MODE,
     SHEET_WILL_CHANGE_MODE,
     VENUE_RENDER_LIMIT,
+    VENUE_RENDER_MODE,
     crashTestId,
     mapSurfaceMode,
     renderMatrixTestId,
@@ -58,7 +59,7 @@ export default function IsolationDevLog() {
             <p>flag-map:{mapSurfaceMode()}</p>
             <p>flag-motion:{sheetSurfaceMode()}</p>
             <p>flag-pull:{venueListMode()}</p>
-            <p>flag-limit:{VENUE_RENDER_LIMIT ?? 'all'}</p>
+            <p>flag-limit:{VENUE_RENDER_MODE === 'progressive' ? 'progressive' : (VENUE_RENDER_LIMIT ?? 'all')}</p>
             <p>flag-will:{SHEET_WILL_CHANGE_MODE}</p>
             <p>flag-blur:{SHEET_BACKDROP_MODE}</p>
             {lines.map((line) => (

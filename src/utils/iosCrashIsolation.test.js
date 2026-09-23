@@ -72,6 +72,7 @@ describe('card-count isolation overrides', () => {
         assert.equal(defaults.sheetWillChange, 'while-dragging');
         assert.equal(defaults.sheetBackdrop, 'none-while-dragging');
         assert.equal(defaults.renderMatrix, 'default');
+        assert.equal(defaults.venueRenderMode, 'progressive');
     });
 
     it('lets the query string override storage for the A–E card matrix', () => {
@@ -103,5 +104,15 @@ describe('card-count isolation overrides', () => {
         assert.equal(flags.venueRenderLimit, 30);
         assert.equal(flags.sheetBackdrop, 'always');
         assert.equal(flags.renderMatrix, 'custom');
+        assert.equal(flags.venueRenderMode, 'diagnostic-cap');
+    });
+
+    it('keeps venueLimit=all as a diagnostic show-all, separate from progressive', () => {
+        const showAll = resolveIosIsolation({ search: '?venueLimit=all' });
+        assert.equal(showAll.venueRenderLimit, null);
+        assert.equal(showAll.venueRenderMode, 'diagnostic-all');
+        assert.equal(showAll.renderMatrix, 'default');
+        assert.equal(resolveIosIsolation({ search: '?venueLimit=45' }).venueRenderLimit, 45);
+        assert.equal(resolveIosIsolation({ search: '?venueLimit=45' }).venueRenderMode, 'diagnostic-cap');
     });
 });

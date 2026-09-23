@@ -3889,6 +3889,36 @@ body,
   outline-offset: 2px;
 }
 
+.ss-load-more-venues-wrap {
+  padding: 4px 2px 8px;
+}
+
+.ss-load-more-venues {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-radius: 9999px;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+
+.ss-load-more-venues:hover {
+  background: #fef3c7;
+}
+
+.ss-load-more-venues:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
 .ss-venue-refresh-btn:disabled,
 .ss-venue-refresh-btn--busy {
   opacity: 0.65;
