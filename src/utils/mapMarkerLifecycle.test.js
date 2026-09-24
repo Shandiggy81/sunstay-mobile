@@ -11,6 +11,7 @@ import {
     noteMarkerListeners,
     noteSourceWait,
     releaseMarkerRecord,
+    releaseMarkerSyncFrame,
     releaseMarkerRecords,
     requestMarkerSync,
     requiredMarkerGate,
@@ -159,9 +160,13 @@ describe('generation-safe markers', () => {
     });
 
     it('does not treat a loaded source with no features as required marker sync', () => {
-        assert.equal(requiredMarkerGate({ sourceLoaded: true, featureCount: 0, venueCount: 48 }).ready, false);
-        assert.equal(requiredMarkerGate({ sourceLoaded: true, featureCount: 12, venueCount: 48 }).ready, true);
-        assert.equal(requiredMarkerGate({ sourceLoaded: true, featureCount: 0, venueCount: 0 }).ready, true);
+        assert.equal(requiredMarkerGate({ sourceLoaded: true, featureCount: 0 }).reason, 'markers-cleared');
+        assert.equal(requiredMarkerGate({ sourceLoaded: true, featureCount: 0 }).ready, true);
+        assert.equal(requiredMarkerGate({ sourceLoaded: true, featureCount: 12 }).ready, true);
+        const locked = requestMarkerSync(createSyncScheduler(), 2);
+        const released = releaseMarkerSyncFrame(locked.scheduler);
+        assert.equal(released.frame, false);
+        assert.equal(requestMarkerSync(released, 2).run, true);
         const waiting = noteSourceWait(requestMarkerSync(createSyncScheduler(), 2).scheduler);
         assert.equal(waiting.frame, false);
         assert.equal(waiting.sourceWaits, 1);

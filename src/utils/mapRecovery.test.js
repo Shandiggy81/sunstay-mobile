@@ -120,6 +120,7 @@ describe('map recovery transitions', () => {
         assert.equal(again.reason, 'session-locked');
         assert.equal(again.state.phase, 'resume-failed');
         assert.equal(mapRecoveryControl(failed, 12000).showResume, false);
+        assert.equal(mapRecoveryControl(failed, 12000).showReload, true);
         assert.equal(mapRecoveryControl(failed, 12000).status, 'Map could not be resumed. Reload the page to try again.');
     });
 
@@ -134,6 +135,9 @@ describe('map recovery transitions', () => {
         assert.equal(second.state.contextLosses, 2);
         assert.equal(requestMapResume(second.state, 20000).reason, 'session-locked');
         assert.equal(recoveryEffectTick(second.state).state.phase, 'paused');
+        assert.equal(mapRecoveryControl(second.state, 20000).showReload, true);
+        assert.equal(mapRecoveryControl(second.state, 20000).showResume, false);
+        assert.equal(mapRecoveryControl(second.state, 20000).showProgress, false);
         assert.equal(mapRecoveryControl(second.state, 20000).status, 'Map paused for this session. Reload the page to try again.');
     });
 

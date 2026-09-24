@@ -181,6 +181,7 @@ export function mapRecoveryControl(state, now, { mapboxEnabled = true } = {}) {
         minWidth: 44,
         minHeight: 44,
         status: '',
+        showReload: false,
         mode: mapboxEnabled ? 'mapbox' : 'static-fallback',
     };
     if (!mapboxEnabled) return hidden;
@@ -191,6 +192,7 @@ export function mapRecoveryControl(state, now, { mapboxEnabled = true } = {}) {
         const failed = current.phase === 'resume-failed';
         return {
             ...hidden,
+            showReload: true,
             status: failed
                 ? 'Map could not be resumed. Reload the page to try again.'
                 : 'Map paused for this session. Reload the page to try again.',

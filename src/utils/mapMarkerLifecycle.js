@@ -110,11 +110,17 @@ export function markerSyncDecision({ sourceLoaded = false } = {}) {
 export function requiredMarkerGate({
     sourceLoaded = false,
     featureCount = 0,
-    venueCount = 0,
 } = {}) {
     if (!sourceLoaded) return { ready: false, reason: 'source-not-loaded' };
-    if (venueCount > 0 && featureCount === 0) return { ready: false, reason: 'features-missing' };
+    if (featureCount === 0) return { ready: true, reason: 'markers-cleared' };
     return { ready: true, reason: 'markers-synced' };
+}
+
+/** Drop an in-flight sync frame so a canceled animation frame cannot lock the scheduler. */
+export function releaseMarkerSyncFrame(scheduler) {
+    const current = scheduler ?? createSyncScheduler();
+    if (!current.frame) return current;
+    return { ...current, frame: false };
 }
 
 export function resumeMayGoLive({ requiredMarkersReady = false } = {}) {

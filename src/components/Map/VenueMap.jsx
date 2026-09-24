@@ -40,6 +40,7 @@ import {
     noteSourceWait,
     publishMarkerSync,
     releaseMarkerRecords,
+    releaseMarkerSyncFrame,
     requestMarkerSync,
     requiredMarkerGate,
     resumeMayGoLive,
@@ -906,6 +907,7 @@ const VenueMap = forwardRef(({
         let generation = recoveryRef.current.generation;
         if (reason === 'resume') {
             if (recoveryRef.current.phase !== 'resuming') return;
+            mapGenerationRef.current = generation;
         } else {
             const started = startMapLoad(recoveryRef.current);
             if (!started.ok) return;
@@ -1078,6 +1080,7 @@ const VenueMap = forwardRef(({
                 map.current.touchZoomRotate.disableRotation();
                 if (reason === 'resume') {
                     recordResumeMark(generation, 'map-load');
+                    mapGenerationRef.current = generation;
                     mapInitLockRef.current = false;
                     setMapLoaded(true);
                     setMapError(false);
@@ -1190,6 +1193,7 @@ const VenueMap = forwardRef(({
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
             }
+            syncSchedulerRef.current = releaseMarkerSyncFrame(syncSchedulerRef.current);
             const lostCamera = captureMapCamera(map.current);
             if (lostCamera) recoveryCameraRef.current = lostCamera;
             const camera = MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED
@@ -1314,8 +1318,9 @@ const VenueMap = forwardRef(({
     };
 
     finishResumeRef.current = (generation) => {
+        const activeGeneration = recoveryRef.current.generation;
         if (recoveryRef.current.phase !== 'resuming') return;
-        if (recoveryRef.current.generation !== generation) return;
+        if (generation !== activeGeneration || mapGenerationRef.current !== activeGeneration) return;
         const loaded = noteMapLoaded(recoveryRef.current, generation);
         if (!loaded.ok) return;
         mapGenerationRef.current = loaded.state.generation;
@@ -1537,7 +1542,6 @@ const VenueMap = forwardRef(({
                 const gate = requiredMarkerGate({
                     sourceLoaded: true,
                     featureCount: features.length,
-                    venueCount: venuesMapRef.current.size,
                 });
                 if (!gate.ready) {
                     syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
@@ -1675,6 +1679,8 @@ const VenueMap = forwardRef(({
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
             }
+            syncSchedulerRef.current = releaseMarkerSyncFrame(syncSchedulerRef.current);
+            publishMarkerSync(syncSchedulerRef.current);
             if (map.current !== instance || mapGenerationRef.current !== generation) {
                 releaseMarkerRecords(markersRef.current);
                 markersRef.current = {};
@@ -1770,7 +1776,7 @@ const VenueMap = forwardRef(({
                 data-map-recovery={recovery.phase}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
-            {recoveryControl.showResume || recoveryControl.showProgress ? (
+            {recoveryControl.showResume || recoveryControl.showProgress || recoveryControl.showReload ? (
                 <div
                     data-webgl-recovery="1"
                     role="status"
@@ -1791,6 +1797,17 @@ const VenueMap = forwardRef(({
                                 style={{ minWidth: 44, minHeight: 44 }}
                             >
                                 Resume map
+                            </button>
+                        ) : null}
+                        {recoveryControl.showReload ? (
+                            <button
+                                type="button"
+                                onClick={() => window.location.reload()}
+                                aria-label="Reload"
+                                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-amber-500 px-4 text-sm font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
+                                style={{ minWidth: 44, minHeight: 44 }}
+                            >
+                                Reload
                             </button>
                         ) : null}
                     </div>
@@ -1902,7 +1919,7 @@ const VenueMap = forwardRef(({
                 </div>
             )}
 
-            {(!mapLoaded || mapError) && (
+            {(!mapLoaded || mapError) && !recovery.sessionLocked && (
                 <div
                     style={styles.overlay}
                     data-map-failure-kind={mapError
