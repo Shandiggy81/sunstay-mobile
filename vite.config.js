@@ -13,10 +13,11 @@ export default defineConfig({
     build: {
         rollupOptions: {
             output: {
-                manualChunks: {
-                    vendor: ['react', 'react-dom'],
-                    map: ['mapbox-gl'],
-                    ui: ['framer-motion'],
+                manualChunks(id) {
+                    if (id.includes('node_modules/react-dom/') || id.includes('node_modules/react/')) return 'vendor';
+                    if (id.includes('node_modules/mapbox-gl/')) return 'map';
+                    if (id.includes('node_modules/framer-motion/')) return 'ui';
+                    if (id.includes('node_modules/@xweather/mapsgl/')) return 'mapsgl';
                 },
             },
         },

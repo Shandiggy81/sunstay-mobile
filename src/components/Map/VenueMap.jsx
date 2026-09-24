@@ -5,7 +5,6 @@ import React, {
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
-import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
 import { useMicroclimateActions, useMicroclimateState } from '../../context/MicroclimateContext';
@@ -269,8 +268,8 @@ function createMarkerEl(pinKey, score) {
 
     if (isSunny) {
         const ring = document.createElement('div');
-        ring.className = 'absolute inset-0 rounded-full animate-ping';
-        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75; animation-duration: 2s; pointer-events: none;';
+        ring.className = 'absolute inset-0 rounded-full ss-pin-ping';
+        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75;';
         el.appendChild(ring);
     }
 
@@ -285,7 +284,6 @@ function createMarkerEl(pinKey, score) {
         'box-shadow:0 2px 8px rgba(0,0,0,0.15)',
         'transition:transform 120ms ease, filter 120ms ease',
         'user-select:none', 'line-height:1',
-        'will-change:transform',
         '-webkit-tap-highlight-color:transparent',
         'position:relative', 'z-index:10'
     ].join(';');
@@ -311,12 +309,12 @@ function updateMarkerEl(el, pinKey, score) {
     inner.style.color = color || '#0f172a';
 
     const isSunny = pinKey === 'sunshine' || pinKey === 'sunny';
-    const existingRing = el.querySelector('.animate-ping');
+    const existingRing = el.querySelector('.ss-pin-ping');
 
     if (isSunny && !existingRing) {
         const ring = document.createElement('div');
-        ring.className = 'absolute inset-0 rounded-full animate-ping';
-        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75; animation-duration: 2s; pointer-events: none;';
+        ring.className = 'absolute inset-0 rounded-full ss-pin-ping';
+        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75;';
         el.insertBefore(ring, inner);
     } else if (!isSunny && existingRing) {
         existingRing.remove();
@@ -337,7 +335,7 @@ function createClusterMarkerEl(count) {
         'font-size:16px', 'font-weight:bold', 'color:white',
         'cursor:pointer', 'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
         'transition:transform 120ms ease', 'user-select:none',
-        'will-change:transform', '-webkit-tap-highlight-color:transparent'
+        '-webkit-tap-highlight-color:transparent'
     ].join(';');
 
     inner.textContent = count;
@@ -388,6 +386,12 @@ const HEATMAP_LAYER_ID  = 'comfort-heatmap-lyr';
 
 const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_KEY || '').trim();
 const XWEATHER_KEY = (import.meta.env.VITE_XWEATHER_KEY || '').trim();
+
+let mapsGlModulePromise = null;
+function loadMapsGl() {
+    if (!mapsGlModulePromise) mapsGlModulePromise = import('@xweather/mapsgl');
+    return mapsGlModulePromise;
+}
 const CLOUD_SOURCE_ID = 'openweathermap-cloud';
 const CLOUD_LAYER_ID  = 'openweathermap-cloud-layer';
 
@@ -512,7 +516,13 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     // Writer-only: publishing the scrub position re-renders the microclimate
     // readouts, not this component or the map.
     const { setTodMinutes } = useMicroclimateActions();
-    const [sliderMinutes, setSliderMinutes] = useState(() => localTimeToSliderMinutes());
+    const [sliderMinutes, setSliderMinutes] = useState(() => {
+        const existing = Number(todMinutes);
+        if (Number.isFinite(existing)) {
+            return Math.min(DAY_END_MIN, Math.max(DAY_START_MIN, Math.round(existing)));
+        }
+        return localTimeToSliderMinutes();
+    });
     const minutesRef = useRef(sliderMinutes);
     const lightTimerRef = useRef(null);
     const lastLightApplyAtRef = useRef(0);
@@ -633,8 +643,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     // Melbourne wall-clock (AEST/AEDT), matching the sun curve index and
     // the "is this the current hour?" comparison.
     useEffect(() => {
+        if (todMinutes != null) return;
         setTodMinutes(minutesRef.current);
-    }, [setTodMinutes]);
+    }, [setTodMinutes, todMinutes]);
 
     // Sunny (and any other writer) publishes through MicroclimateContext.
     // Keep the thumb + 3D lights in lockstep when that value changes
@@ -731,7 +742,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
                         onKeyUp={settleScrub}
                         aria-label="Time of day for 3D building shadows"
                         aria-valuetext={clock}
-                        className="h-6 w-full cursor-pointer accent-amber-500 touch-pan-x"
+                        className="h-11 min-h-11 w-full cursor-pointer accent-amber-500 touch-pan-x"
                     />
                 </div>
             </div>
@@ -1056,23 +1067,6 @@ const VenueMap = forwardRef(({
                     console.warn('[VenueMap] hide POI labels failed:', e?.message);
                 }
                 reduceMobileGpu();
-                const initializeWeatherController = () => {
-                    if (controllerRef.current) return;
-                    if (!XWEATHER_KEY) return;
-                    try {
-                        const account = new Account(XWEATHER_KEY);
-                        const controller = new MapboxMapController(map.current, { account });
-                        controllerRef.current = controller;
-                        if (!isMobileDevice) {
-                            controller.addWeatherLayer('radar');
-                            controller.setWeatherLayerVisibility('radar', false);
-                            radarLayerAddedRef.current = true;
-                        }
-                    } catch (e) {
-                        console.warn('[VenueMap] Xweather radar setup failed:', e?.message);
-                    }
-                };
-                initializeWeatherController();
                 // Global 3D lighting (and its cast shadows) is owned by the
                 // TimeOfDayLight slider, which applies map.setLights() as soon as
                 // the map reports loaded — no legacy setLight() needed here.
@@ -1395,40 +1389,39 @@ const VenueMap = forwardRef(({
             map.current.getSource(CLUSTER_SOURCE_ID).setData(geojsonData);
         }
 
-        if (!map.current.getSource(HEATMAP_SOURCE_ID)) {
-            map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: geojsonData });
+        if (comfortMapOn) {
+            if (!map.current.getSource(HEATMAP_SOURCE_ID)) {
+                map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: geojsonData });
 
-            const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
-            map.current.addLayer({
-                id:      HEATMAP_LAYER_ID,
-                type:    'heatmap',
-                source:  HEATMAP_SOURCE_ID,
-                maxzoom: 15,
-                paint: {
-                    'heatmap-weight':     ['get', 'score'],
-                    'heatmap-intensity':  ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
-                    'heatmap-color': [
-                        'interpolate', ['linear'], ['heatmap-density'],
-                        0,    'rgba(0,0,0,0)',
-                        0.15, 'rgba(37,99,235,0.25)',
-                        0.45, 'rgba(16,185,129,0.40)',
-                        0.75, 'rgba(245,158,11,0.55)',
-                        1.0,  'rgba(239,68,68,0.65)',
-                    ],
-                    'heatmap-radius':  ['interpolate', ['linear'], ['zoom'], 0, 3, 15, 55],
-                    'heatmap-opacity': 0.45,
-                },
-            }, insertBefore);
-        } else {
-            map.current.getSource(HEATMAP_SOURCE_ID).setData(geojsonData);
-        }
-
-        if (map.current.getLayer(HEATMAP_LAYER_ID)) {
-            map.current.setLayoutProperty(
-                HEATMAP_LAYER_ID,
-                'visibility',
-                comfortMapOn ? 'visible' : 'none'
-            );
+                const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
+                map.current.addLayer({
+                    id:      HEATMAP_LAYER_ID,
+                    type:    'heatmap',
+                    source:  HEATMAP_SOURCE_ID,
+                    maxzoom: 15,
+                    paint: {
+                        'heatmap-weight':     ['get', 'score'],
+                        'heatmap-intensity':  ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
+                        'heatmap-color': [
+                            'interpolate', ['linear'], ['heatmap-density'],
+                            0,    'rgba(0,0,0,0)',
+                            0.15, 'rgba(37,99,235,0.25)',
+                            0.45, 'rgba(16,185,129,0.40)',
+                            0.75, 'rgba(245,158,11,0.55)',
+                            1.0,  'rgba(239,68,68,0.65)',
+                        ],
+                        'heatmap-radius':  ['interpolate', ['linear'], ['zoom'], 0, 3, 15, 55],
+                        'heatmap-opacity': 0.45,
+                    },
+                }, insertBefore);
+            } else {
+                map.current.getSource(HEATMAP_SOURCE_ID).setData(geojsonData);
+            }
+            if (map.current.getLayer(HEATMAP_LAYER_ID)) {
+                map.current.setLayoutProperty(HEATMAP_LAYER_ID, 'visibility', 'visible');
+            }
+        } else if (map.current.getLayer(HEATMAP_LAYER_ID)) {
+            map.current.setLayoutProperty(HEATMAP_LAYER_ID, 'visibility', 'none');
         }
     }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore, microById, clusterTodMinutes]);
 
@@ -1746,22 +1739,39 @@ const VenueMap = forwardRef(({
 
     // ── Xweather radar visibility ───────────────────────────────────
     useEffect(() => {
-        if (!mapLoaded || !controllerRef.current || recovery.phase === 'resuming') return;
+        if (!mapLoaded || !map.current || recovery.phase === 'resuming') return undefined;
+        if (!showRadar && !controllerRef.current) return undefined;
 
-        try {
-            if (showRadar && !radarLayerAddedRef.current) {
-                controllerRef.current.addWeatherLayer('radar');
-                radarLayerAddedRef.current = true;
+        const instance = map.current;
+        let cancelled = false;
+
+        (async () => {
+            try {
+                if (showRadar && !controllerRef.current) {
+                    if (!XWEATHER_KEY) return;
+                    const { MapboxMapController, Account } = await loadMapsGl();
+                    if (cancelled || map.current !== instance) return;
+                    controllerRef.current = new MapboxMapController(instance, {
+                        account: new Account(XWEATHER_KEY),
+                    });
+                }
+                if (!controllerRef.current || cancelled) return;
+                if (showRadar && !radarLayerAddedRef.current) {
+                    controllerRef.current.addWeatherLayer('radar');
+                    radarLayerAddedRef.current = true;
+                }
+                if (radarLayerAddedRef.current) {
+                    controllerRef.current.setWeatherLayerVisibility('radar', showRadar);
+                }
+            } catch (e) {
+                console.warn('[VenueMap] Xweather radar visibility update failed:', e?.message);
             }
-            if (radarLayerAddedRef.current) {
-                controllerRef.current.setWeatherLayerVisibility('radar', showRadar);
+            if (!cancelled && recovery.resumeAttempts > 0 && recovery.phase === 'live') {
+                recordResumeMark(recovery.generation, 'map-optional-overlays-end');
             }
-        } catch (e) {
-            console.warn('[VenueMap] Xweather radar visibility update failed:', e?.message);
-        }
-        if (recovery.resumeAttempts > 0 && recovery.phase === 'live') {
-            recordResumeMark(recovery.generation, 'map-optional-overlays-end');
-        }
+        })();
+
+        return () => { cancelled = true; };
     }, [mapLoaded, showRadar, recovery.phase, recovery.generation, recovery.resumeAttempts]);
 
     const recoveryControl = mapRecoveryControl(recovery, cooldownNow);
