@@ -93,3 +93,121 @@ export function bindMapGestureListeners(map, generation, getGeneration, handler,
         return true;
     };
 }
+
+/**
+ * Marker sync must not wait for the basemap `idle` event. That event waits
+ * for style tiles. The GeoJSON cluster source can be read as soon as it loads.
+ */
+export function markerSyncDecision({ sourceLoaded = false } = {}) {
+    if (!sourceLoaded) return { sync: false, reason: 'source-not-loaded' };
+    return { sync: true, reason: 'source-ready' };
+}
+
+/**
+ * Required recovery is the cluster/venue marker set. An empty read while
+ * venues exist is not synchronization. Optional groups never gate this.
+ */
+export function requiredMarkerGate({
+    sourceLoaded = false,
+    featureCount = 0,
+    venueCount = 0,
+} = {}) {
+    if (!sourceLoaded) return { ready: false, reason: 'source-not-loaded' };
+    if (venueCount > 0 && featureCount === 0) return { ready: false, reason: 'features-missing' };
+    return { ready: true, reason: 'markers-synced' };
+}
+
+export function resumeMayGoLive({ requiredMarkersReady = false } = {}) {
+    return requiredMarkersReady === true;
+}
+
+export function createSyncScheduler() {
+    return {
+        generation: null,
+        frame: false,
+        passes: 0,
+        coalesced: 0,
+        ignored: 0,
+        created: 0,
+        reused: 0,
+        removed: 0,
+        clusterCreated: 0,
+        venueCreated: 0,
+        sourceWaits: 0,
+        listeners: 0,
+        cleanups: 0,
+    };
+}
+
+export function noteMarkerListeners(scheduler, count) {
+    const current = scheduler ?? createSyncScheduler();
+    if (current.listeners > 0) return current;
+    return { ...current, listeners: count };
+}
+
+export function noteMarkerCleanup(scheduler, count) {
+    const current = scheduler ?? createSyncScheduler();
+    return { ...current, cleanups: current.cleanups + count };
+}
+
+export function noteSourceWait(scheduler) {
+    const current = scheduler ?? createSyncScheduler();
+    return { ...current, frame: false, sourceWaits: current.sourceWaits + 1 };
+}
+
+export function requestMarkerSync(scheduler, generation) {
+    const current = scheduler ?? createSyncScheduler();
+    if (current.frame && current.generation !== generation) {
+        return { scheduler: { ...current, ignored: current.ignored + 1 }, run: false };
+    }
+    if (current.frame) {
+        return { scheduler: { ...current, coalesced: current.coalesced + 1 }, run: false };
+    }
+    return { scheduler: { ...current, generation, frame: true }, run: true };
+}
+
+export function completeMarkerSync(scheduler, {
+    created = 0,
+    reused = 0,
+    removed = 0,
+    clusterCreated = 0,
+    venueCreated = 0,
+} = {}) {
+    const current = scheduler ?? createSyncScheduler();
+    return {
+        ...current,
+        frame: false,
+        passes: current.passes + 1,
+        created: current.created + created,
+        reused: current.reused + reused,
+        removed: current.removed + removed,
+        clusterCreated: current.clusterCreated + clusterCreated,
+        venueCreated: current.venueCreated + venueCreated,
+        cleanups: current.cleanups + removed,
+    };
+}
+
+let markerSyncStats = createSyncScheduler();
+
+export function resetMarkerSyncStats() {
+    markerSyncStats = createSyncScheduler();
+    return markerSyncStats;
+}
+
+export function getMarkerSyncStats() {
+    return markerSyncStats;
+}
+
+export function publishMarkerSync(scheduler) {
+    markerSyncStats = scheduler ?? createSyncScheduler();
+    return markerSyncStats;
+}
+
+export function featuresForMarkerSync(map, sourceId) {
+    if (!map || typeof map.querySourceFeatures !== 'function') return [];
+    try {
+        return map.querySourceFeatures(sourceId) || [];
+    } catch {
+        return [];
+    }
+}

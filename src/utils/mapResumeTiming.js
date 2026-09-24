@@ -106,6 +106,7 @@ export function formatResumeHudLines(state) {
         `map-load-ms:${durations['map-load-ms']}`,
         `map-markers-ms:${durations['map-markers-ms']}`,
         `map-camera-ms:${durations['map-camera-ms']}`,
+        `stage-live-ms:${span(state?.marks ?? {}, 'resume-click', 'map-live')}`,
     ];
 }
 

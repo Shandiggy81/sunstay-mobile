@@ -105,6 +105,10 @@ describe('resume timing marks', () => {
         assert.equal(repeated.marks['map-load'], timing.marks['map-load']);
         assert.equal(resumeDurations(timing)['resume-total-ms'], 110);
         assert.notEqual(resumeDurations(timing)['resume-total-ms'], 21648);
+        const hud = formatResumeHudLines(timing);
+        assert.equal(hud.some((line) => line.startsWith('map-live:')), false);
+        assert.equal(hud.find((line) => line.startsWith('stage-live-ms:')), 'stage-live-ms:100');
+        assert.ok(timing.marks['map-markers-ready'] < timing.marks['map-live']);
     });
 
     it('restores the camera at most once per generation', () => {

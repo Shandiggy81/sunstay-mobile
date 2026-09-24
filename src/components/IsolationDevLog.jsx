@@ -21,6 +21,7 @@ import {
     subscribeIsolationLog,
 } from '../utils/iosCrashLog';
 import { getMapLifecycleSnapshot } from '../utils/mapLifecycle';
+import { getMarkerSyncStats } from '../utils/mapMarkerLifecycle';
 import { formatResumeHudLines, getResumeTimingSnapshot } from '../utils/mapResumeTiming';
 
 /**
@@ -69,7 +70,8 @@ export default function IsolationDevLog() {
             <p>flag-life:{MAP_LIFECYCLE}</p>
             <p>map-mounts:{mapSession.mountCount}</p>
             <p>map-removes:{mapSession.removeCount}</p>
-            <p>map-live:{mapSession.liveInstances}</p>
+            <p>map-instances:{mapSession.liveInstances}</p>
+            <p>mk-pass:{getMarkerSyncStats().passes} c:{getMarkerSyncStats().created} r:{getMarkerSyncStats().reused}</p>
             <p>map-camera:{mapSession.cameraRestore}</p>
             <p>map-duplicate:{mapSession.duplicateDetected ? '1' : '0'}</p>
             {mapSession.lastUnmountAt != null ? <p>map-unmount-at:{mapSession.lastUnmountAt}</p> : null}

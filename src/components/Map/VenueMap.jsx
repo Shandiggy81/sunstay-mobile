@@ -32,7 +32,17 @@ import {
 import { syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
 import {
     bindMapGestureListeners,
+    completeMarkerSync,
+    createSyncScheduler,
+    featuresForMarkerSync,
+    markerSyncDecision,
+    noteMarkerListeners,
+    noteSourceWait,
+    publishMarkerSync,
     releaseMarkerRecords,
+    requestMarkerSync,
+    requiredMarkerGate,
+    resumeMayGoLive,
     syncMarkerLayer,
 } from '../../utils/mapMarkerLifecycle';
 import {
@@ -759,6 +769,7 @@ const VenueMap = forwardRef(({
     const recoveryCameraRef = useRef(null);
     const mapGenerationRef = useRef(0);
     const cameraClaimRef = useRef(new Set());
+    const syncSchedulerRef = useRef(createSyncScheduler());
     const finishResumeRef = useRef(() => {});
     const [recovery, setRecovery] = useState(() => createMapRecoveryState());
     const [cooldownNow, setCooldownNow] = useState(() => Date.now());
@@ -1484,13 +1495,55 @@ const VenueMap = forwardRef(({
         if (!instance || !mapLoaded || !generation) return undefined;
 
         const syncMarkers = () => {
-            if (mapGenerationRef.current !== generation || map.current !== instance) return;
+            if (mapGenerationRef.current !== generation || map.current !== instance) {
+                syncSchedulerRef.current = {
+                    ...syncSchedulerRef.current,
+                    ignored: syncSchedulerRef.current.ignored + 1,
+                };
+                publishMarkerSync(syncSchedulerRef.current);
+                return;
+            }
+            const requested = requestMarkerSync(syncSchedulerRef.current, generation);
+            syncSchedulerRef.current = requested.scheduler;
+            publishMarkerSync(syncSchedulerRef.current);
+            if (!requested.run) return;
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             rafRef.current = requestAnimationFrame(() => {
-                if (mapGenerationRef.current !== generation || map.current !== instance) return;
-                if (!instance.isSourceLoaded(CLUSTER_SOURCE_ID)) return;
+                rafRef.current = null;
+                if (mapGenerationRef.current !== generation || map.current !== instance) {
+                    syncSchedulerRef.current = {
+                        ...syncSchedulerRef.current,
+                        frame: false,
+                        ignored: syncSchedulerRef.current.ignored + 1,
+                    };
+                    publishMarkerSync(syncSchedulerRef.current);
+                    return;
+                }
+                try {
+                let sourceLoaded = false;
+                try {
+                    sourceLoaded = instance.isSourceLoaded(CLUSTER_SOURCE_ID) === true;
+                } catch {
+                    sourceLoaded = false;
+                }
+                const decision = markerSyncDecision({ sourceLoaded });
+                if (!decision.sync) {
+                    syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
+                    publishMarkerSync(syncSchedulerRef.current);
+                    return;
+                }
 
-                const features = instance.queryRenderedFeatures({ layers: [CLUSTER_LAYER_ID] });
+                const features = featuresForMarkerSync(instance, CLUSTER_SOURCE_ID);
+                const gate = requiredMarkerGate({
+                    sourceLoaded: true,
+                    featureCount: features.length,
+                    venueCount: venuesMapRef.current.size,
+                });
+                if (!gate.ready) {
+                    syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
+                    publishMarkerSync(syncSchedulerRef.current);
+                    return;
+                }
                 const live = liveVenueFeaturesRef.current;
                 const specs = [];
 
@@ -1571,13 +1624,39 @@ const VenueMap = forwardRef(({
 
                 const synced = syncMarkerLayer(markersRef.current, generation, specs);
                 markersRef.current = synced.markers;
-                if (recoveryRef.current.phase === 'resuming' && recoveryRef.current.generation === generation) {
+                const clusterCreated = synced.created.filter((id) => String(id).startsWith('cluster-')).length;
+                syncSchedulerRef.current = completeMarkerSync(syncSchedulerRef.current, {
+                    created: synced.created.length,
+                    reused: synced.reused.length,
+                    removed: synced.removed.length,
+                    clusterCreated,
+                    venueCreated: synced.created.length - clusterCreated,
+                });
+                publishMarkerSync(syncSchedulerRef.current);
+                const requiredReady = resumeMayGoLive({ requiredMarkersReady: gate.ready });
+                if (
+                    requiredReady
+                    && recoveryRef.current.phase === 'resuming'
+                    && recoveryRef.current.generation === generation
+                ) {
                     recordResumeMark(generation, 'map-markers-ready');
                     finishResumeRef.current(generation);
+                }
+                } catch (err) {
+                    syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
+                    publishMarkerSync(syncSchedulerRef.current);
+                    console.warn('[VenueMap] marker sync failed:', err?.message);
                 }
             });
         };
 
+        const onSourceData = (event) => {
+            if (event?.sourceId && event.sourceId !== CLUSTER_SOURCE_ID) return;
+            syncMarkers();
+        };
+        instance.on('sourcedata', onSourceData);
+        syncSchedulerRef.current = noteMarkerListeners(syncSchedulerRef.current, 3);
+        publishMarkerSync(syncSchedulerRef.current);
         const unbind = bindMapGestureListeners(
             instance,
             generation,
@@ -1590,6 +1669,7 @@ const VenueMap = forwardRef(({
         syncMarkers();
 
         return () => {
+            instance.off('sourcedata', onSourceData);
             unbind();
             if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
