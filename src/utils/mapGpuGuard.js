@@ -5,7 +5,7 @@
 
 export const MOBILE_MAX_TILE_CACHE_SIZE = 10;
 export const DESKTOP_MAX_TILE_CACHE_SIZE = 20;
-export const MAP_CONTEXT_LOSS_COOLDOWN_MS = 30000;
+export const MAP_CONTEXT_LOSS_COOLDOWN_MS = 5000;
 
 let lockHeld = false;
 let contextLostAt = null;
@@ -30,6 +30,10 @@ export function releaseMapboxMount() {
 
 export function noteMapboxContextLost(now = Date.now()) {
     contextLostAt = now;
+}
+
+export function clearMapboxContextLoss() {
+    contextLostAt = null;
 }
 
 export function mapMemoryOptions(isMobile) {

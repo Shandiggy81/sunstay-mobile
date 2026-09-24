@@ -31,6 +31,17 @@ import {
 } from '../../utils/iosCrashLog';
 import { removeStaleMarkers, syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
+import {
+    mapRecoveryControl,
+    noteContextLost,
+    noteMapLoaded,
+    noteMapRemoved,
+    noteResumeFailed,
+    releaseInitLock,
+    requestMapResume,
+    startMapLoad,
+    createMapRecoveryState,
+} from '../../utils/mapRecovery';
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
 import { MAP_LIFECYCLE } from '../../utils/iosCrashIsolation';
@@ -47,6 +58,7 @@ import {
 } from '../../utils/mapLifecycle';
 import {
     claimMapboxMount,
+    clearMapboxContextLoss,
     mapMemoryOptions,
     noteMapboxContextLost,
     releaseMapboxMount,
@@ -730,6 +742,13 @@ const VenueMap = forwardRef(({
     const rafRef           = useRef(null);
     const mapInitLockRef   = useRef(false);
     const pendingTimersRef = useRef(new Set());
+    const mountMapRef      = useRef(null);
+    const teardownMapRef   = useRef(() => {});
+    const recoveryRef      = useRef(createMapRecoveryState());
+    const staleGenerationsRef = useRef(new Set());
+    const recoveryCameraRef = useRef(null);
+    const [recovery, setRecovery] = useState(() => createMapRecoveryState());
+    const [cooldownNow, setCooldownNow] = useState(() => Date.now());
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
@@ -738,7 +757,9 @@ const VenueMap = forwardRef(({
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
     const [mapFailureKind, setMapFailureKind] = useState('');
-    const [webglLost, setWebglLost] = useState(false);
+    const webglLost = recovery.phase === 'paused'
+        || recovery.phase === 'resuming'
+        || recovery.phase === 'resume-failed';
 
     const { weather, calculateSunstayScore } = useWeather();
     const { setBbox } = useMicroclimateActions();
@@ -837,9 +858,15 @@ const VenueMap = forwardRef(({
         getMap: () => map.current,
     }), [placeUserMarker]);
 
-    // ── Initialise map ONCE ─────────────────────────────────────────
+    const applyRecovery = (next) => {
+        recoveryRef.current = next;
+        setRecovery(next);
+    };
+
+    // ── Initialise map ONCE, then again only from Resume map ────────
     useEffect(() => {
-        if (mapInitLockRef.current || map.current) return;
+        function mountMap(reason) {
+        if (map.current || mapInitLockRef.current) return;
         if (!MAPBOX_TOKEN?.startsWith('pk.')) {
             setMapError(true);
             setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
@@ -851,6 +878,21 @@ const VenueMap = forwardRef(({
             return;
         }
         if (!mapContainer.current) return;
+
+        let generation = recoveryRef.current.generation;
+        if (reason === 'resume') {
+            if (recoveryRef.current.phase !== 'resuming') return;
+        } else {
+            const started = startMapLoad(recoveryRef.current);
+            if (!started.ok) return;
+            applyRecovery(started.state);
+            generation = started.state.generation;
+        }
+
+        const isCurrent = () => (
+            generation === recoveryRef.current.generation
+            && !staleGenerationsRef.current.has(generation)
+        );
         const mountClaim = claimMapboxMount();
         if (!mountClaim.ok) {
             logIsolationEvent({
@@ -860,13 +902,26 @@ const VenueMap = forwardRef(({
                     : 'mount-locked',
                 source: 'VenueMap',
             });
-            if (mountClaim.reason === 'context-loss-cooldown') setWebglLost(true);
+            if (reason === 'resume') {
+                const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
+                if (failed.ok) applyRecovery(failed.state);
+                noteMapboxContextLost(Date.now());
+            } else {
+                applyRecovery(releaseInitLock(recoveryRef.current, 'abort').state);
+            }
             return undefined;
         }
         mapInitLockRef.current = true;
         if (!trackMapMount()) {
             releaseMapboxMount();
             mapInitLockRef.current = false;
+            if (reason === 'resume') {
+                const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
+                if (failed.ok) applyRecovery(failed.state);
+                noteMapboxContextLost(Date.now());
+            } else {
+                applyRecovery(releaseInitLock(recoveryRef.current, 'abort').state);
+            }
             logIsolationEvent({
                 kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
                 message: 'duplicate-refused',
@@ -886,7 +941,11 @@ const VenueMap = forwardRef(({
             logIsolationEvent({ kind, message, source: 'VenueMap' });
         };
         const loadTimeout = setTimeout(() => {
-            if (disposed) return;
+            if (disposed || !isCurrent()) return;
+            if (recoveryRef.current.phase === 'resuming') {
+                teardownMap('failed-resume');
+                return;
+            }
             setMapError(true);
             setMapFailureKind(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING);
             logMap(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING, 'map-load-timeout');
@@ -926,7 +985,11 @@ const VenueMap = forwardRef(({
                 ...(memoryOptions.config ? { config: memoryOptions.config } : {}),
             });
 
-            if (MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED) {
+            if (reason === 'resume') {
+                const cameraResult = trackCameraRestore(restoreMapCamera(map.current, recoveryCameraRef.current));
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `resume-camera-${cameraResult}`);
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:inflight-animation-and-xweather-controller');
+            } else if (MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED) {
                 const cameraResult = trackCameraRestore(restoreMapCamera(map.current, cameraForRemount()));
                 logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `camera-${cameraResult}`);
                 if (getMapLifecycleSnapshot().mountCount >= 2) {
@@ -945,7 +1008,7 @@ const VenueMap = forwardRef(({
             resizeObserver.observe(mapContainer.current);
 
             map.current.on('load', () => {
-                if (disposed || !map.current) return;
+                if (disposed || !map.current || !isCurrent()) return;
                 clearTimeout(loadTimeout);
                 logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'load');
                 // Hide Mapbox Standard's default POI labels so they don't compete
@@ -979,25 +1042,35 @@ const VenueMap = forwardRef(({
                 // the map reports loaded — no legacy setLight() needed here.
                 map.current.dragRotate.disable();
                 map.current.touchZoomRotate.disableRotation();
+                const loaded = noteMapLoaded(recoveryRef.current, generation);
+                if (loaded.ok) {
+                    applyRecovery(loaded.state);
+                    clearMapboxContextLoss();
+                }
+                mapInitLockRef.current = false;
                 setMapLoaded(true);
                 setMapError(false);
                 setMapFailureKind('');
             });
 
             map.current.on('style.load', () => {
-                if (disposed) return;
+                if (disposed || !isCurrent()) return;
                 logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'style.load');
                 reduceMobileGpu();
             });
 
             map.current.on('error', (e) => {
-                if (disposed) return;
+                if (disposed || !isCurrent()) return;
                 const msg = e.error?.message || e.message || '';
                 if (isSuppressedMapError(msg)) return;
                 const kind = classifyMapboxErrorMessage(msg);
                 logMap(kind, msg || 'map-error');
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
+                    if (recoveryRef.current.phase === 'resuming') {
+                        teardownMap('failed-resume');
+                        return;
+                    }
                     setMapError(true);
                     setMapFailureKind(kind);
                 }
@@ -1013,14 +1086,18 @@ const VenueMap = forwardRef(({
             const handleWebglContextLost = (event) => {
                 event.stopImmediatePropagation();
                 event.stopPropagation();
-                if (contextLossHandled) return;
+                if (contextLossHandled || staleGenerationsRef.current.has(generation)) return;
                 contextLossHandled = true;
-                noteMapboxContextLost();
-                setWebglLost(true);
+                staleGenerationsRef.current.add(generation);
+                const now = Date.now();
+                noteMapboxContextLost(now);
+                recoveryCameraRef.current = captureMapCamera(map.current);
+                const paused = noteContextLost(recoveryRef.current, generation, now);
+                if (paused.ok) applyRecovery(paused.state);
                 logMap(ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST, 'webglcontextlost');
                 contextLossTimer = setTimeout(() => {
                     pendingTimersRef.current.delete(contextLossTimer);
-                    teardownMap();
+                    teardownMap('context-loss');
                 }, 0);
                 pendingTimersRef.current.add(contextLossTimer);
             };
@@ -1044,13 +1121,22 @@ const VenueMap = forwardRef(({
                 trackMapRemove(null);
                 releaseMapboxMount();
                 mapInitLockRef.current = false;
+                if (reason === 'resume') {
+                    const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
+                    if (failed.ok) applyRecovery(failed.state);
+                    noteMapboxContextLost(Date.now());
+                } else {
+                    applyRecovery(releaseInitLock(recoveryRef.current, 'failed-init').state);
+                }
             }
         }
 
-        function teardownMap() {
+        function teardownMap(reason = 'unmount') {
             if (cleaned) return;
             cleaned = true;
             disposed = true;
+            staleGenerationsRef.current.add(generation);
+            setMapLoaded(false);
             clearTimeout(loadTimeout);
             for (const timer of pendingTimersRef.current) clearTimeout(timer);
             pendingTimersRef.current.clear();
@@ -1060,8 +1146,10 @@ const VenueMap = forwardRef(({
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
             }
+            const lostCamera = captureMapCamera(map.current);
+            if (lostCamera) recoveryCameraRef.current = lostCamera;
             const camera = MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED
-                ? captureMapCamera(map.current)
+                ? lostCamera
                 : null;
             let canvas = null;
             try { canvas = map.current?.getCanvas?.() ?? null; } catch { canvas = null; }
@@ -1108,11 +1196,15 @@ const VenueMap = forwardRef(({
                     console.warn('Style cleanup skipped:', err);
                 }
             }
-            const released = releaseMapOwners({
-                markers,
-                listeners,
-                map: map.current,
-            });
+            const removal = noteMapRemoved(recoveryRef.current, generation);
+            recoveryRef.current = removal.state;
+            const released = removal.remove
+                ? releaseMapOwners({
+                    markers,
+                    listeners,
+                    map: map.current,
+                })
+                : { markerCleanups: 0, listenerCleanups: 0, removeCalls: 0 };
             markersRef.current = {};
             userMarkerRef.current = null;
             map.current = null;
@@ -1122,14 +1214,46 @@ const VenueMap = forwardRef(({
                 message: `remove count=${snapshot.removeCount} live=${snapshot.liveInstances} markers=${released.markerCleanups} listeners=${released.listenerCleanups}`,
                 source: 'VenueMap',
             });
-            if (mapInitLockRef.current) {
-                releaseMapboxMount();
-                mapInitLockRef.current = false;
+            releaseMapboxMount();
+            mapInitLockRef.current = false;
+            if (reason === 'failed-resume') {
+                const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
+                if (failed.ok) applyRecovery(failed.state);
+                noteMapboxContextLost(Date.now());
+            } else if (reason !== 'context-loss') {
+                applyRecovery(releaseInitLock(recoveryRef.current, reason === 'unmount' ? 'unmount' : 'abort').state);
             }
         }
 
-        return () => teardownMap();
+        teardownMapRef.current = teardownMap;
+        }
+
+        mountMapRef.current = mountMap;
+        mountMap('initial');
+        return () => {
+            mountMapRef.current = null;
+            teardownMapRef.current('unmount');
+        };
     }, []);
+
+    useEffect(() => {
+        if (recovery.cooldownUntil == null) return undefined;
+        const delay = recovery.cooldownUntil - Date.now();
+        if (delay <= 0) {
+            setCooldownNow(Date.now());
+            return undefined;
+        }
+        const timer = setTimeout(() => setCooldownNow(Date.now()), delay);
+        return () => clearTimeout(timer);
+    }, [recovery.cooldownUntil]);
+
+    const onResumeMap = () => {
+        if (map.current || mapInitLockRef.current) return;
+        const decision = requestMapResume(recoveryRef.current, Date.now());
+        if (!decision.ok) return;
+        applyRecovery(decision.state);
+        mountMapRef.current?.('resume');
+    };
 
 
 
@@ -1471,7 +1595,8 @@ const VenueMap = forwardRef(({
         }
     }, [mapLoaded, showRadar]);
 
-    const webglRecovery = webglRecoveryView(webglLost);
+    const recoveryControl = mapRecoveryControl(recovery, cooldownNow);
+    const webglRecovery = webglRecoveryView(webglLost ? recovery.phase : 'live', cooldownNow);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
@@ -1479,26 +1604,32 @@ const VenueMap = forwardRef(({
             <div
                 ref={mapContainer}
                 data-map-webgl-lost={webglLost ? '1' : '0'}
+                data-map-recovery={recovery.phase}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
-            {webglRecovery.mounted ? (
+            {recoveryControl.showResume || recoveryControl.showProgress ? (
                 <div
                     data-webgl-recovery="1"
-                    role={webglRecovery.role}
+                    role="status"
                     aria-live="polite"
                     className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/45 backdrop-blur-[2px]"
-                    style={{ pointerEvents: webglRecovery.blocksInteraction ? 'auto' : 'none' }}
                 >
-                    <div className={`flex items-center gap-3 rounded-2xl px-5 py-3 shadow-lg ${webglRecovery.surfaceClass}`}>
-                        {webglRecovery.hasSpinner ? (
-                            <span
-                                className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
-                                aria-hidden="true"
-                            />
-                        ) : null}
+                    <div className={`flex flex-col items-center gap-3 rounded-2xl px-5 py-3 shadow-lg ${webglRecovery.surfaceClass}`}>
                         <span className="text-sm font-semibold tracking-tight">
-                            {webglRecovery.message}
+                            {recoveryControl.status}
                         </span>
+                        {recoveryControl.showResume ? (
+                            <button
+                                type="button"
+                                onClick={onResumeMap}
+                                disabled={recoveryControl.disabled}
+                                aria-label="Resume map"
+                                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-amber-500 px-4 text-sm font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                style={{ minWidth: 44, minHeight: 44 }}
+                            >
+                                Resume map
+                            </button>
+                        ) : null}
                     </div>
                 </div>
             ) : null}
