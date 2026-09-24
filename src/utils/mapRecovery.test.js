@@ -104,18 +104,37 @@ describe('map recovery transitions', () => {
         assert.equal(failed.ok, true);
         assert.equal(failed.state.phase, 'resume-failed');
         assert.equal(failed.state.initLock, false);
+        assert.equal(failed.state.sessionLocked, true);
         assert.equal(failed.state.cooldownUntil, 12000);
-        assert.equal(requestMapResume(failed.state, 11999).reason, 'cooldown');
+        assert.equal(requestMapResume(failed.state, 11999).reason, 'session-locked');
     });
 
-    it('allows resume again after the failed-resume cooldown', () => {
+    it('locks the session after a failed resume instead of starting another map', () => {
         const paused = noteContextLost(liveState(), 1, 1000).state;
         const resuming = requestMapResume(paused, 6000).state;
         const failed = noteResumeFailed(resuming, resuming.generation, 7000).state;
-        assert.equal(resumeAvailable(failed, 12000), true);
+        assert.equal(failed.sessionLocked, true);
+        assert.equal(resumeAvailable(failed, 12000), false);
         const again = requestMapResume(failed, 12000);
-        assert.equal(again.ok, true);
-        assert.equal(again.state.phase, 'resuming');
+        assert.equal(again.ok, false);
+        assert.equal(again.reason, 'session-locked');
+        assert.equal(again.state.phase, 'resume-failed');
+        assert.equal(mapRecoveryControl(failed, 12000).showResume, false);
+        assert.equal(mapRecoveryControl(failed, 12000).status, 'Map paused for this session. Reload the page to try again.');
+    });
+
+    it('stops a second context loss from creating another map', () => {
+        const paused = noteContextLost(liveState(), 1, 1000).state;
+        const resuming = requestMapResume(paused, 6000).state;
+        const live = noteMapLoaded(resuming, resuming.generation).state;
+        const second = noteContextLost(live, live.generation, 9000);
+        assert.equal(second.ok, true);
+        assert.equal(second.state.phase, 'paused');
+        assert.equal(second.state.sessionLocked, true);
+        assert.equal(second.state.contextLosses, 2);
+        assert.equal(requestMapResume(second.state, 20000).reason, 'session-locked');
+        assert.equal(recoveryEffectTick(second.state).state.phase, 'paused');
+        assert.equal(mapRecoveryControl(second.state, 20000).status, 'Map paused for this session. Reload the page to try again.');
     });
 
     it('ignores stale events from an old map generation', () => {
@@ -196,8 +215,8 @@ describe('map recovery transitions', () => {
             7000,
         ).state;
         const failedControl = mapRecoveryControl(failed, 12000);
-        assert.equal(failedControl.showResume, true);
-        assert.match(failedControl.status, /failed/i);
+        assert.equal(failedControl.showResume, false);
+        assert.equal(failedControl.status, 'Map paused for this session. Reload the page to try again.');
         const progress = mapRecoveryControl(requestMapResume(paused, 6000).state, 6000);
         assert.equal(progress.showResume, false);
         assert.equal(progress.showProgress, true);

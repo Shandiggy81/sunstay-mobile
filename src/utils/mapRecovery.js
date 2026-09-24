@@ -33,6 +33,9 @@ export function createMapRecoveryState() {
         initLock: false,
         cooldownUntil: null,
         removeCounts: {},
+        contextLosses: 0,
+        resumeAttempts: 0,
+        sessionLocked: false,
     };
 }
 
@@ -47,6 +50,7 @@ export function cooldownRemaining(state, now) {
 
 export function resumeAvailable(state, now) {
     if (!state) return false;
+    if (state.sessionLocked || state.resumeAttempts >= 1) return false;
     if (state.phase !== 'paused' && state.phase !== 'resume-failed') return false;
     if (state.initLock) return false;
     return cooldownRemaining(state, now) === 0;
@@ -81,20 +85,27 @@ export function noteMapLoaded(state, generation) {
 export function noteContextLost(state, generation, now) {
     const current = state ?? createMapRecoveryState();
     if (generation !== current.generation) return result(false, 'stale', current);
-    if (current.phase !== 'live' && current.phase !== 'loading') {
+    if (current.phase !== 'live' && current.phase !== 'loading' && current.phase !== 'resuming') {
         return result(false, 'invalid', current);
     }
+    const contextLosses = (current.contextLosses || 0) + 1;
+    const sessionLocked = contextLosses >= 2 || (current.resumeAttempts || 0) >= 1;
     return result(true, 'paused', {
         ...current,
         phase: 'paused',
         initLock: false,
-        cooldownUntil: now + MAP_RECOVERY_COOLDOWN_MS,
+        contextLosses,
+        sessionLocked,
+        cooldownUntil: sessionLocked ? null : now + MAP_RECOVERY_COOLDOWN_MS,
     });
 }
 
 export function requestMapResume(state, now) {
     const current = state ?? createMapRecoveryState();
     if (current.initLock) return result(false, 'locked', current);
+    if (current.sessionLocked || (current.resumeAttempts || 0) >= 1) {
+        return result(false, 'session-locked', current);
+    }
     if (current.phase !== 'paused' && current.phase !== 'resume-failed') {
         return result(false, 'invalid', current);
     }
@@ -104,6 +115,7 @@ export function requestMapResume(state, now) {
         phase: 'resuming',
         generation: current.generation + 1,
         initLock: true,
+        resumeAttempts: (current.resumeAttempts || 0) + 1,
     });
 }
 
@@ -115,6 +127,7 @@ export function noteResumeFailed(state, generation, now) {
         ...current,
         phase: 'resume-failed',
         initLock: false,
+        sessionLocked: true,
         cooldownUntil: now + MAP_RECOVERY_COOLDOWN_MS,
     });
 }
@@ -170,6 +183,12 @@ export function mapRecoveryControl(state, now, { mapboxEnabled = true } = {}) {
     if (!mapboxEnabled) return hidden;
     if (current.phase === 'ready' || current.phase === 'loading' || current.phase === 'live') {
         return hidden;
+    }
+    if (current.sessionLocked) {
+        return {
+            ...hidden,
+            status: 'Map paused for this session. Reload the page to try again.',
+        };
     }
     if (current.phase === 'resuming') {
         return {

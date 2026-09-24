@@ -29,7 +29,12 @@ import {
     logIsolationEvent,
     setIsolationContext,
 } from '../../utils/iosCrashLog';
-import { removeStaleMarkers, syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
+import { syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
+import {
+    bindMapGestureListeners,
+    releaseMarkerRecords,
+    syncMarkerLayer,
+} from '../../utils/mapMarkerLifecycle';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
 import {
     mapRecoveryControl,
@@ -747,6 +752,7 @@ const VenueMap = forwardRef(({
     const recoveryRef      = useRef(createMapRecoveryState());
     const staleGenerationsRef = useRef(new Set());
     const recoveryCameraRef = useRef(null);
+    const mapGenerationRef = useRef(0);
     const [recovery, setRecovery] = useState(() => createMapRecoveryState());
     const [cooldownNow, setCooldownNow] = useState(() => Date.now());
 
@@ -1044,6 +1050,7 @@ const VenueMap = forwardRef(({
                 map.current.touchZoomRotate.disableRotation();
                 const loaded = noteMapLoaded(recoveryRef.current, generation);
                 if (loaded.ok) {
+                    mapGenerationRef.current = loaded.state.generation;
                     applyRecovery(loaded.state);
                     clearMapboxContextLoss();
                 }
@@ -1162,9 +1169,9 @@ const VenueMap = forwardRef(({
             if (canvas && contextRestoredHandler) {
                 listeners.push({ target: canvas, type: 'webglcontextrestored', handler: contextRestoredHandler, capture: true });
             }
-            const markers = Object.values(markersRef.current)
-                .map((entry) => entry?.marker)
-                .filter(Boolean);
+            const markers = [];
+            releaseMarkerRecords(markersRef.current);
+            markersRef.current = {};
             if (userMarkerRef.current) markers.push(userMarkerRef.current);
 
             if (controllerRef.current) {
@@ -1412,115 +1419,126 @@ const VenueMap = forwardRef(({
         }
     }, [mapLoaded, safeVenues, filteredIdSet]);
 
-    // ── Sync clustered markers ───────────────────────────────────────
+    // ── Sync clustered markers for the live map generation ─────────
     useEffect(() => {
-        if (!map.current || !mapLoaded) return;
+        const instance = map.current;
+        const generation = mapGenerationRef.current;
+        if (!instance || !mapLoaded || !generation) return undefined;
 
         const syncMarkers = () => {
+            if (mapGenerationRef.current !== generation || map.current !== instance) return;
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             rafRef.current = requestAnimationFrame(() => {
-                if (!map.current || !map.current.isSourceLoaded(CLUSTER_SOURCE_ID)) return;
-                
-                const features = map.current.queryRenderedFeatures({ layers: [CLUSTER_LAYER_ID] });
-                const newMarkers = {};
+                if (mapGenerationRef.current !== generation || map.current !== instance) return;
+                if (!instance.isSourceLoaded(CLUSTER_SOURCE_ID)) return;
+
+                const features = instance.queryRenderedFeatures({ layers: [CLUSTER_LAYER_ID] });
                 const live = liveVenueFeaturesRef.current;
+                const specs = [];
 
                 features.forEach(feature => {
                     const coords = feature.geometry.coordinates;
                     const isCluster = feature.properties.cluster;
-                    let markerId = '';
 
                     if (isCluster) {
-                        markerId = `cluster-${feature.properties.cluster_id}`;
+                        const markerId = `cluster-${feature.properties.cluster_id}`;
                         const count = feature.properties.point_count;
-                        let existing = markersRef.current[markerId];
+                        specs.push({
+                            id: markerId,
+                            update(existing) {
+                                syncExistingClusterMarker(existing, coords, count, {
+                                    updateCount(record, nextCount) {
+                                        updateClusterMarkerEl(record.el, nextCount);
+                                    },
+                                });
+                            },
+                            create() {
+                                const el = createClusterMarkerEl(count);
+                                el.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    if (mapGenerationRef.current !== generation || map.current !== instance) return;
+                                    instance.easeTo({ center: coords, zoom: instance.getZoom() + 2 });
+                                });
+                                const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
+                                    .setLngLat(coords)
+                                    .addTo(instance);
+                                return { marker, el, count, isCluster: true, generation };
+                            },
+                        });
+                        return;
+                    }
 
-                        if (existing) {
-                            syncExistingClusterMarker(existing, coords, count, {
-                                updateCount(record, nextCount) {
-                                    updateClusterMarkerEl(record.el, nextCount);
-                                },
-                            });
-                        } else {
-                            const el = createClusterMarkerEl(count);
-                            el.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                map.current.easeTo({ center: coords, zoom: map.current.getZoom() + 2 });
-                            });
-                            const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
-                                .setLngLat(coords)
-                                .addTo(map.current);
-                            existing = { marker, el, count, isCluster: true };
-                        }
-                        newMarkers[markerId] = existing;
-                    } else {
-                        const venueId = feature.properties.id;
-                        markerId = `venue-${venueId}`;
-                        const venue = venuesMapRef.current.get(String(venueId));
-                        if (!venue) return;
+                    const venueId = feature.properties.id;
+                    const venue = venuesMapRef.current.get(String(venueId));
+                    if (!venue) return;
+                    const venueLng = Number(venue.lng);
+                    const venueLat = Number(venue.lat);
+                    if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
 
-                        // FIX: Use the canonical venue coordinate, NOT feature.geometry.coordinates.
-                        const venueLng = Number(venue.lng);
-                        const venueLat = Number(venue.lat);
-                        if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
-
-                        const microReading = readingForVenue(microById, venue.id, clusterTodMinutes);
-                        const pinKey = getPinStateKey(
-                            venue,
-                            weather,
-                            live,
-                            weatherColorFnRef.current,
-                            cozyFilterActiveRef.current,
-                            microReading,
-                        );
-                        const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
-
-                        let existing = markersRef.current[markerId];
-
-                        if (existing) {
-                            if (existing.pinKey !== pinKey) {
+                    const microReading = readingForVenue(microById, venue.id, clusterTodMinutes);
+                    const pinKey = getPinStateKey(
+                        venue,
+                        weather,
+                        live,
+                        weatherColorFnRef.current,
+                        cozyFilterActiveRef.current,
+                        microReading,
+                    );
+                    const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
+                    specs.push({
+                        id: `venue-${venueId}`,
+                        update(existing) {
+                            if (existing.pinKey !== pinKey || existing.score !== score) {
                                 updateMarkerEl(existing.el, pinKey, score);
                                 existing.pinKey = pinKey;
                                 existing.score = score;
-                            } else if (existing.score !== score) {
-                                // Score-only change — cheap in-place DOM update, no marker recreation.
-                                updateMarkerEl(existing.el, pinKey, score);
-                                existing.score = score;
                             }
-                        } else {
+                        },
+                        create() {
                             const el = createMarkerEl(pinKey, score);
                             el.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
+                                if (mapGenerationRef.current !== generation) return;
                                 onVenueSelectRef.current?.(venue);
                             });
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
-                                .addTo(map.current);
-                            existing = { marker, el, pinKey, score, isCluster: false };
-                        }
-                        newMarkers[markerId] = existing;
-                    }
+                                .addTo(instance);
+                            return { marker, el, pinKey, score, isCluster: false, generation };
+                        },
+                    });
                 });
 
-                removeStaleMarkers(markersRef.current, newMarkers);
-                markersRef.current = newMarkers;
+                const synced = syncMarkerLayer(markersRef.current, generation, specs);
+                markersRef.current = synced.markers;
             });
         };
 
+        const unbind = bindMapGestureListeners(
+            instance,
+            generation,
+            () => mapGenerationRef.current,
+            (type) => {
+                if (type === 'moveend' || type === 'idle') syncMarkers();
+            },
+            ['moveend', 'idle'],
+        );
         syncMarkers();
 
-        map.current.on('idle', syncMarkers);
-        map.current.on('moveend', syncMarkers);
-
         return () => {
-            if (map.current) {
-                map.current.off('idle', syncMarkers);
-                map.current.off('moveend', syncMarkers);
+            unbind();
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+            if (map.current !== instance || mapGenerationRef.current !== generation) {
+                releaseMarkerRecords(markersRef.current);
+                markersRef.current = {};
             }
         };
-    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, clusterTodMinutes]);
+    }, [mapLoaded, recovery.generation, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, clusterTodMinutes]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces
