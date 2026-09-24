@@ -16,6 +16,7 @@
 import { MAP_CONTEXT_LOSS_COOLDOWN_MS } from './mapGpuGuard.js';
 
 export const MAP_RECOVERY_COOLDOWN_MS = MAP_CONTEXT_LOSS_COOLDOWN_MS;
+export const SLOW_RESUME_MS = 3000;
 
 export const MAP_RECOVERY_PHASES = Object.freeze([
     'ready',
@@ -79,6 +80,7 @@ export function noteMapLoaded(state, generation) {
         phase: 'live',
         initLock: false,
         cooldownUntil: null,
+        resumeStartedAt: null,
     });
 }
 
@@ -116,6 +118,7 @@ export function requestMapResume(state, now) {
         generation: current.generation + 1,
         initLock: true,
         resumeAttempts: (current.resumeAttempts || 0) + 1,
+        resumeStartedAt: now,
     });
 }
 
@@ -185,16 +188,21 @@ export function mapRecoveryControl(state, now, { mapboxEnabled = true } = {}) {
         return hidden;
     }
     if (current.sessionLocked) {
+        const failed = current.phase === 'resume-failed';
         return {
             ...hidden,
-            status: 'Map paused for this session. Reload the page to try again.',
+            status: failed
+                ? 'Map could not be resumed. Reload the page to try again.'
+                : 'Map paused for this session. Reload the page to try again.',
         };
     }
     if (current.phase === 'resuming') {
+        const started = current.resumeStartedAt;
+        const slow = started != null && now - started >= SLOW_RESUME_MS;
         return {
             ...hidden,
             showProgress: true,
-            status: 'Resuming map…',
+            status: slow ? 'Still loading the map…' : 'Resuming map…',
         };
     }
     const failed = current.phase === 'resume-failed';

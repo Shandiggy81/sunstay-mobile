@@ -21,6 +21,7 @@ import {
     subscribeIsolationLog,
 } from '../utils/iosCrashLog';
 import { getMapLifecycleSnapshot } from '../utils/mapLifecycle';
+import { formatResumeHudLines, getResumeTimingSnapshot } from '../utils/mapResumeTiming';
 
 /**
  * DEV-only HUD. Renders small strings only — never API payloads.
@@ -73,6 +74,9 @@ export default function IsolationDevLog() {
             <p>map-duplicate:{mapSession.duplicateDetected ? '1' : '0'}</p>
             {mapSession.lastUnmountAt != null ? <p>map-unmount-at:{mapSession.lastUnmountAt}</p> : null}
             {mapSession.lastRemountDurationMs != null ? <p>map-remount-ms:{mapSession.lastRemountDurationMs}</p> : null}
+            {formatResumeHudLines(getResumeTimingSnapshot()).map((line) => (
+                <p key={line}>{line}</p>
+            ))}
             {lines.map((line) => (
                 <p key={line}>{line}</p>
             ))}

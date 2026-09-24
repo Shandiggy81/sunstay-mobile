@@ -62,6 +62,8 @@ export function beginMapMount(session, now = Date.now()) {
         };
     }
     const remounting = current.removeCount > 0 && current.lastUnmountAt != null;
+    // Gap from teardown until the next mount claim. Includes the paused wait
+    // and cooldown, not Mapbox load time.
     return {
         create: true,
         session: {

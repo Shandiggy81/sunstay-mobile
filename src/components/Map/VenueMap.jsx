@@ -35,6 +35,11 @@ import {
     releaseMarkerRecords,
     syncMarkerLayer,
 } from '../../utils/mapMarkerLifecycle';
+import {
+    claimCameraRestore,
+    clearResumeTimingStore,
+    recordResumeMark,
+} from '../../utils/mapResumeTiming';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
 import {
     mapRecoveryControl,
@@ -753,6 +758,8 @@ const VenueMap = forwardRef(({
     const staleGenerationsRef = useRef(new Set());
     const recoveryCameraRef = useRef(null);
     const mapGenerationRef = useRef(0);
+    const cameraClaimRef = useRef(new Set());
+    const finishResumeRef = useRef(() => {});
     const [recovery, setRecovery] = useState(() => createMapRecoveryState());
     const [cooldownNow, setCooldownNow] = useState(() => Date.now());
 
@@ -975,6 +982,9 @@ const VenueMap = forwardRef(({
         };
 
         try {
+            if (reason === 'resume') {
+                recordResumeMark(generation, 'map-create-start');
+            }
             map.current = new mapboxgl.Map({
                 container:           mapContainer.current,
                 style:               MAP_STYLE,
@@ -992,8 +1002,15 @@ const VenueMap = forwardRef(({
             });
 
             if (reason === 'resume') {
-                const cameraResult = trackCameraRestore(restoreMapCamera(map.current, recoveryCameraRef.current));
-                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `resume-camera-${cameraResult}`);
+                recordResumeMark(generation, 'map-instance-created');
+                const cameraClaim = claimCameraRestore(cameraClaimRef.current, generation);
+                cameraClaimRef.current = cameraClaim.claimed;
+                if (cameraClaim.restore) {
+                    recordResumeMark(generation, 'map-camera-start');
+                    const cameraResult = trackCameraRestore(restoreMapCamera(map.current, recoveryCameraRef.current));
+                    recordResumeMark(generation, 'map-camera-end');
+                    logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `resume-camera-${cameraResult}`);
+                }
                 logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:inflight-animation-and-xweather-controller');
             } else if (MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED) {
                 const cameraResult = trackCameraRestore(restoreMapCamera(map.current, cameraForRemount()));
@@ -1048,6 +1065,14 @@ const VenueMap = forwardRef(({
                 // the map reports loaded — no legacy setLight() needed here.
                 map.current.dragRotate.disable();
                 map.current.touchZoomRotate.disableRotation();
+                if (reason === 'resume') {
+                    recordResumeMark(generation, 'map-load');
+                    mapInitLockRef.current = false;
+                    setMapLoaded(true);
+                    setMapError(false);
+                    setMapFailureKind('');
+                    return;
+                }
                 const loaded = noteMapLoaded(recoveryRef.current, generation);
                 if (loaded.ok) {
                     mapGenerationRef.current = loaded.state.generation;
@@ -1062,6 +1087,7 @@ const VenueMap = forwardRef(({
 
             map.current.on('style.load', () => {
                 if (disposed || !isCurrent()) return;
+                if (reason === 'resume') recordResumeMark(generation, 'map-style-ready');
                 logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'style.load');
                 reduceMobileGpu();
             });
@@ -1224,6 +1250,8 @@ const VenueMap = forwardRef(({
             releaseMapboxMount();
             mapInitLockRef.current = false;
             if (reason === 'failed-resume') {
+                recordResumeMark(generation, 'resume-failed');
+                clearResumeTimingStore();
                 const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
                 if (failed.ok) applyRecovery(failed.state);
                 noteMapboxContextLost(Date.now());
@@ -1240,8 +1268,17 @@ const VenueMap = forwardRef(({
         return () => {
             mountMapRef.current = null;
             teardownMapRef.current('unmount');
+            clearResumeTimingStore();
         };
     }, []);
+
+    useEffect(() => {
+        if (recovery.phase !== 'resuming' || recovery.resumeStartedAt == null) return undefined;
+        const delay = recovery.resumeStartedAt + 3000 - Date.now();
+        if (delay <= 0) return undefined;
+        const timer = setTimeout(() => setCooldownNow(Date.now()), delay);
+        return () => clearTimeout(timer);
+    }, [recovery.phase, recovery.resumeStartedAt]);
 
     useEffect(() => {
         if (recovery.cooldownUntil == null) return undefined;
@@ -1256,24 +1293,42 @@ const VenueMap = forwardRef(({
 
     const onResumeMap = () => {
         if (map.current || mapInitLockRef.current) return;
+        const clickAt = performance.now();
         const decision = requestMapResume(recoveryRef.current, Date.now());
         if (!decision.ok) return;
+        recordResumeMark(decision.state.generation, 'resume-click', clickAt);
+        recordResumeMark(decision.state.generation, 'resume-start');
         applyRecovery(decision.state);
         mountMapRef.current?.('resume');
+    };
+
+    finishResumeRef.current = (generation) => {
+        if (recoveryRef.current.phase !== 'resuming') return;
+        if (recoveryRef.current.generation !== generation) return;
+        const loaded = noteMapLoaded(recoveryRef.current, generation);
+        if (!loaded.ok) return;
+        mapGenerationRef.current = loaded.state.generation;
+        applyRecovery(loaded.state);
+        clearMapboxContextLoss();
+        recordResumeMark(generation, 'map-live');
+        recordResumeMark(generation, 'resume-placeholder-hidden');
     };
 
 
 
     // ── Cloud toggle ────────────────────────────────────────────────
     useEffect(() => {
-        if (!mapLoaded || !map.current) return;
+        if (!mapLoaded || !map.current || recovery.phase === 'resuming') return;
+        if (recovery.resumeAttempts > 0) {
+            recordResumeMark(recovery.generation, 'map-optional-overlays-start');
+        }
 
         if (cloudOn) {
             addOrUpdateCloudLayer(map.current);
         } else {
             removeCloudLayer(map.current);
         }
-    }, [cloudOn, mapLoaded]);
+    }, [cloudOn, mapLoaded, recovery.phase, recovery.resumeAttempts, recovery.generation]);
 
     // ── Cluster source + GPU comfort heatmap ─────────────────────────
     useEffect(() => {
@@ -1317,6 +1372,9 @@ const VenueMap = forwardRef(({
                 source: CLUSTER_SOURCE_ID,
                 paint: { 'circle-radius': 0, 'circle-opacity': 0 }
             });
+            if (recoveryRef.current.phase === 'resuming') {
+                recordResumeMark(recoveryRef.current.generation, 'map-sources-layers-ready');
+            }
         } else {
             map.current.getSource(CLUSTER_SOURCE_ID).setData(geojsonData);
         }
@@ -1513,6 +1571,10 @@ const VenueMap = forwardRef(({
 
                 const synced = syncMarkerLayer(markersRef.current, generation, specs);
                 markersRef.current = synced.markers;
+                if (recoveryRef.current.phase === 'resuming' && recoveryRef.current.generation === generation) {
+                    recordResumeMark(generation, 'map-markers-ready');
+                    finishResumeRef.current(generation);
+                }
             });
         };
 
@@ -1598,7 +1660,7 @@ const VenueMap = forwardRef(({
 
     // ── Xweather radar visibility ───────────────────────────────────
     useEffect(() => {
-        if (!mapLoaded || !controllerRef.current) return;
+        if (!mapLoaded || !controllerRef.current || recovery.phase === 'resuming') return;
 
         try {
             if (showRadar && !radarLayerAddedRef.current) {
@@ -1611,7 +1673,10 @@ const VenueMap = forwardRef(({
         } catch (e) {
             console.warn('[VenueMap] Xweather radar visibility update failed:', e?.message);
         }
-    }, [mapLoaded, showRadar]);
+        if (recovery.resumeAttempts > 0 && recovery.phase === 'live') {
+            recordResumeMark(recovery.generation, 'map-optional-overlays-end');
+        }
+    }, [mapLoaded, showRadar, recovery.phase, recovery.generation, recovery.resumeAttempts]);
 
     const recoveryControl = mapRecoveryControl(recovery, cooldownNow);
     const webglRecovery = webglRecoveryView(webglLost ? recovery.phase : 'live', cooldownNow);
@@ -1688,7 +1753,7 @@ const VenueMap = forwardRef(({
                             {filtersControl}
                         </div>
                     ) : null}
-                    {mapLoaded && !mapError ? (
+                    {mapLoaded && !mapError && recovery.phase !== 'resuming' ? (
                         <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} todMinutes={todMinutes} />
                     ) : null}
                 </div>
