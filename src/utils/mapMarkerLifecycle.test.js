@@ -6,7 +6,14 @@ import {
     completeMarkerSync,
     createSyncScheduler,
     featuresForMarkerSync,
+    getMapSessionDiagnostics,
+    markerCoordinatePlan,
     markerSyncDecision,
+    noteContextLossDiagnostic,
+    noteInvalidCoordinate,
+    noteSheetClose,
+    resetMapSessionDiagnostics,
+    venueCloseMapTransition,
     noteMarkerCleanup,
     noteMarkerListeners,
     noteSourceWait,
@@ -204,5 +211,68 @@ describe('generation-safe markers', () => {
         assert.equal(unbind(), false);
         assert.equal(map.handlers.move.length, 0);
         assert.equal(map.handlers.idle.length, 0);
+    });
+});
+
+describe('marker coordinates', () => {
+    it('keeps a Melbourne venue in longitude, latitude order', () => {
+        const plan = markerCoordinatePlan({ id: 'royal', lng: 144.9925, lat: -37.8546 });
+        assert.equal(plan.ok, true);
+        assert.deepEqual(plan.coordinates, [144.9925, -37.8546]);
+        assert.equal(plan.region, 'melbourne');
+        assert.equal(plan.swapped, false);
+    });
+
+    it('rejects a swapped latitude without rendering it', () => {
+        const plan = markerCoordinatePlan({ id: 'swap', lng: -37.8546, lat: 144.9925 });
+        assert.equal(plan.ok, false);
+        assert.equal(plan.reason, 'swapped');
+        assert.equal(plan.coordinates, undefined);
+    });
+
+    it('rejects blank coordinates instead of pinning them at 0,0', () => {
+        assert.equal(markerCoordinatePlan({ id: 'blank', lng: null, lat: null }).reason, 'missing');
+        assert.equal(markerCoordinatePlan({ id: 'empty', lng: '', lat: '' }).reason, 'missing');
+        assert.equal(markerCoordinatePlan({ id: 'bad', lng: 'south', lat: -37.8 }).reason, 'non-finite');
+    });
+
+    it('does not reuse a marker record after Resume map', () => {
+        const first = syncMarkerLayer({}, 1, [spec('venue-1', 'sun')]);
+        const resumed = syncMarkerLayer(first.markers, 2, [spec('venue-1', 'sun')]);
+        assert.equal(resumed.markers['venue-1'].generation, 2);
+        assert.notEqual(resumed.markers['venue-1'].marker, first.markers['venue-1'].marker);
+        const reopened = syncMarkerLayer(resumed.markers, 2, [spec('venue-1', 'sun')]);
+        assert.deepEqual(reopened.created, []);
+        assert.deepEqual(reopened.reused, ['venue-1']);
+    });
+});
+
+describe('venue close does not remount the map', () => {
+    it('keeps the existing map when the default lifecycle is keep', () => {
+        const close = venueCloseMapTransition({ hadMap: true, lifecycle: 'keep', sheetState: 'peek' });
+        assert.equal(close.remounts, false);
+        assert.equal(close.createsMap, false);
+        assert.equal(close.mapMounted, true);
+        assert.equal(close.resizesExistingMap, true);
+        assert.equal(close.selectedVenue, null);
+    });
+
+    it('does not clear a session lock when the venue closes', () => {
+        resetMapSessionDiagnostics();
+        noteContextLossDiagnostic({ contextLosses: 2, resumeAttempts: 1, generation: 4, sessionLocked: true });
+        noteSheetClose();
+        const diag = getMapSessionDiagnostics();
+        assert.equal(diag.contextLosses, 2);
+        assert.equal(diag.resumeAttempts, 1);
+        assert.equal(diag.generation, 4);
+        assert.equal(diag.sheetCloses, 1);
+        assert.equal(diag.lastTransition, 'venue-close');
+    });
+
+    it('records the venue id of an invalid coordinate', () => {
+        resetMapSessionDiagnostics();
+        const plan = markerCoordinatePlan({ id: 'ocean', lng: null, lat: -37.8 });
+        noteInvalidCoordinate(plan);
+        assert.equal(getMapSessionDiagnostics().lastInvalidCoordinate, 'ocean:missing');
     });
 });

@@ -5,6 +5,147 @@
  * generation may create, update, or release a marker.
  */
 
+const MELBOURNE_BOUNDS = { minLng: 144.5, minLat: -38.2, maxLng: 145.5, maxLat: -37.5 };
+
+function readAxis(value) {
+    if (value == null || value === '') return { ok: false, reason: 'missing' };
+    if (typeof value === 'boolean') return { ok: false, reason: 'missing' };
+    const number = Number(value);
+    if (!Number.isFinite(number)) return { ok: false, reason: 'non-finite' };
+    return { ok: true, value: number };
+}
+
+/**
+ * Mapbox order is [longitude, latitude]. Blank values are not numbers:
+ * Number(null) and Number('') are 0, which would pin the venue in the ocean.
+ * Out-of-range values are rejected, not swapped or clamped.
+ */
+export function markerCoordinatePlan(venue) {
+    const id = venue?.id ?? '';
+    const longitude = readAxis(venue?.lng);
+    const latitude = readAxis(venue?.lat);
+    if (!longitude.ok || !latitude.ok) {
+        return {
+            ok: false,
+            id,
+            reason: !longitude.ok ? longitude.reason : latitude.reason,
+            longitude: venue?.lng ?? null,
+            latitude: venue?.lat ?? null,
+            swapped: false,
+            region: 'rejected',
+        };
+    }
+    const swapped = (
+        (latitude.value > 90 || latitude.value < -90)
+        && longitude.value >= -90
+        && longitude.value <= 90
+        && latitude.value >= -180
+        && latitude.value <= 180
+    );
+    if (
+        swapped
+        || latitude.value > 90
+        || latitude.value < -90
+        || longitude.value > 180
+        || longitude.value < -180
+    ) {
+        return {
+            ok: false,
+            id,
+            reason: swapped ? 'swapped' : 'out-of-range',
+            longitude: longitude.value,
+            latitude: latitude.value,
+            swapped,
+            region: 'rejected',
+        };
+    }
+    const inMelbourne = longitude.value >= MELBOURNE_BOUNDS.minLng
+        && longitude.value <= MELBOURNE_BOUNDS.maxLng
+        && latitude.value >= MELBOURNE_BOUNDS.minLat
+        && latitude.value <= MELBOURNE_BOUNDS.maxLat;
+    return {
+        ok: true,
+        id,
+        reason: 'ok',
+        longitude: longitude.value,
+        latitude: latitude.value,
+        swapped: false,
+        region: inMelbourne ? 'melbourne' : 'outside-melbourne',
+        coordinates: [longitude.value, latitude.value],
+    };
+}
+
+/** Closing a venue does not mount a map. Expanded-sheet unmount is a separate flag. */
+export function venueCloseMapTransition({
+    mapboxEnabled = true,
+    lifecycle = 'keep',
+    sheetState = 'peek',
+    hadMap = true,
+} = {}) {
+    const sheetExpanded = sheetState === 'expanded';
+    const mapMounted = mapboxEnabled && (lifecycle !== 'unmount-expanded' || !sheetExpanded);
+    return {
+        sheetState,
+        selectedVenue: null,
+        mapMounted,
+        remounts: false,
+        createsMap: hadMap ? false : mapMounted,
+        resizesExistingMap: hadMap && mapMounted,
+    };
+}
+
+const sessionDiagnostics = {
+    sheetCloses: 0,
+    contextLosses: 0,
+    resumeAttempts: 0,
+    generation: 0,
+    lastTransition: '',
+    lastMarkerGeneration: '',
+    lastInvalidCoordinate: '',
+};
+
+export function resetMapSessionDiagnostics() {
+    sessionDiagnostics.sheetCloses = 0;
+    sessionDiagnostics.contextLosses = 0;
+    sessionDiagnostics.resumeAttempts = 0;
+    sessionDiagnostics.generation = 0;
+    sessionDiagnostics.lastTransition = '';
+    sessionDiagnostics.lastMarkerGeneration = '';
+    sessionDiagnostics.lastInvalidCoordinate = '';
+    return getMapSessionDiagnostics();
+}
+
+export function noteSheetClose() {
+    sessionDiagnostics.sheetCloses += 1;
+    sessionDiagnostics.lastTransition = 'venue-close';
+    return getMapSessionDiagnostics();
+}
+
+export function noteMapGeneration(generation) {
+    sessionDiagnostics.generation = generation ?? 0;
+    sessionDiagnostics.lastMarkerGeneration = String(generation ?? '');
+    return getMapSessionDiagnostics();
+}
+
+export function noteContextLossDiagnostic(state = {}) {
+    sessionDiagnostics.contextLosses = state.contextLosses ?? sessionDiagnostics.contextLosses + 1;
+    sessionDiagnostics.resumeAttempts = state.resumeAttempts ?? sessionDiagnostics.resumeAttempts;
+    sessionDiagnostics.generation = state.generation ?? sessionDiagnostics.generation;
+    sessionDiagnostics.lastTransition = state.sessionLocked ? 'session-locked' : 'context-loss';
+    return getMapSessionDiagnostics();
+}
+
+export function noteInvalidCoordinate(plan) {
+    if (!plan || plan.ok) return getMapSessionDiagnostics();
+    sessionDiagnostics.lastInvalidCoordinate = `${plan.id}:${plan.reason}`;
+    sessionDiagnostics.lastTransition = 'invalid-coordinate';
+    return getMapSessionDiagnostics();
+}
+
+export function getMapSessionDiagnostics() {
+    return { ...sessionDiagnostics };
+}
+
 export function markerBelongsTo(record, generation) {
     return !!record && record.released !== true && record.generation === generation;
 }

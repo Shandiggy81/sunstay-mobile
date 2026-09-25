@@ -42,6 +42,10 @@ import {
     releaseMarkerRecords,
     releaseMarkerSyncFrame,
     requestMarkerSync,
+    markerCoordinatePlan,
+    noteContextLossDiagnostic,
+    noteInvalidCoordinate,
+    noteMapGeneration,
     requiredMarkerGate,
     resumeMayGoLive,
     syncMarkerLayer,
@@ -155,18 +159,21 @@ function markerScoreForVenue(reading, venue, calculateSunstayScore) {
 }
 
 const isFiniteCoord = (v) => Number.isFinite(Number(v));
+const reportedInvalidCoordinates = new Set();
 const isRenderableVenue = (v) => {
-    if (v?.id == null) return false;
-    const lng = Number(v.lng);
-    const lat = Number(v.lat);
-    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
-    // Swap guard: catch Supabase lat/lng column transpositions early.
-    // Valid world coords: lat ∈ [-90, 90], lng ∈ [-180, 180].
-    if (lat > 90 || lat < -90 || lng < -180 || lng > 180) {
-        console.warn(`[VenueMap] Possible lat/lng swap for venue ${v.id}: lat=${lat}, lng=${lng}`);
-        return false;
+    const plan = markerCoordinatePlan(v);
+    if (plan.ok) return true;
+    const key = `${plan.id}:${plan.reason}`;
+    if (!reportedInvalidCoordinates.has(key)) {
+        reportedInvalidCoordinates.add(key);
+        noteInvalidCoordinate(plan);
+        logIsolationEvent({
+            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+            message: `invalid-coordinate ${plan.id} ${plan.reason} lng=${plan.longitude} lat=${plan.latitude}`,
+            source: 'VenueMap',
+        });
     }
-    return true;
+    return false;
 };
 
 const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
@@ -866,7 +873,6 @@ const VenueMap = forwardRef(({
             if (!map.current) return;
             const timer = setTimeout(() => {
                 pendingTimersRef.current.delete(timer);
-                map.current?.resize();
                 map.current?.flyTo({
                     center:    [lng, lat],
                     zoom:      15,
@@ -924,6 +930,7 @@ const VenueMap = forwardRef(({
         if (reason === 'resume') {
             if (recoveryRef.current.phase !== 'resuming') return;
             mapGenerationRef.current = generation;
+            noteMapGeneration(generation);
         } else {
             const started = startMapLoad(recoveryRef.current);
             if (!started.ok) return;
@@ -1055,7 +1062,11 @@ const VenueMap = forwardRef(({
             );
 
             resizeObserver = new ResizeObserver(() => {
-                resizeFrame = requestAnimationFrame(() => map.current?.resize());
+                if (resizeFrame) clearTimeout(resizeFrame);
+                resizeFrame = setTimeout(() => {
+                    resizeFrame = 0;
+                    map.current?.resize();
+                }, 150);
             });
             resizeObserver.observe(mapContainer.current);
 
@@ -1080,6 +1091,7 @@ const VenueMap = forwardRef(({
                 if (reason === 'resume') {
                     recordResumeMark(generation, 'map-load');
                     mapGenerationRef.current = generation;
+                    noteMapGeneration(generation);
                     mapInitLockRef.current = false;
                     setMapLoaded(true);
                     setMapError(false);
@@ -1089,6 +1101,7 @@ const VenueMap = forwardRef(({
                 const loaded = noteMapLoaded(recoveryRef.current, generation);
                 if (loaded.ok) {
                     mapGenerationRef.current = loaded.state.generation;
+                    noteMapGeneration(loaded.state.generation);
                     applyRecovery(loaded.state);
                     clearMapboxContextLoss();
                 }
@@ -1140,7 +1153,10 @@ const VenueMap = forwardRef(({
                 recoveryCameraRef.current = captureMapCamera(map.current);
                 Sentry.captureMessage('WebGL Context Lost', { level: 'warning', tags: { type: 'gpu_crash' } });
                 const paused = noteContextLost(recoveryRef.current, generation, now);
-                if (paused.ok) applyRecovery(paused.state);
+                if (paused.ok) {
+                    noteContextLossDiagnostic(paused.state);
+                    applyRecovery(paused.state);
+                }
                 logMap(ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST, 'webglcontextlost');
                 contextLossTimer = setTimeout(() => {
                     pendingTimersRef.current.delete(contextLossTimer);
@@ -1188,7 +1204,7 @@ const VenueMap = forwardRef(({
             for (const timer of pendingTimersRef.current) clearTimeout(timer);
             pendingTimersRef.current.clear();
             resizeObserver?.disconnect();
-            if (resizeFrame) cancelAnimationFrame(resizeFrame);
+            if (resizeFrame) clearTimeout(resizeFrame);
             if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
@@ -1328,6 +1344,7 @@ const VenueMap = forwardRef(({
         const loaded = noteMapLoaded(recoveryRef.current, generation);
         if (!loaded.ok) return;
         mapGenerationRef.current = loaded.state.generation;
+        noteMapGeneration(loaded.state.generation);
         applyRecovery(loaded.state);
         clearMapboxContextLoss();
         recordResumeMark(generation, 'map-live');
@@ -1561,10 +1578,19 @@ const VenueMap = forwardRef(({
                     if (isCluster) {
                         const markerId = `cluster-${feature.properties.cluster_id}`;
                         const count = feature.properties.point_count;
+                        const clusterPlan = markerCoordinatePlan({
+                            id: markerId,
+                            lng: coords?.[0],
+                            lat: coords?.[1],
+                        });
+                        if (!clusterPlan.ok) {
+                            noteInvalidCoordinate(clusterPlan);
+                            return;
+                        }
                         specs.push({
                             id: markerId,
                             update(existing) {
-                                syncExistingClusterMarker(existing, coords, count, {
+                                syncExistingClusterMarker(existing, clusterPlan.coordinates, count, {
                                     updateCount(record, nextCount) {
                                         updateClusterMarkerEl(record.el, nextCount);
                                     },
@@ -1576,10 +1602,10 @@ const VenueMap = forwardRef(({
                                     e.stopPropagation();
                                     e.preventDefault();
                                     if (mapGenerationRef.current !== generation || map.current !== instance) return;
-                                    instance.easeTo({ center: coords, zoom: instance.getZoom() + 2 });
+                                    instance.easeTo({ center: clusterPlan.coordinates, zoom: instance.getZoom() + 2 });
                                 });
                                 const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
-                                    .setLngLat(coords)
+                                    .setLngLat(clusterPlan.coordinates)
                                     .addTo(instance);
                                 return { marker, el, count, isCluster: true, generation };
                             },
@@ -1590,9 +1616,13 @@ const VenueMap = forwardRef(({
                     const venueId = feature.properties.id;
                     const venue = venuesMapRef.current.get(String(venueId));
                     if (!venue) return;
-                    const venueLng = Number(venue.lng);
-                    const venueLat = Number(venue.lat);
-                    if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
+                    const venuePlan = markerCoordinatePlan(venue);
+                    if (!venuePlan.ok) {
+                        noteInvalidCoordinate(venuePlan);
+                        return;
+                    }
+                    const venueLng = venuePlan.longitude;
+                    const venueLat = venuePlan.latitude;
 
                     const microReading = readingForVenue(microById, venue.id, clusterTodMinutes);
                     const pinKey = getPinStateKey(
@@ -1728,14 +1758,12 @@ const VenueMap = forwardRef(({
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
-        const lng = Number(selectedVenue.lng);
-        const lat = Number(selectedVenue.lat);
-        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+        const plan = markerCoordinatePlan(selectedVenue);
+        if (!plan.ok) return;
 
         const t = setTimeout(() => {
-            map.current?.resize();
             map.current?.flyTo({
-                center:    [lng, lat],
+                center:    plan.coordinates,
                 zoom:      15,
                 pitch:     45,
                 duration:  900,

@@ -21,7 +21,7 @@ import {
     subscribeIsolationLog,
 } from '../utils/iosCrashLog';
 import { getMapLifecycleSnapshot } from '../utils/mapLifecycle';
-import { getMarkerSyncStats } from '../utils/mapMarkerLifecycle';
+import { getMapSessionDiagnostics, getMarkerSyncStats } from '../utils/mapMarkerLifecycle';
 import { formatResumeHudLines, getResumeTimingSnapshot } from '../utils/mapResumeTiming';
 
 /**
@@ -51,6 +51,7 @@ export default function IsolationDevLog() {
     const lines = formatIsolationHudLines();
     const recent = getIsolationEvents().slice(-8);
     const mapSession = getMapLifecycleSnapshot();
+    const mapDiag = getMapSessionDiagnostics();
 
     return (
         <aside
@@ -68,6 +69,13 @@ export default function IsolationDevLog() {
             <p>flag-will:{SHEET_WILL_CHANGE_MODE}</p>
             <p>flag-blur:{SHEET_BACKDROP_MODE}</p>
             <p>flag-life:{MAP_LIFECYCLE}</p>
+            <p>sheet-close:{mapDiag.sheetCloses}</p>
+            <p>map-generation:{mapDiag.generation}</p>
+            <p>map-context-losses:{mapDiag.contextLosses}</p>
+            <p>resume-attempts:{mapDiag.resumeAttempts}</p>
+            <p>last-map-transition:{mapDiag.lastTransition || '—'}</p>
+            <p>last-marker-generation:{mapDiag.lastMarkerGeneration || '—'}</p>
+            <p>last-invalid-coordinate:{mapDiag.lastInvalidCoordinate || '—'}</p>
             <p>map-mounts:{mapSession.mountCount}</p>
             <p>map-removes:{mapSession.removeCount}</p>
             <p>map-instances:{mapSession.liveInstances}</p>

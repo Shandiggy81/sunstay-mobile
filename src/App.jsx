@@ -42,6 +42,7 @@ import {
     renderMatrixTestId,
 } from './utils/iosCrashIsolation';
 import { shouldMountMap } from './utils/mapLifecycle';
+import { noteSheetClose } from './utils/mapMarkerLifecycle';
 import {
     ISOLATION_EVENT_KINDS,
     attachPageLifecycleProbes,
@@ -668,17 +669,18 @@ const AppContent = () => {
             venue: venue.name || venue.title || String(venue.id ?? ''),
             tab: 'Overview',
         });
-        const lng = Number(venue.lng);
-        const lat = Number(venue.lat);
-        if (mapRef.current?.resizeAndFly && Number.isFinite(lng) && Number.isFinite(lat)) {
-            mapRef.current.resizeAndFly([lng, lat]);
-        }
     }, []);
 
     const handleCloseCard  = useCallback(() => {
         pullRefreshRef.current?.reset?.();
         setSelectedVenue(null);
         setIsolationContext({ venue: '', tab: '' });
+        noteSheetClose();
+        logIsolationEvent({
+            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+            message: 'venue-close',
+            source: 'App',
+        });
     }, []);
     const toggleChat       = useCallback(() => setIsChatOpen(p => !p), []);
     const closeChat        = useCallback(() => setIsChatOpen(false), []);
