@@ -36,6 +36,24 @@ export function clearMapboxContextLoss() {
     contextLostAt = null;
 }
 
+/**
+ * Directional light shadows. Mobile forces them off on every update.
+ * Desktop keeps the caller's requested value. `cast-shadows` is a public
+ * Mapbox GL JS 3.17 `setLights` property, not a Map constructor option.
+ */
+export function directionalCastShadows(isMobile, requested = true) {
+    if (isMobile) return false;
+    return requested !== false;
+}
+
+export function directionalLightShadowProps(isMobile, requested = true) {
+    const shadows = directionalCastShadows(isMobile, requested);
+    return {
+        'cast-shadows': shadows,
+        'shadow-intensity': shadows ? 1 : 0,
+    };
+}
+
 export function mapMemoryOptions(isMobile) {
     const options = {
         maxTileCacheSize: isMobile ? MOBILE_MAX_TILE_CACHE_SIZE : DESKTOP_MAX_TILE_CACHE_SIZE,

@@ -71,6 +71,7 @@ import {
     captureMapCamera,
     getMapLifecycleSnapshot,
     releaseMapOwners,
+    recordMapRemoveFailure,
     restoreMapCamera,
     trackCameraRestore,
     trackMapMount,
@@ -79,6 +80,7 @@ import {
 import {
     claimMapboxMount,
     clearMapboxContextLoss,
+    directionalLightShadowProps,
     mapMemoryOptions,
     noteMapboxContextLost,
     releaseMapboxMount,
@@ -539,6 +541,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
         const map = mapRef.current;
         if (!map || typeof map.setLights !== 'function') return;
         if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
+        const mobile = typeof navigator !== 'undefined'
+            && (navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || ''));
+        const shadowProps = directionalLightShadowProps(mobile, castShadows);
         const { direction, color, intensity, ambientIntensity } = computeSunLight(
             mins, INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude,
         );
@@ -558,8 +563,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
                         direction,
                         color,
                         intensity,
-                        'cast-shadows': castShadows,
-                        'shadow-intensity': castShadows ? 1 : 0,
+                        ...shadowProps,
                     },
                 },
             ]);
@@ -1250,6 +1254,10 @@ const VenueMap = forwardRef(({
             markersRef.current = {};
             userMarkerRef.current = null;
             map.current = null;
+            if (released.removeError) {
+                console.warn('[VenueMap] map.remove failed:', released.removeError);
+                recordMapRemoveFailure(released.removeError);
+            }
             const snapshot = trackMapRemove(camera);
             logIsolationEvent({
                 kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,

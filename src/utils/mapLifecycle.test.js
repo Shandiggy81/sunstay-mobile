@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    formatIsolationHudLines,
+    getIsolationContext,
+    getIsolationEvents,
+    resetIsolationLog,
+} from './iosCrashLog.js';
+import {
     MAP_LIFECYCLE_KEEP,
     MAP_LIFECYCLE_UNMOUNT_EXPANDED,
     beginMapMount,
@@ -11,6 +17,7 @@ import {
     parseMapLifecycle,
     reduceSheetMount,
     cameraForRemount,
+    recordMapRemoveFailure,
     releaseMapOwners,
     resetMapLifecycleTracking,
     restoreMapCamera,
@@ -146,6 +153,123 @@ describe('map lifecycle session', () => {
         assert.equal(twice.removeCalls, 1);
         assert.equal(twice.markerCleanups, 1);
         assert.equal(twice.listenerCleanups, 1);
+    });
+
+    it('zeroes the owned canvas before a successful remove and leaves it for Mapbox', () => {
+        const container = {};
+        const sibling = { parentNode: container, id: 'control' };
+        const canvas = {
+            width: 64,
+            height: 64,
+            parentNode: container,
+            removed: false,
+            remove() { this.removed = true; this.parentNode = null; },
+        };
+        let sawZero = false;
+        const map = {
+            removed: 0,
+            getCanvas() { return canvas; },
+            getContainer() { return container; },
+            remove() {
+                sawZero = canvas.width === 0 && canvas.height === 0;
+                this.removed += 1;
+            },
+        };
+        const handler = () => {};
+        const target = {
+            removed: [],
+            addEventListener() {},
+            removeEventListener(type, fn, capture) {
+                this.removed.push([type, fn, capture]);
+            },
+        };
+        const once = releaseMapOwners({
+            markers: [],
+            listeners: [{ target, type: 'webglcontextlost', handler, capture: true }],
+            map,
+        });
+        const twice = releaseMapOwners(once);
+        assert.equal(sawZero, true);
+        assert.equal(canvas.width, 0);
+        assert.equal(canvas.height, 0);
+        assert.equal(canvas.removed, false);
+        assert.equal(canvas.parentNode, container);
+        assert.equal(sibling.parentNode, container);
+        assert.equal(once.canvasReset, true);
+        assert.equal(once.canvasRemoved, false);
+        assert.equal(once.removeError, null);
+        assert.equal(map.removed, 1);
+        assert.equal(twice.removeCalls, 1);
+        assert.deepEqual(target.removed, [['webglcontextlost', handler, true]]);
+    });
+
+    it('removes only the owned canvas when map.remove throws', () => {
+        const container = {};
+        const sibling = { parentNode: container };
+        const canvas = {
+            width: 32,
+            height: 32,
+            parentNode: container,
+            removed: 0,
+            remove() { this.removed += 1; this.parentNode = null; },
+        };
+        const outsider = { parentNode: {}, removed: 0, remove() { this.removed += 1; } };
+        let removes = 0;
+        const map = {
+            getCanvas() { return canvas; },
+            getContainer() { return container; },
+            remove() {
+                removes += 1;
+                throw new Error('context dead');
+            },
+        };
+        const once = releaseMapOwners({ markers: [], listeners: [], map });
+        releaseMapOwners(once);
+        assert.equal(removes, 1);
+        assert.equal(canvas.width, 0);
+        assert.equal(canvas.height, 0);
+        assert.equal(canvas.removed, 1);
+        assert.equal(canvas.parentNode, null);
+        assert.equal(sibling.parentNode, container);
+        assert.equal(outsider.removed, 0);
+        assert.equal(once.removeError, 'context dead');
+        assert.equal(once.canvasRemoved, true);
+        assert.equal(once.released, true);
+    });
+
+    it('does not detach a canvas that is not a child of the owned container', () => {
+        const container = {};
+        const canvas = {
+            width: 8,
+            height: 8,
+            parentNode: { id: 'elsewhere' },
+            removed: 0,
+            remove() { this.removed += 1; },
+        };
+        const map = {
+            getCanvas() { return canvas; },
+            getContainer() { return container; },
+            remove() { throw new Error('lost'); },
+        };
+        const released = releaseMapOwners({ markers: [], listeners: [], map });
+        assert.equal(canvas.removed, 0);
+        assert.equal(released.canvasRemoved, false);
+        assert.equal(released.removeError, 'lost');
+    });
+
+    it('sends a map.remove failure to the isolation diagnostic log', () => {
+        resetIsolationLog();
+        const entry = recordMapRemoveFailure('context dead');
+        const events = getIsolationEvents();
+        const hud = formatIsolationHudLines();
+        assert.equal(entry.kind, 'map-lifecycle');
+        assert.equal(entry.message, 'map-remove-failed:context dead');
+        assert.equal(events.at(-1).message, 'map-remove-failed:context dead');
+        assert.equal(getIsolationContext().mapEvent, 'map-remove-failed:context dead');
+        assert.equal(hud.some((line) => line === 'map:map-remove-failed:context dead'), true);
+        assert.equal(hud.some((line) => line === 'last:map-lifecycle map-remove-failed:context dead'), true);
+        assert.equal(entry.message.includes('map-remove-failed:'), true);
+        resetIsolationLog();
     });
 
     it('removes a marker popup and a detached marker element once', () => {

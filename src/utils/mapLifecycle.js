@@ -5,6 +5,8 @@
  * Drag offsets are ignored so a swipe cannot create a mount loop.
  */
 
+import { ISOLATION_EVENT_KINDS, logIsolationEvent } from './iosCrashLog.js';
+
 export const MAP_LIFECYCLE_KEEP = 'keep';
 export const MAP_LIFECYCLE_UNMOUNT_EXPANDED = 'unmount-expanded';
 
@@ -177,12 +179,32 @@ export function releaseMapOwners(resources) {
         }
     }
     let removeCalls = 0;
+    let canvasReset = false;
+    let canvasRemoved = false;
+    let removeError = null;
     if (current.map && typeof current.map.remove === 'function') {
+        let canvas = null;
+        try {
+            canvas = current.map.getCanvas?.() ?? null;
+        } catch (error) {
+            removeError = error?.message || 'canvas-lookup-failed';
+        }
+        if (canvas) {
+            canvas.width = 0;
+            canvas.height = 0;
+            canvasReset = true;
+        }
         try {
             current.map.remove();
             removeCalls = 1;
-        } catch {
+        } catch (error) {
             removeCalls = 1;
+            removeError = error?.message || 'map-remove-failed';
+            const container = current.map.getContainer?.();
+            if (canvas && container && canvas.parentNode === container) {
+                canvas.remove();
+                canvasRemoved = true;
+            }
         }
     }
     return {
@@ -193,7 +215,19 @@ export function releaseMapOwners(resources) {
         markerCleanups,
         listenerCleanups,
         removeCalls,
+        canvasReset,
+        canvasRemoved,
+        removeError,
     };
+}
+
+/** Records a failed `map.remove()` on the isolation log. A normal teardown does not call this. */
+export function recordMapRemoveFailure(message) {
+    return logIsolationEvent({
+        kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+        message: `map-remove-failed:${message || 'map-remove-failed'}`,
+        source: 'VenueMap',
+    });
 }
 
 let activeSession = createMapLifecycleSession();

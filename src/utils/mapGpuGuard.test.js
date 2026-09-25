@@ -5,6 +5,8 @@ import {
     MAP_CONTEXT_LOSS_COOLDOWN_MS,
     MOBILE_MAX_TILE_CACHE_SIZE,
     claimMapboxMount,
+    directionalCastShadows,
+    directionalLightShadowProps,
     mapMemoryOptions,
     noteMapboxContextLost,
     releaseMapboxMount,
@@ -48,6 +50,22 @@ describe('map GPU memory options', () => {
         assert.deepEqual(mobile.config, { basemap: { show3dObjects: false } });
         assert.equal(Object.hasOwn(mobile, 'optimizeForTerrain'), false);
         assert.equal(Object.hasOwn(mobile, 'pixelRatio'), false);
+    });
+
+    it('turns directional shadows off on every mobile update and leaves desktop requests alone', () => {
+        assert.equal(directionalCastShadows(true, true), false);
+        assert.equal(directionalCastShadows(true, false), false);
+        assert.equal(directionalCastShadows(false, true), true);
+        assert.equal(directionalCastShadows(false, false), false);
+        const mobile = directionalLightShadowProps(true, true);
+        const desktopOn = directionalLightShadowProps(false, true);
+        const desktopOff = directionalLightShadowProps(false, false);
+        assert.equal(mobile['cast-shadows'] === false, true);
+        assert.equal(mobile['shadow-intensity'], 0);
+        assert.equal(desktopOn['cast-shadows'], true);
+        assert.equal(desktopOn['shadow-intensity'], 1);
+        assert.equal(desktopOff['cast-shadows'], false);
+        assert.equal(desktopOff['shadow-intensity'], 0);
     });
 
     it('keeps the desktop tile cache and does not add a mobile config', () => {
