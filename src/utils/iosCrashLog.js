@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/react';
+
 /**
  * Lightweight iOS isolation diagnostics.
  *
@@ -171,9 +173,51 @@ export function resetIsolationLog() {
     emitIsolationLog();
 }
 
+const CLEAN_PAGE_END = new Set(['pagehide', 'pagehide-bfcache']);
+const SESSION_LOCK_MESSAGES = new Set(['mount-locked', 'session-locked']);
+
+/** Previous log had a live session and no later pagehide, or a lock with no later pagehide. */
+export function previousSessionEndedAbnormally(entries) {
+    if (!Array.isArray(entries) || entries.length === 0) return false;
+    let lastOpen = -1;
+    let lastCleanEnd = -1;
+    let lastLock = -1;
+    let sawSession = false;
+    entries.forEach((event, index) => {
+        const message = event?.message || '';
+        const kind = event?.kind || '';
+        if (message === 'probe-attached') lastOpen = index;
+        if (CLEAN_PAGE_END.has(message)) lastCleanEnd = index;
+        if (SESSION_LOCK_MESSAGES.has(message)) lastLock = index;
+        if (
+            message === 'probe-attached'
+            || kind === ISOLATION_EVENT_KINDS.PAGE_LIFECYCLE
+            || kind === ISOLATION_EVENT_KINDS.MAP_LIFECYCLE
+            || kind === ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST
+        ) {
+            sawSession = true;
+        }
+    });
+    if (!sawSession) return false;
+    if (lastLock >= 0 && lastCleanEnd < lastLock) return true;
+    if (lastOpen >= 0 && lastCleanEnd < lastOpen) return true;
+    return lastCleanEnd < 0;
+}
+
+function reportAbnormalSessionTermination(entries) {
+    if (!previousSessionEndedAbnormally(entries)) return;
+    Sentry.captureMessage('Abnormal Session Termination (Possible Jetsam Kill)', {
+        level: 'fatal',
+        tags: { type: 'oom_crash' },
+    });
+}
+
 export function bindIsolationStorage(nextStorage) {
     storage = canUseStorage(nextStorage) ? nextStorage : null;
-    if (storage) readStorage();
+    if (storage) {
+        readStorage();
+        reportAbnormalSessionTermination(events);
+    }
 }
 
 export function formatIsolationHudLines() {

@@ -2,6 +2,7 @@ import React, {
     useEffect, useMemo, useRef, useState, useCallback,
     forwardRef, useImperativeHandle, memo,
 } from 'react';
+import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
@@ -1137,6 +1138,7 @@ const VenueMap = forwardRef(({
                 const now = Date.now();
                 noteMapboxContextLost(now);
                 recoveryCameraRef.current = captureMapCamera(map.current);
+                Sentry.captureMessage('WebGL Context Lost', { level: 'warning', tags: { type: 'gpu_crash' } });
                 const paused = noteContextLost(recoveryRef.current, generation, now);
                 if (paused.ok) applyRecovery(paused.state);
                 logMap(ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST, 'webglcontextlost');
