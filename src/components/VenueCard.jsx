@@ -48,7 +48,7 @@ import {
   venueOverlayPresenceKey,
   VENUE_DETAIL_BRANCH,
 } from '../utils/venueDetailTabs';
-import { ENABLE_SHEET_MOTION, sheetSurfaceMode } from '../utils/iosCrashIsolation';
+import { ENABLE_SHEET_MOTION, ENABLE_SUN_FORECAST, sheetSurfaceMode } from '../utils/iosCrashIsolation';
 import { setIsolationContext } from '../utils/iosCrashLog';
 import { formatVenueDetailProbe, readVenueDetailLayoutProbe } from '../utils/venueDetailLayoutProbe';
 
@@ -1573,7 +1573,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                 <SunForecastPanel
                   lat={lat}
                   lng={lng}
-                  enabled
+                  enabled={ENABLE_SUN_FORECAST}
                   localSunData={localSunData}
                   sunWindow={sunWindow}
                   venue={venue}

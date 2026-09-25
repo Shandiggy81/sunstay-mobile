@@ -112,6 +112,7 @@ export function resolveIosIsolation(source = {}) {
         matrixHud: parseEnabled(read('matrixHud', 'ss-matrix-hud', env.VITE_IOS_MATRIX_HUD), false),
         refreshHang: parseEnabled(read('refreshHang', 'ss-refresh-hang', env.VITE_IOS_REFRESH_HANG), false),
         mapLifecycle: parseMapLifecycle(read('mapLifecycle', 'ss-map-lifecycle', env.VITE_IOS_MAP_LIFECYCLE)),
+        sunForecast: parseEnabled(read('sunForecast', 'ss-sun-forecast', env.VITE_IOS_SUN_FORECAST), true),
         renderMatrix: renderMatrixTestId({ map: mapbox, limit: venueLimit, motion: sheetMotion }),
     };
 }
@@ -139,6 +140,7 @@ export const SHEET_BACKDROP_MODE = resolvedIsolation.sheetBackdrop;
 export const MATRIX_HUD = resolvedIsolation.matrixHud;
 export const VENUE_REFRESH_HANG = resolvedIsolation.refreshHang;
 export const MAP_LIFECYCLE = resolvedIsolation.mapLifecycle;
+export const ENABLE_SUN_FORECAST = resolvedIsolation.sunForecast;
 
 export function renderMatrixTestId({ map, limit, motion }) {
     if (limit == null) return 'default';

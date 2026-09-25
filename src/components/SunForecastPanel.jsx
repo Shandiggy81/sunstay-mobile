@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import HourlyForecastStrip from './HourlyForecastStrip';
 import LiveSunTimeline from './LiveSunTimeline';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import { checkIfShaded } from '../utils/solarMath.js';
 import { resolveForecastView } from '../utils/resolveForecastView';
+import { noteSunForecast } from '../utils/sunForecastDiagnostics';
 
 const CARD =
   'rounded-3xl border border-slate-900/[0.06] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]';
@@ -92,6 +93,8 @@ export default function SunForecastPanel({
     }
   }, []);
 
+  const seenRef = useRef(new Set());
+  const venueId = venue?.id ?? '';
   const view = stripState.view || resolveForecastView({
     loading: stripState.loading,
     error: stripState.error,
@@ -101,10 +104,34 @@ export default function SunForecastPanel({
   const dataPresent = Boolean(stripState.dataPresent);
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return undefined;
-    console.info('[sun-forecast] mount', { enabled, hasCoords: Number.isFinite(Number(lat)) });
-    return () => console.info('[sun-forecast] unmount');
-  }, [enabled, lat]);
+    const seen = seenRef.current;
+    noteSunForecast(seen, 'sun-forecast-tab-enter', { venueId, state: 'enter' });
+    return () => {
+      noteSunForecast(seen, 'sun-forecast-tab-exit', { venueId, state: 'exit' });
+      noteSunForecast(seen, 'sun-forecast-cleanup', { venueId, state: 'cleanup' });
+    };
+  }, [venueId]);
+
+  useEffect(() => {
+    if (view === 'loading') return;
+    noteSunForecast(seenRef.current, 'sun-forecast-rendered', {
+      venueId,
+      count: itemCount,
+      state: view,
+    });
+  }, [venueId, view, itemCount]);
+
+  if (!enabled) {
+    return (
+      <div
+        data-render-branch="sun-forecast-isolation"
+        data-forecast-state="isolated"
+        className="rounded-2xl border border-slate-900/[0.06] bg-white px-4 py-3.5"
+      >
+        <p className="text-[15px] font-semibold text-slate-900">Sun Forecast isolation mode is enabled.</p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -124,7 +151,7 @@ export default function SunForecastPanel({
         </p>
       ) : null}
 
-      <ForecastErrorBoundary>
+      <ForecastErrorBoundary key={venueId || 'venue'}>
         <SolarPositionCard
           localSunData={localSunData}
           sunWindow={sunWindow}
@@ -147,6 +174,7 @@ export default function SunForecastPanel({
           lat={lat}
           lng={lng}
           enabled={enabled}
+          venueId={venueId}
           onViewState={handleViewState}
         />
 
