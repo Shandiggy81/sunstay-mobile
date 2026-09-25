@@ -2,7 +2,6 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeHourlyForecast } from './normalizeHourlyForecast.js';
 import { resolveForecastView } from './resolveForecastView.js';
-import { resolveIosIsolation } from './iosCrashIsolation.js';
 import {
     formatIsolationHudLines,
     getIsolationEvents,
@@ -97,19 +96,5 @@ describe('sun forecast request generation', () => {
         const hud = formatIsolationHudLines().join('\n');
         assert.match(hud, /sun-forecast-fetch-abort/);
         resetIsolationLog();
-    });
-});
-
-describe('sun forecast isolation flag', () => {
-    it('defaults on, turns off only for sunForecast=off, and leaves mapbox alone', () => {
-        assert.equal(resolveIosIsolation({ search: '' }).sunForecast, true);
-        assert.equal(resolveIosIsolation({ search: '?sunForecast=on' }).sunForecast, true);
-        assert.equal(resolveIosIsolation({ search: '?sunForecast=off' }).sunForecast, false);
-        const off = resolveIosIsolation({ search: '?matrixHud=1&sunForecast=off' });
-        assert.equal(off.sunForecast, false);
-        assert.equal(off.mapbox, true);
-        assert.equal(off.matrixHud, true);
-        assert.equal(resolveIosIsolation({ search: '?mapbox=0' }).sunForecast, true);
-        assert.equal(resolveIosIsolation({ search: '?mapbox=0' }).mapbox, false);
     });
 });

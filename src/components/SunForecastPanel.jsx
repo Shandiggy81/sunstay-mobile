@@ -121,18 +121,6 @@ export default function SunForecastPanel({
     });
   }, [venueId, view, itemCount]);
 
-  if (!enabled) {
-    return (
-      <div
-        data-render-branch="sun-forecast-isolation"
-        data-forecast-state="isolated"
-        className="rounded-2xl border border-slate-900/[0.06] bg-white px-4 py-3.5"
-      >
-        <p className="text-[15px] font-semibold text-slate-900">Sun Forecast isolation mode is enabled.</p>
-      </div>
-    );
-  }
-
   return (
     <div
       data-render-branch="sun-forecast"

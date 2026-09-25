@@ -3,7 +3,6 @@ import {
     ENABLE_MAPBOX,
     ENABLE_MASCOT_PULL_REFRESH,
     ENABLE_SHEET_MOTION,
-    ENABLE_SUN_FORECAST,
     MAP_LIFECYCLE,
     MATRIX_HUD,
     SHEET_BACKDROP_MODE,
@@ -69,7 +68,6 @@ export default function IsolationDevLog() {
             <p>flag-will:{SHEET_WILL_CHANGE_MODE}</p>
             <p>flag-blur:{SHEET_BACKDROP_MODE}</p>
             <p>flag-life:{MAP_LIFECYCLE}</p>
-            <p>flag-sun:{ENABLE_SUN_FORECAST ? 'on' : 'off'}</p>
             <p>map-mounts:{mapSession.mountCount}</p>
             <p>map-removes:{mapSession.removeCount}</p>
             <p>map-instances:{mapSession.liveInstances}</p>
