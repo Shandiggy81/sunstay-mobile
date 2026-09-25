@@ -2,10 +2,10 @@ import React, {
     useEffect, useMemo, useRef, useState, useCallback,
     forwardRef, useImperativeHandle, memo,
 } from 'react';
+import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
-import { MapboxMapController, Account } from '@xweather/mapsgl';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
 import { useMicroclimateActions, useMicroclimateState } from '../../context/MicroclimateContext';
@@ -29,10 +29,68 @@ import {
     logIsolationEvent,
     setIsolationContext,
 } from '../../utils/iosCrashLog';
-import { removeStaleMarkers, syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
+import { syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
+import {
+    bindMapGestureListeners,
+    completeMarkerSync,
+    createSyncScheduler,
+    featuresForMarkerSync,
+    markerSyncDecision,
+    noteMarkerListeners,
+    noteSourceWait,
+    publishMarkerSync,
+    releaseMarkerRecords,
+    releaseMarkerSyncFrame,
+    requestMarkerSync,
+    markerCoordinatePlan,
+    noteContextLossDiagnostic,
+    noteInvalidCoordinate,
+    noteMapGeneration,
+    requiredMarkerGate,
+    resumeMayGoLive,
+    syncMarkerLayer,
+} from '../../utils/mapMarkerLifecycle';
+import {
+    claimCameraRestore,
+    clearResumeTimingStore,
+    recordResumeMark,
+} from '../../utils/mapResumeTiming';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
+import {
+    mapRecoveryControl,
+    noteContextLost,
+    noteMapLoaded,
+    noteMapRemoved,
+    noteResumeFailed,
+    releaseInitLock,
+    requestMapResume,
+    startMapLoad,
+    createMapRecoveryState,
+} from '../../utils/mapRecovery';
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
+import { MAP_LIFECYCLE } from '../../utils/iosCrashIsolation';
+import {
+    MAP_LIFECYCLE_UNMOUNT_EXPANDED,
+    cameraForRemount,
+    captureMapCamera,
+    getMapLifecycleSnapshot,
+    releaseMapOwners,
+    recordMapRemoveFailure,
+    restoreMapCamera,
+    trackCameraRestore,
+    trackMapMount,
+    trackMapRemove,
+} from '../../utils/mapLifecycle';
+import {
+    claimMapboxMount,
+    clearMapboxContextLoss,
+    directionalLightShadowProps,
+    mapMemoryOptions,
+    noteMapboxContextLost,
+    releaseMapboxMount,
+    suppressMobileGpuLayers,
+} from '../../utils/mapGpuGuard';
 
 // ── Pin states ──────────────────────────────────────────────────────────
 const PIN_STATES = {
@@ -101,18 +159,21 @@ function markerScoreForVenue(reading, venue, calculateSunstayScore) {
 }
 
 const isFiniteCoord = (v) => Number.isFinite(Number(v));
+const reportedInvalidCoordinates = new Set();
 const isRenderableVenue = (v) => {
-    if (v?.id == null) return false;
-    const lng = Number(v.lng);
-    const lat = Number(v.lat);
-    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
-    // Swap guard: catch Supabase lat/lng column transpositions early.
-    // Valid world coords: lat ∈ [-90, 90], lng ∈ [-180, 180].
-    if (lat > 90 || lat < -90 || lng < -180 || lng > 180) {
-        console.warn(`[VenueMap] Possible lat/lng swap for venue ${v.id}: lat=${lat}, lng=${lng}`);
-        return false;
+    const plan = markerCoordinatePlan(v);
+    if (plan.ok) return true;
+    const key = `${plan.id}:${plan.reason}`;
+    if (!reportedInvalidCoordinates.has(key)) {
+        reportedInvalidCoordinates.add(key);
+        noteInvalidCoordinate(plan);
+        logIsolationEvent({
+            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+            message: `invalid-coordinate ${plan.id} ${plan.reason} lng=${plan.longitude} lat=${plan.latitude}`,
+            source: 'VenueMap',
+        });
     }
-    return true;
+    return false;
 };
 
 const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
@@ -217,8 +278,8 @@ function createMarkerEl(pinKey, score) {
 
     if (isSunny) {
         const ring = document.createElement('div');
-        ring.className = 'absolute inset-0 rounded-full animate-ping';
-        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75; animation-duration: 2s; pointer-events: none;';
+        ring.className = 'absolute inset-0 rounded-full ss-pin-ping';
+        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75;';
         el.appendChild(ring);
     }
 
@@ -233,7 +294,6 @@ function createMarkerEl(pinKey, score) {
         'box-shadow:0 2px 8px rgba(0,0,0,0.15)',
         'transition:transform 120ms ease, filter 120ms ease',
         'user-select:none', 'line-height:1',
-        'will-change:transform',
         '-webkit-tap-highlight-color:transparent',
         'position:relative', 'z-index:10'
     ].join(';');
@@ -259,12 +319,12 @@ function updateMarkerEl(el, pinKey, score) {
     inner.style.color = color || '#0f172a';
 
     const isSunny = pinKey === 'sunshine' || pinKey === 'sunny';
-    const existingRing = el.querySelector('.animate-ping');
+    const existingRing = el.querySelector('.ss-pin-ping');
 
     if (isSunny && !existingRing) {
         const ring = document.createElement('div');
-        ring.className = 'absolute inset-0 rounded-full animate-ping';
-        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75; animation-duration: 2s; pointer-events: none;';
+        ring.className = 'absolute inset-0 rounded-full ss-pin-ping';
+        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75;';
         el.insertBefore(ring, inner);
     } else if (!isSunny && existingRing) {
         existingRing.remove();
@@ -285,7 +345,7 @@ function createClusterMarkerEl(count) {
         'font-size:16px', 'font-weight:bold', 'color:white',
         'cursor:pointer', 'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
         'transition:transform 120ms ease', 'user-select:none',
-        'will-change:transform', '-webkit-tap-highlight-color:transparent'
+        '-webkit-tap-highlight-color:transparent'
     ].join(';');
 
     inner.textContent = count;
@@ -336,6 +396,12 @@ const HEATMAP_LAYER_ID  = 'comfort-heatmap-lyr';
 
 const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_KEY || '').trim();
 const XWEATHER_KEY = (import.meta.env.VITE_XWEATHER_KEY || '').trim();
+
+let mapsGlModulePromise = null;
+function loadMapsGl() {
+    if (!mapsGlModulePromise) mapsGlModulePromise = import('@xweather/mapsgl');
+    return mapsGlModulePromise;
+}
 const CLOUD_SOURCE_ID = 'openweathermap-cloud';
 const CLOUD_LAYER_ID  = 'openweathermap-cloud-layer';
 
@@ -460,7 +526,13 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     // Writer-only: publishing the scrub position re-renders the microclimate
     // readouts, not this component or the map.
     const { setTodMinutes } = useMicroclimateActions();
-    const [sliderMinutes, setSliderMinutes] = useState(() => localTimeToSliderMinutes());
+    const [sliderMinutes, setSliderMinutes] = useState(() => {
+        const existing = Number(todMinutes);
+        if (Number.isFinite(existing)) {
+            return Math.min(DAY_END_MIN, Math.max(DAY_START_MIN, Math.round(existing)));
+        }
+        return localTimeToSliderMinutes();
+    });
     const minutesRef = useRef(sliderMinutes);
     const lightTimerRef = useRef(null);
     const lastLightApplyAtRef = useRef(0);
@@ -477,6 +549,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
         const map = mapRef.current;
         if (!map || typeof map.setLights !== 'function') return;
         if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
+        const mobile = typeof navigator !== 'undefined'
+            && (navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || ''));
+        const shadowProps = directionalLightShadowProps(mobile, castShadows);
         const { direction, color, intensity, ambientIntensity } = computeSunLight(
             mins, INITIAL_VIEW_STATE.latitude, INITIAL_VIEW_STATE.longitude,
         );
@@ -496,8 +571,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
                         direction,
                         color,
                         intensity,
-                        'cast-shadows': castShadows,
-                        'shadow-intensity': castShadows ? 1 : 0,
+                        ...shadowProps,
                     },
                 },
             ]);
@@ -581,8 +655,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     // Melbourne wall-clock (AEST/AEDT), matching the sun curve index and
     // the "is this the current hour?" comparison.
     useEffect(() => {
+        if (todMinutes != null) return;
         setTodMinutes(minutesRef.current);
-    }, [setTodMinutes]);
+    }, [setTodMinutes, todMinutes]);
 
     // Sunny (and any other writer) publishes through MicroclimateContext.
     // Keep the thumb + 3D lights in lockstep when that value changes
@@ -679,7 +754,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
                         onKeyUp={settleScrub}
                         aria-label="Time of day for 3D building shadows"
                         aria-valuetext={clock}
-                        className="h-6 w-full cursor-pointer accent-amber-500 touch-pan-x"
+                        className="h-11 min-h-11 w-full cursor-pointer accent-amber-500 touch-pan-x"
                     />
                 </div>
             </div>
@@ -709,6 +784,19 @@ const VenueMap = forwardRef(({
     const hasFlownToBounds = useRef(false);
     const filterBoundsKeyRef = useRef(null);
     const rafRef           = useRef(null);
+    const mapInitLockRef   = useRef(false);
+    const pendingTimersRef = useRef(new Set());
+    const mountMapRef      = useRef(null);
+    const teardownMapRef   = useRef(() => {});
+    const recoveryRef      = useRef(createMapRecoveryState());
+    const staleGenerationsRef = useRef(new Set());
+    const recoveryCameraRef = useRef(null);
+    const mapGenerationRef = useRef(0);
+    const cameraClaimRef = useRef(new Set());
+    const syncSchedulerRef = useRef(createSyncScheduler());
+    const finishResumeRef = useRef(() => {});
+    const [recovery, setRecovery] = useState(() => createMapRecoveryState());
+    const [cooldownNow, setCooldownNow] = useState(() => Date.now());
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
@@ -717,7 +805,9 @@ const VenueMap = forwardRef(({
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
     const [mapFailureKind, setMapFailureKind] = useState('');
-    const [webglLost, setWebglLost] = useState(false);
+    const webglLost = recovery.phase === 'paused'
+        || recovery.phase === 'resuming'
+        || recovery.phase === 'resume-failed';
 
     const { weather, calculateSunstayScore } = useWeather();
     const { setBbox } = useMicroclimateActions();
@@ -781,8 +871,8 @@ const VenueMap = forwardRef(({
 
         resizeAndFly: ([lng, lat]) => {
             if (!map.current) return;
-            setTimeout(() => {
-                map.current?.resize();
+            const timer = setTimeout(() => {
+                pendingTimersRef.current.delete(timer);
                 map.current?.flyTo({
                     center:    [lng, lat],
                     zoom:      15,
@@ -792,6 +882,7 @@ const VenueMap = forwardRef(({
                     padding:   FLY_TO_PADDING,
                 });
             }, 300);
+            pendingTimersRef.current.add(timer);
         },
 
         locateUser: ({ lng, lat, zoom = 14, duration = 1100 } = {}) => {
@@ -814,9 +905,15 @@ const VenueMap = forwardRef(({
         getMap: () => map.current,
     }), [placeUserMarker]);
 
-    // ── Initialise map ONCE ─────────────────────────────────────────
+    const applyRecovery = (next) => {
+        recoveryRef.current = next;
+        setRecovery(next);
+    };
+
+    // ── Initialise map ONCE, then again only from Resume map ────────
     useEffect(() => {
-        if (map.current) return;
+        function mountMap(reason) {
+        if (map.current || mapInitLockRef.current) return;
         if (!MAPBOX_TOKEN?.startsWith('pk.')) {
             setMapError(true);
             setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
@@ -829,16 +926,75 @@ const VenueMap = forwardRef(({
         }
         if (!mapContainer.current) return;
 
+        let generation = recoveryRef.current.generation;
+        if (reason === 'resume') {
+            if (recoveryRef.current.phase !== 'resuming') return;
+            mapGenerationRef.current = generation;
+            noteMapGeneration(generation);
+        } else {
+            const started = startMapLoad(recoveryRef.current);
+            if (!started.ok) return;
+            applyRecovery(started.state);
+            generation = started.state.generation;
+        }
+
+        const isCurrent = () => (
+            generation === recoveryRef.current.generation
+            && !staleGenerationsRef.current.has(generation)
+        );
+        const mountClaim = claimMapboxMount();
+        if (!mountClaim.ok) {
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                message: mountClaim.reason === 'context-loss-cooldown'
+                    ? 'context-loss-cooldown'
+                    : 'mount-locked',
+                source: 'VenueMap',
+            });
+            if (reason === 'resume') {
+                const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
+                if (failed.ok) applyRecovery(failed.state);
+                noteMapboxContextLost(Date.now());
+            } else {
+                applyRecovery(releaseInitLock(recoveryRef.current, 'abort').state);
+            }
+            return undefined;
+        }
+        mapInitLockRef.current = true;
+        if (!trackMapMount()) {
+            releaseMapboxMount();
+            mapInitLockRef.current = false;
+            if (reason === 'resume') {
+                const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
+                if (failed.ok) applyRecovery(failed.state);
+                noteMapboxContextLost(Date.now());
+            } else {
+                applyRecovery(releaseInitLock(recoveryRef.current, 'abort').state);
+            }
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                message: 'duplicate-refused',
+                source: 'VenueMap',
+            });
+            return undefined;
+        }
+
         mapboxgl.accessToken = MAPBOX_TOKEN;
         let disposed = false;
+        let cleaned = false;
         let resizeObserver;
+        let resizeFrame = 0;
         const logMap = (kind, message) => {
             if (disposed) return;
             setIsolationContext({ mapEvent: message });
             logIsolationEvent({ kind, message, source: 'VenueMap' });
         };
         const loadTimeout = setTimeout(() => {
-            if (disposed) return;
+            if (disposed || !isCurrent()) return;
+            if (recoveryRef.current.phase === 'resuming') {
+                teardownMap('failed-resume');
+                return;
+            }
             setMapError(true);
             setMapFailureKind(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING);
             logMap(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING, 'map-load-timeout');
@@ -851,7 +1007,20 @@ const VenueMap = forwardRef(({
         const isMobileDevice = typeof navigator !== 'undefined'
             && (navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
 
+        const memoryOptions = mapMemoryOptions(isMobileDevice);
+        const reduceMobileGpu = () => {
+            if (!isMobileDevice || disposed || !map.current) return;
+            const reduced = suppressMobileGpuLayers(map.current);
+            logMap(
+                ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                `gpu-cut objects=${reduced.objects ? 1 : 0} terrain=${reduced.terrain ? 1 : 0} extrusion=${reduced.extrusion}`,
+            );
+        };
+
         try {
+            if (reason === 'resume') {
+                recordResumeMark(generation, 'map-create-start');
+            }
             map.current = new mapboxgl.Map({
                 container:           mapContainer.current,
                 style:               MAP_STYLE,
@@ -861,19 +1030,48 @@ const VenueMap = forwardRef(({
                 maxZoom:             18,
                 pitch:               45,
                 bearing:             -17.6,
-                antialias:           !isMobileDevice,
+                antialias:           memoryOptions.antialias,
                 cooperativeGestures: false,
                 fadeDuration:        0,
-                maxTileCacheSize:    20,
+                maxTileCacheSize:    memoryOptions.maxTileCacheSize,
+                ...(memoryOptions.config ? { config: memoryOptions.config } : {}),
             });
 
+            if (reason === 'resume') {
+                recordResumeMark(generation, 'map-instance-created');
+                const cameraClaim = claimCameraRestore(cameraClaimRef.current, generation);
+                cameraClaimRef.current = cameraClaim.claimed;
+                if (cameraClaim.restore) {
+                    recordResumeMark(generation, 'map-camera-start');
+                    const cameraResult = trackCameraRestore(restoreMapCamera(map.current, recoveryCameraRef.current));
+                    recordResumeMark(generation, 'map-camera-end');
+                    logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `resume-camera-${cameraResult}`);
+                }
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:inflight-animation-and-xweather-controller');
+            } else if (MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED) {
+                const cameraResult = trackCameraRestore(restoreMapCamera(map.current, cameraForRemount()));
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `camera-${cameraResult}`);
+                if (getMapLifecycleSnapshot().mountCount >= 2) {
+                    logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:overlays-tod-reset');
+                }
+            }
+            const mounted = getMapLifecycleSnapshot();
+            logMap(
+                ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                `mount count=${mounted.mountCount} live=${mounted.liveInstances}`,
+            );
+
             resizeObserver = new ResizeObserver(() => {
-                requestAnimationFrame(() => map.current?.resize());
+                if (resizeFrame) clearTimeout(resizeFrame);
+                resizeFrame = setTimeout(() => {
+                    resizeFrame = 0;
+                    map.current?.resize();
+                }, 150);
             });
             resizeObserver.observe(mapContainer.current);
 
             map.current.on('load', () => {
-                if (disposed || !map.current) return;
+                if (disposed || !map.current || !isCurrent()) return;
                 clearTimeout(loadTimeout);
                 logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'load');
                 // Hide Mapbox Standard's default POI labels so they don't compete
@@ -884,46 +1082,54 @@ const VenueMap = forwardRef(({
                 } catch (e) {
                     console.warn('[VenueMap] hide POI labels failed:', e?.message);
                 }
-                const initializeWeatherController = () => {
-                    if (controllerRef.current) return;
-                    if (!XWEATHER_KEY) return;
-                    try {
-                        const account = new Account(XWEATHER_KEY);
-                        const controller = new MapboxMapController(map.current, { account });
-                        controllerRef.current = controller;
-                        if (!isMobileDevice) {
-                            controller.addWeatherLayer('radar');
-                            controller.setWeatherLayerVisibility('radar', false);
-                            radarLayerAddedRef.current = true;
-                        }
-                    } catch (e) {
-                        console.warn('[VenueMap] Xweather radar setup failed:', e?.message);
-                    }
-                };
-                initializeWeatherController();
+                reduceMobileGpu();
                 // Global 3D lighting (and its cast shadows) is owned by the
                 // TimeOfDayLight slider, which applies map.setLights() as soon as
                 // the map reports loaded — no legacy setLight() needed here.
                 map.current.dragRotate.disable();
                 map.current.touchZoomRotate.disableRotation();
+                if (reason === 'resume') {
+                    recordResumeMark(generation, 'map-load');
+                    mapGenerationRef.current = generation;
+                    noteMapGeneration(generation);
+                    mapInitLockRef.current = false;
+                    setMapLoaded(true);
+                    setMapError(false);
+                    setMapFailureKind('');
+                    return;
+                }
+                const loaded = noteMapLoaded(recoveryRef.current, generation);
+                if (loaded.ok) {
+                    mapGenerationRef.current = loaded.state.generation;
+                    noteMapGeneration(loaded.state.generation);
+                    applyRecovery(loaded.state);
+                    clearMapboxContextLoss();
+                }
+                mapInitLockRef.current = false;
                 setMapLoaded(true);
                 setMapError(false);
                 setMapFailureKind('');
             });
 
             map.current.on('style.load', () => {
-                if (disposed) return;
+                if (disposed || !isCurrent()) return;
+                if (reason === 'resume') recordResumeMark(generation, 'map-style-ready');
                 logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'style.load');
+                reduceMobileGpu();
             });
 
             map.current.on('error', (e) => {
-                if (disposed) return;
+                if (disposed || !isCurrent()) return;
                 const msg = e.error?.message || e.message || '';
                 if (isSuppressedMapError(msg)) return;
                 const kind = classifyMapboxErrorMessage(msg);
                 logMap(kind, msg || 'map-error');
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
+                    if (recoveryRef.current.phase === 'resuming') {
+                        teardownMap('failed-resume');
+                        return;
+                    }
                     setMapError(true);
                     setMapFailureKind(kind);
                 }
@@ -934,18 +1140,38 @@ const VenueMap = forwardRef(({
                 'top-right'
             );
             const canvas = map.current.getCanvas();
+            let contextLossHandled = false;
+            let contextLossTimer = 0;
             const handleWebglContextLost = (event) => {
-                event.preventDefault();
-                setWebglLost(true);
+                event.stopImmediatePropagation();
+                event.stopPropagation();
+                if (contextLossHandled || staleGenerationsRef.current.has(generation)) return;
+                contextLossHandled = true;
+                staleGenerationsRef.current.add(generation);
+                const now = Date.now();
+                noteMapboxContextLost(now);
+                recoveryCameraRef.current = captureMapCamera(map.current);
+                Sentry.captureMessage('WebGL Context Lost', { level: 'warning', tags: { type: 'gpu_crash' } });
+                const paused = noteContextLost(recoveryRef.current, generation, now);
+                if (paused.ok) {
+                    noteContextLossDiagnostic(paused.state);
+                    applyRecovery(paused.state);
+                }
                 logMap(ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST, 'webglcontextlost');
+                contextLossTimer = setTimeout(() => {
+                    pendingTimersRef.current.delete(contextLossTimer);
+                    teardownMap('context-loss');
+                }, 0);
+                pendingTimersRef.current.add(contextLossTimer);
             };
-            const handleWebglContextRestored = () => {
-                setWebglLost(false);
-                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'webglcontextrestored');
+            const handleWebglContextRestored = (event) => {
+                event.stopImmediatePropagation();
+                event.stopPropagation();
+                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'webglcontextrestored-ignored');
             };
             if (canvas && typeof canvas.addEventListener === 'function') {
-                canvas.addEventListener('webglcontextlost', handleWebglContextLost, false);
-                canvas.addEventListener('webglcontextrestored', handleWebglContextRestored, false);
+                canvas.addEventListener('webglcontextlost', handleWebglContextLost, true);
+                canvas.addEventListener('webglcontextrestored', handleWebglContextRestored, true);
             }
             map.current._sunstayWebglContextLostHandler = handleWebglContextLost;
             map.current._sunstayWebglContextRestoredHandler = handleWebglContextRestored;
@@ -954,28 +1180,56 @@ const VenueMap = forwardRef(({
             setMapError(true);
             setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
             logMap(ISOLATION_EVENT_KINDS.MAPBOX_ERROR, err?.message || 'map-init-failed');
+            if (!map.current) {
+                trackMapRemove(null);
+                releaseMapboxMount();
+                mapInitLockRef.current = false;
+                if (reason === 'resume') {
+                    const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
+                    if (failed.ok) applyRecovery(failed.state);
+                    noteMapboxContextLost(Date.now());
+                } else {
+                    applyRecovery(releaseInitLock(recoveryRef.current, 'failed-init').state);
+                }
+            }
         }
 
-        return () => {
+        function teardownMap(reason = 'unmount') {
+            if (cleaned) return;
+            cleaned = true;
             disposed = true;
+            staleGenerationsRef.current.add(generation);
+            setMapLoaded(false);
             clearTimeout(loadTimeout);
+            for (const timer of pendingTimersRef.current) clearTimeout(timer);
+            pendingTimersRef.current.clear();
             resizeObserver?.disconnect();
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            const canvas = map.current?.getCanvas();
+            if (resizeFrame) clearTimeout(resizeFrame);
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+            syncSchedulerRef.current = releaseMarkerSyncFrame(syncSchedulerRef.current);
+            const lostCamera = captureMapCamera(map.current);
+            if (lostCamera) recoveryCameraRef.current = lostCamera;
+            const camera = MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED
+                ? lostCamera
+                : null;
+            let canvas = null;
+            try { canvas = map.current?.getCanvas?.() ?? null; } catch { canvas = null; }
             const contextLostHandler = map.current?._sunstayWebglContextLostHandler;
             const contextRestoredHandler = map.current?._sunstayWebglContextRestoredHandler;
+            const listeners = [];
             if (canvas && contextLostHandler) {
-                canvas.removeEventListener('webglcontextlost', contextLostHandler, false);
+                listeners.push({ target: canvas, type: 'webglcontextlost', handler: contextLostHandler, capture: true });
             }
             if (canvas && contextRestoredHandler) {
-                canvas.removeEventListener('webglcontextrestored', contextRestoredHandler, false);
+                listeners.push({ target: canvas, type: 'webglcontextrestored', handler: contextRestoredHandler, capture: true });
             }
-            Object.values(markersRef.current).forEach(({ marker }) => marker.remove());
+            const markers = [];
+            releaseMarkerRecords(markersRef.current);
             markersRef.current = {};
-            if (userMarkerRef.current) {
-                try { userMarkerRef.current.remove(); } catch { /* noop */ }
-                userMarkerRef.current = null;
-            }
+            if (userMarkerRef.current) markers.push(userMarkerRef.current);
 
             if (controllerRef.current) {
                 try {
@@ -994,37 +1248,124 @@ const VenueMap = forwardRef(({
             // Mapbox Standard renders 3D buildings natively (no custom building
             // layer to remove); we still defensively tear down this component's
             // own analytical layers/sources before disposing the map.
-            if (map.current) {
-                if (map.current.isStyleLoaded && map.current.isStyleLoaded()) {
-                    try {
-                        [CLOUD_LAYER_ID, HEATMAP_LAYER_ID, CLUSTER_LAYER_ID].forEach((id) => {
-                            if (map.current.getLayer(id)) map.current.removeLayer(id);
-                        });
-                        [CLOUD_SOURCE_ID, HEATMAP_SOURCE_ID, CLUSTER_SOURCE_ID].forEach((id) => {
-                            if (map.current.getSource(id)) map.current.removeSource(id);
-                        });
-                    } catch (err) {
-                        console.warn('Style cleanup skipped:', err);
-                    }
+            if (map.current?.isStyleLoaded?.()) {
+                try {
+                    [CLOUD_LAYER_ID, HEATMAP_LAYER_ID, CLUSTER_LAYER_ID].forEach((id) => {
+                        if (map.current.getLayer(id)) map.current.removeLayer(id);
+                    });
+                    [CLOUD_SOURCE_ID, HEATMAP_SOURCE_ID, CLUSTER_SOURCE_ID].forEach((id) => {
+                        if (map.current.getSource(id)) map.current.removeSource(id);
+                    });
+                } catch (err) {
+                    console.warn('Style cleanup skipped:', err);
                 }
-                map.current.remove();
-                map.current = null;
             }
+            const removal = noteMapRemoved(recoveryRef.current, generation);
+            recoveryRef.current = removal.state;
+            const released = removal.remove
+                ? releaseMapOwners({
+                    markers,
+                    listeners,
+                    map: map.current,
+                })
+                : { markerCleanups: 0, listenerCleanups: 0, removeCalls: 0 };
+            markersRef.current = {};
+            userMarkerRef.current = null;
+            map.current = null;
+            if (released.removeError) {
+                console.warn('[VenueMap] map.remove failed:', released.removeError);
+                recordMapRemoveFailure(released.removeError);
+            }
+            const snapshot = trackMapRemove(camera);
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                message: `remove count=${snapshot.removeCount} live=${snapshot.liveInstances} markers=${released.markerCleanups} listeners=${released.listenerCleanups}`,
+                source: 'VenueMap',
+            });
+            releaseMapboxMount();
+            mapInitLockRef.current = false;
+            if (reason === 'failed-resume') {
+                recordResumeMark(generation, 'resume-failed');
+                clearResumeTimingStore();
+                const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
+                if (failed.ok) applyRecovery(failed.state);
+                noteMapboxContextLost(Date.now());
+            } else if (reason !== 'context-loss') {
+                applyRecovery(releaseInitLock(recoveryRef.current, reason === 'unmount' ? 'unmount' : 'abort').state);
+            }
+        }
+
+        teardownMapRef.current = teardownMap;
+        }
+
+        mountMapRef.current = mountMap;
+        mountMap('initial');
+        return () => {
+            mountMapRef.current = null;
+            teardownMapRef.current('unmount');
+            clearResumeTimingStore();
         };
     }, []);
+
+    useEffect(() => {
+        if (recovery.phase !== 'resuming' || recovery.resumeStartedAt == null) return undefined;
+        const delay = recovery.resumeStartedAt + 3000 - Date.now();
+        if (delay <= 0) return undefined;
+        const timer = setTimeout(() => setCooldownNow(Date.now()), delay);
+        return () => clearTimeout(timer);
+    }, [recovery.phase, recovery.resumeStartedAt]);
+
+    useEffect(() => {
+        if (recovery.cooldownUntil == null) return undefined;
+        const delay = recovery.cooldownUntil - Date.now();
+        if (delay <= 0) {
+            setCooldownNow(Date.now());
+            return undefined;
+        }
+        const timer = setTimeout(() => setCooldownNow(Date.now()), delay);
+        return () => clearTimeout(timer);
+    }, [recovery.cooldownUntil]);
+
+    const onResumeMap = () => {
+        if (map.current || mapInitLockRef.current) return;
+        const clickAt = performance.now();
+        const decision = requestMapResume(recoveryRef.current, Date.now());
+        if (!decision.ok) return;
+        recordResumeMark(decision.state.generation, 'resume-click', clickAt);
+        recordResumeMark(decision.state.generation, 'resume-start');
+        applyRecovery(decision.state);
+        mountMapRef.current?.('resume');
+    };
+
+    finishResumeRef.current = (generation) => {
+        const activeGeneration = recoveryRef.current.generation;
+        if (recoveryRef.current.phase !== 'resuming') return;
+        if (generation !== activeGeneration || mapGenerationRef.current !== activeGeneration) return;
+        const loaded = noteMapLoaded(recoveryRef.current, generation);
+        if (!loaded.ok) return;
+        mapGenerationRef.current = loaded.state.generation;
+        noteMapGeneration(loaded.state.generation);
+        applyRecovery(loaded.state);
+        clearMapboxContextLoss();
+        recordResumeMark(generation, 'map-live');
+        recordResumeMark(generation, 'resume-placeholder-hidden');
+    };
 
 
 
     // ── Cloud toggle ────────────────────────────────────────────────
     useEffect(() => {
-        if (!mapLoaded || !map.current) return;
+        if (!mapLoaded || !map.current || recovery.phase === 'resuming') return;
+        if (recovery.resumeAttempts > 0) {
+            recordResumeMark(recovery.generation, 'map-optional-overlays-start');
+        }
 
         if (cloudOn) {
             addOrUpdateCloudLayer(map.current);
         } else {
             removeCloudLayer(map.current);
         }
-    }, [cloudOn, mapLoaded]);
+    }, [cloudOn, mapLoaded, recovery.phase, recovery.resumeAttempts, recovery.generation]);
 
     // ── Cluster source + GPU comfort heatmap ─────────────────────────
     useEffect(() => {
@@ -1068,44 +1409,46 @@ const VenueMap = forwardRef(({
                 source: CLUSTER_SOURCE_ID,
                 paint: { 'circle-radius': 0, 'circle-opacity': 0 }
             });
+            if (recoveryRef.current.phase === 'resuming') {
+                recordResumeMark(recoveryRef.current.generation, 'map-sources-layers-ready');
+            }
         } else {
             map.current.getSource(CLUSTER_SOURCE_ID).setData(geojsonData);
         }
 
-        if (!map.current.getSource(HEATMAP_SOURCE_ID)) {
-            map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: geojsonData });
+        if (comfortMapOn) {
+            if (!map.current.getSource(HEATMAP_SOURCE_ID)) {
+                map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: geojsonData });
 
-            const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
-            map.current.addLayer({
-                id:      HEATMAP_LAYER_ID,
-                type:    'heatmap',
-                source:  HEATMAP_SOURCE_ID,
-                maxzoom: 15,
-                paint: {
-                    'heatmap-weight':     ['get', 'score'],
-                    'heatmap-intensity':  ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
-                    'heatmap-color': [
-                        'interpolate', ['linear'], ['heatmap-density'],
-                        0,    'rgba(0,0,0,0)',
-                        0.15, 'rgba(37,99,235,0.25)',
-                        0.45, 'rgba(16,185,129,0.40)',
-                        0.75, 'rgba(245,158,11,0.55)',
-                        1.0,  'rgba(239,68,68,0.65)',
-                    ],
-                    'heatmap-radius':  ['interpolate', ['linear'], ['zoom'], 0, 3, 15, 55],
-                    'heatmap-opacity': 0.45,
-                },
-            }, insertBefore);
-        } else {
-            map.current.getSource(HEATMAP_SOURCE_ID).setData(geojsonData);
-        }
-
-        if (map.current.getLayer(HEATMAP_LAYER_ID)) {
-            map.current.setLayoutProperty(
-                HEATMAP_LAYER_ID,
-                'visibility',
-                comfortMapOn ? 'visible' : 'none'
-            );
+                const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
+                map.current.addLayer({
+                    id:      HEATMAP_LAYER_ID,
+                    type:    'heatmap',
+                    source:  HEATMAP_SOURCE_ID,
+                    maxzoom: 15,
+                    paint: {
+                        'heatmap-weight':     ['get', 'score'],
+                        'heatmap-intensity':  ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
+                        'heatmap-color': [
+                            'interpolate', ['linear'], ['heatmap-density'],
+                            0,    'rgba(0,0,0,0)',
+                            0.15, 'rgba(37,99,235,0.25)',
+                            0.45, 'rgba(16,185,129,0.40)',
+                            0.75, 'rgba(245,158,11,0.55)',
+                            1.0,  'rgba(239,68,68,0.65)',
+                        ],
+                        'heatmap-radius':  ['interpolate', ['linear'], ['zoom'], 0, 3, 15, 55],
+                        'heatmap-opacity': 0.45,
+                    },
+                }, insertBefore);
+            } else {
+                map.current.getSource(HEATMAP_SOURCE_ID).setData(geojsonData);
+            }
+            if (map.current.getLayer(HEATMAP_LAYER_ID)) {
+                map.current.setLayoutProperty(HEATMAP_LAYER_ID, 'visibility', 'visible');
+            }
+        } else if (map.current.getLayer(HEATMAP_LAYER_ID)) {
+            map.current.setLayoutProperty(HEATMAP_LAYER_ID, 'visibility', 'none');
         }
     }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore, microById, clusterTodMinutes]);
 
@@ -1170,115 +1513,213 @@ const VenueMap = forwardRef(({
         }
     }, [mapLoaded, safeVenues, filteredIdSet]);
 
-    // ── Sync clustered markers ───────────────────────────────────────
+    // ── Sync clustered markers for the live map generation ─────────
     useEffect(() => {
-        if (!map.current || !mapLoaded) return;
+        const instance = map.current;
+        const generation = mapGenerationRef.current;
+        if (!instance || !mapLoaded || !generation) return undefined;
 
         const syncMarkers = () => {
+            if (mapGenerationRef.current !== generation || map.current !== instance) {
+                syncSchedulerRef.current = {
+                    ...syncSchedulerRef.current,
+                    ignored: syncSchedulerRef.current.ignored + 1,
+                };
+                publishMarkerSync(syncSchedulerRef.current);
+                return;
+            }
+            const requested = requestMarkerSync(syncSchedulerRef.current, generation);
+            syncSchedulerRef.current = requested.scheduler;
+            publishMarkerSync(syncSchedulerRef.current);
+            if (!requested.run) return;
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             rafRef.current = requestAnimationFrame(() => {
-                if (!map.current || !map.current.isSourceLoaded(CLUSTER_SOURCE_ID)) return;
-                
-                const features = map.current.queryRenderedFeatures({ layers: [CLUSTER_LAYER_ID] });
-                const newMarkers = {};
+                rafRef.current = null;
+                if (mapGenerationRef.current !== generation || map.current !== instance) {
+                    syncSchedulerRef.current = {
+                        ...syncSchedulerRef.current,
+                        frame: false,
+                        ignored: syncSchedulerRef.current.ignored + 1,
+                    };
+                    publishMarkerSync(syncSchedulerRef.current);
+                    return;
+                }
+                try {
+                let sourceLoaded = false;
+                try {
+                    sourceLoaded = instance.isSourceLoaded(CLUSTER_SOURCE_ID) === true;
+                } catch {
+                    sourceLoaded = false;
+                }
+                const decision = markerSyncDecision({ sourceLoaded });
+                if (!decision.sync) {
+                    syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
+                    publishMarkerSync(syncSchedulerRef.current);
+                    return;
+                }
+
+                const features = featuresForMarkerSync(instance, CLUSTER_SOURCE_ID);
+                const gate = requiredMarkerGate({
+                    sourceLoaded: true,
+                    featureCount: features.length,
+                });
+                if (!gate.ready) {
+                    syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
+                    publishMarkerSync(syncSchedulerRef.current);
+                    return;
+                }
                 const live = liveVenueFeaturesRef.current;
+                const specs = [];
 
                 features.forEach(feature => {
                     const coords = feature.geometry.coordinates;
                     const isCluster = feature.properties.cluster;
-                    let markerId = '';
 
                     if (isCluster) {
-                        markerId = `cluster-${feature.properties.cluster_id}`;
+                        const markerId = `cluster-${feature.properties.cluster_id}`;
                         const count = feature.properties.point_count;
-                        let existing = markersRef.current[markerId];
-
-                        if (existing) {
-                            syncExistingClusterMarker(existing, coords, count, {
-                                updateCount(record, nextCount) {
-                                    updateClusterMarkerEl(record.el, nextCount);
-                                },
-                            });
-                        } else {
-                            const el = createClusterMarkerEl(count);
-                            el.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                map.current.easeTo({ center: coords, zoom: map.current.getZoom() + 2 });
-                            });
-                            const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
-                                .setLngLat(coords)
-                                .addTo(map.current);
-                            existing = { marker, el, count, isCluster: true };
+                        const clusterPlan = markerCoordinatePlan({
+                            id: markerId,
+                            lng: coords?.[0],
+                            lat: coords?.[1],
+                        });
+                        if (!clusterPlan.ok) {
+                            noteInvalidCoordinate(clusterPlan);
+                            return;
                         }
-                        newMarkers[markerId] = existing;
-                    } else {
-                        const venueId = feature.properties.id;
-                        markerId = `venue-${venueId}`;
-                        const venue = venuesMapRef.current.get(String(venueId));
-                        if (!venue) return;
+                        specs.push({
+                            id: markerId,
+                            update(existing) {
+                                syncExistingClusterMarker(existing, clusterPlan.coordinates, count, {
+                                    updateCount(record, nextCount) {
+                                        updateClusterMarkerEl(record.el, nextCount);
+                                    },
+                                });
+                            },
+                            create() {
+                                const el = createClusterMarkerEl(count);
+                                el.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    if (mapGenerationRef.current !== generation || map.current !== instance) return;
+                                    instance.easeTo({ center: clusterPlan.coordinates, zoom: instance.getZoom() + 2 });
+                                });
+                                const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
+                                    .setLngLat(clusterPlan.coordinates)
+                                    .addTo(instance);
+                                return { marker, el, count, isCluster: true, generation };
+                            },
+                        });
+                        return;
+                    }
 
-                        // FIX: Use the canonical venue coordinate, NOT feature.geometry.coordinates.
-                        const venueLng = Number(venue.lng);
-                        const venueLat = Number(venue.lat);
-                        if (!Number.isFinite(venueLng) || !Number.isFinite(venueLat)) return;
+                    const venueId = feature.properties.id;
+                    const venue = venuesMapRef.current.get(String(venueId));
+                    if (!venue) return;
+                    const venuePlan = markerCoordinatePlan(venue);
+                    if (!venuePlan.ok) {
+                        noteInvalidCoordinate(venuePlan);
+                        return;
+                    }
+                    const venueLng = venuePlan.longitude;
+                    const venueLat = venuePlan.latitude;
 
-                        const microReading = readingForVenue(microById, venue.id, clusterTodMinutes);
-                        const pinKey = getPinStateKey(
-                            venue,
-                            weather,
-                            live,
-                            weatherColorFnRef.current,
-                            cozyFilterActiveRef.current,
-                            microReading,
-                        );
-                        const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
-
-                        let existing = markersRef.current[markerId];
-
-                        if (existing) {
-                            if (existing.pinKey !== pinKey) {
+                    const microReading = readingForVenue(microById, venue.id, clusterTodMinutes);
+                    const pinKey = getPinStateKey(
+                        venue,
+                        weather,
+                        live,
+                        weatherColorFnRef.current,
+                        cozyFilterActiveRef.current,
+                        microReading,
+                    );
+                    const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
+                    specs.push({
+                        id: `venue-${venueId}`,
+                        update(existing) {
+                            if (existing.pinKey !== pinKey || existing.score !== score) {
                                 updateMarkerEl(existing.el, pinKey, score);
                                 existing.pinKey = pinKey;
                                 existing.score = score;
-                            } else if (existing.score !== score) {
-                                // Score-only change — cheap in-place DOM update, no marker recreation.
-                                updateMarkerEl(existing.el, pinKey, score);
-                                existing.score = score;
                             }
-                        } else {
+                        },
+                        create() {
                             const el = createMarkerEl(pinKey, score);
                             el.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
+                                if (mapGenerationRef.current !== generation) return;
                                 onVenueSelectRef.current?.(venue);
                             });
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
-                                .addTo(map.current);
-                            existing = { marker, el, pinKey, score, isCluster: false };
-                        }
-                        newMarkers[markerId] = existing;
-                    }
+                                .addTo(instance);
+                            return { marker, el, pinKey, score, isCluster: false, generation };
+                        },
+                    });
                 });
 
-                removeStaleMarkers(markersRef.current, newMarkers);
-                markersRef.current = newMarkers;
+                const synced = syncMarkerLayer(markersRef.current, generation, specs);
+                markersRef.current = synced.markers;
+                const clusterCreated = synced.created.filter((id) => String(id).startsWith('cluster-')).length;
+                syncSchedulerRef.current = completeMarkerSync(syncSchedulerRef.current, {
+                    created: synced.created.length,
+                    reused: synced.reused.length,
+                    removed: synced.removed.length,
+                    clusterCreated,
+                    venueCreated: synced.created.length - clusterCreated,
+                });
+                publishMarkerSync(syncSchedulerRef.current);
+                const requiredReady = resumeMayGoLive({ requiredMarkersReady: gate.ready });
+                if (
+                    requiredReady
+                    && recoveryRef.current.phase === 'resuming'
+                    && recoveryRef.current.generation === generation
+                ) {
+                    recordResumeMark(generation, 'map-markers-ready');
+                    finishResumeRef.current(generation);
+                }
+                } catch (err) {
+                    syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
+                    publishMarkerSync(syncSchedulerRef.current);
+                    console.warn('[VenueMap] marker sync failed:', err?.message);
+                }
             });
         };
 
+        const onSourceData = (event) => {
+            if (event?.sourceId && event.sourceId !== CLUSTER_SOURCE_ID) return;
+            syncMarkers();
+        };
+        instance.on('sourcedata', onSourceData);
+        syncSchedulerRef.current = noteMarkerListeners(syncSchedulerRef.current, 3);
+        publishMarkerSync(syncSchedulerRef.current);
+        const unbind = bindMapGestureListeners(
+            instance,
+            generation,
+            () => mapGenerationRef.current,
+            (type) => {
+                if (type === 'moveend' || type === 'idle') syncMarkers();
+            },
+            ['moveend', 'idle'],
+        );
         syncMarkers();
 
-        map.current.on('idle', syncMarkers);
-        map.current.on('moveend', syncMarkers);
-
         return () => {
-            if (map.current) {
-                map.current.off('idle', syncMarkers);
-                map.current.off('moveend', syncMarkers);
+            instance.off('sourcedata', onSourceData);
+            unbind();
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+            syncSchedulerRef.current = releaseMarkerSyncFrame(syncSchedulerRef.current);
+            publishMarkerSync(syncSchedulerRef.current);
+            if (map.current !== instance || mapGenerationRef.current !== generation) {
+                releaseMarkerRecords(markersRef.current);
+                markersRef.current = {};
             }
         };
-    }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, clusterTodMinutes]);
+    }, [mapLoaded, recovery.generation, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, clusterTodMinutes]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces
@@ -1317,14 +1758,12 @@ const VenueMap = forwardRef(({
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {
         if (!selectedVenue || !map.current) return;
-        const lng = Number(selectedVenue.lng);
-        const lat = Number(selectedVenue.lat);
-        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+        const plan = markerCoordinatePlan(selectedVenue);
+        if (!plan.ok) return;
 
         const t = setTimeout(() => {
-            map.current?.resize();
             map.current?.flyTo({
-                center:    [lng, lat],
+                center:    plan.coordinates,
                 zoom:      15,
                 pitch:     45,
                 duration:  900,
@@ -1338,22 +1777,43 @@ const VenueMap = forwardRef(({
 
     // ── Xweather radar visibility ───────────────────────────────────
     useEffect(() => {
-        if (!mapLoaded || !controllerRef.current) return;
+        if (!mapLoaded || !map.current || recovery.phase === 'resuming') return undefined;
+        if (!showRadar && !controllerRef.current) return undefined;
 
-        try {
-            if (showRadar && !radarLayerAddedRef.current) {
-                controllerRef.current.addWeatherLayer('radar');
-                radarLayerAddedRef.current = true;
-            }
-            if (radarLayerAddedRef.current) {
-                controllerRef.current.setWeatherLayerVisibility('radar', showRadar);
-            }
-        } catch (e) {
-            console.warn('[VenueMap] Xweather radar visibility update failed:', e?.message);
-        }
-    }, [mapLoaded, showRadar]);
+        const instance = map.current;
+        let cancelled = false;
 
-    const webglRecovery = webglRecoveryView(webglLost);
+        (async () => {
+            try {
+                if (showRadar && !controllerRef.current) {
+                    if (!XWEATHER_KEY) return;
+                    const { MapboxMapController, Account } = await loadMapsGl();
+                    if (cancelled || map.current !== instance) return;
+                    controllerRef.current = new MapboxMapController(instance, {
+                        account: new Account(XWEATHER_KEY),
+                    });
+                }
+                if (!controllerRef.current || cancelled) return;
+                if (showRadar && !radarLayerAddedRef.current) {
+                    controllerRef.current.addWeatherLayer('radar');
+                    radarLayerAddedRef.current = true;
+                }
+                if (radarLayerAddedRef.current) {
+                    controllerRef.current.setWeatherLayerVisibility('radar', showRadar);
+                }
+            } catch (e) {
+                console.warn('[VenueMap] Xweather radar visibility update failed:', e?.message);
+            }
+            if (!cancelled && recovery.resumeAttempts > 0 && recovery.phase === 'live') {
+                recordResumeMark(recovery.generation, 'map-optional-overlays-end');
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [mapLoaded, showRadar, recovery.phase, recovery.generation, recovery.resumeAttempts]);
+
+    const recoveryControl = mapRecoveryControl(recovery, cooldownNow);
+    const webglRecovery = webglRecoveryView(webglLost ? recovery.phase : 'live', cooldownNow);
 
     // ── Render ──────────────────────────────────────────────────────
     return (
@@ -1361,24 +1821,43 @@ const VenueMap = forwardRef(({
             <div
                 ref={mapContainer}
                 data-map-webgl-lost={webglLost ? '1' : '0'}
+                data-map-recovery={recovery.phase}
                 style={{ width: '100%', height: '100%', touchAction: 'none' }}
             />
-            {webglRecovery.mounted ? (
+            {recoveryControl.showResume || recoveryControl.showProgress || recoveryControl.showReload ? (
                 <div
                     data-webgl-recovery="1"
-                    role={webglRecovery.role}
+                    role="status"
                     aria-live="polite"
                     className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-900/45 backdrop-blur-[2px]"
-                    style={{ pointerEvents: webglRecovery.blocksInteraction ? 'auto' : 'none' }}
                 >
-                    <div className={`flex items-center gap-3 rounded-2xl px-5 py-3 shadow-lg ${webglRecovery.surfaceClass}`}>
-                        <span
-                            className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"
-                            aria-hidden="true"
-                        />
+                    <div className={`flex flex-col items-center gap-3 rounded-2xl px-5 py-3 shadow-lg ${webglRecovery.surfaceClass}`}>
                         <span className="text-sm font-semibold tracking-tight">
-                            {webglRecovery.message}
+                            {recoveryControl.status}
                         </span>
+                        {recoveryControl.showResume ? (
+                            <button
+                                type="button"
+                                onClick={onResumeMap}
+                                disabled={recoveryControl.disabled}
+                                aria-label="Resume map"
+                                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-amber-500 px-4 text-sm font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                style={{ minWidth: 44, minHeight: 44 }}
+                            >
+                                Resume map
+                            </button>
+                        ) : null}
+                        {recoveryControl.showReload ? (
+                            <button
+                                type="button"
+                                onClick={() => window.location.reload()}
+                                aria-label="Reload"
+                                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-amber-500 px-4 text-sm font-semibold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
+                                style={{ minWidth: 44, minHeight: 44 }}
+                            >
+                                Reload
+                            </button>
+                        ) : null}
                     </div>
                 </div>
             ) : null}
@@ -1419,7 +1898,7 @@ const VenueMap = forwardRef(({
                             {filtersControl}
                         </div>
                     ) : null}
-                    {mapLoaded && !mapError ? (
+                    {mapLoaded && !mapError && recovery.phase !== 'resuming' ? (
                         <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} todMinutes={todMinutes} />
                     ) : null}
                 </div>
@@ -1488,7 +1967,7 @@ const VenueMap = forwardRef(({
                 </div>
             )}
 
-            {(!mapLoaded || mapError) && (
+            {(!mapLoaded || mapError) && !recovery.sessionLocked && (
                 <div
                     style={styles.overlay}
                     data-map-failure-kind={mapError

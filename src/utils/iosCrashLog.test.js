@@ -8,6 +8,7 @@ import {
     getIsolationEvents,
     logIsolationEvent,
     logReactRenderError,
+    previousSessionEndedAbnormally,
     resetIsolationLog,
     setIsolationContext,
 } from './iosCrashLog.js';
@@ -113,6 +114,37 @@ describe('isolation event log', () => {
         assert.equal(events.length, 20);
         assert.equal(events[0].message, 'event-10');
         assert.equal(events.at(-1).message, 'event-29');
+    });
+});
+
+describe('previous session termination', () => {
+    it('treats a missing pagehide after probe attach as an abnormal end', () => {
+        assert.equal(previousSessionEndedAbnormally([
+            { kind: ISOLATION_EVENT_KINDS.PAGE_LIFECYCLE, message: 'probe-attached' },
+            { kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, message: 'style.load' },
+        ]), true);
+    });
+
+    it('treats an uncleared session lock with no later pagehide as an abnormal end', () => {
+        assert.equal(previousSessionEndedAbnormally([
+            { kind: ISOLATION_EVENT_KINDS.PAGE_LIFECYCLE, message: 'pagehide' },
+            { kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, message: 'mount-locked' },
+        ]), true);
+        assert.equal(previousSessionEndedAbnormally([
+            { kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, message: 'session-locked' },
+        ]), true);
+    });
+
+    it('does not flag a session that recorded pagehide after it started', () => {
+        assert.equal(previousSessionEndedAbnormally([]), false);
+        assert.equal(previousSessionEndedAbnormally([
+            { kind: ISOLATION_EVENT_KINDS.PAGE_LIFECYCLE, message: 'probe-attached' },
+            { kind: ISOLATION_EVENT_KINDS.PAGE_LIFECYCLE, message: 'pagehide' },
+        ]), false);
+        assert.equal(previousSessionEndedAbnormally([
+            { kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, message: 'mount-locked' },
+            { kind: ISOLATION_EVENT_KINDS.PAGE_LIFECYCLE, message: 'pagehide-bfcache' },
+        ]), false);
     });
 });
 

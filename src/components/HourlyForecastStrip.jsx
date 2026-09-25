@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getSunData } from '../utils/getSunData';
 import { shouldFetchRemote } from '../hooks/shouldFetchRemote';
 import { normalizeHourlyForecast, countDirectSunHours } from '../utils/normalizeHourlyForecast';
@@ -8,6 +8,15 @@ import {
   forecastDataPresent,
 } from '../utils/resolveForecastView';
 import ForecastFallbackCard from './common/ForecastFallbackCard';
+import {
+  beginForecastRequest,
+  createForecastGeneration,
+  forecastHttpPlan,
+  invalidateForecast,
+  isCurrentForecast,
+  isForecastAbort,
+  noteSunForecast,
+} from '../utils/sunForecastDiagnostics';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -43,12 +52,13 @@ if (typeof document !== 'undefined' && !document.getElementById('ss-pulse-kf')) 
   document.head.appendChild(style);
 }
 
-export default function HourlyForecastStrip({ lat, lng, enabled = true, onViewState }) {
+export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId = '', onViewState }) {
   const [hourly, setHourly]                   = useState([]);
   const [loading, setLoading]                 = useState(true);
   const [error, setError]                     = useState(false);
   const [sunshineMinsToday, setSunshineMinsToday] = useState(null);
 
+  const generationRef = useRef(createForecastGeneration());
   const latNum = lat != null ? Number(lat) : NaN;
   const lngNum = lng != null ? Number(lng) : NaN;
   const hasCoords = Number.isFinite(latNum) && Number.isFinite(lngNum);
@@ -76,9 +86,18 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, onViewSt
       return;
     }
 
-    let cancelled = false;
+    const started = beginForecastRequest(generationRef.current, venueId);
+    generationRef.current = started.generation;
+    const seen = new Set();
+    const controller = new AbortController();
+    const startedAt = Date.now();
     setLoading(true);
     setError(false);
+    noteSunForecast(seen, 'sun-forecast-fetch-start', {
+        venueId,
+        requestId: started.requestId,
+        state: 'loading',
+    });
 
     const params = new URLSearchParams({
       latitude:      String(latNum),
@@ -89,28 +108,77 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, onViewSt
       wind_speed_unit: 'kmh',
     });
 
-    fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return;
-
-        setHourly(normalizeHourlyForecast(data, { now: new Date(), limit: 12 }));
+    fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: controller.signal })
+      .then((response) => {
+        const plan = forecastHttpPlan(response.ok, response.status);
+        if (plan.action === 'error') {
+          const error = new Error(plan.reason);
+          error.status = response.status;
+          throw error;
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!isCurrentForecast(generationRef.current, started.requestId, venueId)) return;
+        const rows = normalizeHourlyForecast(data, { now: new Date(), limit: 12 });
+        noteSunForecast(seen, 'sun-forecast-normalized', {
+            venueId,
+            requestId: started.requestId,
+            count: rows.length,
+            state: 'normalized',
+            elapsedMs: Date.now() - startedAt,
+        });
+        setHourly(rows);
         setError(false);
+        noteSunForecast(seen, 'sun-forecast-fetch-success', {
+            venueId,
+            requestId: started.requestId,
+            count: rows.length,
+            state: rows.length ? 'success' : 'empty',
+            elapsedMs: Date.now() - startedAt,
+        });
 
         const directSunHours = countDirectSunHours(data, 24);
         setSunshineMinsToday(directSunHours === null ? null : directSunHours * 60);
       })
-      .catch(() => {
-        if (cancelled) return;
+      .catch((error) => {
+        if (!isCurrentForecast(generationRef.current, started.requestId, venueId)) return;
+        if (isForecastAbort(error)) {
+          noteSunForecast(seen, 'sun-forecast-fetch-abort', {
+            venueId,
+            requestId: started.requestId,
+            state: 'abort',
+          });
+          return;
+        }
         setHourly([]);
         setSunshineMinsToday(null);
         setError(true);
+        noteSunForecast(seen, 'sun-forecast-fetch-error', {
+            venueId,
+            requestId: started.requestId,
+            state: 'error',
+            reason: error?.message || 'fetch-failed',
+            elapsedMs: Date.now() - startedAt,
+        });
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => {
+        if (isCurrentForecast(generationRef.current, started.requestId, venueId) && !controller.signal.aborted) {
+          setLoading(false);
+        }
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      generationRef.current = invalidateForecast(generationRef.current);
+      controller.abort();
+      noteSunForecast(seen, 'sun-forecast-cleanup', {
+        venueId,
+        requestId: started.requestId,
+        state: 'cleanup',
+      });
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, latNum, lngNum]);
+  }, [enabled, latNum, lngNum, venueId]);
 
   const stateAttrs = {
     'data-forecast-state': view,

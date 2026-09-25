@@ -8,7 +8,10 @@
  *
  * Card-count matrix (leading hypothesis only — 59 cards are not a confirmed
  * cause). `venueLimit` does not change filtering, ordering, or the total
- * count. Default is `all` (no cap). Demo data has 48 venues, so 59 still
+ * count. With no override the product list is a progressive window
+ * (15, then Load more). `?venueLimit=15|30|45|59` is a diagnostic hard cap
+ * with no Load more button. `?venueLimit=all` shows every filtered venue,
+ * also with no Load more button. Demo data has 48 venues, so 59 still
  * renders every demo card; a larger Supabase payload is capped at 59.
  *
  * | Test | Mapbox | Render limit | Sheet motion | URL |
@@ -38,12 +41,21 @@
  *
  * localStorage keys: ss-mapbox, ss-sheet-motion, ss-pull-refresh,
  * ss-venue-render-limit, ss-sheet-will-change, ss-sheet-backdrop,
- * ss-matrix-hud, ss-refresh-hang. Values are 0/1, off/drag, or 15/30/45/59/all.
+ * ss-matrix-hud, ss-refresh-hang, ss-map-lifecycle. Values are 0/1, off/drag,
+ * 15/30/45/59/all, or keep/unmount-expanded.
  *
  * Do not change Mapbox init or unmount while running this matrix.
+ *
+ * Map lifecycle is a separate opt-in. It does not change Mapbox constructor
+ * options. Unset, `keep`, and any unknown value leave the map mounted:
+ * ?matrixHud=1&mapLifecycle=keep
+ * ?matrixHud=1&mapLifecycle=unmount-expanded
+ * The second URL unmounts Mapbox only while the venue sheet is stably fully
+ * expanded. Drag frames do not mount or unmount it.
  */
 
-import { parseVenueRenderLimit } from './venueRenderLimit.js';
+import { classifyVenueRenderLimit } from './venueRenderLimit.js';
+import { parseMapLifecycle } from './mapLifecycle.js';
 
 function parseEnabled(value, fallback) {
     if (value == null || value === '') return fallback;
@@ -84,7 +96,8 @@ export function resolveIosIsolation(source = {}) {
     const storage = source.storage ?? null;
     const env = source.env || {};
     const read = (queryKey, storageKey, envValue) => readOverride(search, storage, env, queryKey, storageKey, envValue);
-    const venueLimit = parseVenueRenderLimit(read('venueLimit', 'ss-venue-render-limit', env.VITE_IOS_VENUE_RENDER_LIMIT));
+    const venueWindow = classifyVenueRenderLimit(read('venueLimit', 'ss-venue-render-limit', env.VITE_IOS_VENUE_RENDER_LIMIT));
+    const venueLimit = venueWindow.limit;
     const mapbox = parseEnabled(read('mapbox', 'ss-mapbox', env.VITE_IOS_MAPBOX), true);
     const sheetMotion = parseEnabled(read('sheetMotion', 'ss-sheet-motion', env.VITE_IOS_SHEET_MOTION), true);
     return {
@@ -93,10 +106,12 @@ export function resolveIosIsolation(source = {}) {
         sheetMotion,
         pullRefresh: parseEnabled(read('pullRefresh', 'ss-pull-refresh', env.VITE_IOS_PULL_REFRESH), true),
         venueRenderLimit: venueLimit,
+        venueRenderMode: venueWindow.mode,
         sheetWillChange: parseWillChangeMode(read('sheetWillChange', 'ss-sheet-will-change', env.VITE_IOS_SHEET_WILL_CHANGE)),
         sheetBackdrop: parseBackdropMode(read('sheetBackdrop', 'ss-sheet-backdrop', env.VITE_IOS_SHEET_BACKDROP)),
         matrixHud: parseEnabled(read('matrixHud', 'ss-matrix-hud', env.VITE_IOS_MATRIX_HUD), false),
         refreshHang: parseEnabled(read('refreshHang', 'ss-refresh-hang', env.VITE_IOS_REFRESH_HANG), false),
+        mapLifecycle: parseMapLifecycle(read('mapLifecycle', 'ss-map-lifecycle', env.VITE_IOS_MAP_LIFECYCLE)),
         renderMatrix: renderMatrixTestId({ map: mapbox, limit: venueLimit, motion: sheetMotion }),
     };
 }
@@ -118,10 +133,12 @@ export const ENABLE_MAPBOX = resolvedIsolation.mapbox;
 export const ENABLE_SHEET_MOTION = resolvedIsolation.sheetMotion;
 export const ENABLE_MASCOT_PULL_REFRESH = resolvedIsolation.pullRefresh;
 export const VENUE_RENDER_LIMIT = resolvedIsolation.venueRenderLimit;
+export const VENUE_RENDER_MODE = resolvedIsolation.venueRenderMode;
 export const SHEET_WILL_CHANGE_MODE = resolvedIsolation.sheetWillChange;
 export const SHEET_BACKDROP_MODE = resolvedIsolation.sheetBackdrop;
 export const MATRIX_HUD = resolvedIsolation.matrixHud;
 export const VENUE_REFRESH_HANG = resolvedIsolation.refreshHang;
+export const MAP_LIFECYCLE = resolvedIsolation.mapLifecycle;
 
 export function renderMatrixTestId({ map, limit, motion }) {
     if (limit == null) return 'default';
