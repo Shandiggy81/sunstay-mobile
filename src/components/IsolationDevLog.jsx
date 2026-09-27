@@ -53,6 +53,8 @@ export default function IsolationDevLog() {
     const recent = getIsolationEvents().slice(-8);
     const mapSession = getMapLifecycleSnapshot();
     const mapDiag = getMapSessionDiagnostics();
+    const operationTrace = getMapOperationTrace();
+    const operationEvents = operationTrace.events.slice(-16);
 
     return (
         <aside
@@ -78,8 +80,13 @@ export default function IsolationDevLog() {
             <p>last-marker-generation:{mapDiag.lastMarkerGeneration || '—'}</p>
             <p>last-invalid-coordinate:{mapDiag.lastInvalidCoordinate || '—'}</p>
             <p>op-test:{isMapOperationTraceEnabled() ? 'on' : 'off'}</p>
-            <p>last-op:{getMapOperationTrace().last || '—'}</p>
-            <p>pre-loss:{getMapOperationTrace().precedingLoss || '—'}</p>
+            <p>last-op:{operationTrace.last || '—'}</p>
+            <p>pre-loss:{operationTrace.precedingLoss || '—'}</p>
+            {operationEvents.map((event) => (
+                <p key={event.seq} className="whitespace-nowrap">
+                    {event.seq} {event.name} {event.at}
+                </p>
+            ))}
             <p>map-mounts:{mapSession.mountCount}</p>
             <p>map-removes:{mapSession.removeCount}</p>
             <p>map-instances:{mapSession.liveInstances}</p>
