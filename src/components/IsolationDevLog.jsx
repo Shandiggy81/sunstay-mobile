@@ -22,6 +22,7 @@ import {
 } from '../utils/iosCrashLog';
 import { getMapLifecycleSnapshot } from '../utils/mapLifecycle';
 import { getMapSessionDiagnostics, getMarkerSyncStats } from '../utils/mapMarkerLifecycle';
+import { getMapOperationTrace, isMapOperationTraceEnabled } from '../utils/mapOperationTrace';
 import { formatResumeHudLines, getResumeTimingSnapshot } from '../utils/mapResumeTiming';
 
 /**
@@ -76,6 +77,9 @@ export default function IsolationDevLog() {
             <p>last-map-transition:{mapDiag.lastTransition || '—'}</p>
             <p>last-marker-generation:{mapDiag.lastMarkerGeneration || '—'}</p>
             <p>last-invalid-coordinate:{mapDiag.lastInvalidCoordinate || '—'}</p>
+            <p>op-test:{isMapOperationTraceEnabled() ? 'on' : 'off'}</p>
+            <p>last-op:{getMapOperationTrace().last || '—'}</p>
+            <p>pre-loss:{getMapOperationTrace().precedingLoss || '—'}</p>
             <p>map-mounts:{mapSession.mountCount}</p>
             <p>map-removes:{mapSession.removeCount}</p>
             <p>map-instances:{mapSession.liveInstances}</p>

@@ -43,6 +43,7 @@ import {
 } from './utils/iosCrashIsolation';
 import { shouldMountMap } from './utils/mapLifecycle';
 import { noteSheetClose } from './utils/mapMarkerLifecycle';
+import { traceMapOperation } from './utils/mapOperationTrace';
 import {
     ISOLATION_EVENT_KINDS,
     attachPageLifecycleProbes,
@@ -498,6 +499,12 @@ const AppContent = () => {
 
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
+    const sheetStateTraceRef = useRef(mobileSheetState);
+    useEffect(() => {
+        if (sheetStateTraceRef.current === mobileSheetState) return;
+        sheetStateTraceRef.current = mobileSheetState;
+        traceMapOperation('sheet-state-change', { detail: mobileSheetState, at: Date.now() });
+    }, [mobileSheetState]);
     const [sheetDragging, setSheetDragging]         = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
@@ -669,6 +676,7 @@ const AppContent = () => {
             venue: venue.name || venue.title || String(venue.id ?? ''),
             tab: 'Overview',
         });
+        traceMapOperation('venue-open', { venueId: venue.id ?? '', at: Date.now() });
     }, []);
 
     const handleCloseCard  = useCallback(() => {
@@ -676,6 +684,7 @@ const AppContent = () => {
         setSelectedVenue(null);
         setIsolationContext({ venue: '', tab: '' });
         noteSheetClose();
+        traceMapOperation('venue-close', { at: Date.now() });
         logIsolationEvent({
             kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
             message: 'venue-close',

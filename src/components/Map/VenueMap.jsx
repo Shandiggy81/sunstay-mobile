@@ -50,6 +50,7 @@ import {
     resumeMayGoLive,
     syncMarkerLayer,
 } from '../../utils/mapMarkerLifecycle';
+import { isMapOperationTraceEnabled, traceMapOperation } from '../../utils/mapOperationTrace';
 import {
     claimCameraRestore,
     clearResumeTimingStore,
@@ -792,6 +793,14 @@ const VenueMap = forwardRef(({
     const staleGenerationsRef = useRef(new Set());
     const recoveryCameraRef = useRef(null);
     const mapGenerationRef = useRef(0);
+    const traceRef = useRef(() => {});
+    traceRef.current = (name, extra = {}) => traceMapOperation(name, {
+        generation: mapGenerationRef.current,
+        phase: recoveryRef.current?.phase ?? null,
+        venueId: selectedVenue?.id ?? '',
+        at: Date.now(),
+        ...extra,
+    });
     const cameraClaimRef = useRef(new Set());
     const syncSchedulerRef = useRef(createSyncScheduler());
     const finishResumeRef = useRef(() => {});
@@ -954,6 +963,7 @@ const VenueMap = forwardRef(({
             if (reason === 'resume') {
                 const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
                 if (failed.ok) applyRecovery(failed.state);
+                if (failed.ok && failed.state.sessionLocked) traceRef.current('session-lock');
                 noteMapboxContextLost(Date.now());
             } else {
                 applyRecovery(releaseInitLock(recoveryRef.current, 'abort').state);
@@ -967,6 +977,7 @@ const VenueMap = forwardRef(({
             if (reason === 'resume') {
                 const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
                 if (failed.ok) applyRecovery(failed.state);
+                if (failed.ok && failed.state.sessionLocked) traceRef.current('session-lock');
                 noteMapboxContextLost(Date.now());
             } else {
                 applyRecovery(releaseInitLock(recoveryRef.current, 'abort').state);
@@ -1062,10 +1073,13 @@ const VenueMap = forwardRef(({
             );
 
             resizeObserver = new ResizeObserver(() => {
+                traceRef.current('resize-observer-callback');
                 if (resizeFrame) clearTimeout(resizeFrame);
                 resizeFrame = setTimeout(() => {
                     resizeFrame = 0;
+                    traceRef.current('map-resize-start');
                     map.current?.resize();
+                    traceRef.current('map-resize-end');
                 }, 150);
             });
             resizeObserver.observe(mapContainer.current);
@@ -1153,9 +1167,11 @@ const VenueMap = forwardRef(({
                 recoveryCameraRef.current = captureMapCamera(map.current);
                 Sentry.captureMessage('WebGL Context Lost', { level: 'warning', tags: { type: 'gpu_crash' } });
                 const paused = noteContextLost(recoveryRef.current, generation, now);
+                traceRef.current('context-loss');
                 if (paused.ok) {
                     noteContextLossDiagnostic(paused.state);
                     applyRecovery(paused.state);
+                    if (paused.state.sessionLocked) traceRef.current('session-lock');
                 }
                 logMap(ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST, 'webglcontextlost');
                 contextLossTimer = setTimeout(() => {
@@ -1187,6 +1203,7 @@ const VenueMap = forwardRef(({
                 if (reason === 'resume') {
                     const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
                     if (failed.ok) applyRecovery(failed.state);
+                    if (failed.ok && failed.state.sessionLocked) traceRef.current('session-lock');
                     noteMapboxContextLost(Date.now());
                 } else {
                     applyRecovery(releaseInitLock(recoveryRef.current, 'failed-init').state);
@@ -1262,6 +1279,7 @@ const VenueMap = forwardRef(({
             }
             const removal = noteMapRemoved(recoveryRef.current, generation);
             recoveryRef.current = removal.state;
+            if (removal.remove) traceRef.current('map-remove');
             const released = removal.remove
                 ? releaseMapOwners({
                     markers,
@@ -1289,6 +1307,7 @@ const VenueMap = forwardRef(({
                 clearResumeTimingStore();
                 const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
                 if (failed.ok) applyRecovery(failed.state);
+                if (failed.ok && failed.state.sessionLocked) traceRef.current('session-lock');
                 noteMapboxContextLost(Date.now());
             } else if (reason !== 'context-loss') {
                 applyRecovery(releaseInitLock(recoveryRef.current, reason === 'unmount' ? 'unmount' : 'abort').state);
@@ -1333,6 +1352,7 @@ const VenueMap = forwardRef(({
         if (!decision.ok) return;
         recordResumeMark(decision.state.generation, 'resume-click', clickAt);
         recordResumeMark(decision.state.generation, 'resume-start');
+        traceRef.current('resume-start');
         applyRecovery(decision.state);
         mountMapRef.current?.('resume');
     };
@@ -1532,6 +1552,7 @@ const VenueMap = forwardRef(({
             syncSchedulerRef.current = requested.scheduler;
             publishMarkerSync(syncSchedulerRef.current);
             if (!requested.run) return;
+            traceRef.current('marker-sync-start');
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             rafRef.current = requestAnimationFrame(() => {
                 rafRef.current = null;
@@ -1670,6 +1691,7 @@ const VenueMap = forwardRef(({
                     venueCreated: synced.created.length - clusterCreated,
                 });
                 publishMarkerSync(syncSchedulerRef.current);
+                traceRef.current('marker-sync-end');
                 const requiredReady = resumeMayGoLive({ requiredMarkersReady: gate.ready });
                 if (
                     requiredReady
@@ -1761,8 +1783,13 @@ const VenueMap = forwardRef(({
         const plan = markerCoordinatePlan(selectedVenue);
         if (!plan.ok) return;
 
+        let flyInstance = null;
+        let flyEnd = null;
         const t = setTimeout(() => {
-            map.current?.flyTo({
+            const instance = map.current;
+            if (!instance) return;
+            traceRef.current('map-flyto-start');
+            instance.flyTo({
                 center:    plan.coordinates,
                 zoom:      15,
                 pitch:     45,
@@ -1770,9 +1797,18 @@ const VenueMap = forwardRef(({
                 essential: false,
                 padding:   FLY_TO_PADDING,
             });
+            if (!isMapOperationTraceEnabled()) return;
+            flyInstance = instance;
+            flyEnd = () => traceRef.current('map-flyto-end');
+            instance.once('moveend', flyEnd);
         }, 300);
 
-        return () => clearTimeout(t);
+        return () => {
+            clearTimeout(t);
+            if (flyInstance && flyEnd) {
+                try { flyInstance.off('moveend', flyEnd); } catch { /* map already removed */ }
+            }
+        };
     }, [selectedVenue]);
 
     // ── Xweather radar visibility ───────────────────────────────────
