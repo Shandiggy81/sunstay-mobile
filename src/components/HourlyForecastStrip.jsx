@@ -17,6 +17,7 @@ import {
   isForecastAbort,
   noteSunForecast,
 } from '../utils/sunForecastDiagnostics';
+import { traceMapOperation } from '../utils/mapOperationTrace';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -98,6 +99,21 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId 
         requestId: started.requestId,
         state: 'loading',
     });
+    traceMapOperation('sun-forecast-fetch-start', {
+      detail: 'hourly-strip',
+      venueId,
+      at: startedAt,
+    });
+    let fetchTraced = false;
+    const traceFetchEnd = () => {
+      if (fetchTraced) return;
+      fetchTraced = true;
+      traceMapOperation('sun-forecast-fetch-end', {
+        detail: 'hourly-strip',
+        venueId,
+        at: Date.now(),
+      });
+    };
 
     const params = new URLSearchParams({
       latitude:      String(latNum),
@@ -163,6 +179,7 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId 
         });
       })
       .finally(() => {
+        traceFetchEnd();
         if (isCurrentForecast(generationRef.current, started.requestId, venueId) && !controller.signal.aborted) {
           setLoading(false);
         }
@@ -171,6 +188,7 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId 
     return () => {
       generationRef.current = invalidateForecast(generationRef.current);
       controller.abort();
+      traceFetchEnd();
       noteSunForecast(seen, 'sun-forecast-cleanup', {
         venueId,
         requestId: started.requestId,

@@ -84,7 +84,7 @@ export default function IsolationDevLog() {
             <p>pre-loss:{operationTrace.precedingLoss || '—'}</p>
             {operationEvents.map((event) => (
                 <p key={event.seq} className="whitespace-nowrap">
-                    {event.seq} {event.name} {event.at}
+                    {event.seq} {event.name}{event.detail ? ` ${event.detail}` : ''} {event.at}
                 </p>
             ))}
             <p>map-mounts:{mapSession.mountCount}</p>

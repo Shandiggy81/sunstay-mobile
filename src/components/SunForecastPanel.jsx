@@ -5,6 +5,7 @@ import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import { checkIfShaded } from '../utils/solarMath.js';
 import { resolveForecastView } from '../utils/resolveForecastView';
 import { noteSunForecast } from '../utils/sunForecastDiagnostics';
+import { traceMapOperation } from '../utils/mapOperationTrace';
 
 const CARD =
   'rounded-3xl border border-slate-900/[0.06] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]';
@@ -105,8 +106,10 @@ export default function SunForecastPanel({
 
   useEffect(() => {
     const seen = seenRef.current;
+    traceMapOperation('sun-forecast-open', { venueId, at: Date.now() });
     noteSunForecast(seen, 'sun-forecast-tab-enter', { venueId, state: 'enter' });
     return () => {
+      traceMapOperation('sun-forecast-close', { venueId, at: Date.now() });
       noteSunForecast(seen, 'sun-forecast-tab-exit', { venueId, state: 'exit' });
       noteSunForecast(seen, 'sun-forecast-cleanup', { venueId, state: 'cleanup' });
     };
