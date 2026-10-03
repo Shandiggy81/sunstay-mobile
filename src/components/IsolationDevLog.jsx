@@ -60,7 +60,7 @@ export default function IsolationDevLog() {
         <aside
             data-testid="isolation-dev-log"
             data-crash-test={testId}
-            className="pointer-events-none fixed left-1 top-14 z-[240] max-h-[38vh] max-w-[220px] overflow-auto rounded-lg bg-slate-950/80 px-2 py-1.5 font-mono text-[10px] leading-snug text-amber-100 shadow-lg"
+            className="pointer-events-auto fixed left-1 top-14 z-[240] max-h-[calc(100dvh-4.5rem)] max-w-[220px] touch-pan-y overflow-x-auto overflow-y-auto overscroll-y-contain rounded-lg bg-slate-950/80 px-2 py-1.5 font-mono text-[10px] leading-snug text-amber-100 shadow-lg"
             aria-hidden="true"
         >
             <p>test {testId}</p>
