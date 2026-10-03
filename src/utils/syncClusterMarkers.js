@@ -4,7 +4,14 @@
  */
 
 export function syncExistingClusterMarker(existing, coords, count, { updateCount } = {}) {
-    existing.marker?.setLngLat(coords);
+    const lng = coords?.[0];
+    const lat = coords?.[1];
+    const samePlace = existing.lng === lng && existing.lat === lat;
+    if (!samePlace) {
+        existing.marker?.setLngLat(coords);
+        existing.lng = lng;
+        existing.lat = lat;
+    }
     if (existing.count !== count) {
         updateCount?.(existing, count);
         existing.count = count;

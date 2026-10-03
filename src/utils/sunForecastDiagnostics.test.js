@@ -58,6 +58,15 @@ describe('sun forecast data contract', () => {
 });
 
 describe('sun forecast request generation', () => {
+    it('invalidates the previous request when the same venue dispatches again', () => {
+        const first = beginForecastRequest(createForecastGeneration(), 'venue-a');
+        const second = beginForecastRequest(first.generation, 'venue-a');
+        assert.equal(isCurrentForecast(second.generation, first.requestId, 'venue-a'), false);
+        assert.equal(isCurrentForecast(second.generation, second.requestId, 'venue-a'), true);
+        const left = invalidateForecast(second.generation);
+        assert.equal(isCurrentForecast(left, second.requestId, 'venue-a'), false);
+    });
+
     it('ignores a stale venue response and treats abort as not a failure', () => {
         const first = beginForecastRequest(createForecastGeneration(), 'venue-a');
         const second = beginForecastRequest(first.generation, 'venue-b');

@@ -31,13 +31,18 @@ import {
 } from '../../utils/iosCrashLog';
 import { syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
 import {
+    MARKER_SYNC_CAMERA_EVENTS,
     bindMapGestureListeners,
+    coalesceResizeSchedule,
     completeMarkerSync,
     createSyncScheduler,
     featuresForMarkerSync,
+    markerFeatureSignature,
     markerSyncDecision,
+    markerSyncTriggerPlan,
     noteMarkerListeners,
     noteSourceWait,
+    planMapResize,
     publishMarkerSync,
     releaseMarkerRecords,
     releaseMarkerSyncFrame,
@@ -1072,15 +1077,48 @@ const VenueMap = forwardRef(({
                 `mount count=${mounted.mountCount} live=${mounted.liveInstances}`,
             );
 
-            resizeObserver = new ResizeObserver(() => {
+            let resizeSize = null;
+            let pendingWidth = 0;
+            let pendingHeight = 0;
+            let resizeCoalesced = 0;
+            resizeObserver = new ResizeObserver((entries) => {
                 traceRef.current('resize-observer-callback');
-                if (resizeFrame) clearTimeout(resizeFrame);
+                const rect = entries?.[0]?.contentRect;
+                pendingWidth = rect?.width ?? mapContainer.current?.clientWidth ?? 0;
+                pendingHeight = rect?.height ?? mapContainer.current?.clientHeight ?? 0;
+                const schedule = coalesceResizeSchedule(resizeFrame !== 0);
+                if (schedule.replace) {
+                    clearTimeout(resizeFrame);
+                    resizeCoalesced += 1;
+                }
                 resizeFrame = setTimeout(() => {
                     resizeFrame = 0;
-                    traceRef.current('map-resize-start');
-                    map.current?.resize();
-                    traceRef.current('map-resize-end');
-                }, 150);
+                    const coal = resizeCoalesced;
+                    resizeCoalesced = 0;
+                    const phase = recoveryRef.current?.phase;
+                    const plan = planMapResize({
+                        width: pendingWidth,
+                        height: pendingHeight,
+                        previous: resizeSize,
+                        generation,
+                        currentGeneration: mapGenerationRef.current,
+                        mapAlive: !disposed && !!map.current && phase !== 'paused' && phase !== 'resume-failed',
+                    });
+                    if (!plan.resize) {
+                        if (plan.reason === 'unchanged') {
+                            traceRef.current('resize-skipped-unchanged', { detail: `coal=${coal}` });
+                        }
+                        return;
+                    }
+                    resizeSize = plan.size;
+                    traceRef.current('map-resize-start', {
+                        detail: `${plan.size.width}x${plan.size.height} coal=${coal}`,
+                    });
+                    map.current.resize();
+                    traceRef.current('map-resize-end', {
+                        detail: `${plan.size.width}x${plan.size.height}`,
+                    });
+                }, schedule.settleMs);
             });
             resizeObserver.observe(mapContainer.current);
 
@@ -1539,20 +1577,26 @@ const VenueMap = forwardRef(({
         const generation = mapGenerationRef.current;
         if (!instance || !mapLoaded || !generation) return undefined;
 
-        const syncMarkers = () => {
+        const markerSignatureRef = { current: '' };
+        const syncMarkers = (trigger = 'effect') => {
+            const triggerPlan = markerSyncTriggerPlan(trigger);
+            if (!triggerPlan.sync) return;
             if (mapGenerationRef.current !== generation || map.current !== instance) {
                 syncSchedulerRef.current = {
                     ...syncSchedulerRef.current,
                     ignored: syncSchedulerRef.current.ignored + 1,
                 };
                 publishMarkerSync(syncSchedulerRef.current);
+                traceRef.current('marker-sync-skipped-stale', { detail: trigger });
                 return;
             }
+            const coalBefore = syncSchedulerRef.current.coalesced || 0;
             const requested = requestMarkerSync(syncSchedulerRef.current, generation);
             syncSchedulerRef.current = requested.scheduler;
             publishMarkerSync(syncSchedulerRef.current);
             if (!requested.run) return;
-            traceRef.current('marker-sync-start');
+            if (trigger === 'effect') markerSignatureRef.current = '';
+            traceRef.current('marker-sync-start', { detail: trigger });
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             rafRef.current = requestAnimationFrame(() => {
                 rafRef.current = null;
@@ -1580,6 +1624,7 @@ const VenueMap = forwardRef(({
                 }
 
                 const features = featuresForMarkerSync(instance, CLUSTER_SOURCE_ID);
+                const signature = markerFeatureSignature(features);
                 const gate = requiredMarkerGate({
                     sourceLoaded: true,
                     featureCount: features.length,
@@ -1589,6 +1634,14 @@ const VenueMap = forwardRef(({
                     publishMarkerSync(syncSchedulerRef.current);
                     return;
                 }
+                const coal = (syncSchedulerRef.current.coalesced || 0) - coalBefore;
+                if (trigger !== 'effect' && signature === markerSignatureRef.current) {
+                    syncSchedulerRef.current = completeMarkerSync(syncSchedulerRef.current);
+                    publishMarkerSync(syncSchedulerRef.current);
+                    traceRef.current('marker-sync-end', { detail: `${trigger} noop coal=${coal}` });
+                    return;
+                }
+                markerSignatureRef.current = signature;
                 const live = liveVenueFeaturesRef.current;
                 const specs = [];
 
@@ -1691,7 +1744,9 @@ const VenueMap = forwardRef(({
                     venueCreated: synced.created.length - clusterCreated,
                 });
                 publishMarkerSync(syncSchedulerRef.current);
-                traceRef.current('marker-sync-end');
+                traceRef.current('marker-sync-end', {
+                    detail: `${trigger} c=${synced.created.length} r=${synced.reused.length} x=${synced.removed.length} coal=${coal}`,
+                });
                 const requiredReady = resumeMayGoLive({ requiredMarkersReady: gate.ready });
                 if (
                     requiredReady
@@ -1711,21 +1766,23 @@ const VenueMap = forwardRef(({
 
         const onSourceData = (event) => {
             if (event?.sourceId && event.sourceId !== CLUSTER_SOURCE_ID) return;
-            syncMarkers();
+            if (event.isSourceLoaded === false) return;
+            if (!markerSyncTriggerPlan('sourcedata').sync) return;
+            syncMarkers('sourcedata');
         };
         instance.on('sourcedata', onSourceData);
-        syncSchedulerRef.current = noteMarkerListeners(syncSchedulerRef.current, 3);
+        syncSchedulerRef.current = noteMarkerListeners(syncSchedulerRef.current, 2);
         publishMarkerSync(syncSchedulerRef.current);
         const unbind = bindMapGestureListeners(
             instance,
             generation,
             () => mapGenerationRef.current,
             (type) => {
-                if (type === 'moveend' || type === 'idle') syncMarkers();
+                if (markerSyncTriggerPlan(type).sync) syncMarkers(type);
             },
-            ['moveend', 'idle'],
+            MARKER_SYNC_CAMERA_EVENTS,
         );
-        syncMarkers();
+        syncMarkers('effect');
 
         return () => {
             instance.off('sourcedata', onSourceData);

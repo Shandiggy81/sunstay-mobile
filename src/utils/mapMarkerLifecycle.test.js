@@ -2,9 +2,14 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     applyMarkerGesture,
+    MARKER_SYNC_CAMERA_EVENTS,
     bindMapGestureListeners,
+    coalesceResizeSchedule,
     completeMarkerSync,
     createSyncScheduler,
+    markerFeatureSignature,
+    markerSyncTriggerPlan,
+    planMapResize,
     featuresForMarkerSync,
     getMapSessionDiagnostics,
     markerCoordinatePlan,
@@ -211,6 +216,103 @@ describe('generation-safe markers', () => {
         assert.equal(unbind(), false);
         assert.equal(map.handlers.move.length, 0);
         assert.equal(map.handlers.idle.length, 0);
+    });
+});
+
+describe('marker sync triggers', () => {
+    it('coalesces four requests in one open frame to a single execution', () => {
+        let scheduler = createSyncScheduler();
+        const runs = [];
+        for (let i = 0; i < 4; i += 1) {
+            const next = requestMarkerSync(scheduler, 2);
+            scheduler = next.scheduler;
+            runs.push(next.run);
+        }
+        assert.deepEqual(runs, [true, false, false, false]);
+        assert.equal(scheduler.coalesced, 3);
+        assert.equal(scheduler.passes, 0);
+        const done = completeMarkerSync(scheduler, { reused: 4 });
+        assert.equal(done.frame, false);
+        assert.equal(done.passes, 1);
+    });
+
+    it('does not schedule a second pass from idle after moveend', () => {
+        assert.deepEqual(MARKER_SYNC_CAMERA_EVENTS, ['moveend']);
+        assert.equal(markerSyncTriggerPlan('moveend').sync, true);
+        assert.equal(markerSyncTriggerPlan('idle').sync, false);
+        assert.equal(markerSyncTriggerPlan('idle').reason, 'idle-duplicates-moveend');
+        assert.equal(markerSyncTriggerPlan('sourcedata').sync, true);
+        assert.equal(markerSyncTriggerPlan('effect').sync, true);
+    });
+
+    it('treats an identical feature signature as the same marker input', () => {
+        const features = [
+            { properties: { cluster: true, cluster_id: 4, point_count: 3 }, geometry: { coordinates: [144.9, -37.8] } },
+            { properties: { id: 'venue-1' }, geometry: { coordinates: [145.0, -37.81] } },
+        ];
+        const first = markerFeatureSignature(features);
+        assert.equal(markerFeatureSignature(features), first);
+        assert.notEqual(markerFeatureSignature([
+            { properties: { cluster: true, cluster_id: 4, point_count: 3 }, geometry: { coordinates: [145.1, -37.8] } },
+        ]), first);
+    });
+
+    it('releases the frame after cancellation, failure, and teardown', () => {
+        const open = requestMarkerSync(createSyncScheduler(), 2);
+        assert.equal(releaseMarkerSyncFrame(open.scheduler).frame, false);
+        const failed = noteSourceWait(requestMarkerSync(createSyncScheduler(), 2).scheduler);
+        assert.equal(failed.frame, false);
+        assert.equal(failed.sourceWaits, 1);
+        const torn = releaseMarkerSyncFrame(requestMarkerSync(createSyncScheduler(), 2).scheduler);
+        assert.equal(requestMarkerSync(torn, 2).run, true);
+    });
+});
+
+describe('settled map resize', () => {
+    it('skips resize when the rounded dimensions are unchanged', () => {
+        const first = planMapResize({ width: 390.2, height: 420.4, generation: 1, currentGeneration: 1 });
+        assert.equal(first.resize, true);
+        assert.deepEqual(first.size, { width: 390, height: 420 });
+        const again = planMapResize({
+            width: 390.4,
+            height: 419.6,
+            previous: first.size,
+            generation: 1,
+            currentGeneration: 1,
+        });
+        assert.equal(again.resize, false);
+        assert.equal(again.reason, 'unchanged');
+    });
+
+    it('coalesces a pending observation and still resizes a real size change once', () => {
+        const replaced = coalesceResizeSchedule(true);
+        assert.equal(replaced.replace, true);
+        assert.equal(replaced.settleMs, 150);
+        assert.equal(coalesceResizeSchedule(false).replace, false);
+        const grown = planMapResize({
+            width: 390,
+            height: 640,
+            previous: { width: 390, height: 420 },
+            generation: 1,
+            currentGeneration: 1,
+        });
+        assert.equal(grown.resize, true);
+        assert.equal(grown.reason, 'changed');
+    });
+
+    it('ignores a stale generation and a map that is no longer alive', () => {
+        assert.equal(planMapResize({
+            width: 390,
+            height: 420,
+            generation: 1,
+            currentGeneration: 2,
+        }).reason, 'stale');
+        assert.equal(planMapResize({
+            width: 390,
+            height: 420,
+            mapAlive: false,
+        }).reason, 'map-gone');
+        assert.equal(planMapResize({ width: 0, height: 420 }).reason, 'empty');
     });
 });
 

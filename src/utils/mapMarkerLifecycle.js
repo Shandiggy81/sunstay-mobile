@@ -213,6 +213,69 @@ export function applyMarkerGesture(record, generation, coords) {
 }
 
 /**
+ * Camera settle is `moveend`. `idle` fires again after the same settle once
+ * tiles finish, which scheduled a second full marker pass. Cluster membership
+ * changes arrive through `sourcedata` instead.
+ */
+export const MARKER_SYNC_CAMERA_EVENTS = Object.freeze(['moveend']);
+
+export const MAP_RESIZE_SETTLE_MS = 150;
+
+export function markerSyncTriggerPlan(type) {
+    if (type === 'moveend') return { sync: true, reason: 'camera-settled' };
+    if (type === 'sourcedata') return { sync: true, reason: 'source-features' };
+    if (type === 'effect') return { sync: true, reason: 'inputs-changed' };
+    if (type === 'idle') return { sync: false, reason: 'idle-duplicates-moveend' };
+    return { sync: false, reason: 'ignored' };
+}
+
+/** Identity of the features a sync would write. Weather pin style is not included. */
+export function markerFeatureSignature(features) {
+    if (!Array.isArray(features) || features.length === 0) return '0';
+    let out = '';
+    for (const feature of features) {
+        const props = feature?.properties || {};
+        const coords = feature?.geometry?.coordinates || [];
+        const id = props.cluster ? `c${props.cluster_id}:${props.point_count}` : `v${props.id}`;
+        out += `${id}@${coords[0]},${coords[1]};`;
+    }
+    return out;
+}
+
+/**
+ * One settled resize per size. The 150ms window is the existing sheet-settle
+ * trailing delay: a newer observation clears and replaces the pending call.
+ * Rounded pixels avoid a subpixel resize loop.
+ */
+export function planMapResize({
+    width,
+    height,
+    previous = null,
+    generation = null,
+    currentGeneration = null,
+    mapAlive = true,
+} = {}) {
+    if (!mapAlive) return { resize: false, reason: 'map-gone' };
+    if (generation != null && currentGeneration != null && generation !== currentGeneration) {
+        return { resize: false, reason: 'stale' };
+    }
+    const nextWidth = Number(width);
+    const nextHeight = Number(height);
+    if (!Number.isFinite(nextWidth) || !Number.isFinite(nextHeight) || nextWidth <= 0 || nextHeight <= 0) {
+        return { resize: false, reason: 'empty' };
+    }
+    const size = { width: Math.round(nextWidth), height: Math.round(nextHeight) };
+    if (previous && previous.width === size.width && previous.height === size.height) {
+        return { resize: false, reason: 'unchanged', size };
+    }
+    return { resize: true, reason: 'changed', size };
+}
+
+export function coalesceResizeSchedule(hasPending) {
+    return { replace: hasPending === true, settleMs: MAP_RESIZE_SETTLE_MS };
+}
+
+/**
  * Camera/projection listeners for one map generation.
  * A second unbind is a no-op. Events whose generation is no longer current
  * do not call the handler.
