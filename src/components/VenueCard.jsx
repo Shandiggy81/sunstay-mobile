@@ -1194,7 +1194,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
       <OverlayEl
         key={venueOverlayPresenceKey(venue?.id)}
         {...overlayMotionProps}
-        className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/40 backdrop-blur-md"
+        className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/55"
         onClick={onClose}
         data-sheet-motion={ENABLE_SHEET_MOTION ? 'on' : 'off'}
       >
@@ -1208,7 +1208,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             boxShadow: '0 -8px 60px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid #f1f5f9', /* slate-100 */
           }}
-          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] border-t border-white/60 bg-white/90 backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] border-t border-white/60 bg-white/97 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
           onPointerEnter={enableTilt ? handlePointerEnter : undefined}
           onPointerMove={enableTilt ? handlePointerMove : undefined}
           onPointerLeave={enableTilt ? handlePointerLeave : undefined}
@@ -1741,7 +1741,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           </div>
 
             {/* Sticky Bottom CTA — in-flow so it cannot bleed into the TopBar */}
-            <div className="relative z-20 shrink-0 border-t border-slate-900/[0.08] bg-white/85 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl backdrop-saturate-150">
+            <div className="relative z-20 shrink-0 border-t border-slate-900/[0.08] bg-white/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <VenueCardFooterActions venue={safeVenue} canNavigate={hasValidCoordinates} />
             </div>
         </ArticleEl>
