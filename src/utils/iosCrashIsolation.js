@@ -52,10 +52,15 @@
  * ?matrixHud=1&mapLifecycle=unmount-expanded
  * The second URL unmounts Mapbox only while the venue sheet is stably fully
  * expanded. Drag frames do not mount or unmount it.
+ *
+ * Sun Forecast mount isolation, only with the HUD. Unset stays `full`:
+ * ?matrixHud=1&sunForecastMode=full|static|no-aux|no-fetch
+ * Without matrixHud the parameter is ignored.
  */
 
 import { classifyVenueRenderLimit } from './venueRenderLimit.js';
 import { parseMapLifecycle } from './mapLifecycle.js';
+import { resolveSunForecastMode } from './sunForecastMode.js';
 
 function parseEnabled(value, fallback) {
     if (value == null || value === '') return fallback;
@@ -100,6 +105,7 @@ export function resolveIosIsolation(source = {}) {
     const venueLimit = venueWindow.limit;
     const mapbox = parseEnabled(read('mapbox', 'ss-mapbox', env.VITE_IOS_MAPBOX), true);
     const sheetMotion = parseEnabled(read('sheetMotion', 'ss-sheet-motion', env.VITE_IOS_SHEET_MOTION), true);
+    const matrixHud = parseEnabled(read('matrixHud', 'ss-matrix-hud', env.VITE_IOS_MATRIX_HUD), false);
     return {
         debugMascot: parseEnabled(read('debugMascot', 'ss-debug-mascot', env.VITE_IOS_DEBUG_MASCOT), false),
         mapbox,
@@ -109,7 +115,11 @@ export function resolveIosIsolation(source = {}) {
         venueRenderMode: venueWindow.mode,
         sheetWillChange: parseWillChangeMode(read('sheetWillChange', 'ss-sheet-will-change', env.VITE_IOS_SHEET_WILL_CHANGE)),
         sheetBackdrop: parseBackdropMode(read('sheetBackdrop', 'ss-sheet-backdrop', env.VITE_IOS_SHEET_BACKDROP)),
-        matrixHud: parseEnabled(read('matrixHud', 'ss-matrix-hud', env.VITE_IOS_MATRIX_HUD), false),
+        matrixHud,
+        sunForecastMode: resolveSunForecastMode(
+            read('sunForecastMode', 'ss-sun-forecast-mode', env.VITE_IOS_SUN_FORECAST_MODE),
+            matrixHud,
+        ),
         refreshHang: parseEnabled(read('refreshHang', 'ss-refresh-hang', env.VITE_IOS_REFRESH_HANG), false),
         mapLifecycle: parseMapLifecycle(read('mapLifecycle', 'ss-map-lifecycle', env.VITE_IOS_MAP_LIFECYCLE)),
         renderMatrix: renderMatrixTestId({ map: mapbox, limit: venueLimit, motion: sheetMotion }),
@@ -137,6 +147,7 @@ export const VENUE_RENDER_MODE = resolvedIsolation.venueRenderMode;
 export const SHEET_WILL_CHANGE_MODE = resolvedIsolation.sheetWillChange;
 export const SHEET_BACKDROP_MODE = resolvedIsolation.sheetBackdrop;
 export const MATRIX_HUD = resolvedIsolation.matrixHud;
+export const SUN_FORECAST_MODE = resolvedIsolation.sunForecastMode;
 export const VENUE_REFRESH_HANG = resolvedIsolation.refreshHang;
 export const MAP_LIFECYCLE = resolvedIsolation.mapLifecycle;
 

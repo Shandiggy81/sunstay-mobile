@@ -18,6 +18,8 @@ import {
   noteSunForecast,
 } from '../utils/sunForecastDiagnostics';
 import { traceMapOperation } from '../utils/mapOperationTrace';
+import { traceSunForecastLifecycle } from '../utils/sunForecastLifecycle';
+import { SUN_FORECAST_MODE } from '../utils/iosCrashIsolation';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -103,6 +105,15 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId 
       detail: 'hourly-strip',
       venueId,
       at: startedAt,
+      requestId: started.requestId,
+      mode: SUN_FORECAST_MODE,
+    });
+    traceSunForecastLifecycle('sun-forecast-hourly-fetch-start', {
+      venueId,
+      at: startedAt,
+      requestId: started.requestId,
+      mode: SUN_FORECAST_MODE,
+      detail: 'hourly',
     });
     let fetchTraced = false;
     const traceFetchEnd = () => {

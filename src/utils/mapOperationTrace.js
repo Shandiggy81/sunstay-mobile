@@ -32,6 +32,8 @@ export function noteMapOperation(name, fields = {}) {
         phase: fields.phase ?? null,
         venueId: fields.venueId ?? '',
         detail: fields.detail ?? '',
+        mode: fields.mode ?? '',
+        requestId: fields.requestId == null || fields.requestId === '' ? '' : String(fields.requestId),
         preceding: name === 'context-loss' ? (previous?.name ?? null) : null,
     };
     sequence = event.seq;

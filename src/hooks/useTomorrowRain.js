@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { shouldFetchRemote } from './shouldFetchRemote';
 import { traceMapOperation } from '../utils/mapOperationTrace';
+import { nextSunForecastRequestId, traceSunForecastLifecycle } from '../utils/sunForecastLifecycle';
 
 // In-memory cache: key = "lat,lng", value = { result, expiresAt }
 const _cache = new Map();
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes high-accuracy nowcasting
 const FETCH_TIMEOUT_MS = 4000;
 
-export function useTomorrowRain(lat, lng, { enabled = true } = {}) {
+export function useTomorrowRain(lat, lng, { enabled = true, venueId = '' } = {}) {
   const [isRainStartingSoon, setIsRainStartingSoon] = useState(false);
   const [minutesUntilRain, setMinutesUntilRain]     = useState(0);
   const [rainArrivalMins, setRainArrivalMins]       = useState(null);
@@ -38,7 +39,12 @@ export function useTomorrowRain(lat, lng, { enabled = true } = {}) {
 
     setLoading(true);
     setError(false);
-    traceMapOperation('sun-forecast-fetch-start', { detail: 'useTomorrowRain', at: Date.now() });
+    traceMapOperation('sun-forecast-fetch-start', { detail: 'useTomorrowRain', at: Date.now(), venueId });
+    traceSunForecastLifecycle('sun-forecast-tomorrow-fetch-start', {
+      venueId,
+      detail: 'useTomorrowRain',
+      requestId: nextSunForecastRequestId('tomorrow'),
+    });
     let fetchTraced = false;
     const traceFetchEnd = () => {
       if (fetchTraced) return;
@@ -130,7 +136,7 @@ export function useTomorrowRain(lat, lng, { enabled = true } = {}) {
       controller.abort();
       traceFetchEnd();
     };
-  }, [lat, lng, enabled]);
+  }, [lat, lng, enabled, venueId]);
 
   return { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel, loading, error };
 }
