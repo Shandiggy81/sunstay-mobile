@@ -5,7 +5,6 @@ import {
     ENABLE_SHEET_MOTION,
     MAP_LIFECYCLE,
     MATRIX_HUD,
-    SUN_FORECAST_MODE,
     SHEET_BACKDROP_MODE,
     SHEET_WILL_CHANGE_MODE,
     VENUE_RENDER_LIMIT,
@@ -73,7 +72,6 @@ export default function IsolationDevLog() {
             <p>flag-will:{SHEET_WILL_CHANGE_MODE}</p>
             <p>flag-blur:{SHEET_BACKDROP_MODE}</p>
             <p>flag-life:{MAP_LIFECYCLE}</p>
-            <p>sun-forecast:{SUN_FORECAST_MODE}</p>
             <p>sheet-close:{mapDiag.sheetCloses}</p>
             <p>map-generation:{mapDiag.generation}</p>
             <p>map-context-losses:{mapDiag.contextLosses}</p>
@@ -86,13 +84,7 @@ export default function IsolationDevLog() {
             <p>pre-loss:{operationTrace.precedingLoss || '—'}</p>
             {operationEvents.map((event) => (
                 <p key={event.seq} className="whitespace-nowrap">
-                    {event.seq} {event.name}
-                    {event.mode ? ` ${event.mode}` : ''}
-                    {event.venueId ? ` v=${event.venueId}` : ''}
-                    {event.generation != null ? ` g=${event.generation}` : ''}
-                    {event.requestId ? ` r=${event.requestId}` : ''}
-                    {event.detail ? ` ${event.detail}` : ''}
-                    {` ${event.at}`}
+                    {event.seq} {event.name}{event.detail ? ` ${event.detail}` : ''} {event.at}
                 </p>
             ))}
             <p>map-mounts:{mapSession.mountCount}</p>

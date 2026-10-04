@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { shouldFetchRemote } from './shouldFetchRemote';
 import { traceMapOperation } from '../utils/mapOperationTrace';
-import { nextSunForecastRequestId, traceSunForecastLifecycle } from '../utils/sunForecastLifecycle';
 
 // In-memory cache: key = "lat,lng", value = { burnTimeMins, expiresAt }
 const _cache = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour — UV index changes slowly
 const FETCH_TIMEOUT_MS = 4000;
 
-export function useOpenUV(lat, lng, { enabled = true, venueId = '' } = {}) {
+export function useOpenUV(lat, lng, { enabled = true } = {}) {
   const [burnTimeMins, setBurnTimeMins] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -29,12 +28,7 @@ export function useOpenUV(lat, lng, { enabled = true, venueId = '' } = {}) {
 
     setLoading(true);
     setError(false);
-    traceMapOperation('sun-forecast-fetch-start', { detail: 'useOpenUV', at: Date.now(), venueId });
-    traceSunForecastLifecycle('sun-forecast-uv-fetch-start', {
-      venueId,
-      detail: 'useOpenUV',
-      requestId: nextSunForecastRequestId('uv'),
-    });
+    traceMapOperation('sun-forecast-fetch-start', { detail: 'useOpenUV', at: Date.now() });
     let fetchTraced = false;
     const traceFetchEnd = () => {
       if (fetchTraced) return;
@@ -93,7 +87,7 @@ export function useOpenUV(lat, lng, { enabled = true, venueId = '' } = {}) {
       controller.abort();
       traceFetchEnd();
     };
-  }, [lat, lng, enabled, venueId]);
+  }, [lat, lng, enabled]);
 
   return { burnTimeMins, loading, error };
 }

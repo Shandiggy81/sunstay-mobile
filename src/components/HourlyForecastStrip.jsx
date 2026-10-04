@@ -18,8 +18,7 @@ import {
   noteSunForecast,
 } from '../utils/sunForecastDiagnostics';
 import { traceMapOperation } from '../utils/mapOperationTrace';
-import { traceSunForecastLifecycle } from '../utils/sunForecastLifecycle';
-import { SUN_FORECAST_MODE } from '../utils/iosCrashIsolation';
+import { shouldStartForecastFetch } from '../utils/scheduleForecastFetch';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -55,7 +54,14 @@ if (typeof document !== 'undefined' && !document.getElementById('ss-pulse-kf')) 
   document.head.appendChild(style);
 }
 
-export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId = '', onViewState }) {
+export default function HourlyForecastStrip({
+  lat,
+  lng,
+  enabled = true,
+  fetchReady = true,
+  venueId = '',
+  onViewState,
+}) {
   const [hourly, setHourly]                   = useState([]);
   const [loading, setLoading]                 = useState(true);
   const [error, setError]                     = useState(false);
@@ -81,12 +87,18 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId 
   }, [loading, error, view, itemCount, dataPresent, onViewState]);
 
   useEffect(() => {
-    if (!shouldFetchRemote({ enabled, lat, lng }) || !hasCoords) {
+    if (!fetchReady) {
+      setLoading(true);
+      setError(false);
+      return undefined;
+    }
+    if (!shouldStartForecastFetch({ fetchReady, enabled, hasCoords })
+      || !shouldFetchRemote({ enabled, lat, lng })) {
       setLoading(false);
       setError(false);
-      if (!enabled) return;
+      if (!enabled) return undefined;
       setHourly([]);
-      return;
+      return undefined;
     }
 
     const started = beginForecastRequest(generationRef.current, venueId);
@@ -105,15 +117,6 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId 
       detail: 'hourly-strip',
       venueId,
       at: startedAt,
-      requestId: started.requestId,
-      mode: SUN_FORECAST_MODE,
-    });
-    traceSunForecastLifecycle('sun-forecast-hourly-fetch-start', {
-      venueId,
-      at: startedAt,
-      requestId: started.requestId,
-      mode: SUN_FORECAST_MODE,
-      detail: 'hourly',
     });
     let fetchTraced = false;
     const traceFetchEnd = () => {
@@ -207,7 +210,7 @@ export default function HourlyForecastStrip({ lat, lng, enabled = true, venueId 
       });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, latNum, lngNum, venueId]);
+  }, [enabled, fetchReady, latNum, lngNum, venueId]);
 
   const stateAttrs = {
     'data-forecast-state': view,

@@ -6,9 +6,7 @@ import { checkIfShaded } from '../utils/solarMath.js';
 import { resolveForecastView } from '../utils/resolveForecastView';
 import { noteSunForecast } from '../utils/sunForecastDiagnostics';
 import { traceMapOperation } from '../utils/mapOperationTrace';
-import { MATRIX_HUD, SUN_FORECAST_MODE } from '../utils/iosCrashIsolation';
-import { hourlyForecastEnabled, sunForecastMountPlan } from '../utils/sunForecastMode';
-import { traceSunForecastLifecycle } from '../utils/sunForecastLifecycle';
+import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 
 const CARD =
   'rounded-3xl border border-slate-900/[0.06] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]';
@@ -99,66 +97,25 @@ export default function SunForecastPanel({
 
   const seenRef = useRef(new Set());
   const venueId = venue?.id ?? '';
-  const forecastPlan = sunForecastMountPlan(SUN_FORECAST_MODE);
-  const hourlyEnabled = hourlyForecastEnabled(enabled, forecastPlan.mode);
-  const view = forecastPlan.mountHourlyStrip
-    ? (stripState.view || resolveForecastView({
-      loading: stripState.loading,
-      error: stripState.error,
-      items: stripState.dataPresent ? [{}] : [],
-    }))
-    : 'diagnostic';
+  const isReadyToFetch = useDeferredForecastReady(enabled, venueId);
+  const view = stripState.view || resolveForecastView({
+    loading: stripState.loading,
+    error: stripState.error,
+    items: stripState.dataPresent ? [{}] : [],
+  });
   const itemCount = Number.isFinite(stripState.itemCount) ? stripState.itemCount : 0;
   const dataPresent = Boolean(stripState.dataPresent);
 
   useEffect(() => {
     const seen = seenRef.current;
-    const at = Date.now();
-    const traceFields = { venueId, at, mode: forecastPlan.mode };
-    if (MATRIX_HUD) {
-      traceSunForecastLifecycle('sun-forecast-open', traceFields);
-      traceSunForecastLifecycle('sun-forecast-shell-mounted', traceFields);
-    } else {
-      traceMapOperation('sun-forecast-open', { venueId, at });
-    }
+    traceMapOperation('sun-forecast-open', { venueId, at: Date.now() });
     noteSunForecast(seen, 'sun-forecast-tab-enter', { venueId, state: 'enter' });
-    let frame = 0;
-    if (MATRIX_HUD && typeof requestAnimationFrame === 'function') {
-      frame = requestAnimationFrame(() => {
-        traceSunForecastLifecycle('sun-forecast-first-paint', {
-          venueId,
-          at: Date.now(),
-          mode: forecastPlan.mode,
-        });
-      });
-    }
     return () => {
-      if (frame) cancelAnimationFrame(frame);
-      const closedAt = Date.now();
-      if (MATRIX_HUD) {
-        traceSunForecastLifecycle('sun-forecast-cleanup', {
-          venueId,
-          at: closedAt,
-          mode: forecastPlan.mode,
-        });
-      }
-      traceMapOperation('sun-forecast-close', { venueId, at: closedAt });
+      traceMapOperation('sun-forecast-close', { venueId, at: Date.now() });
       noteSunForecast(seen, 'sun-forecast-tab-exit', { venueId, state: 'exit' });
       noteSunForecast(seen, 'sun-forecast-cleanup', { venueId, state: 'cleanup' });
     };
-  }, [forecastPlan.mode, venueId]);
-
-  useEffect(() => {
-    if (!forecastPlan.mountHourlyStrip) return undefined;
-    traceSunForecastLifecycle('sun-forecast-core-mounted', { venueId, mode: forecastPlan.mode });
-    return undefined;
-  }, [forecastPlan.mode, forecastPlan.mountHourlyStrip, venueId]);
-
-  useEffect(() => {
-    if (!forecastPlan.mountAnimatedTimeline) return undefined;
-    traceSunForecastLifecycle('sun-forecast-animated-mounted', { venueId, mode: forecastPlan.mode });
-    return undefined;
-  }, [forecastPlan.mode, forecastPlan.mountAnimatedTimeline, venueId]);
+  }, [venueId]);
 
   useEffect(() => {
     if (view === 'loading') return;
@@ -176,7 +133,7 @@ export default function SunForecastPanel({
       data-forecast-state={view}
       data-forecast-count={String(itemCount)}
       data-forecast-data={dataPresent ? 'yes' : 'no'}
-      data-sun-forecast-mode={forecastPlan.mode}
+      data-forecast-fetch={isReadyToFetch ? 'ready' : 'settling'}
       className="flex w-full min-h-0 flex-col gap-4"
     >
       {import.meta.env.DEV ? (
@@ -189,48 +146,34 @@ export default function SunForecastPanel({
       ) : null}
 
       <ForecastErrorBoundary key={venueId || 'venue'}>
-        {forecastPlan.diagnosticLabel ? (
-          <p
-            data-sun-forecast-diagnostic={forecastPlan.mode}
-            className="rounded-lg bg-slate-100 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-slate-600"
-          >
-            {forecastPlan.diagnosticLabel}
-          </p>
-        ) : null}
+        <SolarPositionCard
+          localSunData={localSunData}
+          sunWindow={sunWindow}
+          venue={venue}
+          contextIsRaining={contextIsRaining}
+          contextCloudCover={contextCloudCover}
+        />
 
-        {forecastPlan.mountSolarPosition ? (
-          <SolarPositionCard
-            localSunData={localSunData}
-            sunWindow={sunWindow}
-            venue={venue}
-            contextIsRaining={contextIsRaining}
-            contextCloudCover={contextCloudCover}
-          />
-        ) : null}
+        <LiveSunTimeline
+          sunData={sunData}
+          hourlyData={hourlyData}
+          cloudcover={cloudcover}
+          displaySunrise={displaySunrise}
+          displaySunset={displaySunset}
+          peakStart={peakStart}
+          peakEnd={peakEnd}
+        />
 
-        {forecastPlan.mountAnimatedTimeline ? (
-          <LiveSunTimeline
-            sunData={sunData}
-            hourlyData={hourlyData}
-            cloudcover={cloudcover}
-            displaySunrise={displaySunrise}
-            displaySunset={displaySunset}
-            peakStart={peakStart}
-            peakEnd={peakEnd}
-          />
-        ) : null}
+        <HourlyForecastStrip
+          lat={lat}
+          lng={lng}
+          enabled={enabled}
+          fetchReady={isReadyToFetch}
+          venueId={venueId}
+          onViewState={handleViewState}
+        />
 
-        {forecastPlan.mountHourlyStrip ? (
-          <HourlyForecastStrip
-            lat={lat}
-            lng={lng}
-            enabled={hourlyEnabled}
-            venueId={venueId}
-            onViewState={handleViewState}
-          />
-        ) : null}
-
-        {forecastPlan.mountOptionalSections ? children : null}
+        {children}
       </ForecastErrorBoundary>
     </div>
   );

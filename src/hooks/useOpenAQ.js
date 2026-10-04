@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { shouldFetchRemote } from './shouldFetchRemote';
 import { traceMapOperation } from '../utils/mapOperationTrace';
-import { nextSunForecastRequestId, traceSunForecastLifecycle } from '../utils/sunForecastLifecycle';
 
 // In-memory cache: key = "lat,lng", value = { aqLabel, expiresAt }
 const _cache = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const FETCH_TIMEOUT_MS = 4000;
 
-export function useOpenAQ(lat, lng, { enabled = true, venueId = '' } = {}) {
+export function useOpenAQ(lat, lng, { enabled = true } = {}) {
   const [aqLabel, setAqLabel] = useState('–');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -27,12 +26,7 @@ export function useOpenAQ(lat, lng, { enabled = true, venueId = '' } = {}) {
 
     setLoading(true);
     setError(false);
-    traceMapOperation('sun-forecast-fetch-start', { detail: 'useOpenAQ', at: Date.now(), venueId });
-    traceSunForecastLifecycle('sun-forecast-aq-fetch-start', {
-      venueId,
-      detail: 'useOpenAQ',
-      requestId: nextSunForecastRequestId('aq'),
-    });
+    traceMapOperation('sun-forecast-fetch-start', { detail: 'useOpenAQ', at: Date.now() });
     let fetchTraced = false;
     const traceFetchEnd = () => {
       if (fetchTraced) return;
@@ -108,7 +102,7 @@ export function useOpenAQ(lat, lng, { enabled = true, venueId = '' } = {}) {
       controller.abort();
       traceFetchEnd();
     };
-  }, [lat, lng, enabled, venueId]);
+  }, [lat, lng, enabled]);
 
   return { aqLabel, loading, error };
 }

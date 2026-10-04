@@ -11,8 +11,7 @@ import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
 import { useOpenUV } from '../hooks/useOpenUV';
-import { SUN_FORECAST_MODE } from '../utils/iosCrashIsolation';
-import { auxiliaryForecastEnabled, sunForecastMountPlan } from '../utils/sunForecastMode';
+import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
 import { checkIsAccommodation } from '../utils/accommodation';
 import VenueCardWeather from './VenueCardWeather';
@@ -742,8 +741,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const tabpanelRef = useRef(null);
   const detailBranch = resolveVenueDetailBranch(activeTab);
   const forecastEnabled = forecastOpen || activeTab === 'Sun Forecast';
-  const sunForecastPlan = sunForecastMountPlan(SUN_FORECAST_MODE);
-  const auxForecastEnabled = auxiliaryForecastEnabled(forecastEnabled, sunForecastPlan.mode);
+  const isReadyToFetch = useDeferredForecastReady(forecastEnabled, venue?.id ?? '');
+  const auxForecastEnabled = forecastEnabled && isReadyToFetch;
 
   React.useEffect(() => {
     setImageError(false);
@@ -924,7 +923,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { weatherCode } = weather || {};
-  const { aqLabel } = useOpenAQ(lat, lng, { enabled: auxForecastEnabled, venueId: venue?.id ?? '' });
+  const { aqLabel } = useOpenAQ(lat, lng, { enabled: auxForecastEnabled });
   const windSpeedDisplay = windView.speedLabel ?? '–';
   const windbreak = Number(shielding?.windbreak);
   const windShelter = typeof venue?.windShelter === 'string'
@@ -971,7 +970,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     [hasValidCoordinates, lat, lng, outdoorAspect, outdoorMinAltitude],
   );
   const heatingLabel = venue?.hasHeating || venue?.heating ? 'Heated Lamps' : 'Natural Breeze';
-  useOpenUV(lat, lng, { enabled: auxForecastEnabled, venueId: venue?.id ?? '' });
+  useOpenUV(lat, lng, { enabled: auxForecastEnabled });
   const cloudcover = weather?.cloudCover
     ?? (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null)
     ?? (Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover : null);
@@ -989,7 +988,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   // All four values — isRainStartingSoon + minutesUntilRain feed BalconySunshineBlock
   // and VenueCardActions; rainArrivalMins + rainArrivalLabel feed the nowcast banner
-  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: auxForecastEnabled, venueId: venue?.id ?? '' });
+  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: auxForecastEnabled });
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
