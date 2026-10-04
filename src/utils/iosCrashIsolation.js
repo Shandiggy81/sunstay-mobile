@@ -138,6 +138,8 @@ export const SHEET_WILL_CHANGE_MODE = resolvedIsolation.sheetWillChange;
 export const SHEET_BACKDROP_MODE = resolvedIsolation.sheetBackdrop;
 export const MATRIX_HUD = resolvedIsolation.matrixHud;
 export const VENUE_REFRESH_HANG = resolvedIsolation.refreshHang;
+/** Diagnostic only. false holds the 10 infinite Framer loops static. */
+export const SUN_FORECAST_ANIMATIONS_ENABLED = false;
 export const MAP_LIFECYCLE = resolvedIsolation.mapLifecycle;
 
 export function renderMatrixTestId({ map, limit, motion }) {

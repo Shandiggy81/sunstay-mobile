@@ -49,7 +49,7 @@ import {
   venueOverlayPresenceKey,
   VENUE_DETAIL_BRANCH,
 } from '../utils/venueDetailTabs';
-import { ENABLE_SHEET_MOTION, sheetSurfaceMode } from '../utils/iosCrashIsolation';
+import { ENABLE_SHEET_MOTION, SUN_FORECAST_ANIMATIONS_ENABLED, sheetSurfaceMode } from '../utils/iosCrashIsolation';
 import { setIsolationContext } from '../utils/iosCrashLog';
 import { formatVenueDetailProbe, readVenueDetailLayoutProbe } from '../utils/venueDetailLayoutProbe';
 
@@ -238,7 +238,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <motion.span className="text-xl" animate={isSunNow ? { scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] } : {}} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}>
+          <motion.span className="text-xl" animate={SUN_FORECAST_ANIMATIONS_ENABLED && isSunNow ? { scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : undefined}>
             {isSunNow ? '☀️' : '🪟'}
           </motion.span>
           <div className="min-w-0">
@@ -249,7 +249,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
           </div>
         </div>
         {isSunNow && (
-          <motion.span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>Sun now</motion.span>
+          <motion.span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white" animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.05, 1] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.5, repeat: Infinity } : undefined}>Sun now</motion.span>
         )}
       </div>
       <div className="flex items-center justify-between gap-3 text-[13px] text-slate-600">
@@ -258,7 +258,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
       </div>
       {rainSoon && (
         <motion.div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-slate-50 border border-slate-200" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-          <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1.4, repeat: Infinity }}>🌧️</motion.span>
+          <motion.span animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.15, 1] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.4, repeat: Infinity } : undefined}>🌧️</motion.span>
           <span className="font-bold text-[12px] text-slate-700">
             {minutesUntilRain === 0 ? 'Rain falling now — head inside' : `Rain approaching in ${minutesUntilRain} mins — grab a spot now`}
           </span>
@@ -1214,8 +1214,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           onPointerLeave={enableTilt ? handlePointerLeave : undefined}
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: '28px 28px 0 0', zIndex: 0 }}>
-            <motion.div animate={{ scale: [1, 1.18, 1], x: [0, 40, 0], y: [0, -30, 0] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }} style={{ position: 'absolute', top: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${blobA} 0%, transparent 65%)`, filter: 'blur(48px)' }} />
-            <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
+            <motion.div animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.18, 1], x: [0, 40, 0], y: [0, -30, 0] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 14, repeat: Infinity, ease: 'easeInOut' } : undefined} style={{ position: 'absolute', top: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${blobA} 0%, transparent 65%)`, filter: 'blur(48px)' }} />
+            <motion.div animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 } : undefined} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
           </div>
 
           <div className="relative z-20 isolate shrink-0 overflow-hidden border-b border-slate-900/[0.06] bg-white px-4 [transform-style:flat]">
@@ -1542,8 +1542,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       </div>
                       <motion.span
                         className="flex-shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white shadow-sm"
-                        animate={{ opacity: [1, 0.4, 1] }}
-                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                        animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { opacity: [1, 0.4, 1] } : {}}
+                        transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } : undefined}
                       >
                         {rainArrivalMins === 0 ? 'Active' : 'Imminent'}
                       </motion.span>

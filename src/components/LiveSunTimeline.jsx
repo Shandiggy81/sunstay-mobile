@@ -15,6 +15,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { SUN_FORECAST_ANIMATIONS_ENABLED } from '../utils/iosCrashIsolation';
 
 // ─── constants ────────────────────────────────────────────────────
 const TIMELINE_START = 5;   // 5am left edge
@@ -209,8 +210,8 @@ export default function LiveSunTimeline({
       <div className="flex items-center gap-2">
         <motion.span
           style={{ fontSize: 20, lineHeight: 1 }}
-          animate={!isNight ? { scale: [1, 1.2, 1], rotate: [-5, 5, -3, 3, 0] } : {}}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          animate={SUN_FORECAST_ANIMATIONS_ENABLED && !isNight ? { scale: [1, 1.2, 1], rotate: [-5, 5, -3, 3, 0] } : {}}
+          transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 3, repeat: Infinity, ease: 'easeInOut' } : undefined}
         >
           {headline.emoji}
         </motion.span>
@@ -232,8 +233,8 @@ export default function LiveSunTimeline({
           <motion.span
             className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full flex-shrink-0"
             style={{ background: '#F59E0B', color: '#fff' }}
-            animate={{ scale: [1, 1.06, 1] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+            animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.06, 1] } : {}}
+            transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.5, repeat: Infinity } : undefined}
           >
             SUN NOW
           </motion.span>
@@ -288,8 +289,8 @@ export default function LiveSunTimeline({
                   width: `${width}%`,
                   background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%)',
                 }}
-                animate={{ x: [`-${width}%`, `${width}%`] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { x: [`-${width}%`, `${width}%`] } : {}}
+                transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 1 } : undefined}
               />
             );
           })()}
@@ -314,8 +315,8 @@ export default function LiveSunTimeline({
               left: '50%', top: '50%',
               transform: 'translate(-50%,-50%)',
             }}
-            animate={{ scale: [1, 1.6, 1], opacity: [0.6, 0.15, 0.6] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.6, 1], opacity: [0.6, 0.15, 0.6] } : {}}
+            transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : undefined}
           />
           {/* dot */}
           <div
