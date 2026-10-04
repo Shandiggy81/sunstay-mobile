@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { createForecastSettleGate } from '../utils/scheduleForecastFetch';
+import { armForecastFetchWhenCameraSettled, getMapCamera } from '../utils/mapCameraSettle';
 
 /**
- * False until the sheet settle gate fires. A venue change or tab exit
- * cancels the pending callback, so the fetch never starts for a stale view.
+ * False while the map camera is moving. A settled map opens the gate on
+ * this commit's effect. Tab exit or a venue change removes the moveend
+ * listener before it can start a fetch.
  */
 export function useDeferredForecastReady(active, token = '') {
     const [ready, setReady] = useState(false);
@@ -17,9 +18,14 @@ export function useDeferredForecastReady(active, token = '') {
 
     useEffect(() => {
         if (!isActive) return undefined;
-        const gate = createForecastSettleGate();
-        gate.arm(() => setReady(true));
-        return () => gate.cancel();
+        let alive = true;
+        const cancel = armForecastFetchWhenCameraSettled(getMapCamera(), () => {
+            if (alive) setReady(true);
+        });
+        return () => {
+            alive = false;
+            cancel();
+        };
     }, [isActive, token]);
 
     return isActive && ready;

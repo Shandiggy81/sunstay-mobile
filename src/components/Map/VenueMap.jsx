@@ -30,6 +30,7 @@ import {
     setIsolationContext,
 } from '../../utils/iosCrashLog';
 import { syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
+import { registerMapCamera } from '../../utils/mapCameraSettle';
 import {
     MARKER_SYNC_CAMERA_EVENTS,
     bindMapGestureListeners,
@@ -1833,6 +1834,13 @@ const VenueMap = forwardRef(({
             } catch { /* noop */ }
         };
     }, [mapLoaded, setBbox]);
+
+    // Forecast fetches read this instance to see if flyTo is still running.
+    // Registration is not part of map construction or teardown.
+    useEffect(() => {
+        if (!mapLoaded || !map.current) return undefined;
+        return registerMapCamera(map.current);
+    }, [mapLoaded]);
 
     // ── selectedVenue: fly to pin ───────────────────────────────────
     useEffect(() => {

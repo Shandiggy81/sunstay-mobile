@@ -97,6 +97,8 @@ export default function SunForecastPanel({
 
   const seenRef = useRef(new Set());
   const venueId = venue?.id ?? '';
+  // Shimmer until the map camera is still. An active flyTo must not share
+  // the frame with the hourly or auxiliary forecast requests.
   const isReadyToFetch = useDeferredForecastReady(enabled, venueId);
   const view = stripState.view || resolveForecastView({
     loading: stripState.loading,

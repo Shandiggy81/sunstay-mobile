@@ -18,7 +18,7 @@ import {
   noteSunForecast,
 } from '../utils/sunForecastDiagnostics';
 import { traceMapOperation } from '../utils/mapOperationTrace';
-import { shouldStartForecastFetch } from '../utils/scheduleForecastFetch';
+import { shouldStartForecastFetch } from '../utils/mapCameraSettle';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
