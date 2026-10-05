@@ -597,16 +597,26 @@ export function createGenerationCamera(generation) {
     };
 }
 
+function generationList(value) {
+    return Array.isArray(value) ? value : [];
+}
+
+function generationCount(value) {
+    return Number.isFinite(value) ? value : 0;
+}
+
 export function trackCameraTimer(state, timer) {
     if (!state?.active || !timer) return state;
-    return { ...state, timers: [...state.timers, timer] };
+    return { ...state, timers: [...generationList(state.timers), timer] };
 }
 
 /** A retired generation cannot fly, resize, or sync markers on the live map. */
 export function dispatchGenerationCallback(state, generation, kind, run) {
     if (!state || state.active !== true || state.generation !== generation) {
         return {
-            state: state ? { ...state, ignored: [...state.ignored, kind] } : state,
+            state: state
+                ? { ...state, ignored: [...generationList(state.ignored), kind] }
+                : state,
             ran: false,
         };
     }
@@ -616,20 +626,23 @@ export function dispatchGenerationCallback(state, generation, kind, run) {
 
 /**
  * Cancel pending camera timers, mark the generation inactive, then stop the
- * animation. A second call does not stop the map again.
+ * animation. A second call does not stop the map again. Missing collection
+ * fields are empty lists so an incomplete guard cannot throw during unmount.
  */
 export function beginGenerationTeardown(state, map) {
     const current = state ?? createGenerationCamera(0);
-    if (current.active !== true && current.stopCalls > 0) return current;
-    for (const timer of current.timers) {
+    const timers = generationList(current.timers);
+    const stopCalls = generationCount(current.stopCalls);
+    if (current.active !== true && stopCalls > 0) return current;
+    for (const timer of timers) {
         if (!timer?.cleared) timer?.cancel?.();
     }
     const next = {
         ...current,
         active: false,
-        timers: current.timers.map((timer) => ({ ...timer, cleared: true })),
-        stopCalls: current.stopCalls + 1,
-        order: [...current.order],
+        timers: timers.map((timer) => ({ ...timer, cleared: true })),
+        stopCalls: stopCalls + 1,
+        order: [...generationList(current.order)],
     };
     if (map && typeof map.stop === 'function') {
         try {
@@ -645,14 +658,16 @@ export function beginGenerationTeardown(state, map) {
 /** Capture once, and only after the generation has been stopped. */
 export function captureGenerationCamera(state, map) {
     const current = state ?? createGenerationCamera(0);
-    if (current.active === true || current.stopCalls < 1) return { ...current, captured: false };
-    if (current.captures >= 1) return { ...current, captured: false };
+    const stopCalls = generationCount(current.stopCalls);
+    const captures = generationCount(current.captures);
+    if (current.active === true || stopCalls < 1) return { ...current, captured: false };
+    if (captures >= 1) return { ...current, captured: false };
     return {
         ...current,
         captures: 1,
         camera: captureMapCamera(map),
         captured: true,
-        order: [...current.order, 'capture'],
+        order: [...generationList(current.order), 'capture'],
     };
 }
 

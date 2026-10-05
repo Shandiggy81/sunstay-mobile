@@ -924,7 +924,7 @@ const VenueMap = forwardRef(({
                         padding:   FLY_TO_PADDING,
                     });
                 });
-                cameraGuardRef.current = decision.camera;
+                cameraGuardRef.current = decision.state;
             }, 300);
             pendingTimersRef.current.add(handle.id);
             cameraGuardRef.current = trackCameraTimer(cameraGuardRef.current, handle);
@@ -1142,7 +1142,7 @@ const VenueMap = forwardRef(({
                         'resize',
                         () => {},
                     );
-                    cameraGuardRef.current = decision.camera;
+                    cameraGuardRef.current = decision.state;
                     if (!decision.ran) return;
                     const coal = resizeCoalesced;
                     resizeCoalesced = 0;
@@ -1649,7 +1649,7 @@ const VenueMap = forwardRef(({
                 'marker-sync',
                 () => {},
             );
-            cameraGuardRef.current = decision.camera;
+            cameraGuardRef.current = decision.state;
             if (!decision.ran) return;
             if (mapGenerationRef.current !== generation || map.current !== instance) {
                 syncSchedulerRef.current = {
@@ -1960,11 +1960,11 @@ const VenueMap = forwardRef(({
                             traceRef.current('map-flyto-end');
                         },
                     );
-                    cameraGuardRef.current = settled.camera;
+                    cameraGuardRef.current = settled.state;
                 };
                 instance.once('moveend', flyEnd);
             });
-            cameraGuardRef.current = decision.camera;
+            cameraGuardRef.current = decision.state;
         }, 300);
         pendingTimersRef.current.add(handle.id);
         cameraGuardRef.current = trackCameraTimer(cameraGuardRef.current, handle);

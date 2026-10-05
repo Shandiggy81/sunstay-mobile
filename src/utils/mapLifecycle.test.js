@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -713,5 +714,324 @@ describe('generation camera teardown', () => {
         ];
         assert.equal(traces.includes('context-loss'), false);
         assert.equal(traces.includes('map-context-loss'), false);
+    });
+});
+
+describe('static-when-expanded sheet transition', () => {
+    const venueSource = readFileSync(new URL('../components/Map/VenueMap.jsx', import.meta.url), 'utf8');
+
+    function liveMap() {
+        return {
+            stops: 0,
+            flew: 0,
+            resized: 0,
+            removed: false,
+            center: { lng: 144.9631, lat: -37.8136 },
+            zoom: 14,
+            bearing: -17.6,
+            pitch: 0,
+            stop() { this.stops += 1; },
+            flyTo() { this.flew += 1; },
+            resize() { this.resized += 1; },
+            remove() { this.removed = true; },
+            getCenter() { return this.center; },
+            getZoom() { return this.zoom; },
+            getBearing() { return this.bearing; },
+            getPitch() { return this.pitch; },
+        };
+    }
+
+    function remember(guard, generation, kind, run) {
+        const decision = dispatchGenerationCallback(guard, generation, kind, run);
+        return decision.state;
+    }
+
+    function unmountMap(guard, map) {
+        const inactive = { ...guard, active: false };
+        return teardownGenerationCamera(inactive, map);
+    }
+
+    it('unmounts once after the expanded sheet settles and keeps the generation guard', () => {
+        assert.equal(/decision\.camera|settled\.camera/.test(venueSource), false);
+        assert.equal(venueSource.includes('cameraGuardRef.current = decision.state'), true);
+        assert.equal(venueSource.includes('cameraGuardRef.current = settled.state'), true);
+
+        const map = liveMap();
+        let reactUpdates = 0;
+        let guard = remember(createGenerationCamera(1), 1, 'marker-sync', () => {
+            reactUpdates += 1;
+        });
+        guard = remember(guard, 1, 'resize', () => {
+            map.resize();
+        });
+        assert.equal(guard.generation, 1);
+        assert.equal(Array.isArray(guard.timers), true);
+        assert.equal(reactUpdates, 1);
+        assert.equal(map.resized, 1);
+
+        const armed = sample(createStaticOffloadState(), {
+            expanded: true,
+            dragging: false,
+            at: 1000,
+        });
+        assert.equal(armed.state.phase, 'offload-arming');
+        assert.equal(armed.traces[0], 'map-offload-requested');
+        assert.equal(shouldMountMap({
+            mapboxEnabled: true,
+            lifecycle: MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
+            diagnostic: true,
+            offloadCommitted: staticOffloadHidesMap(armed.state.phase),
+        }), true);
+
+        const offloaded = settle(armed.state, {
+            at: 1000 + MAP_OFFLOAD_SETTLE_MS,
+            expanded: true,
+            liveInstances: 1,
+        });
+        assert.equal(offloaded.state.phase, 'offloaded');
+        assert.equal(offloaded.state.offloads, 1);
+        assert.equal(offloaded.state.removes, 0);
+        assert.equal(offloaded.state.liveInstances, 1);
+        assert.equal(shouldMountMap({
+            mapboxEnabled: true,
+            lifecycle: MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
+            diagnostic: true,
+            offloadCommitted: staticOffloadHidesMap(offloaded.state.phase),
+        }), false);
+
+        const retired = unmountMap(guard, map);
+        assert.equal(map.stops, 1);
+        assert.equal(retired.stopCalls, 1);
+        assert.equal(retired.captures, 1);
+        const removed = reduceStaticOffload(offloaded.state, { type: 'removed', ...STATIC });
+        const removedAgain = reduceStaticOffload(removed.state, { type: 'removed', ...STATIC });
+        assert.equal(removed.state.removes, 1);
+        assert.equal(removed.state.liveInstances, 0);
+        assert.equal(removedAgain.state.removes, 1);
+        assert.equal(unmountMap(retired, map).stopCalls, 1);
+
+        const stale = dispatchGenerationCallback(retired, 1, 'flyTo', () => {
+            reactUpdates += 10;
+            map.flyTo();
+        });
+        assert.equal(stale.ran, false);
+        assert.equal(reactUpdates, 1);
+        assert.equal(map.flew, 0);
+    });
+
+    it('restores one generation after a selected venue closes', () => {
+        const map = liveMap();
+        let reactUpdates = 0;
+        let guard = remember(createGenerationCamera(1), 1, 'flyTo', () => {
+            map.flyTo();
+        });
+        assert.equal(guard.generation, 1);
+        assert.equal(map.flew, 1);
+
+        const covered = sample(createStaticOffloadState(), {
+            expanded: true,
+            dragging: false,
+            at: 2000,
+        });
+        const offloaded = settle(covered.state, {
+            at: 2000 + MAP_OFFLOAD_SETTLE_MS,
+            expanded: true,
+            liveInstances: 1,
+            camera: { lng: 144.9631, lat: -37.8136, zoom: 15, bearing: -17.6, pitch: 45 },
+        });
+        assert.equal(offloaded.state.phase, 'offloaded');
+        assert.equal(offloaded.state.removes, 0);
+        const retired = unmountMap(guard, map);
+        const removed = reduceStaticOffload(offloaded.state, { type: 'removed', ...STATIC });
+        assert.equal(removed.state.removes, 1);
+        assert.equal(map.stops, 1);
+
+        const closing = sample(removed.state, { expanded: false, dragging: false, at: 4000 });
+        assert.equal(closing.state.phase, 'restore-arming');
+        assert.equal(closing.traces[0], 'map-restore-requested');
+        const restoring = settle(closing.state, {
+            at: 4000 + MAP_OFFLOAD_SETTLE_MS,
+            expanded: false,
+            liveInstances: 0,
+            initLock: false,
+        });
+        assert.equal(restoring.state.phase, 'restoring');
+        assert.equal(restoring.state.restores, 1);
+        assert.equal(restoring.state.generationsCreated, 1);
+        assert.equal(restoring.state.liveInstances, 1);
+        assert.equal(restoring.traces[0], 'map-restore-start');
+        const again = settle(restoring.state, {
+            at: 5000,
+            expanded: false,
+            liveInstances: 0,
+        });
+        assert.equal(again.state.generationsCreated, 1);
+        assert.equal(again.state.liveInstances, 1);
+
+        const next = remember(createGenerationCamera(restoring.state.activeGeneration), restoring.state.activeGeneration, 'flyTo', () => {
+            reactUpdates += 1;
+            map.flyTo();
+        });
+        const stale = dispatchGenerationCallback(retired, 1, 'marker-sync', () => {
+            reactUpdates += 5;
+        });
+        assert.equal(next.generation, restoring.state.activeGeneration);
+        assert.equal(stale.ran, false);
+        assert.equal(reactUpdates, 1);
+        assert.equal(map.flew, 2);
+    });
+
+    it('leaves keep, a hidden matrix HUD, and mapbox=0 on their existing paths', () => {
+        assert.equal(shouldMountMap({
+            mapboxEnabled: true,
+            lifecycle: 'keep',
+            sheetExpanded: true,
+            diagnostic: true,
+            offloadCommitted: true,
+        }), true);
+        assert.equal(shouldMountMap({
+            mapboxEnabled: true,
+            lifecycle: MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
+            sheetExpanded: true,
+            diagnostic: false,
+            offloadCommitted: true,
+        }), true);
+        assert.equal(shouldMountMap({
+            mapboxEnabled: false,
+            lifecycle: MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
+            sheetExpanded: true,
+            diagnostic: true,
+            offloadCommitted: true,
+        }), false);
+        const hiddenHud = sample(createStaticOffloadState(), {
+            diagnostic: false,
+            expanded: true,
+            dragging: false,
+        });
+        const mapboxOff = sample(createStaticOffloadState(), {
+            mapboxEnabled: false,
+            expanded: true,
+            dragging: false,
+        });
+        assert.equal(hiddenHud.state.phase, 'live');
+        assert.equal(hiddenHud.state.offloads, 0);
+        assert.equal(mapboxOff.state.phase, 'live');
+        assert.equal(mapboxOff.state.offloads, 0);
+        assert.equal(MAP_OFFLOAD_PLACEHOLDER_COPY, 'Map offloaded to save memory');
+    });
+});
+
+describe('incomplete generation guards', () => {
+    it('returns { state, ran } and never a camera property', () => {
+        let ran = 0;
+        const decision = dispatchGenerationCallback(createGenerationCamera(4), 4, 'resize', () => {
+            ran += 1;
+        });
+        assert.deepEqual(Object.keys(decision).sort(), ['ran', 'state']);
+        assert.equal(decision.ran, true);
+        assert.equal(decision.camera, undefined);
+        assert.equal(decision.state.generation, 4);
+        assert.equal(ran, 1);
+        assert.equal(/decision\.camera|settled\.camera/.test(
+            readFileSync(new URL('../components/Map/VenueMap.jsx', import.meta.url), 'utf8'),
+        ), false);
+    });
+
+    it('tears down null, undefined, and empty guards without throwing', () => {
+        for (const incomplete of [null, undefined, {}, { active: false }, { timers: undefined }, { order: undefined }, { ignored: undefined }]) {
+            const begun = beginGenerationTeardown(incomplete, null);
+            const captured = captureGenerationCamera(incomplete, null);
+            const torn = teardownGenerationCamera(incomplete, null);
+            assert.equal(Array.isArray(begun.timers), true);
+            assert.equal(Array.isArray(begun.order), true);
+            assert.equal(captured.captured === true || captured.captured === false, true);
+            assert.equal(Number.isFinite(torn.stopCalls), true);
+            assert.equal(Array.isArray(torn.order), true);
+        }
+        assert.equal(captureGenerationCamera({}, null).captured, false);
+        assert.equal(beginGenerationTeardown({}, null).stopCalls, 1);
+        assert.deepEqual(beginGenerationTeardown({ timers: undefined, order: undefined }, null).timers, []);
+        assert.deepEqual(beginGenerationTeardown({ timers: undefined, order: undefined }, null).order, []);
+    });
+
+    it('normalizes missing ignored, order, and timers arrays', () => {
+        let called = 0;
+        const stale = dispatchGenerationCallback(
+            { active: false, generation: 1, ignored: undefined },
+            1,
+            'marker-sync',
+            () => { called += 1; },
+        );
+        assert.equal(stale.ran, false);
+        assert.equal(called, 0);
+        assert.deepEqual(stale.state.ignored, ['marker-sync']);
+        const shot = captureGenerationCamera({
+            active: false,
+            stopCalls: 1,
+            captures: 0,
+            order: undefined,
+        }, null);
+        assert.equal(shot.captured, true);
+        assert.deepEqual(shot.order, ['capture']);
+        const stopped = beginGenerationTeardown({
+            active: true,
+            generation: 2,
+            stopCalls: 0,
+            timers: undefined,
+            order: undefined,
+        }, null);
+        assert.deepEqual(stopped.timers, []);
+        assert.deepEqual(stopped.order, []);
+    });
+
+    it('stops and captures an empty guard once, and records a real stop failure', () => {
+        const map = {
+            stops: 0,
+            stop() { this.stops += 1; },
+            getCenter() { return { lng: 144.9631, lat: -37.8136 }; },
+            getZoom() { return 15; },
+            getBearing() { return 0; },
+            getPitch() { return 0; },
+        };
+        const once = teardownGenerationCamera({}, map);
+        const twice = teardownGenerationCamera(once, map);
+        assert.equal(map.stops, 1);
+        assert.equal(once.captures, 1);
+        assert.equal(twice.captures, 1);
+        assert.equal(twice.stopCalls, 1);
+        const failing = {
+            stops: 0,
+            stop() {
+                this.stops += 1;
+                throw new Error('style is not done loading');
+            },
+        };
+        const failed = beginGenerationTeardown(createGenerationCamera(1), failing);
+        const failedAgain = beginGenerationTeardown(failed, failing);
+        assert.equal(failing.stops, 1);
+        assert.deepEqual(failed.order, ['stop-failed']);
+        assert.equal(failedAgain, failed);
+    });
+
+    it('ignores stale flyTo, resize, and marker sync after teardown', () => {
+        const map = {
+            flew: 0,
+            resized: 0,
+            stop() {},
+            flyTo() { this.flew += 1; },
+            resize() { this.resized += 1; },
+        };
+        const retired = teardownGenerationCamera(createGenerationCamera(1), map);
+        let synced = 0;
+        const fly = dispatchGenerationCallback(retired, 1, 'flyTo', () => map.flyTo());
+        const resize = dispatchGenerationCallback(fly.state, 1, 'resize', () => map.resize());
+        const sync = dispatchGenerationCallback(resize.state, 1, 'marker-sync', () => { synced += 1; });
+        assert.equal(fly.ran, false);
+        assert.equal(resize.ran, false);
+        assert.equal(sync.ran, false);
+        assert.equal(map.flew, 0);
+        assert.equal(map.resized, 0);
+        assert.equal(synced, 0);
+        assert.deepEqual(sync.state.ignored, ['flyTo', 'resize', 'marker-sync']);
     });
 });
