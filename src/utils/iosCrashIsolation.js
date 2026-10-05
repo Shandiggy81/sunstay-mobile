@@ -46,20 +46,23 @@
  *
  * Do not change Mapbox init or unmount while running this matrix.
  *
- * Map lifecycle is a separate opt-in. It does not change Mapbox constructor
- * options. Unset, `keep`, and any unknown value leave the map mounted:
- * ?matrixHud=1&mapLifecycle=keep
- * ?matrixHud=1&mapLifecycle=unmount-expanded
- * ?matrixHud=1&mapLifecycle=static-when-expanded
- * `unmount-expanded` unmounts Mapbox only while the list sheet is stably fully
- * expanded. Drag frames do not mount or unmount it. `static-when-expanded`
- * is inert unless matrixHud=1. It waits 320ms after the covering sheet stays
+ * Map lifecycle does not change Mapbox constructor options.
+ * Unset is `static-when-expanded` on iOS Safari and `keep` everywhere else.
+ * `?mapLifecycle=keep` forces the mounted map on iOS. Unknown values stay
+ * `keep`. `unmount-expanded` unmounts Mapbox only while the list sheet is
+ * stably fully expanded. Drag frames do not mount or unmount it.
+ * On iOS Safari, `static-when-expanded` runs without `matrixHud=1`. On every
+ * other platform it still requires the HUD. The debug overlay itself stays
+ * behind `matrixHud=1`. It waits 320ms after the covering sheet stays
  * expanded, tears the map down once, and restores one generation after the
  * sheet stays closed. Sun Forecast does not offload the map by itself.
+ * ?mapLifecycle=keep
+ * ?mapLifecycle=unmount-expanded
+ * ?matrixHud=1&mapLifecycle=static-when-expanded
  */
 
 import { classifyVenueRenderLimit } from './venueRenderLimit.js';
-import { parseMapLifecycle } from './mapLifecycle.js';
+import { selectMapLifecycle, staticOffloadEnabled, isIosSafari } from './mapLifecycle.js';
 
 function parseEnabled(value, fallback) {
     if (value == null || value === '') return fallback;
@@ -104,6 +107,13 @@ export function resolveIosIsolation(source = {}) {
     const venueLimit = venueWindow.limit;
     const mapbox = parseEnabled(read('mapbox', 'ss-mapbox', env.VITE_IOS_MAPBOX), true);
     const sheetMotion = parseEnabled(read('sheetMotion', 'ss-sheet-motion', env.VITE_IOS_SHEET_MOTION), true);
+    const userAgent = source.userAgent ?? '';
+    const iosSafari = isIosSafari(userAgent);
+    const matrixHud = parseEnabled(read('matrixHud', 'ss-matrix-hud', env.VITE_IOS_MATRIX_HUD), false);
+    const mapLifecycle = selectMapLifecycle(
+        read('mapLifecycle', 'ss-map-lifecycle', env.VITE_IOS_MAP_LIFECYCLE),
+        { userAgent },
+    );
     return {
         debugMascot: parseEnabled(read('debugMascot', 'ss-debug-mascot', env.VITE_IOS_DEBUG_MASCOT), false),
         mapbox,
@@ -113,9 +123,11 @@ export function resolveIosIsolation(source = {}) {
         venueRenderMode: venueWindow.mode,
         sheetWillChange: parseWillChangeMode(read('sheetWillChange', 'ss-sheet-will-change', env.VITE_IOS_SHEET_WILL_CHANGE)),
         sheetBackdrop: parseBackdropMode(read('sheetBackdrop', 'ss-sheet-backdrop', env.VITE_IOS_SHEET_BACKDROP)),
-        matrixHud: parseEnabled(read('matrixHud', 'ss-matrix-hud', env.VITE_IOS_MATRIX_HUD), false),
+        iosSafari,
+        matrixHud,
         refreshHang: parseEnabled(read('refreshHang', 'ss-refresh-hang', env.VITE_IOS_REFRESH_HANG), false),
-        mapLifecycle: parseMapLifecycle(read('mapLifecycle', 'ss-map-lifecycle', env.VITE_IOS_MAP_LIFECYCLE)),
+        mapLifecycle,
+        staticOffload: staticOffloadEnabled({ lifecycle: mapLifecycle, iosSafari, matrixHud }),
         renderMatrix: renderMatrixTestId({ map: mapbox, limit: venueLimit, motion: sheetMotion }),
     };
 }
@@ -127,7 +139,12 @@ function browserIsolationSource() {
     }
     let storage = null;
     try { storage = window.localStorage; } catch { storage = null; }
-    return { search: window.location?.search || '', storage, env };
+    return {
+        search: window.location?.search || '',
+        storage,
+        env,
+        userAgent: window.navigator?.userAgent || '',
+    };
 }
 
 const resolvedIsolation = resolveIosIsolation(browserIsolationSource());
@@ -140,11 +157,14 @@ export const VENUE_RENDER_LIMIT = resolvedIsolation.venueRenderLimit;
 export const VENUE_RENDER_MODE = resolvedIsolation.venueRenderMode;
 export const SHEET_WILL_CHANGE_MODE = resolvedIsolation.sheetWillChange;
 export const SHEET_BACKDROP_MODE = resolvedIsolation.sheetBackdrop;
+export const IOS_SAFARI = resolvedIsolation.iosSafari;
 export const MATRIX_HUD = resolvedIsolation.matrixHud;
 export const VENUE_REFRESH_HANG = resolvedIsolation.refreshHang;
 /** Diagnostic only. false holds the 10 infinite Framer loops static. */
 export const SUN_FORECAST_ANIMATIONS_ENABLED = true;
 export const MAP_LIFECYCLE = resolvedIsolation.mapLifecycle;
+/** Lifecycle behavior. The HUD overlay stays on MATRIX_HUD. */
+export const STATIC_OFFLOAD = resolvedIsolation.staticOffload;
 
 export function renderMatrixTestId({ map, limit, motion }) {
     if (limit == null) return 'default';

@@ -1,16 +1,24 @@
 /**
- * Opt-in Mapbox mount decision for the iOS crash matrix.
- * Default and `keep` leave the map mounted. `unmount-expanded` drops it
+ * Mapbox mount decision for the iOS crash matrix.
+ * `keep` leaves the map mounted. Unset is `static-when-expanded` on iOS
+ * Safari and `keep` on every other platform. `unmount-expanded` drops it
  * only while the list sheet is in the stable fully expanded state.
  * Drag offsets are ignored so a swipe cannot create a mount loop.
  *
- * `static-when-expanded` is a separate diagnostic. It does nothing unless
- * `matrixHud=1`. After the covering sheet stays expanded, and not while a
- * drag is active, it offloads the live map once and shows a static
- * placeholder. Closing that sheet and staying there restores one generation.
+ * `static-when-expanded` is the default on iOS Safari only. Every other
+ * platform stays on `keep` until an explicit override. On those platforms
+ * the mode still runs only with `matrixHud=1`. On iOS Safari the lifecycle
+ * runs without the HUD; the debug overlay stays behind `matrixHud=1`.
+ * `?mapLifecycle=keep` forces the mounted map, including on iOS Safari.
+ * After the covering sheet stays expanded, and not while a drag is active,
+ * it offloads the live map once and shows a static placeholder. Closing
+ * that sheet and staying there restores one generation.
  */
 
 import { ISOLATION_EVENT_KINDS, logIsolationEvent } from './iosCrashLog.js';
+
+const IOS_DEVICE_UA = /iPad|iPhone|iPod/i;
+const IOS_NON_SAFARI_UA = /CriOS|FxiOS|EdgiOS|OPiOS/i;
 
 export const MAP_LIFECYCLE_KEEP = 'keep';
 export const MAP_LIFECYCLE_UNMOUNT_EXPANDED = 'unmount-expanded';
@@ -27,6 +35,41 @@ export function parseMapLifecycle(value) {
     if (normalized === 'unmount-expanded') return MAP_LIFECYCLE_UNMOUNT_EXPANDED;
     if (normalized === 'static-when-expanded') return MAP_LIFECYCLE_STATIC_WHEN_EXPANDED;
     return MAP_LIFECYCLE_KEEP;
+}
+
+/**
+ * iPhone, iPad, and iPod Safari. Android is excluded even when its UA also
+ * says Safari. iPadOS desktop mode sends a Macintosh UA with no iPad token,
+ * so it does not match. Chrome, Firefox, Edge, and Opera on iOS do not match.
+ */
+export function isIosSafari(userAgent = '') {
+    const ua = String(userAgent ?? '');
+    if (/Android/i.test(ua)) return false;
+    if (!IOS_DEVICE_UA.test(ua)) return false;
+    if (IOS_NON_SAFARI_UA.test(ua)) return false;
+    return /Safari/i.test(ua);
+}
+
+/** Unset uses iOS Safari's scoped default. An explicit value always wins. */
+export function selectMapLifecycle(value, { userAgent = '' } = {}) {
+    if (value != null && String(value).trim() !== '') return parseMapLifecycle(value);
+    return isIosSafari(userAgent)
+        ? MAP_LIFECYCLE_STATIC_WHEN_EXPANDED
+        : MAP_LIFECYCLE_KEEP;
+}
+
+/**
+ * Offload behavior. iOS Safari runs `static-when-expanded` without the HUD.
+ * Every other platform still requires `matrixHud=1`.
+ */
+export function staticOffloadEnabled({
+    lifecycle = MAP_LIFECYCLE_KEEP,
+    iosSafari = false,
+    matrixHud = false,
+} = {}) {
+    if (lifecycle !== MAP_LIFECYCLE_STATIC_WHEN_EXPANDED) return false;
+    if (iosSafari === true) return true;
+    return matrixHud === true;
 }
 
 export function shouldMountMap({
@@ -291,6 +334,7 @@ export function peekRememberedCamera() {
 }
 
 function staticModeActive(input) {
+    // `diagnostic` is the behavior switch from staticOffloadEnabled, not the HUD.
     return input?.lifecycle === MAP_LIFECYCLE_STATIC_WHEN_EXPANDED
         && input?.diagnostic === true
         && input?.mapboxEnabled !== false;
@@ -582,7 +626,7 @@ export function staticOffloadShowsPlaceholder(phase) {
 }
 
 /** Deliberate offload copy. WebGL recovery messages stay in mapRecovery.js. */
-export const MAP_OFFLOAD_PLACEHOLDER_COPY = 'Map offloaded to save memory';
+export const MAP_OFFLOAD_PLACEHOLDER_COPY = 'Map paused while viewing venue';
 
 export function createGenerationCamera(generation) {
     return {

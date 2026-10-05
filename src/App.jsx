@@ -38,13 +38,13 @@ import {
     VENUE_RENDER_LIMIT,
     VENUE_RENDER_MODE,
     MAP_LIFECYCLE,
+    STATIC_OFFLOAD,
     crashTestId,
     renderMatrixTestId,
 } from './utils/iosCrashIsolation';
 import {
     createStaticOffloadState,
     getMapLifecycleSnapshot,
-    MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
     peekRememberedCamera,
     publishStaticOffload,
     reduceStaticOffload,
@@ -845,7 +845,7 @@ const AppContent = () => {
         backdrop: SHEET_BACKDROP_MODE,
     });
     const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
-    const staticOffloadActive = MAP_LIFECYCLE === MAP_LIFECYCLE_STATIC_WHEN_EXPANDED && MATRIX_HUD === true;
+    const staticOffloadActive = STATIC_OFFLOAD === true;
     const sheetCoversMap = sheetExpanded || selectedVenue != null;
     const offloadDragging = sheetDragging || venueSheetDragging;
     offloadSampleRef.current = { expanded: sheetCoversMap, dragging: offloadDragging };
@@ -866,7 +866,7 @@ const AppContent = () => {
         mapboxEnabled: ENABLE_MAPBOX,
         lifecycle: MAP_LIFECYCLE,
         sheetExpanded,
-        diagnostic: MATRIX_HUD,
+        diagnostic: STATIC_OFFLOAD,
         offloadCommitted: staticOffloadActive && staticOffloadHidesMap(offloadPhase),
     });
     const staticPlaceholder = staticOffloadActive && staticOffloadShowsPlaceholder(offloadPhase);
@@ -882,7 +882,7 @@ const AppContent = () => {
             expanded: sheetCoversMap,
             dragging: offloadDragging,
             lifecycle: MAP_LIFECYCLE,
-            diagnostic: MATRIX_HUD,
+            diagnostic: STATIC_OFFLOAD,
             mapboxEnabled: ENABLE_MAPBOX,
         });
         applyOffload(result);
@@ -898,7 +898,7 @@ const AppContent = () => {
                 liveInstances: snapshot.liveInstances,
                 camera: peekRememberedCamera(),
                 lifecycle: MAP_LIFECYCLE,
-                diagnostic: MATRIX_HUD,
+                diagnostic: STATIC_OFFLOAD,
                 mapboxEnabled: ENABLE_MAPBOX,
             });
             applyOffload(settled);
@@ -915,7 +915,7 @@ const AppContent = () => {
             type: 'removed',
             camera: peekRememberedCamera(),
             lifecycle: MAP_LIFECYCLE,
-            diagnostic: MATRIX_HUD,
+            diagnostic: STATIC_OFFLOAD,
             mapboxEnabled: ENABLE_MAPBOX,
         });
         applyOffload(result);
@@ -928,7 +928,7 @@ const AppContent = () => {
             generation,
             mapReady: true,
             lifecycle: MAP_LIFECYCLE,
-            diagnostic: MATRIX_HUD,
+            diagnostic: STATIC_OFFLOAD,
             mapboxEnabled: ENABLE_MAPBOX,
         });
         applyOffload(result);
@@ -940,7 +940,7 @@ const AppContent = () => {
             type: 'restore-failed',
             liveInstances: snapshot.liveInstances,
             lifecycle: MAP_LIFECYCLE,
-            diagnostic: MATRIX_HUD,
+            diagnostic: STATIC_OFFLOAD,
             mapboxEnabled: ENABLE_MAPBOX,
         });
         applyOffload(result);

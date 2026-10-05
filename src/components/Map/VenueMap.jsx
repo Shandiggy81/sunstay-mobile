@@ -76,9 +76,8 @@ import {
 } from '../../utils/mapRecovery';
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
-import { MAP_LIFECYCLE, MATRIX_HUD } from '../../utils/iosCrashIsolation';
+import { MAP_LIFECYCLE, STATIC_OFFLOAD } from '../../utils/iosCrashIsolation';
 import {
-    MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
     MAP_LIFECYCLE_UNMOUNT_EXPANDED,
     cameraForRemount,
     captureMapCamera,
@@ -1104,7 +1103,7 @@ const VenueMap = forwardRef(({
                 if (getMapLifecycleSnapshot().mountCount >= 2) {
                     logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:overlays-tod-reset');
                 }
-            } else if (MAP_LIFECYCLE === MAP_LIFECYCLE_STATIC_WHEN_EXPANDED && MATRIX_HUD) {
+            } else if (STATIC_OFFLOAD) {
                 const savedCamera = cameraForRemount();
                 const cameraClaim = claimCameraRestore(cameraClaimRef.current, generation);
                 cameraClaimRef.current = cameraClaim.claimed;
@@ -1324,7 +1323,7 @@ const VenueMap = forwardRef(({
             cameraGuardRef.current = retired;
             const lostCamera = retired.camera;
             if (lostCamera) recoveryCameraRef.current = lostCamera;
-            const camera = mapLifecycleRemembersCamera(MAP_LIFECYCLE, MATRIX_HUD)
+            const camera = mapLifecycleRemembersCamera(MAP_LIFECYCLE, STATIC_OFFLOAD)
                 ? lostCamera
                 : null;
             let canvas = null;

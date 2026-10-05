@@ -16,6 +16,9 @@ import {
     createMapMountState,
     finishMapRemove,
     parseMapLifecycle,
+    isIosSafari,
+    selectMapLifecycle,
+    staticOffloadEnabled,
     reduceSheetMount,
     MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
     MAP_OFFLOAD_SETTLE_MS,
@@ -145,6 +148,71 @@ describe('map lifecycle mount decision', () => {
             lifecycle: parseMapLifecycle(null),
             sheetExpanded: true,
         }), true);
+    });
+
+    it('defaults to static-when-expanded on iOS Safari and keep everywhere else', () => {
+        const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+        const ipad = 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+        const ipod = 'Mozilla/5.0 (iPod touch; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1';
+        const ipadosDesktop = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
+        const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+        const crios = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.119 Mobile/15E148 Safari/604.1';
+        const desktop = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        assert.equal(isIosSafari(iphone), true);
+        assert.equal(isIosSafari(ipad), true);
+        assert.equal(isIosSafari(ipod), true);
+        assert.equal(isIosSafari(ipadosDesktop), false);
+        assert.equal(isIosSafari(android), false);
+        assert.equal(isIosSafari(crios), false);
+        assert.equal(isIosSafari(desktop), false);
+        assert.equal(isIosSafari(''), false);
+        assert.equal(selectMapLifecycle(null, { userAgent: iphone }), MAP_LIFECYCLE_STATIC_WHEN_EXPANDED);
+        assert.equal(selectMapLifecycle(undefined, { userAgent: android }), MAP_LIFECYCLE_KEEP);
+        assert.equal(selectMapLifecycle(null, { userAgent: desktop }), MAP_LIFECYCLE_KEEP);
+        assert.equal(selectMapLifecycle(null, { userAgent: ipadosDesktop }), MAP_LIFECYCLE_KEEP);
+        assert.equal(selectMapLifecycle('keep', { userAgent: iphone }), MAP_LIFECYCLE_KEEP);
+        assert.equal(selectMapLifecycle('nope', { userAgent: iphone }), MAP_LIFECYCLE_KEEP);
+        assert.equal(staticOffloadEnabled({
+            lifecycle: selectMapLifecycle(null, { userAgent: iphone }),
+            iosSafari: true,
+            matrixHud: false,
+        }), true);
+        assert.equal(staticOffloadEnabled({
+            lifecycle: 'keep',
+            iosSafari: true,
+            matrixHud: false,
+        }), false);
+        assert.equal(staticOffloadEnabled({
+            lifecycle: 'static-when-expanded',
+            iosSafari: false,
+            matrixHud: false,
+        }), false);
+        assert.equal(staticOffloadEnabled({
+            lifecycle: 'static-when-expanded',
+            iosSafari: false,
+            matrixHud: true,
+        }), true);
+        assert.equal(shouldMountMap({
+            mapboxEnabled: true,
+            lifecycle: 'static-when-expanded',
+            diagnostic: staticOffloadEnabled({
+                lifecycle: 'static-when-expanded',
+                iosSafari: true,
+                matrixHud: false,
+            }),
+            offloadCommitted: true,
+        }), false);
+        assert.equal(shouldMountMap({
+            mapboxEnabled: true,
+            lifecycle: 'keep',
+            sheetExpanded: true,
+            diagnostic: false,
+            offloadCommitted: true,
+        }), true);
+        const venueMap = readFileSync(new URL('../components/Map/VenueMap.jsx', import.meta.url), 'utf8');
+        assert.equal(venueMap.includes("Sentry.captureMessage('WebGL Context Lost'"), true);
+        assert.equal(venueMap.includes('isMobileDevice'), true);
+        assert.equal(venueMap.includes('iPhone|iPad|iPod|Android'), true);
     });
 });
 
@@ -685,7 +753,7 @@ describe('generation camera teardown', () => {
     });
 
     it('keeps the offload placeholder distinct from WebGL recovery copy', () => {
-        assert.equal(MAP_OFFLOAD_PLACEHOLDER_COPY, 'Map offloaded to save memory');
+        assert.equal(MAP_OFFLOAD_PLACEHOLDER_COPY, 'Map paused while viewing venue');
         const live = { ...createMapRecoveryState(), phase: 'live', generation: 1 };
         const paused = noteContextLost(live, 1, 1000);
         const locked = noteContextLost({ ...paused.state, phase: 'live', generation: 2 }, 2, 2000);
@@ -917,7 +985,7 @@ describe('static-when-expanded sheet transition', () => {
         assert.equal(hiddenHud.state.offloads, 0);
         assert.equal(mapboxOff.state.phase, 'live');
         assert.equal(mapboxOff.state.offloads, 0);
-        assert.equal(MAP_OFFLOAD_PLACEHOLDER_COPY, 'Map offloaded to save memory');
+        assert.equal(MAP_OFFLOAD_PLACEHOLDER_COPY, 'Map paused while viewing venue');
     });
 });
 
