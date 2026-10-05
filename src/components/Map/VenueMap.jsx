@@ -76,16 +76,23 @@ import {
 } from '../../utils/mapRecovery';
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
-import { MAP_LIFECYCLE } from '../../utils/iosCrashIsolation';
+import { MAP_LIFECYCLE, MATRIX_HUD } from '../../utils/iosCrashIsolation';
 import {
+    MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
     MAP_LIFECYCLE_UNMOUNT_EXPANDED,
     cameraForRemount,
     captureMapCamera,
+    createGenerationCamera,
+    dispatchGenerationCallback,
     getMapLifecycleSnapshot,
+    mapLifecycleRemembersCamera,
+    markerSyncAfterRestore,
     releaseMapOwners,
     recordMapRemoveFailure,
     restoreMapCamera,
+    teardownGenerationCamera,
     trackCameraRestore,
+    trackCameraTimer,
     trackMapMount,
     trackMapRemove,
 } from '../../utils/mapLifecycle';
@@ -781,6 +788,8 @@ const VenueMap = forwardRef(({
     cozyWeatherActive = false,  // true when weather is cold/rainy
     cozyFilterActive  = false,  // true when user has 'Cozy' filter selected
     filtersControl    = null,   // Filters FAB — stacked above TOD, layout only
+    onGenerationReady = null,
+    onRestoreFailed = null,
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -800,6 +809,11 @@ const VenueMap = forwardRef(({
     const recoveryCameraRef = useRef(null);
     const mapGenerationRef = useRef(0);
     const traceRef = useRef(() => {});
+    const onGenerationReadyRef = useRef(onGenerationReady);
+    const onRestoreFailedRef = useRef(onRestoreFailed);
+    const generationReadyRef = useRef(null);
+    onGenerationReadyRef.current = onGenerationReady;
+    onRestoreFailedRef.current = onRestoreFailed;
     traceRef.current = (name, extra = {}) => traceMapOperation(name, {
         generation: mapGenerationRef.current,
         phase: recoveryRef.current?.phase ?? null,
@@ -808,6 +822,7 @@ const VenueMap = forwardRef(({
         ...extra,
     });
     const cameraClaimRef = useRef(new Set());
+    const cameraGuardRef = useRef(createGenerationCamera(0));
     const syncSchedulerRef = useRef(createSyncScheduler());
     const finishResumeRef = useRef(() => {});
     const [recovery, setRecovery] = useState(() => createMapRecoveryState());
@@ -886,18 +901,33 @@ const VenueMap = forwardRef(({
 
         resizeAndFly: ([lng, lat]) => {
             if (!map.current) return;
-            const timer = setTimeout(() => {
-                pendingTimersRef.current.delete(timer);
-                map.current?.flyTo({
-                    center:    [lng, lat],
-                    zoom:      15,
-                    pitch:     45,
-                    duration:  900,
-                    essential: false,
-                    padding:   FLY_TO_PADDING,
+            const generation = cameraGuardRef.current.generation;
+            const handle = {
+                cleared: false,
+                id: 0,
+                cancel() {
+                    this.cleared = true;
+                    clearTimeout(this.id);
+                },
+            };
+            handle.id = setTimeout(() => {
+                handle.cleared = true;
+                pendingTimersRef.current.delete(handle.id);
+                const decision = dispatchGenerationCallback(cameraGuardRef.current, generation, 'flyTo', () => {
+                    if (staleGenerationsRef.current.has(generation) || mapGenerationRef.current !== generation) return;
+                    map.current?.flyTo({
+                        center:    [lng, lat],
+                        zoom:      15,
+                        pitch:     45,
+                        duration:  900,
+                        essential: false,
+                        padding:   FLY_TO_PADDING,
+                    });
                 });
+                cameraGuardRef.current = decision.camera;
             }, 300);
-            pendingTimersRef.current.add(timer);
+            pendingTimersRef.current.add(handle.id);
+            cameraGuardRef.current = trackCameraTimer(cameraGuardRef.current, handle);
         },
 
         locateUser: ({ lng, lat, zoom = 14, duration = 1100 } = {}) => {
@@ -931,6 +961,7 @@ const VenueMap = forwardRef(({
         if (map.current || mapInitLockRef.current) return;
         if (!MAPBOX_TOKEN?.startsWith('pk.')) {
             setMapError(true);
+            onRestoreFailedRef.current?.();
             setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
             logIsolationEvent({
                 kind: ISOLATION_EVENT_KINDS.MAPBOX_ERROR,
@@ -952,6 +983,7 @@ const VenueMap = forwardRef(({
             applyRecovery(started.state);
             generation = started.state.generation;
         }
+        cameraGuardRef.current = createGenerationCamera(generation);
 
         const isCurrent = () => (
             generation === recoveryRef.current.generation
@@ -1013,6 +1045,7 @@ const VenueMap = forwardRef(({
                 return;
             }
             setMapError(true);
+            onRestoreFailedRef.current?.();
             setMapFailureKind(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING);
             logMap(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING, 'map-load-timeout');
         }, 15000);
@@ -1071,6 +1104,15 @@ const VenueMap = forwardRef(({
                 if (getMapLifecycleSnapshot().mountCount >= 2) {
                     logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:overlays-tod-reset');
                 }
+            } else if (MAP_LIFECYCLE === MAP_LIFECYCLE_STATIC_WHEN_EXPANDED && MATRIX_HUD) {
+                const savedCamera = cameraForRemount();
+                const cameraClaim = claimCameraRestore(cameraClaimRef.current, generation);
+                cameraClaimRef.current = cameraClaim.claimed;
+                if (cameraClaim.restore && savedCamera) {
+                    const cameraResult = trackCameraRestore(restoreMapCamera(map.current, savedCamera));
+                    logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `camera-${cameraResult}`);
+                    if (cameraResult === 'failure') onRestoreFailedRef.current?.();
+                }
             }
             const mounted = getMapLifecycleSnapshot();
             logMap(
@@ -1094,6 +1136,14 @@ const VenueMap = forwardRef(({
                 }
                 resizeFrame = setTimeout(() => {
                     resizeFrame = 0;
+                    const decision = dispatchGenerationCallback(
+                        cameraGuardRef.current,
+                        generation,
+                        'resize',
+                        () => {},
+                    );
+                    cameraGuardRef.current = decision.camera;
+                    if (!decision.ran) return;
                     const coal = resizeCoalesced;
                     resizeCoalesced = 0;
                     const phase = recoveryRef.current?.phase;
@@ -1184,6 +1234,7 @@ const VenueMap = forwardRef(({
                         return;
                     }
                     setMapError(true);
+                    onRestoreFailedRef.current?.();
                     setMapFailureKind(kind);
                 }
             });
@@ -1207,6 +1258,7 @@ const VenueMap = forwardRef(({
                 Sentry.captureMessage('WebGL Context Lost', { level: 'warning', tags: { type: 'gpu_crash' } });
                 const paused = noteContextLost(recoveryRef.current, generation, now);
                 traceRef.current('context-loss');
+                onRestoreFailedRef.current?.();
                 if (paused.ok) {
                     noteContextLossDiagnostic(paused.state);
                     applyRecovery(paused.state);
@@ -1233,6 +1285,7 @@ const VenueMap = forwardRef(({
         } catch (err) {
             clearTimeout(loadTimeout);
             setMapError(true);
+            onRestoreFailedRef.current?.();
             setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
             logMap(ISOLATION_EVENT_KINDS.MAPBOX_ERROR, err?.message || 'map-init-failed');
             if (!map.current) {
@@ -1254,7 +1307,6 @@ const VenueMap = forwardRef(({
             if (cleaned) return;
             cleaned = true;
             disposed = true;
-            staleGenerationsRef.current.add(generation);
             setMapLoaded(false);
             clearTimeout(loadTimeout);
             for (const timer of pendingTimersRef.current) clearTimeout(timer);
@@ -1266,9 +1318,13 @@ const VenueMap = forwardRef(({
                 rafRef.current = null;
             }
             syncSchedulerRef.current = releaseMarkerSyncFrame(syncSchedulerRef.current);
-            const lostCamera = captureMapCamera(map.current);
+            staleGenerationsRef.current.add(generation);
+            cameraGuardRef.current = { ...cameraGuardRef.current, active: false };
+            const retired = teardownGenerationCamera(cameraGuardRef.current, map.current);
+            cameraGuardRef.current = retired;
+            const lostCamera = retired.camera;
             if (lostCamera) recoveryCameraRef.current = lostCamera;
-            const camera = MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED
+            const camera = mapLifecycleRemembersCamera(MAP_LIFECYCLE, MATRIX_HUD)
                 ? lostCamera
                 : null;
             let canvas = null;
@@ -1576,12 +1632,25 @@ const VenueMap = forwardRef(({
     useEffect(() => {
         const instance = map.current;
         const generation = mapGenerationRef.current;
-        if (!instance || !mapLoaded || !generation) return undefined;
+        const restoreGate = markerSyncAfterRestore({
+            mapReady: mapLoaded === true,
+            generation,
+            currentGeneration: mapGenerationRef.current,
+        });
+        if (!instance || !generation || !restoreGate.sync) return undefined;
 
         const markerSignatureRef = { current: '' };
         const syncMarkers = (trigger = 'effect') => {
             const triggerPlan = markerSyncTriggerPlan(trigger);
             if (!triggerPlan.sync) return;
+            const decision = dispatchGenerationCallback(
+                cameraGuardRef.current,
+                generation,
+                'marker-sync',
+                () => {},
+            );
+            cameraGuardRef.current = decision.camera;
+            if (!decision.ran) return;
             if (mapGenerationRef.current !== generation || map.current !== instance) {
                 syncSchedulerRef.current = {
                     ...syncSchedulerRef.current,
@@ -1748,6 +1817,10 @@ const VenueMap = forwardRef(({
                 traceRef.current('marker-sync-end', {
                     detail: `${trigger} c=${synced.created.length} r=${synced.reused.length} x=${synced.removed.length} coal=${coal}`,
                 });
+                if (generationReadyRef.current !== generation) {
+                    generationReadyRef.current = generation;
+                    onGenerationReadyRef.current?.(generation);
+                }
                 const requiredReady = resumeMayGoLive({ requiredMarkersReady: gate.ready });
                 if (
                     requiredReady
@@ -1809,6 +1882,7 @@ const VenueMap = forwardRef(({
         const instance = map.current;
 
         const publishBounds = () => {
+            if (map.current !== instance || staleGenerationsRef.current.has(mapGenerationRef.current)) return;
             try {
                 const bounds = instance.getBounds();
                 if (!bounds) return;
@@ -1850,26 +1924,54 @@ const VenueMap = forwardRef(({
 
         let flyInstance = null;
         let flyEnd = null;
-        const t = setTimeout(() => {
-            const instance = map.current;
-            if (!instance) return;
-            traceRef.current('map-flyto-start');
-            instance.flyTo({
-                center:    plan.coordinates,
-                zoom:      15,
-                pitch:     45,
-                duration:  900,
-                essential: false,
-                padding:   FLY_TO_PADDING,
+        const generation = cameraGuardRef.current.generation;
+        const handle = {
+            cleared: false,
+            id: 0,
+            cancel() {
+                this.cleared = true;
+                clearTimeout(this.id);
+            },
+        };
+        handle.id = setTimeout(() => {
+            handle.cleared = true;
+            pendingTimersRef.current.delete(handle.id);
+            const decision = dispatchGenerationCallback(cameraGuardRef.current, generation, 'flyTo', () => {
+                const instance = map.current;
+                if (!instance || staleGenerationsRef.current.has(generation) || mapGenerationRef.current !== generation) return;
+                traceRef.current('map-flyto-start');
+                instance.flyTo({
+                    center:    plan.coordinates,
+                    zoom:      15,
+                    pitch:     45,
+                    duration:  900,
+                    essential: false,
+                    padding:   FLY_TO_PADDING,
+                });
+                if (!isMapOperationTraceEnabled()) return;
+                flyInstance = instance;
+                flyEnd = () => {
+                    const settled = dispatchGenerationCallback(
+                        cameraGuardRef.current,
+                        generation,
+                        'moveend',
+                        () => {
+                            if (map.current !== instance || staleGenerationsRef.current.has(generation)) return;
+                            traceRef.current('map-flyto-end');
+                        },
+                    );
+                    cameraGuardRef.current = settled.camera;
+                };
+                instance.once('moveend', flyEnd);
             });
-            if (!isMapOperationTraceEnabled()) return;
-            flyInstance = instance;
-            flyEnd = () => traceRef.current('map-flyto-end');
-            instance.once('moveend', flyEnd);
+            cameraGuardRef.current = decision.camera;
         }, 300);
+        pendingTimersRef.current.add(handle.id);
+        cameraGuardRef.current = trackCameraTimer(cameraGuardRef.current, handle);
 
         return () => {
-            clearTimeout(t);
+            handle.cancel();
+            pendingTimersRef.current.delete(handle.id);
             if (flyInstance && flyEnd) {
                 try { flyInstance.off('moveend', flyEnd); } catch { /* map already removed */ }
             }

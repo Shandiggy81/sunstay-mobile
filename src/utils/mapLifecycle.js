@@ -1,14 +1,22 @@
 /**
  * Opt-in Mapbox mount decision for the iOS crash matrix.
  * Default and `keep` leave the map mounted. `unmount-expanded` drops it
- * only while the venue sheet is in the stable fully expanded state.
+ * only while the list sheet is in the stable fully expanded state.
  * Drag offsets are ignored so a swipe cannot create a mount loop.
+ *
+ * `static-when-expanded` is a separate diagnostic. It does nothing unless
+ * `matrixHud=1`. After the covering sheet stays expanded, and not while a
+ * drag is active, it offloads the live map once and shows a static
+ * placeholder. Closing that sheet and staying there restores one generation.
  */
 
 import { ISOLATION_EVENT_KINDS, logIsolationEvent } from './iosCrashLog.js';
 
 export const MAP_LIFECYCLE_KEEP = 'keep';
 export const MAP_LIFECYCLE_UNMOUNT_EXPANDED = 'unmount-expanded';
+export const MAP_LIFECYCLE_STATIC_WHEN_EXPANDED = 'static-when-expanded';
+/** Inside the requested 250–400ms window after the last sheet-state change. */
+export const MAP_OFFLOAD_SETTLE_MS = 320;
 
 export function parseMapLifecycle(value) {
     if (value == null) return MAP_LIFECYCLE_KEEP;
@@ -17,6 +25,7 @@ export function parseMapLifecycle(value) {
         return MAP_LIFECYCLE_KEEP;
     }
     if (normalized === 'unmount-expanded') return MAP_LIFECYCLE_UNMOUNT_EXPANDED;
+    if (normalized === 'static-when-expanded') return MAP_LIFECYCLE_STATIC_WHEN_EXPANDED;
     return MAP_LIFECYCLE_KEEP;
 }
 
@@ -24,10 +33,22 @@ export function shouldMountMap({
     mapboxEnabled = true,
     lifecycle = MAP_LIFECYCLE_KEEP,
     sheetExpanded = false,
+    diagnostic = false,
+    offloadCommitted = false,
 } = {}) {
     if (!mapboxEnabled) return false;
-    if (lifecycle !== MAP_LIFECYCLE_UNMOUNT_EXPANDED) return true;
-    return sheetExpanded !== true;
+    if (lifecycle === MAP_LIFECYCLE_UNMOUNT_EXPANDED) return sheetExpanded !== true;
+    if (lifecycle === MAP_LIFECYCLE_STATIC_WHEN_EXPANDED) {
+        if (diagnostic !== true) return true;
+        return offloadCommitted !== true;
+    }
+    return true;
+}
+
+/** Camera is remembered for the existing unmount mode and the diagnostic static mode. */
+export function mapLifecycleRemembersCamera(lifecycle, diagnostic = false) {
+    if (lifecycle === MAP_LIFECYCLE_UNMOUNT_EXPANDED) return true;
+    return lifecycle === MAP_LIFECYCLE_STATIC_WHEN_EXPANDED && diagnostic === true;
 }
 
 export function createMapMountState(mounted = true) {
@@ -263,4 +284,378 @@ export function cameraForRemount() {
 export function trackCameraRestore(result) {
     activeSession = noteCameraRestore(activeSession, result);
     return result;
+}
+
+export function peekRememberedCamera() {
+    return rememberedCamera;
+}
+
+function staticModeActive(input) {
+    return input?.lifecycle === MAP_LIFECYCLE_STATIC_WHEN_EXPANDED
+        && input?.diagnostic === true
+        && input?.mapboxEnabled !== false;
+}
+
+function armRemaining(state, at) {
+    if (state.deadline == null) return null;
+    if (at == null) return MAP_OFFLOAD_SETTLE_MS;
+    return Math.max(0, state.deadline - at);
+}
+
+export function createStaticOffloadState(overrides = {}) {
+    return {
+        phase: 'live',
+        deadline: null,
+        offloads: 0,
+        removes: 0,
+        restores: 0,
+        generationsCreated: 0,
+        liveInstances: 1,
+        initLock: false,
+        cameraSaves: 0,
+        camera: null,
+        cameraRestores: 0,
+        markerSyncs: 0,
+        skipped: 0,
+        traces: [],
+        placeholder: false,
+        activeGeneration: 1,
+        readyGeneration: null,
+        markersGeneration: null,
+        restoreFailed: false,
+        ...overrides,
+    };
+}
+
+let offloadSnapshot = createStaticOffloadState();
+
+export function publishStaticOffload(state) {
+    offloadSnapshot = state ?? createStaticOffloadState();
+    return getStaticOffloadSnapshot();
+}
+
+export function getStaticOffloadSnapshot() {
+    return { ...offloadSnapshot, traces: offloadSnapshot.traces.slice() };
+}
+
+export function resetStaticOffloadTracking() {
+    offloadSnapshot = createStaticOffloadState();
+    return getStaticOffloadSnapshot();
+}
+
+/**
+ * Marker sync for a restored generation waits until that generation's map
+ * is ready. A callback from an older generation does not move markers.
+ */
+export function markerSyncAfterRestore({
+    mapReady = false,
+    generation = 0,
+    currentGeneration = 0,
+    offloaded = false,
+} = {}) {
+    if (offloaded) return { sync: false, reason: 'offloaded' };
+    if (!mapReady) return { sync: false, reason: 'map-not-ready' };
+    if (generation !== currentGeneration) return { sync: false, reason: 'stale' };
+    return { sync: true, reason: 'generation-ready' };
+}
+
+function traced(state, names) {
+    if (!names.length) return state;
+    return { ...state, traces: [...state.traces, ...names] };
+}
+
+function finish(state, names, armMs = null) {
+    return { state: traced(state, names), traces: names, armMs };
+}
+
+/**
+ * Diagnostic offload gate. Sun Forecast is not an input that changes phase.
+ * Sheet samples coalesce: a second expanded sample while arming does not
+ * request another teardown, and a second settle does not remove again.
+ */
+export function reduceStaticOffload(state, input = {}) {
+    const current = state ?? createStaticOffloadState();
+    const type = input.type || 'sample';
+    if (type === 'sample' && !staticModeActive(input)) {
+        return finish(current, []);
+    }
+    if (type !== 'sample' && input.lifecycle != null && !staticModeActive(input)) {
+        return finish(current, []);
+    }
+
+    if (type === 'sample') {
+        if (input.source === 'sun-forecast-open' || input.source === 'sun-forecast') {
+            return finish(current, [], armRemaining(current, input.at));
+        }
+        const expanded = input.expanded === true;
+        const dragging = input.dragging === true;
+        if (dragging) {
+            if (current.phase === 'offload-arming') {
+                return finish({
+                    ...current,
+                    phase: 'live',
+                    deadline: null,
+                    skipped: current.skipped + 1,
+                }, ['map-offload-skipped']);
+            }
+            if (current.phase === 'restore-arming') {
+                return finish({ ...current, phase: 'offloaded', deadline: null, placeholder: true }, []);
+            }
+            return finish(current, []);
+        }
+        if (expanded) {
+            if (current.phase === 'live') {
+                return finish({
+                    ...current,
+                    phase: 'offload-arming',
+                    deadline: (input.at ?? 0) + MAP_OFFLOAD_SETTLE_MS,
+                }, ['map-offload-requested'], MAP_OFFLOAD_SETTLE_MS);
+            }
+            if (current.phase === 'offload-arming') {
+                return finish(current, [], armRemaining(current, input.at));
+            }
+            if (current.phase === 'restore-arming') {
+                return finish({ ...current, phase: 'offloaded', deadline: null, placeholder: true }, []);
+            }
+            return finish(current, []);
+        }
+        if (current.phase === 'restore-failed') return finish(current, []);
+        if (current.phase === 'offloaded') {
+            return finish({
+                ...current,
+                phase: 'restore-arming',
+                deadline: (input.at ?? 0) + MAP_OFFLOAD_SETTLE_MS,
+            }, ['map-restore-requested'], MAP_OFFLOAD_SETTLE_MS);
+        }
+        if (current.phase === 'restore-arming') {
+            return finish(current, [], armRemaining(current, input.at));
+        }
+        if (current.phase === 'offload-arming') {
+            return finish({
+                ...current,
+                phase: 'live',
+                deadline: null,
+                skipped: current.skipped + 1,
+            }, ['map-offload-skipped']);
+        }
+        return finish(current, []);
+    }
+
+    if (type === 'settle') {
+        if (current.phase !== 'offload-arming' && current.phase !== 'restore-arming') {
+            return finish(current, []);
+        }
+        if (input.at != null && current.deadline != null && input.at < current.deadline) {
+            return finish(current, [], current.deadline - input.at);
+        }
+        if (input.dragging === true) {
+            const phase = current.phase === 'restore-arming' ? 'offloaded' : 'live';
+            return finish({
+                ...current,
+                phase,
+                deadline: null,
+                placeholder: phase !== 'live',
+                skipped: current.skipped + 1,
+            }, ['map-offload-skipped']);
+        }
+        if (current.phase === 'offload-arming') {
+            if (input.expanded === false) {
+                return finish({
+                    ...current,
+                    phase: 'live',
+                    deadline: null,
+                    skipped: current.skipped + 1,
+                }, ['map-offload-skipped']);
+            }
+            const camera = input.camera ?? current.camera;
+            const saveCamera = camera != null && current.cameraSaves === 0;
+            return finish({
+                ...current,
+                phase: 'offloaded',
+                deadline: null,
+                offloads: current.offloads + 1,
+                placeholder: true,
+                camera: saveCamera ? camera : current.camera,
+                cameraSaves: saveCamera ? 1 : current.cameraSaves,
+            }, ['map-offload-start']);
+        }
+        if (current.restoreFailed) return finish(current, []);
+        const live = input.liveInstances != null ? input.liveInstances : current.liveInstances;
+        const locked = input.initLock != null ? input.initLock : current.initLock;
+        if (live > 0 || locked) {
+            return finish({
+                ...current,
+                phase: 'offloaded',
+                deadline: null,
+                placeholder: true,
+                skipped: current.skipped + 1,
+            }, ['map-offload-skipped']);
+        }
+        return finish({
+            ...current,
+            phase: 'restoring',
+            deadline: null,
+            restores: current.restores + 1,
+            generationsCreated: current.generationsCreated + 1,
+            liveInstances: 1,
+            initLock: true,
+            activeGeneration: current.activeGeneration + 1,
+            readyGeneration: null,
+            markersGeneration: null,
+            placeholder: true,
+        }, ['map-restore-start']);
+    }
+
+    if (type === 'removed') {
+        if (current.offloads > 0 && current.removes >= current.offloads && current.liveInstances === 0) {
+            return finish(current, []);
+        }
+        if (current.phase !== 'offloaded' && current.phase !== 'restore-arming') {
+            return finish(current, []);
+        }
+        const camera = input.camera ?? current.camera;
+        const saveCamera = camera != null && current.cameraSaves === 0;
+        return finish({
+            ...current,
+            removes: current.removes + 1,
+            liveInstances: 0,
+            initLock: false,
+            placeholder: true,
+            camera: saveCamera ? camera : current.camera,
+            cameraSaves: saveCamera ? current.cameraSaves + 1 : current.cameraSaves,
+        }, ['map-offload-complete']);
+    }
+
+    if (type === 'map-ready') {
+        if (current.phase !== 'restoring') return finish(current, []);
+        if (input.generation !== current.activeGeneration) return finish(current, []);
+        return finish({
+            ...current,
+            readyGeneration: input.generation,
+            initLock: false,
+        }, []);
+    }
+
+    if (type === 'markers-ready') {
+        const decision = markerSyncAfterRestore({
+            mapReady: input.mapReady === true || current.readyGeneration === current.activeGeneration,
+            generation: input.generation,
+            currentGeneration: current.activeGeneration,
+            offloaded: current.phase === 'offloaded' || current.phase === 'restore-arming',
+        });
+        if (!decision.sync || current.phase !== 'restoring') return finish(current, []);
+        return finish({
+            ...current,
+            phase: 'live',
+            placeholder: false,
+            markersGeneration: input.generation,
+            markerSyncs: current.markerSyncs + 1,
+            liveInstances: 1,
+            initLock: false,
+            cameraRestores: current.camera ? current.cameraRestores + 1 : current.cameraRestores,
+        }, ['map-restore-complete']);
+    }
+
+    if (type === 'restore-failed') {
+        if (current.restoreFailed) return finish(current, []);
+        const live = input.liveInstances != null ? input.liveInstances : current.liveInstances;
+        return finish({
+            ...current,
+            phase: 'restore-failed',
+            restoreFailed: true,
+            deadline: null,
+            placeholder: false,
+            initLock: false,
+            liveInstances: live,
+        }, ['map-restore-failed']);
+    }
+
+    return finish(current, []);
+}
+
+export function staticOffloadHidesMap(phase) {
+    return phase === 'offloaded' || phase === 'restore-arming';
+}
+
+export function staticOffloadShowsPlaceholder(phase) {
+    return phase === 'offloaded' || phase === 'restore-arming' || phase === 'restoring';
+}
+
+/** Deliberate offload copy. WebGL recovery messages stay in mapRecovery.js. */
+export const MAP_OFFLOAD_PLACEHOLDER_COPY = 'Map offloaded to save memory';
+
+export function createGenerationCamera(generation) {
+    return {
+        generation,
+        active: true,
+        timers: [],
+        stopCalls: 0,
+        captures: 0,
+        camera: null,
+        ignored: [],
+        order: [],
+    };
+}
+
+export function trackCameraTimer(state, timer) {
+    if (!state?.active || !timer) return state;
+    return { ...state, timers: [...state.timers, timer] };
+}
+
+/** A retired generation cannot fly, resize, or sync markers on the live map. */
+export function dispatchGenerationCallback(state, generation, kind, run) {
+    if (!state || state.active !== true || state.generation !== generation) {
+        return {
+            state: state ? { ...state, ignored: [...state.ignored, kind] } : state,
+            ran: false,
+        };
+    }
+    run?.();
+    return { state, ran: true };
+}
+
+/**
+ * Cancel pending camera timers, mark the generation inactive, then stop the
+ * animation. A second call does not stop the map again.
+ */
+export function beginGenerationTeardown(state, map) {
+    const current = state ?? createGenerationCamera(0);
+    if (current.active !== true && current.stopCalls > 0) return current;
+    for (const timer of current.timers) {
+        if (!timer?.cleared) timer?.cancel?.();
+    }
+    const next = {
+        ...current,
+        active: false,
+        timers: current.timers.map((timer) => ({ ...timer, cleared: true })),
+        stopCalls: current.stopCalls + 1,
+        order: [...current.order],
+    };
+    if (map && typeof map.stop === 'function') {
+        try {
+            map.stop();
+            next.order = [...next.order, 'stop'];
+        } catch {
+            next.order = [...next.order, 'stop-failed'];
+        }
+    }
+    return next;
+}
+
+/** Capture once, and only after the generation has been stopped. */
+export function captureGenerationCamera(state, map) {
+    const current = state ?? createGenerationCamera(0);
+    if (current.active === true || current.stopCalls < 1) return { ...current, captured: false };
+    if (current.captures >= 1) return { ...current, captured: false };
+    return {
+        ...current,
+        captures: 1,
+        camera: captureMapCamera(map),
+        captured: true,
+        order: [...current.order, 'capture'],
+    };
+}
+
+export function teardownGenerationCamera(state, map) {
+    return captureGenerationCamera(beginGenerationTeardown(state, map), map);
 }

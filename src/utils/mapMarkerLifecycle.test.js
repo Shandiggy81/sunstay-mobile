@@ -357,6 +357,14 @@ describe('venue close does not remount the map', () => {
         assert.equal(close.mapMounted, true);
         assert.equal(close.resizesExistingMap, true);
         assert.equal(close.selectedVenue, null);
+        const staticClose = venueCloseMapTransition({
+            hadMap: false,
+            lifecycle: 'static-when-expanded',
+            sheetState: 'peek',
+        });
+        assert.equal(staticClose.createsMap, false);
+        assert.equal(staticClose.remounts, false);
+        assert.equal(staticClose.mapMounted, false);
     });
 
     it('does not clear a session lock when the venue closes', () => {

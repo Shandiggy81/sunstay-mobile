@@ -729,7 +729,7 @@ function VenueCardFooterActions({ venue, canNavigate }) {
 }
 
 // ── Main VenueCard ────────────────────────────────────────────
-function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
+function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture }) {
   const [activeTab, setActiveTab] = useState('Overview');
   const [localSunData, setLocalSunData] = useState(null);
   const [sunWindow, setSunWindow] = useState(null);
@@ -1181,7 +1181,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
         dragListener: false,
         dragConstraints: { top: 0, bottom: 0 },
         dragElastic: 0.15,
-        onDragEnd: (_, i) => { if (i.offset.y > 100 || i.velocity.y > 400) onClose(); },
+        onDragStart: () => onSheetGesture?.(true),
+        onDragEnd: (_, i) => {
+          onSheetGesture?.(false);
+          if (i.offset.y > 100 || i.velocity.y > 400) onClose();
+        },
         initial: { y: '100%' },
         animate: { y: 0 },
         exit: { y: '100%' },

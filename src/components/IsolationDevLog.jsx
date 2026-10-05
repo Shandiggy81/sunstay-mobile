@@ -20,7 +20,7 @@ import {
     getIsolationEvents,
     subscribeIsolationLog,
 } from '../utils/iosCrashLog';
-import { getMapLifecycleSnapshot } from '../utils/mapLifecycle';
+import { getMapLifecycleSnapshot, getStaticOffloadSnapshot } from '../utils/mapLifecycle';
 import { getMapSessionDiagnostics, getMarkerSyncStats } from '../utils/mapMarkerLifecycle';
 import { getMapOperationTrace, isMapOperationTraceEnabled } from '../utils/mapOperationTrace';
 import { formatResumeHudLines, getResumeTimingSnapshot } from '../utils/mapResumeTiming';
@@ -72,6 +72,7 @@ export default function IsolationDevLog() {
             <p>flag-will:{SHEET_WILL_CHANGE_MODE}</p>
             <p>flag-blur:{SHEET_BACKDROP_MODE}</p>
             <p>flag-life:{MAP_LIFECYCLE}</p>
+            <p>offload:{getStaticOffloadSnapshot().phase}</p>
             <p>sheet-close:{mapDiag.sheetCloses}</p>
             <p>map-generation:{mapDiag.generation}</p>
             <p>map-context-losses:{mapDiag.contextLosses}</p>

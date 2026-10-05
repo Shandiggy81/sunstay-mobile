@@ -16,16 +16,36 @@ import {
     finishMapRemove,
     parseMapLifecycle,
     reduceSheetMount,
+    MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
+    MAP_OFFLOAD_SETTLE_MS,
     cameraForRemount,
+    createStaticOffloadState,
+    markerSyncAfterRestore,
     recordMapRemoveFailure,
+    reduceStaticOffload,
     releaseMapOwners,
     resetMapLifecycleTracking,
     restoreMapCamera,
     shouldMountMap,
+    MAP_OFFLOAD_PLACEHOLDER_COPY,
+    beginGenerationTeardown,
+    captureGenerationCamera,
+    createGenerationCamera,
+    dispatchGenerationCallback,
+    staticOffloadHidesMap,
+    teardownGenerationCamera,
     trackCameraRestore,
+    trackCameraTimer,
     trackMapMount,
     trackMapRemove,
 } from './mapLifecycle.js';
+import { releaseMarkerRecord } from './mapMarkerLifecycle.js';
+import {
+    createMapRecoveryState,
+    mapRecoveryControl,
+    noteContextLost,
+    requestMapResume,
+} from './mapRecovery.js';
 
 function fakeMap(camera = { lng: 144.96, lat: -37.81, zoom: 12, bearing: -17.6, pitch: 45 }) {
     const jumps = [];
@@ -351,5 +371,347 @@ describe('map lifecycle session', () => {
         assert.equal(trackCameraRestore(restoreMapCamera(map, cameraForRemount())), 'success');
         assert.equal(map.jumps.length, 1);
         resetMapLifecycleTracking();
+    });
+});
+
+const STATIC = {
+    lifecycle: MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
+    diagnostic: true,
+    mapboxEnabled: true,
+};
+
+function sample(state, extra) {
+    return reduceStaticOffload(state, { type: 'sample', at: 0, ...STATIC, ...extra });
+}
+
+function settle(state, extra) {
+    return reduceStaticOffload(state, {
+        type: 'settle',
+        at: MAP_OFFLOAD_SETTLE_MS,
+        expanded: true,
+        dragging: false,
+        liveInstances: 0,
+        ...STATIC,
+        ...extra,
+    });
+}
+
+describe('static-when-expanded offload', () => {
+    const camera = { lng: 144.9631, lat: -37.8136, zoom: 14, bearing: -17.6, pitch: 45 };
+
+    it('keeps the map mounted for keep, unknown modes, and the production default', () => {
+        assert.equal(parseMapLifecycle('static-when-expanded'), MAP_LIFECYCLE_STATIC_WHEN_EXPANDED);
+        assert.equal(parseMapLifecycle('nope'), 'keep');
+        assert.equal(shouldMountMap({
+            mapboxEnabled: true,
+            lifecycle: 'keep',
+            sheetExpanded: true,
+            diagnostic: true,
+            offloadCommitted: true,
+        }), true);
+        assert.equal(shouldMountMap({
+            mapboxEnabled: true,
+            lifecycle: 'static-when-expanded',
+            diagnostic: false,
+            offloadCommitted: true,
+        }), true);
+        assert.equal(shouldMountMap({
+            mapboxEnabled: false,
+            lifecycle: 'static-when-expanded',
+            diagnostic: true,
+            sheetExpanded: true,
+        }), false);
+        const production = sample(createStaticOffloadState(), {
+            diagnostic: false,
+            expanded: true,
+            dragging: false,
+        });
+        assert.equal(production.state.phase, 'live');
+        assert.equal(production.state.offloads, 0);
+        assert.deepEqual(production.traces, []);
+    });
+
+    it('does not offload during a drag or before the sheet stays expanded', () => {
+        const dragging = sample(createStaticOffloadState(), { expanded: true, dragging: true });
+        assert.equal(dragging.state.phase, 'live');
+        assert.equal(dragging.state.offloads, 0);
+        const armed = sample(createStaticOffloadState(), { expanded: true, dragging: false, at: 1000 });
+        assert.equal(armed.state.phase, 'offload-arming');
+        assert.deepEqual(armed.traces, ['map-offload-requested']);
+        const early = settle(armed.state, { at: 1000 + MAP_OFFLOAD_SETTLE_MS - 1, expanded: true });
+        assert.equal(early.state.phase, 'offload-arming');
+        assert.equal(early.state.offloads, 0);
+        const dragged = settle(armed.state, { at: 1000 + MAP_OFFLOAD_SETTLE_MS, dragging: true, expanded: true });
+        assert.equal(dragged.state.phase, 'live');
+        assert.equal(dragged.traces.at(-1), 'map-offload-skipped');
+        const forecast = sample(createStaticOffloadState(), {
+            expanded: true,
+            dragging: false,
+            source: 'sun-forecast-open',
+        });
+        assert.equal(forecast.state.phase, 'live');
+        assert.equal(forecast.state.offloads, 0);
+    });
+
+    it('coalesces repeated expanded samples into one offload and one camera save', () => {
+        let step = sample(createStaticOffloadState(), { expanded: true, dragging: false, at: 0 });
+        step = sample(step.state, { expanded: true, dragging: false, at: 50 });
+        step = sample(step.state, { expanded: true, dragging: false, at: 100 });
+        assert.equal(step.state.traces.filter((name) => name === 'map-offload-requested').length, 1);
+        const started = settle(step.state, { at: MAP_OFFLOAD_SETTLE_MS, camera, liveInstances: 1 });
+        const again = settle(started.state, { at: MAP_OFFLOAD_SETTLE_MS + 10, camera, liveInstances: 1 });
+        assert.equal(started.state.offloads, 1);
+        assert.equal(started.state.liveInstances, 1);
+        assert.equal(again.state.offloads, 1);
+        assert.deepEqual(started.state.camera, camera);
+        assert.equal(started.state.cameraSaves, 1);
+        const removed = reduceStaticOffload(started.state, {
+            type: 'removed',
+            camera: { lng: 0, lat: 0, zoom: 1, bearing: 0, pitch: 0 },
+            ...STATIC,
+        });
+        const removedAgain = reduceStaticOffload(removed.state, { type: 'removed', ...STATIC });
+        assert.equal(removed.state.removes, 1);
+        assert.equal(removed.state.liveInstances, 0);
+        assert.equal(removed.state.cameraSaves, 1);
+        assert.equal(removed.state.camera.lng, 144.9631);
+        assert.deepEqual(removedAgain.traces, []);
+        assert.equal(removedAgain.state.removes, 1);
+        assert.equal(staticOffloadHidesMap(removed.state.phase), true);
+    });
+
+    it('restores one generation after the sheet stays closed and waits for that map', () => {
+        let state = settle(sample(createStaticOffloadState(), { expanded: true, dragging: false }).state, {
+            camera,
+        }).state;
+        state = reduceStaticOffload(state, { type: 'removed', camera, ...STATIC }).state;
+        assert.equal(state.liveInstances, 0);
+        const arming = sample(state, { expanded: false, dragging: false, at: 800 });
+        const dragged = sample(arming.state, { expanded: false, dragging: true, at: 900 });
+        assert.equal(dragged.state.phase, 'offloaded');
+        assert.equal(dragged.state.restores, 0);
+        const requested = sample(dragged.state, { expanded: false, dragging: false, at: 1000 });
+        assert.deepEqual(requested.traces, ['map-restore-requested']);
+        const again = sample(requested.state, { expanded: false, dragging: false, at: 1100 });
+        assert.deepEqual(again.traces, []);
+        const blocked = settle(requested.state, {
+            at: 1000 + MAP_OFFLOAD_SETTLE_MS,
+            expanded: false,
+            liveInstances: 1,
+        });
+        assert.equal(blocked.state.phase, 'offloaded');
+        assert.equal(blocked.state.restores, 0);
+        const restored = settle(requested.state, {
+            at: 1000 + MAP_OFFLOAD_SETTLE_MS,
+            expanded: false,
+            liveInstances: 0,
+            initLock: false,
+        });
+        assert.equal(restored.state.phase, 'restoring');
+        assert.equal(restored.state.restores, 1);
+        assert.equal(restored.state.generationsCreated, 1);
+        assert.equal(restored.state.activeGeneration, 2);
+        assert.equal(restored.state.liveInstances, 1);
+        assert.deepEqual(restored.traces, ['map-restore-start']);
+        const second = settle(restored.state, { at: 2000, expanded: false, liveInstances: 0 });
+        assert.equal(second.state.restores, 1);
+        const waiting = reduceStaticOffload(restored.state, {
+            type: 'markers-ready',
+            generation: 2,
+            mapReady: false,
+            ...STATIC,
+        });
+        assert.equal(waiting.state.phase, 'restoring');
+        assert.equal(waiting.state.markerSyncs, 0);
+        assert.deepEqual(markerSyncAfterRestore({
+            mapReady: false,
+            generation: 2,
+            currentGeneration: 2,
+        }), { sync: false, reason: 'map-not-ready' });
+        const stale = reduceStaticOffload(restored.state, {
+            type: 'markers-ready',
+            generation: 1,
+            mapReady: true,
+            ...STATIC,
+        });
+        assert.equal(stale.state.phase, 'restoring');
+        assert.equal(stale.state.markerSyncs, 0);
+        const ready = reduceStaticOffload(restored.state, {
+            type: 'map-ready',
+            generation: 2,
+            ...STATIC,
+        });
+        const synced = reduceStaticOffload(ready.state, {
+            type: 'markers-ready',
+            generation: 2,
+            ...STATIC,
+        });
+        assert.equal(synced.state.phase, 'live');
+        assert.equal(synced.state.markerSyncs, 1);
+        assert.equal(synced.state.cameraRestores, 1);
+        assert.equal(synced.state.placeholder, false);
+        assert.deepEqual(synced.traces, ['map-restore-complete']);
+        const repeat = reduceStaticOffload(synced.state, {
+            type: 'markers-ready',
+            generation: 2,
+            mapReady: true,
+            ...STATIC,
+        });
+        assert.equal(repeat.state.cameraRestores, 1);
+        assert.equal(repeat.state.markerSyncs, 1);
+    });
+
+    it('releases old markers once and does not retry a failed restore', () => {
+        const element = { parentNode: { removeChild() { element.parentNode = null; } }, remove() { this.parentNode = null; } };
+        const record = { released: false, element, marker: { removed: 0, remove() { this.removed += 1; } } };
+        assert.equal(releaseMarkerRecord(record), true);
+        assert.equal(releaseMarkerRecord(record), false);
+        assert.equal(record.marker.removed, 1);
+        let state = settle(sample(createStaticOffloadState(), { expanded: true, dragging: false }).state).state;
+        state = reduceStaticOffload(state, { type: 'removed', camera, ...STATIC }).state;
+        state = sample(state, { expanded: false, dragging: false, at: 0 }).state;
+        state = settle(state, { expanded: false, liveInstances: 0, at: MAP_OFFLOAD_SETTLE_MS }).state;
+        const failed = reduceStaticOffload(state, { type: 'restore-failed', liveInstances: 1, ...STATIC });
+        const failedAgain = reduceStaticOffload(failed.state, { type: 'restore-failed', ...STATIC });
+        const retry = sample(failed.state, { expanded: false, dragging: false, at: 5000 });
+        assert.equal(failed.state.phase, 'restore-failed');
+        assert.equal(failed.state.restores, 1);
+        assert.deepEqual(failedAgain.traces, []);
+        assert.equal(retry.state.phase, 'restore-failed');
+        assert.equal(retry.state.restores, 1);
+        assert.equal(failed.state.liveInstances, 1);
+    });
+
+    it('leaves a second context loss on the existing session lock', () => {
+        const live = { ...createMapRecoveryState(), phase: 'live', generation: 1 };
+        const first = noteContextLost(live, 1, 0);
+        const second = noteContextLost({ ...first.state, phase: 'live', generation: 2 }, 2, 10);
+        assert.equal(second.state.sessionLocked, true);
+        assert.equal(requestMapResume(second.state, 20).reason, 'session-locked');
+        const offload = sample(createStaticOffloadState(), { expanded: true, dragging: false });
+        assert.equal(offload.state.phase, 'offload-arming');
+        assert.equal(second.state.sessionLocked, true);
+    });
+});
+
+function stoppedMap() {
+    return {
+        stops: 0,
+        flew: 0,
+        resized: 0,
+        center: { lng: 144.1, lat: -37.1 },
+        zoom: 12,
+        bearing: 0,
+        pitch: 0,
+        stop() {
+            this.stops += 1;
+            this.center = { lng: 144.9631, lat: -37.8136 };
+            this.zoom = 15;
+            this.bearing = -17.6;
+            this.pitch = 45;
+        },
+        getCenter() { return this.center; },
+        getZoom() { return this.zoom; },
+        getBearing() { return this.bearing; },
+        getPitch() { return this.pitch; },
+        flyTo() { this.flew += 1; },
+        resize() { this.resized += 1; },
+    };
+}
+
+describe('generation camera teardown', () => {
+    it('cancels a pending fly-to, stops, then captures the stopped camera once', () => {
+        const map = stoppedMap();
+        let fired = false;
+        const timer = {
+            cleared: false,
+            cancel() { this.cleared = true; },
+            fire(guard) {
+                const decision = dispatchGenerationCallback(guard, 1, 'flyTo', () => {
+                    fired = true;
+                    map.flyTo();
+                });
+                return decision;
+            },
+        };
+        let guard = trackCameraTimer(createGenerationCamera(1), timer);
+        guard = { ...guard, active: false };
+        guard = teardownGenerationCamera(guard, map);
+        const late = timer.fire(guard);
+        assert.equal(timer.cleared, true);
+        assert.equal(fired, false);
+        assert.equal(late.ran, false);
+        assert.equal(map.stops, 1);
+        assert.equal(map.flew, 0);
+        assert.deepEqual(guard.order, ['stop', 'capture']);
+        assert.equal(guard.captures, 1);
+        assert.deepEqual(guard.camera, {
+            lng: 144.9631, lat: -37.8136, zoom: 15, bearing: -17.6, pitch: 45,
+        });
+        const early = captureGenerationCamera(createGenerationCamera(1), map);
+        assert.equal(early.captured, false);
+        assert.equal(early.captures, 0);
+        const again = teardownGenerationCamera(guard, map);
+        assert.equal(map.stops, 1);
+        assert.equal(again.captures, 1);
+        assert.equal(again.camera.lng, 144.9631);
+        assert.equal(beginGenerationTeardown(again, map), again);
+    });
+
+    it('ignores stale fly, resize, moveend, idle, and marker sync on the current map', () => {
+        const map = stoppedMap();
+        const retired = teardownGenerationCamera(createGenerationCamera(1), map);
+        const current = createGenerationCamera(2);
+        let synced = 0;
+        const fly = dispatchGenerationCallback(retired, 1, 'flyTo', () => map.flyTo());
+        const resize = dispatchGenerationCallback(fly.state, 1, 'resize', () => map.resize());
+        const moveend = dispatchGenerationCallback(resize.state, 1, 'moveend', () => map.flyTo());
+        const idle = dispatchGenerationCallback(moveend.state, 1, 'idle', () => map.resize());
+        const sync = dispatchGenerationCallback(idle.state, 1, 'marker-sync', () => { synced += 1; });
+        assert.equal(fly.ran, false);
+        assert.equal(resize.ran, false);
+        assert.equal(moveend.ran, false);
+        assert.equal(idle.ran, false);
+        assert.equal(sync.ran, false);
+        assert.equal(map.flew, 0);
+        assert.equal(map.resized, 0);
+        assert.equal(synced, 0);
+        assert.deepEqual(sync.state.ignored, ['flyTo', 'resize', 'moveend', 'idle', 'marker-sync']);
+        const live = dispatchGenerationCallback(current, 2, 'flyTo', () => map.flyTo());
+        assert.equal(live.ran, true);
+        assert.equal(map.flew, 1);
+        assert.equal(current.generation, 2);
+    });
+
+    it('keeps the offload placeholder distinct from WebGL recovery copy', () => {
+        assert.equal(MAP_OFFLOAD_PLACEHOLDER_COPY, 'Map offloaded to save memory');
+        const live = { ...createMapRecoveryState(), phase: 'live', generation: 1 };
+        const paused = noteContextLost(live, 1, 1000);
+        const locked = noteContextLost({ ...paused.state, phase: 'live', generation: 2 }, 2, 2000);
+        const resumeFailed = { ...locked.state, phase: 'resume-failed' };
+        const messages = [
+            mapRecoveryControl(paused.state, 1000).status,
+            mapRecoveryControl(locked.state, 2000).status,
+            mapRecoveryControl(resumeFailed, 2000).status,
+        ];
+        assert.deepEqual(messages, [
+            'Map paused. Tap Resume map to try again.',
+            'Map paused for this session. Reload the page to try again.',
+            'Map could not be resumed. Reload the page to try again.',
+        ]);
+        for (const message of messages) {
+            assert.equal(message === MAP_OFFLOAD_PLACEHOLDER_COPY, false);
+        }
+        const traces = [
+            'map-offload-requested',
+            'map-offload-start',
+            'map-offload-complete',
+            'map-restore-requested',
+            'map-restore-start',
+            'map-restore-complete',
+            'map-restore-failed',
+        ];
+        assert.equal(traces.includes('context-loss'), false);
+        assert.equal(traces.includes('map-context-loss'), false);
     });
 });

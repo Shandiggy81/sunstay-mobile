@@ -77,8 +77,10 @@ describe('card-count isolation overrides', () => {
         assert.equal(defaults.mapLifecycle, 'keep');
         assert.equal(MAP_LIFECYCLE, 'keep');
         assert.equal(resolveIosIsolation({ search: '?mapLifecycle=unmount-expanded' }).mapLifecycle, 'unmount-expanded');
+        assert.equal(resolveIosIsolation({ search: '?mapLifecycle=static-when-expanded' }).mapLifecycle, 'static-when-expanded');
         assert.equal(resolveIosIsolation({ search: '?mapLifecycle=keep' }).mapLifecycle, 'keep');
         assert.equal(resolveIosIsolation({ search: '?mapLifecycle=nope' }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ search: '?mapLifecycle=static-when-expanded' }).matrixHud, false);
     });
 
     it('lets the query string override storage for the A–E card matrix', () => {

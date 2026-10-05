@@ -83,6 +83,16 @@ export function venueCloseMapTransition({
     hadMap = true,
 } = {}) {
     const sheetExpanded = sheetState === 'expanded';
+    if (lifecycle === 'static-when-expanded') {
+        return {
+            sheetState,
+            selectedVenue: null,
+            mapMounted: mapboxEnabled === true && hadMap === true,
+            remounts: false,
+            createsMap: false,
+            resizesExistingMap: mapboxEnabled === true && hadMap === true,
+        };
+    }
     const mapMounted = mapboxEnabled && (lifecycle !== 'unmount-expanded' || !sheetExpanded);
     return {
         sheetState,

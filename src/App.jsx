@@ -41,7 +41,18 @@ import {
     crashTestId,
     renderMatrixTestId,
 } from './utils/iosCrashIsolation';
-import { shouldMountMap } from './utils/mapLifecycle';
+import {
+    createStaticOffloadState,
+    getMapLifecycleSnapshot,
+    MAP_LIFECYCLE_STATIC_WHEN_EXPANDED,
+    peekRememberedCamera,
+    publishStaticOffload,
+    reduceStaticOffload,
+    MAP_OFFLOAD_PLACEHOLDER_COPY,
+    shouldMountMap,
+    staticOffloadHidesMap,
+    staticOffloadShowsPlaceholder,
+} from './utils/mapLifecycle';
 import { noteSheetClose } from './utils/mapMarkerLifecycle';
 import { traceMapOperation } from './utils/mapOperationTrace';
 import {
@@ -506,6 +517,10 @@ const AppContent = () => {
         traceMapOperation('sheet-state-change', { detail: mobileSheetState, at: Date.now() });
     }, [mobileSheetState]);
     const [sheetDragging, setSheetDragging]         = useState(false);
+    const [venueSheetDragging, setVenueSheetDragging] = useState(false);
+    const [offloadPhase, setOffloadPhase]         = useState('live');
+    const offloadGateRef = useRef(createStaticOffloadState());
+    const offloadSampleRef = useRef({ expanded: false, dragging: false });
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
     // Immediate input; filter/score/GeoJSON/fitBounds wait until typing settles.
@@ -683,6 +698,7 @@ const AppContent = () => {
         pullRefreshRef.current?.reset?.();
         setSelectedVenue(null);
         setIsolationContext({ venue: '', tab: '' });
+        setVenueSheetDragging(false);
         noteSheetClose();
         traceMapOperation('venue-close', { at: Date.now() });
         logIsolationEvent({
@@ -829,11 +845,106 @@ const AppContent = () => {
         backdrop: SHEET_BACKDROP_MODE,
     });
     const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
+    const staticOffloadActive = MAP_LIFECYCLE === MAP_LIFECYCLE_STATIC_WHEN_EXPANDED && MATRIX_HUD === true;
+    const sheetCoversMap = sheetExpanded || selectedVenue != null;
+    const offloadDragging = sheetDragging || venueSheetDragging;
+    offloadSampleRef.current = { expanded: sheetCoversMap, dragging: offloadDragging };
+    const applyOffload = useCallback((result) => {
+        offloadGateRef.current = result.state;
+        publishStaticOffload(result.state);
+        for (const name of result.traces) {
+            traceMapOperation(name, { detail: result.state.phase, at: Date.now() });
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                message: name,
+                source: 'App',
+            });
+        }
+        setOffloadPhase((prev) => (prev === result.state.phase ? prev : result.state.phase));
+    }, []);
     const mapMounted = shouldMountMap({
         mapboxEnabled: ENABLE_MAPBOX,
         lifecycle: MAP_LIFECYCLE,
         sheetExpanded,
+        diagnostic: MATRIX_HUD,
+        offloadCommitted: staticOffloadActive && staticOffloadHidesMap(offloadPhase),
     });
+    const staticPlaceholder = staticOffloadActive && staticOffloadShowsPlaceholder(offloadPhase);
+    useEffect(() => {
+        if (!selectedVenue) setVenueSheetDragging(false);
+    }, [selectedVenue]);
+    useEffect(() => {
+        if (!staticOffloadActive) return undefined;
+        const at = Date.now();
+        const result = reduceStaticOffload(offloadGateRef.current, {
+            type: 'sample',
+            at,
+            expanded: sheetCoversMap,
+            dragging: offloadDragging,
+            lifecycle: MAP_LIFECYCLE,
+            diagnostic: MATRIX_HUD,
+            mapboxEnabled: ENABLE_MAPBOX,
+        });
+        applyOffload(result);
+        if (result.armMs == null) return undefined;
+        const timer = setTimeout(() => {
+            const sample = offloadSampleRef.current;
+            const snapshot = getMapLifecycleSnapshot();
+            const settled = reduceStaticOffload(offloadGateRef.current, {
+                type: 'settle',
+                at: Date.now(),
+                expanded: sample.expanded,
+                dragging: sample.dragging,
+                liveInstances: snapshot.liveInstances,
+                camera: peekRememberedCamera(),
+                lifecycle: MAP_LIFECYCLE,
+                diagnostic: MATRIX_HUD,
+                mapboxEnabled: ENABLE_MAPBOX,
+            });
+            applyOffload(settled);
+        }, result.armMs);
+        return () => clearTimeout(timer);
+    }, [staticOffloadActive, sheetCoversMap, offloadDragging, applyOffload]);
+    useEffect(() => {
+        if (!staticOffloadActive) return undefined;
+        const phase = offloadGateRef.current.phase;
+        if (phase !== 'offloaded' && phase !== 'restore-arming') return undefined;
+        const snapshot = getMapLifecycleSnapshot();
+        if (snapshot.liveInstances !== 0) return undefined;
+        const result = reduceStaticOffload(offloadGateRef.current, {
+            type: 'removed',
+            camera: peekRememberedCamera(),
+            lifecycle: MAP_LIFECYCLE,
+            diagnostic: MATRIX_HUD,
+            mapboxEnabled: ENABLE_MAPBOX,
+        });
+        applyOffload(result);
+        return undefined;
+    }, [staticOffloadActive, offloadPhase, applyOffload]);
+    const handleGenerationReady = useCallback((generation) => {
+        if (!staticOffloadActive) return;
+        const result = reduceStaticOffload(offloadGateRef.current, {
+            type: 'markers-ready',
+            generation,
+            mapReady: true,
+            lifecycle: MAP_LIFECYCLE,
+            diagnostic: MATRIX_HUD,
+            mapboxEnabled: ENABLE_MAPBOX,
+        });
+        applyOffload(result);
+    }, [staticOffloadActive, applyOffload]);
+    const handleRestoreFailed = useCallback(() => {
+        if (offloadGateRef.current.phase !== 'restoring') return;
+        const snapshot = getMapLifecycleSnapshot();
+        const result = reduceStaticOffload(offloadGateRef.current, {
+            type: 'restore-failed',
+            liveInstances: snapshot.liveInstances,
+            lifecycle: MAP_LIFECYCLE,
+            diagnostic: MATRIX_HUD,
+            mapboxEnabled: ENABLE_MAPBOX,
+        });
+        applyOffload(result);
+    }, [applyOffload]);
     const mapLifecycleMountedRef = useRef(null);
     useEffect(() => {
         if (MAP_LIFECYCLE !== 'unmount-expanded') return undefined;
@@ -924,6 +1035,7 @@ const AppContent = () => {
                 data-sheet-backdrop={SHEET_BACKDROP_MODE}
                 data-map-lifecycle={MAP_LIFECYCLE}
                 data-map-mounted={mapMounted ? '1' : '0'}
+                data-map-offload={offloadPhase}
             >
                 {DEBUG_MASCOT_RENDER ? <DebugStaticSunny /> : null}
                 <IsolationDevLog />
@@ -1032,7 +1144,7 @@ const AppContent = () => {
 
                     {/* RIGHT: Map */}
                     <section className={`ss-map-area relative flex min-h-0 flex-1 flex-col ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-                        <div className="ss-map-container min-h-0 flex-1">
+                        <div className="ss-map-container relative min-h-0 flex-1">
                             {ENABLE_MAPBOX ? (
                                 mapMounted ? (
                                     <MapErrorBoundary>
@@ -1048,16 +1160,22 @@ const AppContent = () => {
                                                 cozyWeatherActive={cozyWeatherActive}
                                                 cozyFilterActive={cozyFilterActive}
                                                 isExpanded={mobileMapExpanded}
+                                                onGenerationReady={handleGenerationReady}
+                                                onRestoreFailed={handleRestoreFailed}
                                             />
                                         </Suspense>
                                     </MapErrorBoundary>
                                 ) : (
                                     <div
-                                        data-testid="map-lifecycle-unmounted"
-                                        data-map-lifecycle="unmounted"
-                                        className="h-full w-full bg-slate-900"
+                                        data-testid={staticOffloadActive ? 'map-lifecycle-static' : 'map-lifecycle-unmounted'}
+                                        data-map-lifecycle={staticOffloadActive ? 'static-offload' : 'unmounted'}
+                                        className="flex h-full w-full items-center justify-center bg-slate-900 text-center text-white"
                                         aria-hidden="true"
-                                    />
+                                    >
+                                        {staticOffloadActive ? (
+                                            <p className="text-sm font-bold">{MAP_OFFLOAD_PLACEHOLDER_COPY}</p>
+                                        ) : null}
+                                    </div>
                                 )
                             ) : (
                                 <div
@@ -1069,6 +1187,16 @@ const AppContent = () => {
                                     <p className="text-xs text-white/70">ENABLE_MAPBOX is off</p>
                                 </div>
                             )}
+                            {staticPlaceholder && mapMounted ? (
+                                <div
+                                    data-testid="map-lifecycle-static"
+                                    data-map-lifecycle="static-restoring"
+                                    className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900 text-center text-white"
+                                    aria-hidden="true"
+                                >
+                                    <p className="text-sm font-bold">Restoring map</p>
+                                </div>
+                            ) : null}
                         </div>
 
                         {/* Zero-Results Filter Overlay — desktop only: on mobile the
@@ -1153,6 +1281,7 @@ const AppContent = () => {
                             cozyWeatherActive={cozyWeatherActive}
                             setShowOwnerDashboard={setShowOwnerDashboard}
                             setSelectedVenue={setSelectedVenue}
+                            onSheetGesture={setVenueSheetDragging}
                         />
                     )}
 

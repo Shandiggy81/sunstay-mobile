@@ -42,7 +42,7 @@
  * localStorage keys: ss-mapbox, ss-sheet-motion, ss-pull-refresh,
  * ss-venue-render-limit, ss-sheet-will-change, ss-sheet-backdrop,
  * ss-matrix-hud, ss-refresh-hang, ss-map-lifecycle. Values are 0/1, off/drag,
- * 15/30/45/59/all, or keep/unmount-expanded.
+ * 15/30/45/59/all, or keep/unmount-expanded/static-when-expanded.
  *
  * Do not change Mapbox init or unmount while running this matrix.
  *
@@ -50,8 +50,12 @@
  * options. Unset, `keep`, and any unknown value leave the map mounted:
  * ?matrixHud=1&mapLifecycle=keep
  * ?matrixHud=1&mapLifecycle=unmount-expanded
- * The second URL unmounts Mapbox only while the venue sheet is stably fully
- * expanded. Drag frames do not mount or unmount it.
+ * ?matrixHud=1&mapLifecycle=static-when-expanded
+ * `unmount-expanded` unmounts Mapbox only while the list sheet is stably fully
+ * expanded. Drag frames do not mount or unmount it. `static-when-expanded`
+ * is inert unless matrixHud=1. It waits 320ms after the covering sheet stays
+ * expanded, tears the map down once, and restores one generation after the
+ * sheet stays closed. Sun Forecast does not offload the map by itself.
  */
 
 import { classifyVenueRenderLimit } from './venueRenderLimit.js';
