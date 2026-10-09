@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
-import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions } from './context/MicroclimateContext';
+import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
 import { boundsOfVenues, markerScoreFromMicroclimate } from './utils/microclimate';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
@@ -68,6 +68,7 @@ import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning }
 import { getComfortLevel } from './utils/weatherService';
 import { getSunData } from './utils/getSunData';
 import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
+import { venueDisplayScore } from './utils/venueDisplayScore';
 import { SEARCH_DEBOUNCE_MS } from './utils/debounce';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { Virtuoso } from 'react-virtuoso';
@@ -194,7 +195,10 @@ const getSunstayScoreVisual = (score) => {
 };
 
 // ── VenueListCard ──────────────────────────────────────────────────────
-const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, calculateSunstayScore }) => {
+const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
+    // Read from context: the list never passed this prop, so venues without a
+    // microclimate profile showed no badge.
+    const { calculateSunstayScore } = useWeather();
     const profile = useMemo(() => getWindProfile(venue), [venue]);
     // Server-side microclimate for this venue at the time-of-day slider's
     // position. Absent until the bbox fetch lands, and absent for venues with
@@ -616,10 +620,16 @@ const AppContent = () => {
         });
     }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, settledSearchQuery, weather?.uvi]);
 
-    // Filter first, then rank by settled TOD Sunstay score (high → low).
+    // Filter first, then rank by the same score each card's badge shows:
+    // cached microclimate at the slider minute, else the weather score.
+    const { byId: microById, todMinutes: listTodMinutes } = useMicroclimateState();
     const sortedVenues = useMemo(
-        () => sortVenuesBySunstayScore(filteredVenues, calculateSunstayScore),
-        [filteredVenues, calculateSunstayScore, previewMinutes]
+        () => sortVenuesBySunstayScore(filteredVenues, (venue) => venueDisplayScore(venue, {
+            byId: microById,
+            todMinutes: listTodMinutes,
+            calculateSunstayScore,
+        })),
+        [filteredVenues, calculateSunstayScore, previewMinutes, microById, listTodMinutes]
     );
     const resultIdentity = useMemo(() => venueResultIdentity(sortedVenues), [sortedVenues]);
     const [visibleVenueCount, setVisibleVenueCount] = useState(INITIAL_VISIBLE_VENUES);

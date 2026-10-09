@@ -8,15 +8,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test src/utils/*.test.js src/hooks/*.test.js",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
     "seed": "node scripts/seedVenues.js"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "^10.4.23",
     "dotenv": "^17.4.2",
-    "gh-pages": "^6.3.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.9.3",
@@ -27,7 +24,6 @@
     "@supabase/supabase-js": "^2.98.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@xweather/mapsgl": "^1.9.4",
-    "axios": "^1.13.2",
     "framer-motion": "^12.24.12",
     "lucide-react": "^0.562.0",
     "mapbox-gl": "^3.17.0",

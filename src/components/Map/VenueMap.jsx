@@ -1079,7 +1079,12 @@ const VenueMap = forwardRef(({
                 style:               MAP_STYLE,
                 center:              [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
                 zoom:                INITIAL_VIEW_STATE.zoom,
-                minZoom:             3,
+                // Keep the camera on greater Melbourne. Every live and demo
+                // venue sits inside MAX_BOUNDS, so nothing becomes unreachable,
+                // and users can no longer zoom out to the whole planet or pan
+                // off to an empty map.
+                maxBounds:           MAX_BOUNDS,
+                minZoom:             9,
                 maxZoom:             18,
                 pitch:               45,
                 bearing:             -17.6,

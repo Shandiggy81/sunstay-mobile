@@ -85,12 +85,20 @@ describe('card-count isolation overrides', () => {
         const iosChrome = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.119 Mobile/15E148 Safari/604.1';
         const desktopChrome = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
         const iosDefault = resolveIosIsolation({ userAgent: iphoneSafari });
-        assert.equal(iosDefault.mapLifecycle, 'static-when-expanded');
+        assert.equal(iosDefault.mapLifecycle, 'keep');
         assert.equal(iosDefault.iosSafari, true);
         assert.equal(iosDefault.matrixHud, false);
-        assert.equal(iosDefault.staticOffload, true);
-        assert.equal(resolveIosIsolation({ userAgent: ipadSafari }).mapLifecycle, 'static-when-expanded');
-        assert.equal(resolveIosIsolation({ userAgent: ipadSafari }).staticOffload, true);
+        assert.equal(iosDefault.staticOffload, false);
+        assert.equal(resolveIosIsolation({ userAgent: ipadSafari }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ userAgent: ipadSafari }).staticOffload, false);
+        assert.equal(resolveIosIsolation({
+            userAgent: iphoneSafari,
+            search: '?mapLifecycle=static-when-expanded',
+        }).staticOffload, false);
+        assert.equal(resolveIosIsolation({
+            userAgent: iphoneSafari,
+            search: '?matrixHud=1&mapLifecycle=static-when-expanded',
+        }).staticOffload, true);
         assert.equal(resolveIosIsolation({ userAgent: iphoneSafari, search: '?mapLifecycle=keep' }).mapLifecycle, 'keep');
         assert.equal(resolveIosIsolation({ userAgent: iphoneSafari, search: '?mapLifecycle=keep' }).staticOffload, false);
         assert.equal(resolveIosIsolation({ userAgent: androidChrome }).mapLifecycle, 'keep');

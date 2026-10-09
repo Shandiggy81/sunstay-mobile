@@ -1,18 +1,16 @@
 /**
  * Mapbox mount decision for the iOS crash matrix.
- * `keep` leaves the map mounted. Unset is `static-when-expanded` on iOS
- * Safari and `keep` on every other platform. `unmount-expanded` drops it
- * only while the list sheet is in the stable fully expanded state.
- * Drag offsets are ignored so a swipe cannot create a mount loop.
+ * `keep` leaves the map mounted and is the default on every platform,
+ * including iOS Safari: the live map must not disappear while a venue is
+ * open. `unmount-expanded` drops it only while the list sheet is in the
+ * stable fully expanded state. Drag offsets are ignored so a swipe cannot
+ * create a mount loop.
  *
- * `static-when-expanded` is the default on iOS Safari only. Every other
- * platform stays on `keep` until an explicit override. On those platforms
- * the mode still runs only with `matrixHud=1`. On iOS Safari the lifecycle
- * runs without the HUD; the debug overlay stays behind `matrixHud=1`.
- * `?mapLifecycle=keep` forces the mounted map, including on iOS Safari.
- * After the covering sheet stays expanded, and not while a drag is active,
- * it offloads the live map once and shows a static placeholder. Closing
- * that sheet and staying there restores one generation.
+ * `static-when-expanded` is a diagnostic only. It runs only with
+ * `?mapLifecycle=static-when-expanded&matrixHud=1`. After the covering
+ * sheet stays expanded, and not while a drag is active, it offloads the
+ * live map once and shows a static placeholder. Closing that sheet and
+ * staying there restores one generation.
  */
 
 import { ISOLATION_EVENT_KINDS, logIsolationEvent } from './iosCrashLog.js';
@@ -50,25 +48,28 @@ export function isIosSafari(userAgent = '') {
     return /Safari/i.test(ua);
 }
 
-/** Unset uses iOS Safari's scoped default. An explicit value always wins. */
+/**
+ * Unset is `keep` on every platform. An explicit value always wins.
+ * `userAgent` is accepted for call-site compatibility and no longer
+ * changes the default.
+ */
+// eslint-disable-next-line no-unused-vars
 export function selectMapLifecycle(value, { userAgent = '' } = {}) {
-    if (value != null && String(value).trim() !== '') return parseMapLifecycle(value);
-    return isIosSafari(userAgent)
-        ? MAP_LIFECYCLE_STATIC_WHEN_EXPANDED
-        : MAP_LIFECYCLE_KEEP;
+    return parseMapLifecycle(value);
 }
 
 /**
- * Offload behavior. iOS Safari runs `static-when-expanded` without the HUD.
- * Every other platform still requires `matrixHud=1`.
+ * Offload behavior is diagnostic-only on every platform, iOS Safari
+ * included: it needs `static-when-expanded` and `matrixHud=1`.
+ * `iosSafari` is accepted for call-site compatibility and does not enable it.
  */
+// eslint-disable-next-line no-unused-vars
 export function staticOffloadEnabled({
     lifecycle = MAP_LIFECYCLE_KEEP,
     iosSafari = false,
     matrixHud = false,
 } = {}) {
     if (lifecycle !== MAP_LIFECYCLE_STATIC_WHEN_EXPANDED) return false;
-    if (iosSafari === true) return true;
     return matrixHud === true;
 }
 
