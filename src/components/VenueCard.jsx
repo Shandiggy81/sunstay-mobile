@@ -49,8 +49,6 @@ import {
   venueOverlayPresenceKey,
   VENUE_DETAIL_BRANCH,
 } from '../utils/venueDetailTabs';
-import { ENABLE_SHEET_MOTION, SUN_FORECAST_ANIMATIONS_ENABLED, sheetSurfaceMode } from '../utils/iosCrashIsolation';
-import { setIsolationContext } from '../utils/iosCrashLog';
 import { formatVenueDetailProbe, readVenueDetailLayoutProbe } from '../utils/venueDetailLayoutProbe';
 
 
@@ -238,7 +236,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <motion.span className="text-xl" animate={SUN_FORECAST_ANIMATIONS_ENABLED && isSunNow ? { scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : undefined}>
+          <motion.span className="text-xl" animate={isSunNow ? { scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] } : {}} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}>
             {isSunNow ? '☀️' : '🪟'}
           </motion.span>
           <div className="min-w-0">
@@ -249,7 +247,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
           </div>
         </div>
         {isSunNow && (
-          <motion.span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white" animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.05, 1] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.5, repeat: Infinity } : undefined}>Sun now</motion.span>
+          <motion.span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>Sun now</motion.span>
         )}
       </div>
       <div className="flex items-center justify-between gap-3 text-[13px] text-slate-600">
@@ -258,7 +256,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
       </div>
       {rainSoon && (
         <motion.div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-slate-50 border border-slate-200" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-          <motion.span animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.15, 1] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.4, repeat: Infinity } : undefined}>🌧️</motion.span>
+          <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1.4, repeat: Infinity }}>🌧️</motion.span>
           <span className="font-bold text-[12px] text-slate-700">
             {minutesUntilRain === 0 ? 'Rain falling now — head inside' : `Rain approaching in ${minutesUntilRain} mins — grab a spot now`}
           </span>
@@ -787,10 +785,6 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   }, [activeTab, detailBranch, venue?.id]);
 
   React.useEffect(() => {
-    setIsolationContext({
-      venue: venue?.venueName || venue?.name || venue?.title || String(venue?.id ?? ''),
-      tab: activeTab,
-    });
     if (import.meta.env.DEV) {
       console.info('[venue-detail]', {
         activeTab,
@@ -1169,13 +1163,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const blobA = isRain ? 'rgba(100,116,139,0.10)' : 'rgba(245,158,11,0.10)';
   const blobB = isRain ? 'rgba(148,163,184,0.08)' : 'rgba(245,158,11,0.06)';
   const liveFeaturesForVenue = venue?.id ? liveVenueFeatures?.[venue.id] : null;
-  const OverlayEl = ENABLE_SHEET_MOTION ? motion.div : 'div';
-  const ArticleEl = ENABLE_SHEET_MOTION ? motion.article : 'article';
-  const overlayMotionProps = ENABLE_SHEET_MOTION
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.25 } }
-    : {};
-  const articleMotionProps = ENABLE_SHEET_MOTION
-    ? {
+  const overlayMotionProps = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.25 } };
+  const articleMotionProps = {
         drag: 'y',
         dragControls,
         dragListener: false,
@@ -1190,23 +1179,20 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
         animate: { y: 0 },
         exit: { y: '100%' },
         transition: { type: 'spring', damping: 30, stiffness: 280 },
-      }
-    : {};
+  };
 
   return (
     <AnimatePresence>
-      <OverlayEl
+      <motion.div
         key={venueOverlayPresenceKey(venue?.id)}
         {...overlayMotionProps}
         className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/55"
         onClick={onClose}
-        data-sheet-motion={ENABLE_SHEET_MOTION ? 'on' : 'off'}
       >
-        <ArticleEl
+        <motion.article
           {...articleMotionProps}
           aria-label={fallbackName}
           onClick={e => e.stopPropagation()}
-          data-sheet-surface={sheetSurfaceMode()}
           style={{
             ...(enableTilt ? { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200 } : null),
             boxShadow: '0 -8px 60px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,1)',
@@ -1230,8 +1216,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                    44px-tall drag surface so the gesture is easy to land. */}
             <div
               className="flex h-11 w-full items-center justify-center lg:hidden"
-              onPointerDown={ENABLE_SHEET_MOTION ? (e => dragControls.start(e)) : undefined}
-              style={ENABLE_SHEET_MOTION ? { touchAction: 'none' } : undefined}
+              onPointerDown={e => dragControls.start(e)}
+              style={{ touchAction: 'none' }}
             >
               <div style={{ width: 44, height: 5, borderRadius: 999, background: '#cbd5e1' /* slate-300 */ }} />
             </div>
@@ -1548,8 +1534,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       </div>
                       <motion.span
                         className="flex-shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white shadow-sm"
-                        animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { opacity: [1, 0.4, 1] } : {}}
-                        transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } : undefined}
+                        animate={{ opacity: [1, 0.4, 1] }}
+                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                       >
                         {rainArrivalMins === 0 ? 'Active' : 'Imminent'}
                       </motion.span>
@@ -1750,8 +1736,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             <div className="relative z-20 shrink-0 border-t border-slate-900/[0.08] bg-white/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <VenueCardFooterActions venue={safeVenue} canNavigate={hasValidCoordinates} />
             </div>
-        </ArticleEl>
-      </OverlayEl>
+        </motion.article>
+      </motion.div>
     </AnimatePresence>
   );
 }

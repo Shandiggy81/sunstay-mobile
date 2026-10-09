@@ -3,19 +3,13 @@ import assert from 'node:assert/strict';
 import { normalizeHourlyForecast } from './normalizeHourlyForecast.js';
 import { resolveForecastView } from './resolveForecastView.js';
 import {
-    formatIsolationHudLines,
-    getIsolationEvents,
-    resetIsolationLog,
-} from './iosCrashLog.js';
-import {
     beginForecastRequest,
     createForecastGeneration,
     forecastHttpPlan,
     invalidateForecast,
     isCurrentForecast,
     isForecastAbort,
-    noteSunForecast,
-} from './sunForecastDiagnostics.js';
+} from './sunForecastRequest.js';
 
 const now = new Date('2026-09-25T01:00:00Z');
 
@@ -76,34 +70,5 @@ describe('sun forecast request generation', () => {
         assert.equal(isCurrentForecast(cleaned, second.requestId, 'venue-b'), false);
         assert.equal(isForecastAbort({ name: 'AbortError' }), true);
         assert.equal(isForecastAbort(new Error('http-500')), false);
-    });
-
-    it('keeps cleanup idempotent and sends one diagnostic event', () => {
-        resetIsolationLog();
-        const seen = new Set();
-        const first = noteSunForecast(seen, 'sun-forecast-fetch-error', {
-            venueId: 'venue-a',
-            requestId: 1,
-            reason: 'http-500',
-            state: 'error',
-        });
-        const again = noteSunForecast(seen, 'sun-forecast-fetch-error', {
-            venueId: 'venue-a',
-            requestId: 1,
-            reason: 'http-500',
-            state: 'error',
-        });
-        const abort = noteSunForecast(seen, 'sun-forecast-fetch-abort', {
-            venueId: 'venue-a',
-            requestId: 1,
-            state: 'abort',
-        });
-        assert.equal(again, null);
-        assert.match(first.message, /sun-forecast-fetch-error/);
-        assert.match(abort.message, /sun-forecast-fetch-abort/);
-        assert.equal(getIsolationEvents().length, 2);
-        const hud = formatIsolationHudLines().join('\n');
-        assert.match(hud, /sun-forecast-fetch-abort/);
-        resetIsolationLog();
     });
 });

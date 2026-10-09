@@ -15,9 +15,7 @@ import {
   invalidateForecast,
   isCurrentForecast,
   isForecastAbort,
-  noteSunForecast,
-} from '../utils/sunForecastDiagnostics';
-import { traceMapOperation } from '../utils/mapOperationTrace';
+} from '../utils/sunForecastRequest';
 import { shouldStartForecastFetch } from '../utils/mapCameraSettle';
 
 function getWeatherEmoji(code, isNight) {
@@ -103,31 +101,9 @@ export default function HourlyForecastStrip({
 
     const started = beginForecastRequest(generationRef.current, venueId);
     generationRef.current = started.generation;
-    const seen = new Set();
     const controller = new AbortController();
-    const startedAt = Date.now();
     setLoading(true);
     setError(false);
-    noteSunForecast(seen, 'sun-forecast-fetch-start', {
-        venueId,
-        requestId: started.requestId,
-        state: 'loading',
-    });
-    traceMapOperation('sun-forecast-fetch-start', {
-      detail: 'hourly-strip',
-      venueId,
-      at: startedAt,
-    });
-    let fetchTraced = false;
-    const traceFetchEnd = () => {
-      if (fetchTraced) return;
-      fetchTraced = true;
-      traceMapOperation('sun-forecast-fetch-end', {
-        detail: 'hourly-strip',
-        venueId,
-        at: Date.now(),
-      });
-    };
 
     const params = new URLSearchParams({
       latitude:      String(latNum),
@@ -151,22 +127,8 @@ export default function HourlyForecastStrip({
       .then((data) => {
         if (!isCurrentForecast(generationRef.current, started.requestId, venueId)) return;
         const rows = normalizeHourlyForecast(data, { now: new Date(), limit: 12 });
-        noteSunForecast(seen, 'sun-forecast-normalized', {
-            venueId,
-            requestId: started.requestId,
-            count: rows.length,
-            state: 'normalized',
-            elapsedMs: Date.now() - startedAt,
-        });
         setHourly(rows);
         setError(false);
-        noteSunForecast(seen, 'sun-forecast-fetch-success', {
-            venueId,
-            requestId: started.requestId,
-            count: rows.length,
-            state: rows.length ? 'success' : 'empty',
-            elapsedMs: Date.now() - startedAt,
-        });
 
         const directSunHours = countDirectSunHours(data, 24);
         setSunshineMinsToday(directSunHours === null ? null : directSunHours * 60);
@@ -174,26 +136,13 @@ export default function HourlyForecastStrip({
       .catch((error) => {
         if (!isCurrentForecast(generationRef.current, started.requestId, venueId)) return;
         if (isForecastAbort(error)) {
-          noteSunForecast(seen, 'sun-forecast-fetch-abort', {
-            venueId,
-            requestId: started.requestId,
-            state: 'abort',
-          });
           return;
         }
         setHourly([]);
         setSunshineMinsToday(null);
         setError(true);
-        noteSunForecast(seen, 'sun-forecast-fetch-error', {
-            venueId,
-            requestId: started.requestId,
-            state: 'error',
-            reason: error?.message || 'fetch-failed',
-            elapsedMs: Date.now() - startedAt,
-        });
       })
       .finally(() => {
-        traceFetchEnd();
         if (isCurrentForecast(generationRef.current, started.requestId, venueId) && !controller.signal.aborted) {
           setLoading(false);
         }
@@ -202,12 +151,6 @@ export default function HourlyForecastStrip({
     return () => {
       generationRef.current = invalidateForecast(generationRef.current);
       controller.abort();
-      traceFetchEnd();
-      noteSunForecast(seen, 'sun-forecast-cleanup', {
-        venueId,
-        requestId: started.requestId,
-        state: 'cleanup',
-      });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, fetchReady, latNum, lngNum, venueId]);

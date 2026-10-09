@@ -75,87 +75,6 @@ export function markerCoordinatePlan(venue) {
     };
 }
 
-/** Closing a venue does not mount a map. Expanded-sheet unmount is a separate flag. */
-export function venueCloseMapTransition({
-    mapboxEnabled = true,
-    lifecycle = 'keep',
-    sheetState = 'peek',
-    hadMap = true,
-} = {}) {
-    const sheetExpanded = sheetState === 'expanded';
-    if (lifecycle === 'static-when-expanded') {
-        return {
-            sheetState,
-            selectedVenue: null,
-            mapMounted: mapboxEnabled === true && hadMap === true,
-            remounts: false,
-            createsMap: false,
-            resizesExistingMap: mapboxEnabled === true && hadMap === true,
-        };
-    }
-    const mapMounted = mapboxEnabled && (lifecycle !== 'unmount-expanded' || !sheetExpanded);
-    return {
-        sheetState,
-        selectedVenue: null,
-        mapMounted,
-        remounts: false,
-        createsMap: hadMap ? false : mapMounted,
-        resizesExistingMap: hadMap && mapMounted,
-    };
-}
-
-const sessionDiagnostics = {
-    sheetCloses: 0,
-    contextLosses: 0,
-    resumeAttempts: 0,
-    generation: 0,
-    lastTransition: '',
-    lastMarkerGeneration: '',
-    lastInvalidCoordinate: '',
-};
-
-export function resetMapSessionDiagnostics() {
-    sessionDiagnostics.sheetCloses = 0;
-    sessionDiagnostics.contextLosses = 0;
-    sessionDiagnostics.resumeAttempts = 0;
-    sessionDiagnostics.generation = 0;
-    sessionDiagnostics.lastTransition = '';
-    sessionDiagnostics.lastMarkerGeneration = '';
-    sessionDiagnostics.lastInvalidCoordinate = '';
-    return getMapSessionDiagnostics();
-}
-
-export function noteSheetClose() {
-    sessionDiagnostics.sheetCloses += 1;
-    sessionDiagnostics.lastTransition = 'venue-close';
-    return getMapSessionDiagnostics();
-}
-
-export function noteMapGeneration(generation) {
-    sessionDiagnostics.generation = generation ?? 0;
-    sessionDiagnostics.lastMarkerGeneration = String(generation ?? '');
-    return getMapSessionDiagnostics();
-}
-
-export function noteContextLossDiagnostic(state = {}) {
-    sessionDiagnostics.contextLosses = state.contextLosses ?? sessionDiagnostics.contextLosses + 1;
-    sessionDiagnostics.resumeAttempts = state.resumeAttempts ?? sessionDiagnostics.resumeAttempts;
-    sessionDiagnostics.generation = state.generation ?? sessionDiagnostics.generation;
-    sessionDiagnostics.lastTransition = state.sessionLocked ? 'session-locked' : 'context-loss';
-    return getMapSessionDiagnostics();
-}
-
-export function noteInvalidCoordinate(plan) {
-    if (!plan || plan.ok) return getMapSessionDiagnostics();
-    sessionDiagnostics.lastInvalidCoordinate = `${plan.id}:${plan.reason}`;
-    sessionDiagnostics.lastTransition = 'invalid-coordinate';
-    return getMapSessionDiagnostics();
-}
-
-export function getMapSessionDiagnostics() {
-    return { ...sessionDiagnostics };
-}
-
 export function markerBelongsTo(record, generation) {
     return !!record && record.released !== true && record.generation === generation;
 }
@@ -405,22 +324,6 @@ export function completeMarkerSync(scheduler, {
         venueCreated: current.venueCreated + venueCreated,
         cleanups: current.cleanups + removed,
     };
-}
-
-let markerSyncStats = createSyncScheduler();
-
-export function resetMarkerSyncStats() {
-    markerSyncStats = createSyncScheduler();
-    return markerSyncStats;
-}
-
-export function getMarkerSyncStats() {
-    return markerSyncStats;
-}
-
-export function publishMarkerSync(scheduler) {
-    markerSyncStats = scheduler ?? createSyncScheduler();
-    return markerSyncStats;
 }
 
 export function featuresForMarkerSync(map, sourceId) {

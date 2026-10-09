@@ -1,6 +1,5 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldMountMap } from './mapLifecycle.js';
 import {
     MAP_RECOVERY_COOLDOWN_MS,
     createMapRecoveryState,
@@ -179,16 +178,6 @@ describe('map recovery transitions', () => {
         assert.equal(releaseInitLock(unmounted, 'unmount').state.phase === 'resuming', false);
     });
 
-    it('leaves the mapbox=0 static fallback off the resume path', () => {
-        assert.equal(shouldMountMap({ mapboxEnabled: false, sheetExpanded: false }), false);
-        const control = mapRecoveryControl(noteContextLost(liveState(), 1, 1000).state, 9000, {
-            mapboxEnabled: false,
-        });
-        assert.equal(control.mode, 'static-fallback');
-        assert.equal(control.showResume, false);
-        assert.equal(control.status.includes('Resume map'), false);
-    });
-
     it('keeps the default path free of a resume control', () => {
         const ready = createMapRecoveryState();
         const loading = startMapLoad(ready).state;
@@ -199,7 +188,6 @@ describe('map recovery transitions', () => {
             assert.equal(control.showResume, false);
             assert.equal(control.showProgress, false);
         }
-        assert.equal(shouldMountMap({ mapboxEnabled: true, lifecycle: 'keep', sheetExpanded: true }), true);
     });
 
     it('exposes Resume map as a 44×44 button with an accessible name', () => {

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { shouldFetchRemote } from './shouldFetchRemote';
-import { traceMapOperation } from '../utils/mapOperationTrace';
 
 // In-memory cache: key = "lat,lng", value = { result, expiresAt }
 const _cache = new Map();
@@ -38,13 +37,6 @@ export function useTomorrowRain(lat, lng, { enabled = true } = {}) {
 
     setLoading(true);
     setError(false);
-    traceMapOperation('sun-forecast-fetch-start', { detail: 'useTomorrowRain', at: Date.now() });
-    let fetchTraced = false;
-    const traceFetchEnd = () => {
-      if (fetchTraced) return;
-      fetchTraced = true;
-      traceMapOperation('sun-forecast-fetch-end', { detail: 'useTomorrowRain', at: Date.now() });
-    };
 
     // Hard 4s timeout via AbortController — a stalled Tomorrow.io request
     // must never leave this widget stuck on `loading: true` indefinitely.
@@ -118,7 +110,6 @@ export function useTomorrowRain(lat, lng, { enabled = true } = {}) {
         setError(true);
       } finally {
         clearTimeout(timeoutId);
-        traceFetchEnd();
         if (!cancelled) setLoading(false);
       }
     }
@@ -128,7 +119,6 @@ export function useTomorrowRain(lat, lng, { enabled = true } = {}) {
       cancelled = true;
       clearTimeout(timeoutId);
       controller.abort();
-      traceFetchEnd();
     };
   }, [lat, lng, enabled]);
 
