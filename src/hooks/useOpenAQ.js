@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { shouldFetchRemote } from './shouldFetchRemote';
-import { traceMapOperation } from '../utils/mapOperationTrace';
 
 // In-memory cache: key = "lat,lng", value = { aqLabel, expiresAt }
 const _cache = new Map();
@@ -26,13 +25,6 @@ export function useOpenAQ(lat, lng, { enabled = true } = {}) {
 
     setLoading(true);
     setError(false);
-    traceMapOperation('sun-forecast-fetch-start', { detail: 'useOpenAQ', at: Date.now() });
-    let fetchTraced = false;
-    const traceFetchEnd = () => {
-      if (fetchTraced) return;
-      fetchTraced = true;
-      traceMapOperation('sun-forecast-fetch-end', { detail: 'useOpenAQ', at: Date.now() });
-    };
 
     // Hard 4s timeout via AbortController — a stalled air-quality request
     // must never leave this widget stuck on `loading: true` indefinitely.
@@ -90,7 +82,6 @@ export function useOpenAQ(lat, lng, { enabled = true } = {}) {
         setError(true);
       } finally {
         clearTimeout(timeoutId);
-        traceFetchEnd();
         if (!cancelled) setLoading(false);
       }
     }
@@ -100,7 +91,6 @@ export function useOpenAQ(lat, lng, { enabled = true } = {}) {
       cancelled = true;
       clearTimeout(timeoutId);
       controller.abort();
-      traceFetchEnd();
     };
   }, [lat, lng, enabled]);
 

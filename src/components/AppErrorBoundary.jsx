@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { logReactRenderError } from '../utils/iosCrashLog';
+import * as Sentry from '@sentry/react';
 import { resolveAppErrorView } from '../utils/appErrorFallback';
 
 class AppErrorBoundary extends Component {
@@ -11,7 +11,7 @@ class AppErrorBoundary extends Component {
 
     componentDidCatch(error, info) {
         console.error('Sunstay Error:', error, info);
-        logReactRenderError(error, 'AppErrorBoundary');
+        Sentry.captureException(error, { tags: { boundary: 'AppErrorBoundary' } });
     }
 
     handleReload = () => {

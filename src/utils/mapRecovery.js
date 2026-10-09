@@ -169,7 +169,7 @@ export function recoveryEffectTick(state) {
     return result(false, 'no-auto-retry', current);
 }
 
-export function mapRecoveryControl(state, now, { mapboxEnabled = true } = {}) {
+export function mapRecoveryControl(state, now) {
     const current = state ?? createMapRecoveryState();
     const hidden = {
         showResume: false,
@@ -182,9 +182,8 @@ export function mapRecoveryControl(state, now, { mapboxEnabled = true } = {}) {
         minHeight: 44,
         status: '',
         showReload: false,
-        mode: mapboxEnabled ? 'mapbox' : 'static-fallback',
+        mode: 'mapbox',
     };
-    if (!mapboxEnabled) return hidden;
     if (current.phase === 'ready' || current.phase === 'loading' || current.phase === 'live') {
         return hidden;
     }

@@ -11,14 +11,8 @@ import {
     markerSyncTriggerPlan,
     planMapResize,
     featuresForMarkerSync,
-    getMapSessionDiagnostics,
     markerCoordinatePlan,
     markerSyncDecision,
-    noteContextLossDiagnostic,
-    noteInvalidCoordinate,
-    noteSheetClose,
-    resetMapSessionDiagnostics,
-    venueCloseMapTransition,
     noteMarkerCleanup,
     noteMarkerListeners,
     noteSourceWait,
@@ -346,43 +340,5 @@ describe('marker coordinates', () => {
         const reopened = syncMarkerLayer(resumed.markers, 2, [spec('venue-1', 'sun')]);
         assert.deepEqual(reopened.created, []);
         assert.deepEqual(reopened.reused, ['venue-1']);
-    });
-});
-
-describe('venue close does not remount the map', () => {
-    it('keeps the existing map when the default lifecycle is keep', () => {
-        const close = venueCloseMapTransition({ hadMap: true, lifecycle: 'keep', sheetState: 'peek' });
-        assert.equal(close.remounts, false);
-        assert.equal(close.createsMap, false);
-        assert.equal(close.mapMounted, true);
-        assert.equal(close.resizesExistingMap, true);
-        assert.equal(close.selectedVenue, null);
-        const staticClose = venueCloseMapTransition({
-            hadMap: false,
-            lifecycle: 'static-when-expanded',
-            sheetState: 'peek',
-        });
-        assert.equal(staticClose.createsMap, false);
-        assert.equal(staticClose.remounts, false);
-        assert.equal(staticClose.mapMounted, false);
-    });
-
-    it('does not clear a session lock when the venue closes', () => {
-        resetMapSessionDiagnostics();
-        noteContextLossDiagnostic({ contextLosses: 2, resumeAttempts: 1, generation: 4, sessionLocked: true });
-        noteSheetClose();
-        const diag = getMapSessionDiagnostics();
-        assert.equal(diag.contextLosses, 2);
-        assert.equal(diag.resumeAttempts, 1);
-        assert.equal(diag.generation, 4);
-        assert.equal(diag.sheetCloses, 1);
-        assert.equal(diag.lastTransition, 'venue-close');
-    });
-
-    it('records the venue id of an invalid coordinate', () => {
-        resetMapSessionDiagnostics();
-        const plan = markerCoordinatePlan({ id: 'ocean', lng: null, lat: -37.8 });
-        noteInvalidCoordinate(plan);
-        assert.equal(getMapSessionDiagnostics().lastInvalidCoordinate, 'ocean:missing');
     });
 });

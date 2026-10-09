@@ -17,7 +17,6 @@ import {
 import { useVenues } from './hooks/useVenues';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
-import { sliceVenuesForRender } from './utils/venueRenderLimit';
 import {
     INITIAL_VISIBLE_VENUES,
     VENUES_PER_LOAD,
@@ -26,42 +25,6 @@ import {
 import { ENABLE_MANUAL_VENUE_REFRESH } from './utils/manualVenueRefresh';
 import MascotPullRefresh from './components/MascotPullRefresh';
 import VenueRefreshButton from './components/VenueRefreshButton';
-import DebugStaticSunny from './components/DebugStaticSunny';
-import {
-    DEBUG_MASCOT_RENDER,
-    ENABLE_MAPBOX,
-    ENABLE_MASCOT_PULL_REFRESH,
-    ENABLE_SHEET_MOTION,
-    MATRIX_HUD,
-    SHEET_BACKDROP_MODE,
-    SHEET_WILL_CHANGE_MODE,
-    VENUE_RENDER_LIMIT,
-    VENUE_RENDER_MODE,
-    MAP_LIFECYCLE,
-    STATIC_OFFLOAD,
-    crashTestId,
-    renderMatrixTestId,
-} from './utils/iosCrashIsolation';
-import {
-    createStaticOffloadState,
-    getMapLifecycleSnapshot,
-    peekRememberedCamera,
-    publishStaticOffload,
-    reduceStaticOffload,
-    MAP_OFFLOAD_PLACEHOLDER_COPY,
-    shouldMountMap,
-    staticOffloadHidesMap,
-    staticOffloadShowsPlaceholder,
-} from './utils/mapLifecycle';
-import { noteSheetClose } from './utils/mapMarkerLifecycle';
-import { traceMapOperation } from './utils/mapOperationTrace';
-import {
-    ISOLATION_EVENT_KINDS,
-    attachPageLifecycleProbes,
-    logIsolationEvent,
-    setIsolationContext,
-} from './utils/iosCrashLog';
-import IsolationDevLog from './components/IsolationDevLog';
 import { useVenueFeatures } from './hooks/useVenueFeatures';
 import SplashScreen from './components/SplashScreen';
 import { getWindProfile, calculateApparentTemp, getComfortZone, getWindWarning } from './data/windIntelligence';
@@ -505,26 +468,10 @@ const AppContent = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    useEffect(() => {
-        setIsolationContext({
-            route: `${window.location.pathname}${window.location.search}`,
-        });
-        return attachPageLifecycleProbes(window);
-    }, []);
-
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
-    const sheetStateTraceRef = useRef(mobileSheetState);
-    useEffect(() => {
-        if (sheetStateTraceRef.current === mobileSheetState) return;
-        sheetStateTraceRef.current = mobileSheetState;
-        traceMapOperation('sheet-state-change', { detail: mobileSheetState, at: Date.now() });
-    }, [mobileSheetState]);
     const [sheetDragging, setSheetDragging]         = useState(false);
     const [venueSheetDragging, setVenueSheetDragging] = useState(false);
-    const [offloadPhase, setOffloadPhase]         = useState('live');
-    const offloadGateRef = useRef(createStaticOffloadState());
-    const offloadSampleRef = useRef({ expanded: false, dragging: false });
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
     // Immediate input; filter/score/GeoJSON/fitBounds wait until typing settles.
@@ -638,12 +585,11 @@ const AppContent = () => {
         setWindowIdentity(resultIdentity);
         setVisibleVenueCount(INITIAL_VISIBLE_VENUES);
     }
-    const renderedVenues = useMemo(() => {
-        if (VENUE_RENDER_MODE === 'diagnostic-all') return sortedVenues;
-        if (VENUE_RENDER_MODE === 'diagnostic-cap') return sliceVenuesForRender(sortedVenues, VENUE_RENDER_LIMIT);
-        return sortedVenues.slice(0, visibleVenueCount);
-    }, [sortedVenues, visibleVenueCount]);
-    const hasMoreVenues = VENUE_RENDER_MODE === 'progressive' && visibleVenueCount < sortedVenues.length;
+    const renderedVenues = useMemo(
+        () => sortedVenues.slice(0, visibleVenueCount),
+        [sortedVenues, visibleVenueCount],
+    );
+    const hasMoreVenues = visibleVenueCount < sortedVenues.length;
     const handleLoadMoreVenues = useCallback(() => {
         setVisibleVenueCount((count) => count + VENUES_PER_LOAD);
     }, []);
@@ -697,25 +643,12 @@ const AppContent = () => {
         pullRefreshRef.current?.reset?.();
         setSelectedVenue(venue);
         setMobileSheetState('peek');
-        setIsolationContext({
-            venue: venue.name || venue.title || String(venue.id ?? ''),
-            tab: 'Overview',
-        });
-        traceMapOperation('venue-open', { venueId: venue.id ?? '', at: Date.now() });
     }, []);
 
     const handleCloseCard  = useCallback(() => {
         pullRefreshRef.current?.reset?.();
         setSelectedVenue(null);
-        setIsolationContext({ venue: '', tab: '' });
         setVenueSheetDragging(false);
-        noteSheetClose();
-        traceMapOperation('venue-close', { at: Date.now() });
-        logIsolationEvent({
-            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-            message: 'venue-close',
-            source: 'App',
-        });
     }, []);
     const toggleChat       = useCallback(() => setIsChatOpen(p => !p), []);
     const closeChat        = useCallback(() => setIsChatOpen(false), []);
@@ -849,133 +782,16 @@ const AppContent = () => {
 
     const selectedVenueScore = weather?.score ?? weather?.rawWeather?.score ?? 70;
 
-    const sheetDrag = sheetDragCompositing({
-        dragging: sheetDragging,
-        willChange: SHEET_WILL_CHANGE_MODE,
-        backdrop: SHEET_BACKDROP_MODE,
-    });
+    const sheetDrag = sheetDragCompositing({ dragging: sheetDragging });
     const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
-    const staticOffloadActive = STATIC_OFFLOAD === true;
-    const sheetCoversMap = sheetExpanded || selectedVenue != null;
-    const offloadDragging = sheetDragging || venueSheetDragging;
-    offloadSampleRef.current = { expanded: sheetCoversMap, dragging: offloadDragging };
-    const applyOffload = useCallback((result) => {
-        offloadGateRef.current = result.state;
-        publishStaticOffload(result.state);
-        for (const name of result.traces) {
-            traceMapOperation(name, { detail: result.state.phase, at: Date.now() });
-            logIsolationEvent({
-                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-                message: name,
-                source: 'App',
-            });
-        }
-        setOffloadPhase((prev) => (prev === result.state.phase ? prev : result.state.phase));
-    }, []);
-    const mapMounted = shouldMountMap({
-        mapboxEnabled: ENABLE_MAPBOX,
-        lifecycle: MAP_LIFECYCLE,
-        sheetExpanded,
-        diagnostic: STATIC_OFFLOAD,
-        offloadCommitted: staticOffloadActive && staticOffloadHidesMap(offloadPhase),
-    });
-    const staticPlaceholder = staticOffloadActive && staticOffloadShowsPlaceholder(offloadPhase);
     useEffect(() => {
         if (!selectedVenue) setVenueSheetDragging(false);
     }, [selectedVenue]);
-    useEffect(() => {
-        if (!staticOffloadActive) return undefined;
-        const at = Date.now();
-        const result = reduceStaticOffload(offloadGateRef.current, {
-            type: 'sample',
-            at,
-            expanded: sheetCoversMap,
-            dragging: offloadDragging,
-            lifecycle: MAP_LIFECYCLE,
-            diagnostic: STATIC_OFFLOAD,
-            mapboxEnabled: ENABLE_MAPBOX,
-        });
-        applyOffload(result);
-        if (result.armMs == null) return undefined;
-        const timer = setTimeout(() => {
-            const sample = offloadSampleRef.current;
-            const snapshot = getMapLifecycleSnapshot();
-            const settled = reduceStaticOffload(offloadGateRef.current, {
-                type: 'settle',
-                at: Date.now(),
-                expanded: sample.expanded,
-                dragging: sample.dragging,
-                liveInstances: snapshot.liveInstances,
-                camera: peekRememberedCamera(),
-                lifecycle: MAP_LIFECYCLE,
-                diagnostic: STATIC_OFFLOAD,
-                mapboxEnabled: ENABLE_MAPBOX,
-            });
-            applyOffload(settled);
-        }, result.armMs);
-        return () => clearTimeout(timer);
-    }, [staticOffloadActive, sheetCoversMap, offloadDragging, applyOffload]);
-    useEffect(() => {
-        if (!staticOffloadActive) return undefined;
-        const phase = offloadGateRef.current.phase;
-        if (phase !== 'offloaded' && phase !== 'restore-arming') return undefined;
-        const snapshot = getMapLifecycleSnapshot();
-        if (snapshot.liveInstances !== 0) return undefined;
-        const result = reduceStaticOffload(offloadGateRef.current, {
-            type: 'removed',
-            camera: peekRememberedCamera(),
-            lifecycle: MAP_LIFECYCLE,
-            diagnostic: STATIC_OFFLOAD,
-            mapboxEnabled: ENABLE_MAPBOX,
-        });
-        applyOffload(result);
-        return undefined;
-    }, [staticOffloadActive, offloadPhase, applyOffload]);
-    const handleGenerationReady = useCallback((generation) => {
-        if (!staticOffloadActive) return;
-        const result = reduceStaticOffload(offloadGateRef.current, {
-            type: 'markers-ready',
-            generation,
-            mapReady: true,
-            lifecycle: MAP_LIFECYCLE,
-            diagnostic: STATIC_OFFLOAD,
-            mapboxEnabled: ENABLE_MAPBOX,
-        });
-        applyOffload(result);
-    }, [staticOffloadActive, applyOffload]);
-    const handleRestoreFailed = useCallback(() => {
-        if (offloadGateRef.current.phase !== 'restoring') return;
-        const snapshot = getMapLifecycleSnapshot();
-        const result = reduceStaticOffload(offloadGateRef.current, {
-            type: 'restore-failed',
-            liveInstances: snapshot.liveInstances,
-            lifecycle: MAP_LIFECYCLE,
-            diagnostic: STATIC_OFFLOAD,
-            mapboxEnabled: ENABLE_MAPBOX,
-        });
-        applyOffload(result);
-    }, [applyOffload]);
-    const mapLifecycleMountedRef = useRef(null);
-    useEffect(() => {
-        if (MAP_LIFECYCLE !== 'unmount-expanded') return undefined;
-        const previous = mapLifecycleMountedRef.current;
-        mapLifecycleMountedRef.current = mapMounted;
-        if (previous === null || previous === mapMounted) return undefined;
-        logIsolationEvent({
-            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-            message: mapMounted ? 'stable-visible-remount' : 'stable-expanded-unmount',
-            source: 'App',
-        });
-        return undefined;
-    }, [mapMounted]);
     const sheetClassName = `ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''} ${sheetDrag.className}`.trim();
     useEffect(() => {
         if (!sheetExpanded) setSheetDragging(false);
     }, [sheetExpanded]);
-    const SheetEl = ENABLE_SHEET_MOTION ? motion.div : 'div';
-    const BackdropEl = ENABLE_SHEET_MOTION ? motion.div : 'div';
-    const sheetMotionProps = ENABLE_SHEET_MOTION
-        ? {
+    const sheetMotionProps = {
             drag: 'y',
             dragConstraints: { top: 0, bottom: 0 },
             dragElastic: 0.1,
@@ -988,21 +804,8 @@ const AppContent = () => {
             animate: { y: 0 },
             exit: { y: '100%' },
             transition: { type: 'spring', damping: 25, stiffness: 200 },
-        }
-        : {};
-    const backdropMotionProps = ENABLE_SHEET_MOTION
-        ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
-        : {};
-    const isolationTestId = crashTestId({
-        pull: ENABLE_MASCOT_PULL_REFRESH,
-        map: ENABLE_MAPBOX,
-        motion: ENABLE_SHEET_MOTION,
-    });
-    const cardMatrixId = renderMatrixTestId({
-        map: ENABLE_MAPBOX,
-        limit: VENUE_RENDER_LIMIT,
-        motion: ENABLE_SHEET_MOTION,
-    });
+    };
+    const backdropMotionProps = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } };
 
     return (
         <>
@@ -1029,26 +832,7 @@ const AppContent = () => {
 
             <div
                 className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
-                data-crash-isolation={isolationTestId}
-                data-render-matrix={cardMatrixId}
-                data-mapbox={ENABLE_MAPBOX ? 'on' : 'off'}
-                data-sheet-motion={ENABLE_SHEET_MOTION ? 'on' : 'off'}
-                data-pull-refresh={ENABLE_MASCOT_PULL_REFRESH ? 'on' : 'off'}
-                data-debug-mascot={DEBUG_MASCOT_RENDER ? 'on' : 'off'}
-                data-matrix-hud={MATRIX_HUD ? 'on' : 'off'}
-                data-venue-limit={VENUE_RENDER_MODE === 'progressive' ? 'progressive' : (VENUE_RENDER_LIMIT ?? 'all')}
-                data-venue-window={VENUE_RENDER_MODE}
-                data-rendered-venues={renderedVenues.length}
-                data-matching-venues={matchingCount}
-                data-load-more={hasMoreVenues ? '1' : '0'}
-                data-sheet-will-change={SHEET_WILL_CHANGE_MODE}
-                data-sheet-backdrop={SHEET_BACKDROP_MODE}
-                data-map-lifecycle={MAP_LIFECYCLE}
-                data-map-mounted={mapMounted ? '1' : '0'}
-                data-map-offload={offloadPhase}
             >
-                {DEBUG_MASCOT_RENDER ? <DebugStaticSunny /> : null}
-                <IsolationDevLog />
                 <WeatherBackground />
 
                 <TopBar
@@ -1111,7 +895,6 @@ const AppContent = () => {
                         </div>
 
                         {!isMobile ? (
-                            ENABLE_MASCOT_PULL_REFRESH ? (
                                 <MascotPullRefresh
                                     ref={pullRefreshRef}
                                     enabled={false}
@@ -1134,79 +917,28 @@ const AppContent = () => {
                                         ) : null}
                                     />
                                 </MascotPullRefresh>
-                            ) : (
-                                <LiveVenueList
-                                    className="ss-venue-list"
-                                    virtuosoRef={sidebarVirtuosoRef}
-                                    venues={renderedVenues}
-                                        showLoadMore={hasMoreVenues}
-                                        onLoadMore={handleLoadMoreVenues}
-                                    selectedVenue={selectedVenue}
-                                    onVenueSelect={handleVenueSelect}
-                                    weather={weather}
-                                    empty={filteredVenues.length === 0 ? (
-                                        <EmptyVenueState announce onClearFilters={handleClearFilters} />
-                                    ) : null}
-                                />
-                            )
                         ) : null}
                     </aside>
 
                     {/* RIGHT: Map */}
                     <section className={`ss-map-area relative flex min-h-0 flex-1 flex-col ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
                         <div className="ss-map-container relative min-h-0 flex-1">
-                            {ENABLE_MAPBOX ? (
-                                mapMounted ? (
-                                    <MapErrorBoundary>
-                                        <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
-                                            <VenueMap
-                                                ref={mapRef}
-                                                venues={venues}
-                                                onVenueSelect={handleVenueSelect}
-                                                selectedVenue={selectedVenue}
-                                                filteredVenueIds={stableFilteredIds}
-                                                liveVenueFeatures={liveVenueFeatures}
-                                                weatherColorFn={getMarkerWeatherColor}
-                                                cozyWeatherActive={cozyWeatherActive}
-                                                cozyFilterActive={cozyFilterActive}
-                                                isExpanded={mobileMapExpanded}
-                                                onGenerationReady={handleGenerationReady}
-                                                onRestoreFailed={handleRestoreFailed}
-                                            />
-                                        </Suspense>
-                                    </MapErrorBoundary>
-                                ) : (
-                                    <div
-                                        data-testid={staticOffloadActive ? 'map-lifecycle-static' : 'map-lifecycle-unmounted'}
-                                        data-map-lifecycle={staticOffloadActive ? 'static-offload' : 'unmounted'}
-                                        className="flex h-full w-full items-center justify-center bg-slate-900 text-center text-white"
-                                        aria-hidden="true"
-                                    >
-                                        {staticOffloadActive ? (
-                                            <p className="text-sm font-bold">{MAP_OFFLOAD_PLACEHOLDER_COPY}</p>
-                                        ) : null}
-                                    </div>
-                                )
-                            ) : (
-                                <div
-                                    data-testid="mapbox-isolation-fallback"
-                                    className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2 bg-slate-900 text-center text-white"
-                                >
-                                    <span aria-hidden="true">🗺️</span>
-                                    <p className="text-sm font-bold">Map isolation fallback</p>
-                                    <p className="text-xs text-white/70">ENABLE_MAPBOX is off</p>
-                                </div>
-                            )}
-                            {staticPlaceholder && mapMounted ? (
-                                <div
-                                    data-testid="map-lifecycle-static"
-                                    data-map-lifecycle="static-restoring"
-                                    className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900 text-center text-white"
-                                    aria-hidden="true"
-                                >
-                                    <p className="text-sm font-bold">Restoring map</p>
-                                </div>
-                            ) : null}
+                            <MapErrorBoundary>
+                                <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
+                                    <VenueMap
+                                        ref={mapRef}
+                                        venues={venues}
+                                        onVenueSelect={handleVenueSelect}
+                                        selectedVenue={selectedVenue}
+                                        filteredVenueIds={stableFilteredIds}
+                                        liveVenueFeatures={liveVenueFeatures}
+                                        weatherColorFn={getMarkerWeatherColor}
+                                        cozyWeatherActive={cozyWeatherActive}
+                                        cozyFilterActive={cozyFilterActive}
+                                        isExpanded={mobileMapExpanded}
+                                    />
+                                </Suspense>
+                            </MapErrorBoundary>
                         </div>
 
                         {/* Zero-Results Filter Overlay — desktop only: on mobile the
@@ -1344,19 +1076,17 @@ const AppContent = () => {
                     </div>
                 )}
 
-                {ENABLE_SHEET_MOTION ? (
                 <AnimatePresence>
                     {sheetExpanded && (
                         <>
-                            <BackdropEl
+                            <motion.div
                                 {...backdropMotionProps}
                                 onClick={() => setMobileSheetState('peek')}
                                 className="ss-mobile-sheet-backdrop"
                             />
-                            <SheetEl
+                            <motion.div
                                 {...sheetMotionProps}
                                 className={sheetClassName}
-                                data-sheet-surface={ENABLE_SHEET_MOTION ? 'framer-motion' : 'static-div'}
                                 data-sheet-dragging={sheetDragging ? '1' : '0'}
                                 data-sheet-will-change={sheetDrag.willChange}
                                 data-sheet-backdrop={sheetDrag.backdropFilter}
@@ -1419,7 +1149,6 @@ const AppContent = () => {
                                         )}
                                     </div>
                                 </div>
-                                {ENABLE_MASCOT_PULL_REFRESH ? (
                                     <MascotPullRefresh
                                         ref={pullRefreshRef}
                                         enabled
@@ -1444,145 +1173,10 @@ const AppContent = () => {
                                             ) : null}
                                         />
                                     </MascotPullRefresh>
-                                ) : (
-                                    <LiveVenueList
-                                        className="ss-mobile-sheet-list"
-                                        virtuosoRef={mobileVirtuosoRef}
-                                        onPointerDownCapture={stopSheetPointer}
-                                        safeAreaFooter
-                                        venues={renderedVenues}
-                                        showLoadMore={hasMoreVenues}
-                                        onLoadMore={handleLoadMoreVenues}
-                                        selectedVenue={selectedVenue}
-                                        onVenueSelect={handleVenueSelect}
-                                        weather={weather}
-                                        empty={filteredVenues.length === 0 ? (
-                                            <EmptyVenueState announce onClearFilters={handleClearFilters} />
-                                        ) : null}
-                                    />
-                                )}
-                            </SheetEl>
+                            </motion.div>
                         </>
                     )}
                 </AnimatePresence>
-                ) : (
-                    sheetExpanded ? (
-                        <>
-                            <div
-                                onClick={() => setMobileSheetState('peek')}
-                                className="ss-mobile-sheet-backdrop"
-                            />
-                            <div
-                                className={sheetClassName}
-                                data-sheet-surface="static-div"
-                                data-sheet-dragging={sheetDragging ? '1' : '0'}
-                                data-sheet-will-change={sheetDrag.willChange}
-                                data-sheet-backdrop={sheetDrag.backdropFilter}
-                            >
-                                <div className="ss-mobile-sheet-head">
-                                    <div className="ss-mobile-sheet-grab" />
-                                    <h3>Venues</h3>
-                                    <p className="inline-flex items-center justify-center gap-2">
-                                        {matchingCount} results
-                                        {ENABLE_MANUAL_VENUE_REFRESH ? (
-                                            <VenueRefreshButton
-                                                onRefresh={requestRefresh}
-                                                isRefreshing={isRefreshing}
-                                            />
-                                        ) : null}
-                                    </p>
-                                    {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
-                                    {!isRefreshing && refreshFailureVisible(refreshStatus) ? (
-                                        <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
-                                    ) : null}
-                                </div>
-                                <div className="ss-mobile-sheet-search flex-shrink-0 px-4 py-2.5 flex flex-col gap-2.5 bg-white/70 border-b border-gray-100">
-                                    <VenueSearchInput
-                                        id="mobile-venue-search"
-                                        value={searchQuery}
-                                        onChange={setSearchQuery}
-                                    />
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleFilterToggle(FILTER_COZY)}
-                                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                                cozyFilterActive
-                                                    ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
-                                                    : 'bg-white/90 text-gray-700 border-gray-200/80 hover:bg-gray-50'
-                                            }`}
-                                            aria-pressed={cozyFilterActive}
-                                        >
-                                            <span>🛋️</span>
-                                            <span>Cozy</span>
-                                        </button>
-                                        <button
-                                            onClick={() => handleFilterToggle(FILTER_SUNNY)}
-                                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                                sunnyFilterActive
-                                                    ? 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm'
-                                                    : 'bg-white/90 text-gray-700 border-gray-200/80 hover:bg-gray-50'
-                                            }`}
-                                            aria-pressed={sunnyFilterActive}
-                                        >
-                                            <span>☀️</span>
-                                            <span>Sunny</span>
-                                        </button>
-                                        {(activeFilters.length > 0 || searchQuery.trim()) && (
-                                            <button
-                                                onClick={handleClearFilters}
-                                                className="min-h-[44px] px-3 py-2 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
-                                            >
-                                                Clear
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                {ENABLE_MASCOT_PULL_REFRESH ? (
-                                    <MascotPullRefresh
-                                        ref={pullRefreshRef}
-                                        enabled
-                                        showMascot
-                                        onRefresh={refetch}
-                                        onStatusChange={setRefreshStatus}
-                                        className="ss-mobile-sheet-list"
-                                    >
-                                        <LiveVenueList
-                                            className="ss-mascot-ptr__scroller"
-                                            virtuosoRef={mobileVirtuosoRef}
-                                            onPointerDownCapture={stopSheetPointer}
-                                            safeAreaFooter
-                                            venues={renderedVenues}
-                                            showLoadMore={hasMoreVenues}
-                                            onLoadMore={handleLoadMoreVenues}
-                                            selectedVenue={selectedVenue}
-                                            onVenueSelect={handleVenueSelect}
-                                            weather={weather}
-                                            empty={filteredVenues.length === 0 ? (
-                                                <EmptyVenueState announce onClearFilters={handleClearFilters} />
-                                            ) : null}
-                                        />
-                                    </MascotPullRefresh>
-                                ) : (
-                                    <LiveVenueList
-                                        className="ss-mobile-sheet-list"
-                                        virtuosoRef={mobileVirtuosoRef}
-                                        onPointerDownCapture={stopSheetPointer}
-                                        safeAreaFooter
-                                        venues={renderedVenues}
-                                        showLoadMore={hasMoreVenues}
-                                        onLoadMore={handleLoadMoreVenues}
-                                        selectedVenue={selectedVenue}
-                                        onVenueSelect={handleVenueSelect}
-                                        weather={weather}
-                                        empty={filteredVenues.length === 0 ? (
-                                            <EmptyVenueState announce onClearFilters={handleClearFilters} />
-                                        ) : null}
-                                    />
-                                )}
-                            </div>
-                        </>
-                    ) : null
-                )}
 
                 <ChatWidget
                     isOpen={isChatOpen}

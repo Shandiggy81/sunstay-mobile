@@ -1,5 +1,5 @@
 import React from 'react';
-import { logReactRenderError } from '../utils/iosCrashLog';
+import * as Sentry from '@sentry/react';
 
 // Mapbox tokens are always prefixed 'pk.' — matches the same check already
 // used in VenueMap.jsx, so both components agree on what counts as valid.
@@ -20,7 +20,7 @@ class MapErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('Map Intelligence Error:', error, errorInfo);
-    logReactRenderError(error, 'MapErrorBoundary');
+    Sentry.captureException(error, { tags: { boundary: 'MapErrorBoundary' } });
     
     // Silent retry: only once within the first failure
     if (this.state.retryCount < 1) {
