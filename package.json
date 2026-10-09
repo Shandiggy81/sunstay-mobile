@@ -23,6 +23,7 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
+    "@sentry/react": "^11.0.0",
     "@supabase/supabase-js": "^2.98.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@xweather/mapsgl": "^1.9.4",

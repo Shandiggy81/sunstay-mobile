@@ -11,6 +11,7 @@ import { getSunData } from '../utils/getSunData';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
 import { useOpenUV } from '../hooks/useOpenUV';
+import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
 import { checkIsAccommodation } from '../utils/accommodation';
 import VenueCardWeather from './VenueCardWeather';
@@ -48,7 +49,7 @@ import {
   venueOverlayPresenceKey,
   VENUE_DETAIL_BRANCH,
 } from '../utils/venueDetailTabs';
-import { ENABLE_SHEET_MOTION, sheetSurfaceMode } from '../utils/iosCrashIsolation';
+import { ENABLE_SHEET_MOTION, SUN_FORECAST_ANIMATIONS_ENABLED, sheetSurfaceMode } from '../utils/iosCrashIsolation';
 import { setIsolationContext } from '../utils/iosCrashLog';
 import { formatVenueDetailProbe, readVenueDetailLayoutProbe } from '../utils/venueDetailLayoutProbe';
 
@@ -237,7 +238,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <motion.span className="text-xl" animate={isSunNow ? { scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] } : {}} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}>
+          <motion.span className="text-xl" animate={SUN_FORECAST_ANIMATIONS_ENABLED && isSunNow ? { scale: [1, 1.2, 0.95, 1.15, 1], rotate: [-4, 4, -3, 3, 0] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : undefined}>
             {isSunNow ? '☀️' : '🪟'}
           </motion.span>
           <div className="min-w-0">
@@ -248,7 +249,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
           </div>
         </div>
         {isSunNow && (
-          <motion.span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>Sun now</motion.span>
+          <motion.span className="shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white" animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.05, 1] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.5, repeat: Infinity } : undefined}>Sun now</motion.span>
         )}
       </div>
       <div className="flex items-center justify-between gap-3 text-[13px] text-slate-600">
@@ -257,7 +258,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
       </div>
       {rainSoon && (
         <motion.div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-slate-50 border border-slate-200" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-          <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1.4, repeat: Infinity }}>🌧️</motion.span>
+          <motion.span animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.15, 1] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.4, repeat: Infinity } : undefined}>🌧️</motion.span>
           <span className="font-bold text-[12px] text-slate-700">
             {minutesUntilRain === 0 ? 'Rain falling now — head inside' : `Rain approaching in ${minutesUntilRain} mins — grab a spot now`}
           </span>
@@ -728,7 +729,7 @@ function VenueCardFooterActions({ venue, canNavigate }) {
 }
 
 // ── Main VenueCard ────────────────────────────────────────────
-function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures }) {
+function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture }) {
   const [activeTab, setActiveTab] = useState('Overview');
   const [localSunData, setLocalSunData] = useState(null);
   const [sunWindow, setSunWindow] = useState(null);
@@ -740,6 +741,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const tabpanelRef = useRef(null);
   const detailBranch = resolveVenueDetailBranch(activeTab);
   const forecastEnabled = forecastOpen || activeTab === 'Sun Forecast';
+  const isReadyToFetch = useDeferredForecastReady(forecastEnabled, venue?.id ?? '');
+  const auxForecastEnabled = forecastEnabled && isReadyToFetch;
 
   React.useEffect(() => {
     setImageError(false);
@@ -920,7 +923,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   const precipProb = weather?.rawWeather?.precipProb ?? venue?.weatherNow?.precipProb ?? 0;
   const feelsLike  = weather?.rawWeather?.feelsLike ?? temp;
   const { weatherCode } = weather || {};
-  const { aqLabel } = useOpenAQ(lat, lng, { enabled: forecastEnabled });
+  const { aqLabel } = useOpenAQ(lat, lng, { enabled: auxForecastEnabled });
   const windSpeedDisplay = windView.speedLabel ?? '–';
   const windbreak = Number(shielding?.windbreak);
   const windShelter = typeof venue?.windShelter === 'string'
@@ -967,7 +970,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     [hasValidCoordinates, lat, lng, outdoorAspect, outdoorMinAltitude],
   );
   const heatingLabel = venue?.hasHeating || venue?.heating ? 'Heated Lamps' : 'Natural Breeze';
-  useOpenUV(lat, lng, { enabled: forecastEnabled });
+  useOpenUV(lat, lng, { enabled: auxForecastEnabled });
   const cloudcover = weather?.cloudCover
     ?? (Array.isArray(hourlyData?.cloud_cover) ? hourlyData.cloud_cover : null)
     ?? (Array.isArray(hourlyData?.cloudcover) ? hourlyData.cloudcover : null);
@@ -985,7 +988,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
   // All four values — isRainStartingSoon + minutesUntilRain feed BalconySunshineBlock
   // and VenueCardActions; rainArrivalMins + rainArrivalLabel feed the nowcast banner
-  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: forecastEnabled });
+  const { isRainStartingSoon, minutesUntilRain, rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: auxForecastEnabled });
 
   const sunData = useMemo(() => (lat && lng) ? getSunData(lat, lng) : null, [lat, lng]);
   const outdoorSun = useMemo(() => isHotelOrStay ? calcOutdoorSun(venue, hourlyData) : { balcony: 0, pool: 0 }, [venue, hourlyData, isHotelOrStay]);
@@ -1178,7 +1181,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
         dragListener: false,
         dragConstraints: { top: 0, bottom: 0 },
         dragElastic: 0.15,
-        onDragEnd: (_, i) => { if (i.offset.y > 100 || i.velocity.y > 400) onClose(); },
+        onDragStart: () => onSheetGesture?.(true),
+        onDragEnd: (_, i) => {
+          onSheetGesture?.(false);
+          if (i.offset.y > 100 || i.velocity.y > 400) onClose();
+        },
         initial: { y: '100%' },
         animate: { y: 0 },
         exit: { y: '100%' },
@@ -1191,7 +1198,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
       <OverlayEl
         key={venueOverlayPresenceKey(venue?.id)}
         {...overlayMotionProps}
-        className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/40 backdrop-blur-md"
+        className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/55"
         onClick={onClose}
         data-sheet-motion={ENABLE_SHEET_MOTION ? 'on' : 'off'}
       >
@@ -1205,14 +1212,17 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
             boxShadow: '0 -8px 60px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,1)',
             border: '1px solid #f1f5f9', /* slate-100 */
           }}
-          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] border-t border-white/60 bg-white/90 backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] border-t border-white/60 bg-white/97 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
           onPointerEnter={enableTilt ? handlePointerEnter : undefined}
           onPointerMove={enableTilt ? handlePointerMove : undefined}
           onPointerLeave={enableTilt ? handlePointerLeave : undefined}
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: '28px 28px 0 0', zIndex: 0 }}>
-            <motion.div animate={{ scale: [1, 1.18, 1], x: [0, 40, 0], y: [0, -30, 0] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }} style={{ position: 'absolute', top: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${blobA} 0%, transparent 65%)`, filter: 'blur(48px)' }} />
-            <motion.div animate={{ scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 }} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
+            {/* Static glows. A wide radial gradient gives the same soft edge as
+                the old filter: blur() without the extra GPU surface over the
+                live map, and they no longer animate. */}
+            <div style={{ position: 'absolute', top: -128, right: -128, width: 416, height: 416, background: `radial-gradient(circle closest-side, ${blobA} 0%, transparent 100%)` }} />
+            <div style={{ position: 'absolute', bottom: 'calc(15% - 56px)', left: -116, width: 392, height: 392, background: `radial-gradient(circle closest-side, ${blobB} 0%, transparent 100%)` }} />
           </div>
 
           <div className="relative z-20 isolate shrink-0 overflow-hidden border-b border-slate-900/[0.06] bg-white px-4 [transform-style:flat]">
@@ -1267,8 +1277,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     <div
                       className="absolute w-52 h-52 rounded-full pointer-events-none"
                       style={{
-                        background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(148,163,184,0.12) 50%, transparent 70%)',
-                        filter: 'blur(30px)',
+                        background: 'radial-gradient(circle closest-side, rgba(245,158,11,0.22) 0%, rgba(148,163,184,0.12) 55%, transparent 100%)',
                       }}
                     />
                     <div className="relative z-10 w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg mb-2">
@@ -1539,8 +1548,8 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       </div>
                       <motion.span
                         className="flex-shrink-0 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-white shadow-sm"
-                        animate={{ opacity: [1, 0.4, 1] }}
-                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                        animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { opacity: [1, 0.4, 1] } : {}}
+                        transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } : undefined}
                       >
                         {rainArrivalMins === 0 ? 'Active' : 'Imminent'}
                       </motion.span>
@@ -1738,7 +1747,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           </div>
 
             {/* Sticky Bottom CTA — in-flow so it cannot bleed into the TopBar */}
-            <div className="relative z-20 shrink-0 border-t border-slate-900/[0.08] bg-white/85 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl backdrop-saturate-150">
+            <div className="relative z-20 shrink-0 border-t border-slate-900/[0.08] bg-white/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <VenueCardFooterActions venue={safeVenue} canNavigate={hasValidCoordinates} />
             </div>
         </ArticleEl>

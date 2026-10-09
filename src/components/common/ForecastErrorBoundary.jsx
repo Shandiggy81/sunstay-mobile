@@ -1,6 +1,7 @@
 import React from 'react';
 import { CloudOff } from 'lucide-react';
 import { logReactRenderError } from '../../utils/iosCrashLog';
+import { noteSunForecast } from '../../utils/sunForecastDiagnostics';
 
 /**
  * Confines a render failure to one panel.
@@ -25,6 +26,10 @@ class ForecastErrorBoundary extends React.Component {
     componentDidCatch(error, info) {
         console.error('Forecast panel failed to render:', error, info);
         logReactRenderError(error, 'ForecastErrorBoundary');
+        noteSunForecast(new Set(), 'sun-forecast-error-boundary', {
+            reason: error?.message || 'render-error',
+            state: 'error',
+        });
     }
 
     render() {

@@ -56,6 +56,17 @@ describe('syncExistingClusterMarker', () => {
         assert.deepEqual(marker.calls, [['setLngLat', [145.0, -37.82]]]);
         assert.equal(existing.count, 4);
     });
+
+    it('does not move a cluster marker whose centroid is unchanged', () => {
+        const marker = fakeMarker([145.0, -37.82]);
+        const existing = { marker, el: {}, count: 4, lng: 145.0, lat: -37.82 };
+        syncExistingClusterMarker(existing, [145.0, -37.82], 4, {
+            updateCount() {
+                assert.fail('count should not be rewritten when it is unchanged');
+            },
+        });
+        assert.deepEqual(marker.calls, []);
+    });
 });
 
 describe('removeStaleMarkers', () => {

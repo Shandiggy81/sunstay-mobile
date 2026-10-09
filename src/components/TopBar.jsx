@@ -58,8 +58,8 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
 
                 {/* Centre weather display */}
                 <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Melbourne</span>
-                    <span className="min-h-[34px] text-[32px] font-bold leading-none tracking-[-0.03em] tabular-nums text-slate-900">
+                    <span className="max-w-full truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Melbourne</span>
+                    <span className="min-h-[34px] min-w-[5ch] text-[32px] font-bold leading-none tracking-[-0.03em] tabular-nums text-slate-900">
                         {weather ? `${temp}°C` : '\u00a0'}
                     </span>
                     <div className="flex min-h-[42px] flex-col items-center gap-1.5">

@@ -18,6 +18,11 @@ import { useVenues } from './hooks/useVenues';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
 import { sliceVenuesForRender } from './utils/venueRenderLimit';
+import {
+    INITIAL_VISIBLE_VENUES,
+    VENUES_PER_LOAD,
+    venueResultIdentity,
+} from './utils/progressiveVenueList';
 import { ENABLE_MANUAL_VENUE_REFRESH } from './utils/manualVenueRefresh';
 import MascotPullRefresh from './components/MascotPullRefresh';
 import VenueRefreshButton from './components/VenueRefreshButton';
@@ -31,11 +36,29 @@ import {
     SHEET_BACKDROP_MODE,
     SHEET_WILL_CHANGE_MODE,
     VENUE_RENDER_LIMIT,
+    VENUE_RENDER_MODE,
+    MAP_LIFECYCLE,
+    STATIC_OFFLOAD,
     crashTestId,
     renderMatrixTestId,
 } from './utils/iosCrashIsolation';
 import {
+    createStaticOffloadState,
+    getMapLifecycleSnapshot,
+    peekRememberedCamera,
+    publishStaticOffload,
+    reduceStaticOffload,
+    MAP_OFFLOAD_PLACEHOLDER_COPY,
+    shouldMountMap,
+    staticOffloadHidesMap,
+    staticOffloadShowsPlaceholder,
+} from './utils/mapLifecycle';
+import { noteSheetClose } from './utils/mapMarkerLifecycle';
+import { traceMapOperation } from './utils/mapOperationTrace';
+import {
+    ISOLATION_EVENT_KINDS,
     attachPageLifecycleProbes,
+    logIsolationEvent,
     setIsolationContext,
 } from './utils/iosCrashLog';
 import IsolationDevLog from './components/IsolationDevLog';
@@ -272,6 +295,24 @@ const SafeAreaListFooter = () => (
     <div aria-hidden="true" style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
 );
 
+const VenueListFooter = ({ context }) => (
+    <>
+        {context?.showLoadMore ? (
+            <div className="ss-load-more-venues-wrap">
+                <button
+                    type="button"
+                    className="ss-load-more-venues"
+                    onClick={context.onLoadMore}
+                    aria-label="Load more venues"
+                >
+                    Load more venues
+                </button>
+            </div>
+        ) : null}
+        {context?.safeAreaFooter ? <SafeAreaListFooter /> : null}
+    </>
+);
+
 const LiveVenueList = memo(function LiveVenueList({
     venues,
     selectedVenue,
@@ -282,12 +323,15 @@ const LiveVenueList = memo(function LiveVenueList({
     virtuosoRef,
     onPointerDownCapture,
     safeAreaFooter = false,
+    showLoadMore = false,
+    onLoadMore,
 }) {
     if (venues.length === 0) {
         return (
             <div
                 className={className}
                 onPointerDownCapture={onPointerDownCapture}
+                data-visible-venues={0}
                 style={{ overscrollBehaviorY: 'contain' }}
             >
                 {empty}
@@ -296,18 +340,20 @@ const LiveVenueList = memo(function LiveVenueList({
     }
 
     return (
-        <div
-            className={className}
-            onPointerDownCapture={onPointerDownCapture}
-            style={{ overscrollBehaviorY: 'contain' }}
-        >
+            <div
+                className={className}
+                onPointerDownCapture={onPointerDownCapture}
+                data-visible-venues={venues.length}
+                style={{ overscrollBehaviorY: 'contain' }}
+            >
             <Virtuoso
                 ref={virtuosoRef}
                 data={venues}
                 computeItemKey={(_index, venue) => venue.id}
+                context={{ showLoadMore, onLoadMore, safeAreaFooter }}
                 style={{ flex: 1, minHeight: 0, height: '100%', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}
                 className="overscroll-contain"
-                components={safeAreaFooter ? { Footer: SafeAreaListFooter } : {}}
+                components={(showLoadMore || safeAreaFooter) ? { Footer: VenueListFooter } : {}}
                 itemContent={(_index, venue) => (
                     <div className="pb-2">
                         <VenueListCard
@@ -464,7 +510,17 @@ const AppContent = () => {
 
     const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
     const [mobileSheetState, setMobileSheetState]   = useState('peek');
+    const sheetStateTraceRef = useRef(mobileSheetState);
+    useEffect(() => {
+        if (sheetStateTraceRef.current === mobileSheetState) return;
+        sheetStateTraceRef.current = mobileSheetState;
+        traceMapOperation('sheet-state-change', { detail: mobileSheetState, at: Date.now() });
+    }, [mobileSheetState]);
     const [sheetDragging, setSheetDragging]         = useState(false);
+    const [venueSheetDragging, setVenueSheetDragging] = useState(false);
+    const [offloadPhase, setOffloadPhase]         = useState('live');
+    const offloadGateRef = useRef(createStaticOffloadState());
+    const offloadSampleRef = useRef({ expanded: false, dragging: false });
     const [mobileFilterOpen, setMobileFilterOpen]   = useState(false);
     const [searchQuery, setSearchQuery]             = useState('');
     // Immediate input; filter/score/GeoJSON/fitBounds wait until typing settles.
@@ -565,10 +621,22 @@ const AppContent = () => {
         () => sortVenuesBySunstayScore(filteredVenues, calculateSunstayScore),
         [filteredVenues, calculateSunstayScore, previewMinutes]
     );
-    const renderedVenues = useMemo(
-        () => sliceVenuesForRender(sortedVenues, VENUE_RENDER_LIMIT),
-        [sortedVenues]
-    );
+    const resultIdentity = useMemo(() => venueResultIdentity(sortedVenues), [sortedVenues]);
+    const [visibleVenueCount, setVisibleVenueCount] = useState(INITIAL_VISIBLE_VENUES);
+    const [windowIdentity, setWindowIdentity] = useState(resultIdentity);
+    if (windowIdentity !== resultIdentity) {
+        setWindowIdentity(resultIdentity);
+        setVisibleVenueCount(INITIAL_VISIBLE_VENUES);
+    }
+    const renderedVenues = useMemo(() => {
+        if (VENUE_RENDER_MODE === 'diagnostic-all') return sortedVenues;
+        if (VENUE_RENDER_MODE === 'diagnostic-cap') return sliceVenuesForRender(sortedVenues, VENUE_RENDER_LIMIT);
+        return sortedVenues.slice(0, visibleVenueCount);
+    }, [sortedVenues, visibleVenueCount]);
+    const hasMoreVenues = VENUE_RENDER_MODE === 'progressive' && visibleVenueCount < sortedVenues.length;
+    const handleLoadMoreVenues = useCallback(() => {
+        setVisibleVenueCount((count) => count + VENUES_PER_LOAD);
+    }, []);
 
     const filteredVenueIds = useMemo(
         () => filteredVenues.map(venue => venue.id),
@@ -623,17 +691,21 @@ const AppContent = () => {
             venue: venue.name || venue.title || String(venue.id ?? ''),
             tab: 'Overview',
         });
-        const lng = Number(venue.lng);
-        const lat = Number(venue.lat);
-        if (mapRef.current?.resizeAndFly && Number.isFinite(lng) && Number.isFinite(lat)) {
-            mapRef.current.resizeAndFly([lng, lat]);
-        }
+        traceMapOperation('venue-open', { venueId: venue.id ?? '', at: Date.now() });
     }, []);
 
     const handleCloseCard  = useCallback(() => {
         pullRefreshRef.current?.reset?.();
         setSelectedVenue(null);
         setIsolationContext({ venue: '', tab: '' });
+        setVenueSheetDragging(false);
+        noteSheetClose();
+        traceMapOperation('venue-close', { at: Date.now() });
+        logIsolationEvent({
+            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+            message: 'venue-close',
+            source: 'App',
+        });
     }, []);
     const toggleChat       = useCallback(() => setIsChatOpen(p => !p), []);
     const closeChat        = useCallback(() => setIsChatOpen(false), []);
@@ -741,14 +813,16 @@ const AppContent = () => {
         return () => clearTimeout(t);
     }, [locateHint]);
 
+    const renderedVenuesRef = useRef(renderedVenues);
+    renderedVenuesRef.current = renderedVenues;
     useEffect(() => {
         if (!selectedVenue) return undefined;
-        const index = renderedVenues.findIndex((v) => v.id === selectedVenue.id);
+        const index = renderedVenuesRef.current.findIndex((v) => v.id === selectedVenue.id);
         if (index < 0) return undefined;
         sidebarVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         mobileVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         return undefined;
-    }, [selectedVenue, renderedVenues]);
+    }, [selectedVenue]);
 
     const selectedLiveFeatureState = selectedVenue?.id ? liveVenueFeatures?.[selectedVenue.id] : null;
     const selectedVenueLiveFeatures = useMemo(() => {
@@ -771,6 +845,119 @@ const AppContent = () => {
         backdrop: SHEET_BACKDROP_MODE,
     });
     const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
+    const staticOffloadActive = STATIC_OFFLOAD === true;
+    const sheetCoversMap = sheetExpanded || selectedVenue != null;
+    const offloadDragging = sheetDragging || venueSheetDragging;
+    offloadSampleRef.current = { expanded: sheetCoversMap, dragging: offloadDragging };
+    const applyOffload = useCallback((result) => {
+        offloadGateRef.current = result.state;
+        publishStaticOffload(result.state);
+        for (const name of result.traces) {
+            traceMapOperation(name, { detail: result.state.phase, at: Date.now() });
+            logIsolationEvent({
+                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+                message: name,
+                source: 'App',
+            });
+        }
+        setOffloadPhase((prev) => (prev === result.state.phase ? prev : result.state.phase));
+    }, []);
+    const mapMounted = shouldMountMap({
+        mapboxEnabled: ENABLE_MAPBOX,
+        lifecycle: MAP_LIFECYCLE,
+        sheetExpanded,
+        diagnostic: STATIC_OFFLOAD,
+        offloadCommitted: staticOffloadActive && staticOffloadHidesMap(offloadPhase),
+    });
+    const staticPlaceholder = staticOffloadActive && staticOffloadShowsPlaceholder(offloadPhase);
+    useEffect(() => {
+        if (!selectedVenue) setVenueSheetDragging(false);
+    }, [selectedVenue]);
+    useEffect(() => {
+        if (!staticOffloadActive) return undefined;
+        const at = Date.now();
+        const result = reduceStaticOffload(offloadGateRef.current, {
+            type: 'sample',
+            at,
+            expanded: sheetCoversMap,
+            dragging: offloadDragging,
+            lifecycle: MAP_LIFECYCLE,
+            diagnostic: STATIC_OFFLOAD,
+            mapboxEnabled: ENABLE_MAPBOX,
+        });
+        applyOffload(result);
+        if (result.armMs == null) return undefined;
+        const timer = setTimeout(() => {
+            const sample = offloadSampleRef.current;
+            const snapshot = getMapLifecycleSnapshot();
+            const settled = reduceStaticOffload(offloadGateRef.current, {
+                type: 'settle',
+                at: Date.now(),
+                expanded: sample.expanded,
+                dragging: sample.dragging,
+                liveInstances: snapshot.liveInstances,
+                camera: peekRememberedCamera(),
+                lifecycle: MAP_LIFECYCLE,
+                diagnostic: STATIC_OFFLOAD,
+                mapboxEnabled: ENABLE_MAPBOX,
+            });
+            applyOffload(settled);
+        }, result.armMs);
+        return () => clearTimeout(timer);
+    }, [staticOffloadActive, sheetCoversMap, offloadDragging, applyOffload]);
+    useEffect(() => {
+        if (!staticOffloadActive) return undefined;
+        const phase = offloadGateRef.current.phase;
+        if (phase !== 'offloaded' && phase !== 'restore-arming') return undefined;
+        const snapshot = getMapLifecycleSnapshot();
+        if (snapshot.liveInstances !== 0) return undefined;
+        const result = reduceStaticOffload(offloadGateRef.current, {
+            type: 'removed',
+            camera: peekRememberedCamera(),
+            lifecycle: MAP_LIFECYCLE,
+            diagnostic: STATIC_OFFLOAD,
+            mapboxEnabled: ENABLE_MAPBOX,
+        });
+        applyOffload(result);
+        return undefined;
+    }, [staticOffloadActive, offloadPhase, applyOffload]);
+    const handleGenerationReady = useCallback((generation) => {
+        if (!staticOffloadActive) return;
+        const result = reduceStaticOffload(offloadGateRef.current, {
+            type: 'markers-ready',
+            generation,
+            mapReady: true,
+            lifecycle: MAP_LIFECYCLE,
+            diagnostic: STATIC_OFFLOAD,
+            mapboxEnabled: ENABLE_MAPBOX,
+        });
+        applyOffload(result);
+    }, [staticOffloadActive, applyOffload]);
+    const handleRestoreFailed = useCallback(() => {
+        if (offloadGateRef.current.phase !== 'restoring') return;
+        const snapshot = getMapLifecycleSnapshot();
+        const result = reduceStaticOffload(offloadGateRef.current, {
+            type: 'restore-failed',
+            liveInstances: snapshot.liveInstances,
+            lifecycle: MAP_LIFECYCLE,
+            diagnostic: STATIC_OFFLOAD,
+            mapboxEnabled: ENABLE_MAPBOX,
+        });
+        applyOffload(result);
+    }, [applyOffload]);
+    const mapLifecycleMountedRef = useRef(null);
+    useEffect(() => {
+        if (MAP_LIFECYCLE !== 'unmount-expanded') return undefined;
+        const previous = mapLifecycleMountedRef.current;
+        mapLifecycleMountedRef.current = mapMounted;
+        if (previous === null || previous === mapMounted) return undefined;
+        logIsolationEvent({
+            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
+            message: mapMounted ? 'stable-visible-remount' : 'stable-expanded-unmount',
+            source: 'App',
+        });
+        return undefined;
+    }, [mapMounted]);
     const sheetClassName = `ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''} ${sheetDrag.className}`.trim();
     useEffect(() => {
         if (!sheetExpanded) setSheetDragging(false);
@@ -839,11 +1026,16 @@ const AppContent = () => {
                 data-pull-refresh={ENABLE_MASCOT_PULL_REFRESH ? 'on' : 'off'}
                 data-debug-mascot={DEBUG_MASCOT_RENDER ? 'on' : 'off'}
                 data-matrix-hud={MATRIX_HUD ? 'on' : 'off'}
-                data-venue-limit={VENUE_RENDER_LIMIT ?? 'all'}
+                data-venue-limit={VENUE_RENDER_MODE === 'progressive' ? 'progressive' : (VENUE_RENDER_LIMIT ?? 'all')}
+                data-venue-window={VENUE_RENDER_MODE}
                 data-rendered-venues={renderedVenues.length}
                 data-matching-venues={matchingCount}
+                data-load-more={hasMoreVenues ? '1' : '0'}
                 data-sheet-will-change={SHEET_WILL_CHANGE_MODE}
                 data-sheet-backdrop={SHEET_BACKDROP_MODE}
+                data-map-lifecycle={MAP_LIFECYCLE}
+                data-map-mounted={mapMounted ? '1' : '0'}
+                data-map-offload={offloadPhase}
             >
                 {DEBUG_MASCOT_RENDER ? <DebugStaticSunny /> : null}
                 <IsolationDevLog />
@@ -922,6 +1114,8 @@ const AppContent = () => {
                                         className="ss-mascot-ptr__scroller"
                                         virtuosoRef={sidebarVirtuosoRef}
                                         venues={renderedVenues}
+                                        showLoadMore={hasMoreVenues}
+                                        onLoadMore={handleLoadMoreVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}
@@ -935,6 +1129,8 @@ const AppContent = () => {
                                     className="ss-venue-list"
                                     virtuosoRef={sidebarVirtuosoRef}
                                     venues={renderedVenues}
+                                        showLoadMore={hasMoreVenues}
+                                        onLoadMore={handleLoadMoreVenues}
                                     selectedVenue={selectedVenue}
                                     onVenueSelect={handleVenueSelect}
                                     weather={weather}
@@ -948,24 +1144,39 @@ const AppContent = () => {
 
                     {/* RIGHT: Map */}
                     <section className={`ss-map-area relative flex min-h-0 flex-1 flex-col ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-                        <div className="ss-map-container min-h-0 flex-1">
+                        <div className="ss-map-container relative min-h-0 flex-1">
                             {ENABLE_MAPBOX ? (
-                                <MapErrorBoundary>
-                                    <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
-                                        <VenueMap
-                                            ref={mapRef}
-                                            venues={venues}
-                                            onVenueSelect={handleVenueSelect}
-                                            selectedVenue={selectedVenue}
-                                            filteredVenueIds={stableFilteredIds}
-                                            liveVenueFeatures={liveVenueFeatures}
-                                            weatherColorFn={getMarkerWeatherColor}
-                                            cozyWeatherActive={cozyWeatherActive}
-                                            cozyFilterActive={cozyFilterActive}
-                                            isExpanded={mobileMapExpanded}
-                                        />
-                                    </Suspense>
-                                </MapErrorBoundary>
+                                mapMounted ? (
+                                    <MapErrorBoundary>
+                                        <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
+                                            <VenueMap
+                                                ref={mapRef}
+                                                venues={venues}
+                                                onVenueSelect={handleVenueSelect}
+                                                selectedVenue={selectedVenue}
+                                                filteredVenueIds={stableFilteredIds}
+                                                liveVenueFeatures={liveVenueFeatures}
+                                                weatherColorFn={getMarkerWeatherColor}
+                                                cozyWeatherActive={cozyWeatherActive}
+                                                cozyFilterActive={cozyFilterActive}
+                                                isExpanded={mobileMapExpanded}
+                                                onGenerationReady={handleGenerationReady}
+                                                onRestoreFailed={handleRestoreFailed}
+                                            />
+                                        </Suspense>
+                                    </MapErrorBoundary>
+                                ) : (
+                                    <div
+                                        data-testid={staticOffloadActive ? 'map-lifecycle-static' : 'map-lifecycle-unmounted'}
+                                        data-map-lifecycle={staticOffloadActive ? 'static-offload' : 'unmounted'}
+                                        className="flex h-full w-full items-center justify-center bg-slate-900 text-center text-white"
+                                        aria-hidden="true"
+                                    >
+                                        {staticOffloadActive ? (
+                                            <p className="text-sm font-bold">{MAP_OFFLOAD_PLACEHOLDER_COPY}</p>
+                                        ) : null}
+                                    </div>
+                                )
                             ) : (
                                 <div
                                     data-testid="mapbox-isolation-fallback"
@@ -976,6 +1187,16 @@ const AppContent = () => {
                                     <p className="text-xs text-white/70">ENABLE_MAPBOX is off</p>
                                 </div>
                             )}
+                            {staticPlaceholder && mapMounted ? (
+                                <div
+                                    data-testid="map-lifecycle-static"
+                                    data-map-lifecycle="static-restoring"
+                                    className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900 text-center text-white"
+                                    aria-hidden="true"
+                                >
+                                    <p className="text-sm font-bold">Restoring map</p>
+                                </div>
+                            ) : null}
                         </div>
 
                         {/* Zero-Results Filter Overlay — desktop only: on mobile the
@@ -1060,6 +1281,7 @@ const AppContent = () => {
                             cozyWeatherActive={cozyWeatherActive}
                             setShowOwnerDashboard={setShowOwnerDashboard}
                             setSelectedVenue={setSelectedVenue}
+                            onSheetGesture={setVenueSheetDragging}
                         />
                     )}
 
@@ -1202,6 +1424,8 @@ const AppContent = () => {
                                             onPointerDownCapture={stopSheetPointer}
                                             safeAreaFooter
                                             venues={renderedVenues}
+                                            showLoadMore={hasMoreVenues}
+                                            onLoadMore={handleLoadMoreVenues}
                                             selectedVenue={selectedVenue}
                                             onVenueSelect={handleVenueSelect}
                                             weather={weather}
@@ -1217,6 +1441,8 @@ const AppContent = () => {
                                         onPointerDownCapture={stopSheetPointer}
                                         safeAreaFooter
                                         venues={renderedVenues}
+                                        showLoadMore={hasMoreVenues}
+                                        onLoadMore={handleLoadMoreVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}
@@ -1316,6 +1542,8 @@ const AppContent = () => {
                                             onPointerDownCapture={stopSheetPointer}
                                             safeAreaFooter
                                             venues={renderedVenues}
+                                            showLoadMore={hasMoreVenues}
+                                            onLoadMore={handleLoadMoreVenues}
                                             selectedVenue={selectedVenue}
                                             onVenueSelect={handleVenueSelect}
                                             weather={weather}
@@ -1331,6 +1559,8 @@ const AppContent = () => {
                                         onPointerDownCapture={stopSheetPointer}
                                         safeAreaFooter
                                         venues={renderedVenues}
+                                        showLoadMore={hasMoreVenues}
+                                        onLoadMore={handleLoadMoreVenues}
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}

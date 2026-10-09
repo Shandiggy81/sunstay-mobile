@@ -5,6 +5,7 @@ import {
     ENABLE_MASCOT_PULL_REFRESH,
     ENABLE_MAPBOX,
     ENABLE_SHEET_MOTION,
+    MAP_LIFECYCLE,
     crashTestId,
     mapSurfaceMode,
     renderMatrixTestId,
@@ -72,6 +73,54 @@ describe('card-count isolation overrides', () => {
         assert.equal(defaults.sheetWillChange, 'while-dragging');
         assert.equal(defaults.sheetBackdrop, 'none-while-dragging');
         assert.equal(defaults.renderMatrix, 'default');
+        assert.equal(defaults.venueRenderMode, 'progressive');
+        assert.equal(defaults.mapLifecycle, 'keep');
+        assert.equal(defaults.staticOffload, false);
+        assert.equal(defaults.iosSafari, false);
+        assert.equal(MAP_LIFECYCLE, 'keep');
+        const iphoneSafari = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+        const ipadSafari = 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+        const ipadosDesktop = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
+        const androidChrome = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+        const iosChrome = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.119 Mobile/15E148 Safari/604.1';
+        const desktopChrome = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+        const iosDefault = resolveIosIsolation({ userAgent: iphoneSafari });
+        assert.equal(iosDefault.mapLifecycle, 'keep');
+        assert.equal(iosDefault.iosSafari, true);
+        assert.equal(iosDefault.matrixHud, false);
+        assert.equal(iosDefault.staticOffload, false);
+        assert.equal(resolveIosIsolation({ userAgent: ipadSafari }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ userAgent: ipadSafari }).staticOffload, false);
+        assert.equal(resolveIosIsolation({
+            userAgent: iphoneSafari,
+            search: '?mapLifecycle=static-when-expanded',
+        }).staticOffload, false);
+        assert.equal(resolveIosIsolation({
+            userAgent: iphoneSafari,
+            search: '?matrixHud=1&mapLifecycle=static-when-expanded',
+        }).staticOffload, true);
+        assert.equal(resolveIosIsolation({ userAgent: iphoneSafari, search: '?mapLifecycle=keep' }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ userAgent: iphoneSafari, search: '?mapLifecycle=keep' }).staticOffload, false);
+        assert.equal(resolveIosIsolation({ userAgent: androidChrome }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ userAgent: androidChrome }).staticOffload, false);
+        assert.equal(resolveIosIsolation({ userAgent: iosChrome }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ userAgent: ipadosDesktop }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ userAgent: desktopChrome }).mapLifecycle, 'keep');
+        const desktopOptIn = resolveIosIsolation({
+            userAgent: desktopChrome,
+            search: '?mapLifecycle=static-when-expanded',
+        });
+        assert.equal(desktopOptIn.mapLifecycle, 'static-when-expanded');
+        assert.equal(desktopOptIn.staticOffload, false);
+        assert.equal(resolveIosIsolation({
+            userAgent: desktopChrome,
+            search: '?matrixHud=1&mapLifecycle=static-when-expanded',
+        }).staticOffload, true);
+        assert.equal(resolveIosIsolation({ search: '?mapLifecycle=unmount-expanded' }).mapLifecycle, 'unmount-expanded');
+        assert.equal(resolveIosIsolation({ search: '?mapLifecycle=static-when-expanded' }).mapLifecycle, 'static-when-expanded');
+        assert.equal(resolveIosIsolation({ search: '?mapLifecycle=keep' }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ search: '?mapLifecycle=nope' }).mapLifecycle, 'keep');
+        assert.equal(resolveIosIsolation({ search: '?mapLifecycle=static-when-expanded' }).matrixHud, false);
     });
 
     it('lets the query string override storage for the A–E card matrix', () => {
@@ -103,5 +152,15 @@ describe('card-count isolation overrides', () => {
         assert.equal(flags.venueRenderLimit, 30);
         assert.equal(flags.sheetBackdrop, 'always');
         assert.equal(flags.renderMatrix, 'custom');
+        assert.equal(flags.venueRenderMode, 'diagnostic-cap');
+    });
+
+    it('keeps venueLimit=all as a diagnostic show-all, separate from progressive', () => {
+        const showAll = resolveIosIsolation({ search: '?venueLimit=all' });
+        assert.equal(showAll.venueRenderLimit, null);
+        assert.equal(showAll.venueRenderMode, 'diagnostic-all');
+        assert.equal(showAll.renderMatrix, 'default');
+        assert.equal(resolveIosIsolation({ search: '?venueLimit=45' }).venueRenderLimit, 45);
+        assert.equal(resolveIosIsolation({ search: '?venueLimit=45' }).venueRenderMode, 'diagnostic-cap');
     });
 });

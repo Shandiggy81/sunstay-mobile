@@ -3,10 +3,12 @@ import {
     ENABLE_MAPBOX,
     ENABLE_MASCOT_PULL_REFRESH,
     ENABLE_SHEET_MOTION,
+    MAP_LIFECYCLE,
     MATRIX_HUD,
     SHEET_BACKDROP_MODE,
     SHEET_WILL_CHANGE_MODE,
     VENUE_RENDER_LIMIT,
+    VENUE_RENDER_MODE,
     crashTestId,
     mapSurfaceMode,
     renderMatrixTestId,
@@ -18,6 +20,10 @@ import {
     getIsolationEvents,
     subscribeIsolationLog,
 } from '../utils/iosCrashLog';
+import { getMapLifecycleSnapshot, getStaticOffloadSnapshot } from '../utils/mapLifecycle';
+import { getMapSessionDiagnostics, getMarkerSyncStats } from '../utils/mapMarkerLifecycle';
+import { getMapOperationTrace, isMapOperationTraceEnabled } from '../utils/mapOperationTrace';
+import { formatResumeHudLines, getResumeTimingSnapshot } from '../utils/mapResumeTiming';
 
 /**
  * DEV-only HUD. Renders small strings only — never API payloads.
@@ -45,12 +51,16 @@ export default function IsolationDevLog() {
     });
     const lines = formatIsolationHudLines();
     const recent = getIsolationEvents().slice(-8);
+    const mapSession = getMapLifecycleSnapshot();
+    const mapDiag = getMapSessionDiagnostics();
+    const operationTrace = getMapOperationTrace();
+    const operationEvents = operationTrace.events.slice(-16);
 
     return (
         <aside
             data-testid="isolation-dev-log"
             data-crash-test={testId}
-            className="pointer-events-none fixed left-1 top-14 z-[240] max-h-[38vh] max-w-[220px] overflow-auto rounded-lg bg-slate-950/80 px-2 py-1.5 font-mono text-[10px] leading-snug text-amber-100 shadow-lg"
+            className="pointer-events-auto fixed left-1 top-14 z-[240] max-h-[calc(100dvh-4.5rem)] max-w-[220px] touch-pan-y overflow-x-auto overflow-y-auto overscroll-y-contain rounded-lg bg-slate-950/80 px-2 py-1.5 font-mono text-[10px] leading-snug text-amber-100 shadow-lg"
             aria-hidden="true"
         >
             <p>test {testId}</p>
@@ -58,9 +68,37 @@ export default function IsolationDevLog() {
             <p>flag-map:{mapSurfaceMode()}</p>
             <p>flag-motion:{sheetSurfaceMode()}</p>
             <p>flag-pull:{venueListMode()}</p>
-            <p>flag-limit:{VENUE_RENDER_LIMIT ?? 'all'}</p>
+            <p>flag-limit:{VENUE_RENDER_MODE === 'progressive' ? 'progressive' : (VENUE_RENDER_LIMIT ?? 'all')}</p>
             <p>flag-will:{SHEET_WILL_CHANGE_MODE}</p>
             <p>flag-blur:{SHEET_BACKDROP_MODE}</p>
+            <p>flag-life:{MAP_LIFECYCLE}</p>
+            <p>offload:{getStaticOffloadSnapshot().phase}</p>
+            <p>sheet-close:{mapDiag.sheetCloses}</p>
+            <p>map-generation:{mapDiag.generation}</p>
+            <p>map-context-losses:{mapDiag.contextLosses}</p>
+            <p>resume-attempts:{mapDiag.resumeAttempts}</p>
+            <p>last-map-transition:{mapDiag.lastTransition || '—'}</p>
+            <p>last-marker-generation:{mapDiag.lastMarkerGeneration || '—'}</p>
+            <p>last-invalid-coordinate:{mapDiag.lastInvalidCoordinate || '—'}</p>
+            <p>op-test:{isMapOperationTraceEnabled() ? 'on' : 'off'}</p>
+            <p>last-op:{operationTrace.last || '—'}</p>
+            <p>pre-loss:{operationTrace.precedingLoss || '—'}</p>
+            {operationEvents.map((event) => (
+                <p key={event.seq} className="whitespace-nowrap">
+                    {event.seq} {event.name}{event.detail ? ` ${event.detail}` : ''} {event.at}
+                </p>
+            ))}
+            <p>map-mounts:{mapSession.mountCount}</p>
+            <p>map-removes:{mapSession.removeCount}</p>
+            <p>map-instances:{mapSession.liveInstances}</p>
+            <p>mk-pass:{getMarkerSyncStats().passes} c:{getMarkerSyncStats().created} r:{getMarkerSyncStats().reused}</p>
+            <p>map-camera:{mapSession.cameraRestore}</p>
+            <p>map-duplicate:{mapSession.duplicateDetected ? '1' : '0'}</p>
+            {mapSession.lastUnmountAt != null ? <p>map-unmount-at:{mapSession.lastUnmountAt}</p> : null}
+            {mapSession.lastRemountDurationMs != null ? <p>map-remount-ms:{mapSession.lastRemountDurationMs}</p> : null}
+            {formatResumeHudLines(getResumeTimingSnapshot()).map((line) => (
+                <p key={line}>{line}</p>
+            ))}
             {lines.map((line) => (
                 <p key={line}>{line}</p>
             ))}
