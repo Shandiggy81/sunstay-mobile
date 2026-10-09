@@ -24,6 +24,10 @@ import { getMapLifecycleSnapshot, getStaticOffloadSnapshot } from '../utils/mapL
 import { getMapSessionDiagnostics, getMarkerSyncStats } from '../utils/mapMarkerLifecycle';
 import { getMapOperationTrace, isMapOperationTraceEnabled } from '../utils/mapOperationTrace';
 import { formatResumeHudLines, getResumeTimingSnapshot } from '../utils/mapResumeTiming';
+import {
+    getMarkerAlignmentTrace,
+    subscribeMarkerAlignmentTrace,
+} from '../utils/markerAlignmentTrace';
 
 /**
  * DEV-only HUD. Renders small strings only — never API payloads.
@@ -34,7 +38,12 @@ export default function IsolationDevLog() {
 
     useEffect(() => {
         if (!import.meta.env.DEV && !MATRIX_HUD) return undefined;
-        return subscribeIsolationLog(() => setTick((n) => n + 1));
+        const unsubscribeLog = subscribeIsolationLog(() => setTick((n) => n + 1));
+        const unsubscribeAlignment = subscribeMarkerAlignmentTrace(() => setTick((n) => n + 1));
+        return () => {
+            unsubscribeLog();
+            unsubscribeAlignment();
+        };
     }, []);
 
     if (!import.meta.env.DEV && !MATRIX_HUD) return null;
@@ -55,6 +64,7 @@ export default function IsolationDevLog() {
     const mapDiag = getMapSessionDiagnostics();
     const operationTrace = getMapOperationTrace();
     const operationEvents = operationTrace.events.slice(-16);
+    const alignment = getMarkerAlignmentTrace().events.slice(-8);
 
     return (
         <aside
@@ -83,6 +93,16 @@ export default function IsolationDevLog() {
             <p>op-test:{isMapOperationTraceEnabled() ? 'on' : 'off'}</p>
             <p>last-op:{operationTrace.last || '—'}</p>
             <p>pre-loss:{operationTrace.precedingLoss || '—'}</p>
+            {/* Pin drift sits near the top and wraps: the phone panel is 220px wide,
+                so a one-line entry hid dy past the right edge. */}
+            <p>align-drifts:{alignment.length ? alignment.length : 'none'}</p>
+            {alignment.map((event) => (
+                <p key={`align-${event.seq}`} className="whitespace-normal break-all text-amber-300">
+                    {event.seq} {event.trigger} {event.id}
+                    <br />
+                    dx={Math.round(event.dx)} dy={Math.round(event.dy)} z={event.zoom == null ? '-' : event.zoom.toFixed(1)} p={event.pitch == null ? '-' : Math.round(event.pitch)} g={event.generation ?? '-'}
+                </p>
+            ))}
             {operationEvents.map((event) => (
                 <p key={event.seq} className="whitespace-nowrap">
                     {event.seq} {event.name}{event.detail ? ` ${event.detail}` : ''} {event.at}
