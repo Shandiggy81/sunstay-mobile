@@ -30,6 +30,10 @@ import {
     setIsolationContext,
 } from '../../utils/iosCrashLog';
 import { removeStaleMarkers, syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
+import {
+    checkMarkerAlignment,
+    isMarkerAlignmentTraceEnabled,
+} from '../../utils/markerAlignmentTrace';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
@@ -1279,6 +1283,38 @@ const VenueMap = forwardRef(({
             }
         };
     }, [mapLoaded, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, clusterTodMinutes]);
+
+    // Read-only pin drift samples. Listeners attach only while the HUD gate is on.
+    useEffect(() => {
+        if (!isMarkerAlignmentTraceEnabled()) return undefined;
+        const instance = map.current;
+        if (!mapLoaded || !instance) return undefined;
+        const sample = (trigger) => {
+            checkMarkerAlignment(instance, markersRef.current, { trigger });
+        };
+        const onZoomEnd = () => sample('zoomend');
+        const onPitchEnd = () => sample('pitchend');
+        const onRotateEnd = () => sample('rotateend');
+        let resizeFrame = 0;
+        const onResize = () => {
+            if (resizeFrame) cancelAnimationFrame(resizeFrame);
+            resizeFrame = requestAnimationFrame(() => {
+                resizeFrame = 0;
+                sample('map-resize-end');
+            });
+        };
+        instance.on('zoomend', onZoomEnd);
+        instance.on('pitchend', onPitchEnd);
+        instance.on('rotateend', onRotateEnd);
+        instance.on('resize', onResize);
+        return () => {
+            if (resizeFrame) cancelAnimationFrame(resizeFrame);
+            instance.off('zoomend', onZoomEnd);
+            instance.off('pitchend', onPitchEnd);
+            instance.off('rotateend', onRotateEnd);
+            instance.off('resize', onResize);
+        };
+    }, [mapLoaded]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces

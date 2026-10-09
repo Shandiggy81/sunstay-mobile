@@ -18,6 +18,10 @@ import {
     getIsolationEvents,
     subscribeIsolationLog,
 } from '../utils/iosCrashLog';
+import {
+    getMarkerAlignmentTrace,
+    subscribeMarkerAlignmentTrace,
+} from '../utils/markerAlignmentTrace';
 
 /**
  * DEV-only HUD. Renders small strings only — never API payloads.
@@ -28,7 +32,12 @@ export default function IsolationDevLog() {
 
     useEffect(() => {
         if (!import.meta.env.DEV && !MATRIX_HUD) return undefined;
-        return subscribeIsolationLog(() => setTick((n) => n + 1));
+        const unsubscribeLog = subscribeIsolationLog(() => setTick((n) => n + 1));
+        const unsubscribeAlignment = subscribeMarkerAlignmentTrace(() => setTick((n) => n + 1));
+        return () => {
+            unsubscribeLog();
+            unsubscribeAlignment();
+        };
     }, []);
 
     if (!import.meta.env.DEV && !MATRIX_HUD) return null;
@@ -45,6 +54,7 @@ export default function IsolationDevLog() {
     });
     const lines = formatIsolationHudLines();
     const recent = getIsolationEvents().slice(-8);
+    const alignment = getMarkerAlignmentTrace().events.slice(-8);
 
     return (
         <aside
@@ -67,6 +77,11 @@ export default function IsolationDevLog() {
             {recent.map((event, index) => (
                 <p key={`${event.at}-${index}`}>
                     {event.kind}:{event.message}
+                </p>
+            ))}
+            {alignment.map((event) => (
+                <p key={`align-${event.seq}`} className="whitespace-nowrap">
+                    {event.line}
                 </p>
             ))}
         </aside>
