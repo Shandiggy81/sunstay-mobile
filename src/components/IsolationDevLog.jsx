@@ -93,6 +93,16 @@ export default function IsolationDevLog() {
             <p>op-test:{isMapOperationTraceEnabled() ? 'on' : 'off'}</p>
             <p>last-op:{operationTrace.last || '—'}</p>
             <p>pre-loss:{operationTrace.precedingLoss || '—'}</p>
+            {/* Pin drift sits near the top and wraps: the phone panel is 220px wide,
+                so a one-line entry hid dy past the right edge. */}
+            <p>align-drifts:{alignment.length ? alignment.length : 'none'}</p>
+            {alignment.map((event) => (
+                <p key={`align-${event.seq}`} className="whitespace-normal break-all text-amber-300">
+                    {event.seq} {event.trigger} {event.id}
+                    <br />
+                    dx={Math.round(event.dx)} dy={Math.round(event.dy)} z={event.zoom == null ? '-' : event.zoom.toFixed(1)} p={event.pitch == null ? '-' : Math.round(event.pitch)} g={event.generation ?? '-'}
+                </p>
+            ))}
             {operationEvents.map((event) => (
                 <p key={event.seq} className="whitespace-nowrap">
                     {event.seq} {event.name}{event.detail ? ` ${event.detail}` : ''} {event.at}
@@ -115,11 +125,6 @@ export default function IsolationDevLog() {
             {recent.map((event, index) => (
                 <p key={`${event.at}-${index}`}>
                     {event.kind}:{event.message}
-                </p>
-            ))}
-            {alignment.map((event) => (
-                <p key={`align-${event.seq}`} className="whitespace-nowrap">
-                    {event.line}
                 </p>
             ))}
         </aside>
