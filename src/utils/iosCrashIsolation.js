@@ -47,13 +47,11 @@
  * Do not change Mapbox init or unmount while running this matrix.
  *
  * Map lifecycle does not change Mapbox constructor options.
- * Unset is `static-when-expanded` on iOS Safari and `keep` everywhere else.
- * `?mapLifecycle=keep` forces the mounted map on iOS. Unknown values stay
- * `keep`. `unmount-expanded` unmounts Mapbox only while the list sheet is
- * stably fully expanded. Drag frames do not mount or unmount it.
- * On iOS Safari, `static-when-expanded` runs without `matrixHud=1`. On every
- * other platform it still requires the HUD. The debug overlay itself stays
- * behind `matrixHud=1`. It waits 320ms after the covering sheet stays
+ * Unset is `keep` on every platform, iOS Safari included. Unknown values
+ * stay `keep`. `unmount-expanded` unmounts Mapbox only while the list sheet
+ * is stably fully expanded. Drag frames do not mount or unmount it.
+ * `static-when-expanded` is diagnostic-only everywhere and needs
+ * `matrixHud=1`. It waits 320ms after the covering sheet stays
  * expanded, tears the map down once, and restores one generation after the
  * sheet stays closed. Sun Forecast does not offload the map by itself.
  * ?mapLifecycle=keep

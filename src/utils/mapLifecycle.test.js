@@ -150,7 +150,7 @@ describe('map lifecycle mount decision', () => {
         }), true);
     });
 
-    it('defaults to static-when-expanded on iOS Safari and keep everywhere else', () => {
+    it('defaults to keep on every platform, iOS Safari included', () => {
         const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
         const ipad = 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
         const ipod = 'Mozilla/5.0 (iPod touch; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1';
@@ -166,7 +166,9 @@ describe('map lifecycle mount decision', () => {
         assert.equal(isIosSafari(crios), false);
         assert.equal(isIosSafari(desktop), false);
         assert.equal(isIosSafari(''), false);
-        assert.equal(selectMapLifecycle(null, { userAgent: iphone }), MAP_LIFECYCLE_STATIC_WHEN_EXPANDED);
+        assert.equal(selectMapLifecycle(null, { userAgent: iphone }), MAP_LIFECYCLE_KEEP);
+        assert.equal(selectMapLifecycle(null, { userAgent: ipad }), MAP_LIFECYCLE_KEEP);
+        assert.equal(selectMapLifecycle('static-when-expanded', { userAgent: iphone }), MAP_LIFECYCLE_STATIC_WHEN_EXPANDED);
         assert.equal(selectMapLifecycle(undefined, { userAgent: android }), MAP_LIFECYCLE_KEEP);
         assert.equal(selectMapLifecycle(null, { userAgent: desktop }), MAP_LIFECYCLE_KEEP);
         assert.equal(selectMapLifecycle(null, { userAgent: ipadosDesktop }), MAP_LIFECYCLE_KEEP);
@@ -176,6 +178,16 @@ describe('map lifecycle mount decision', () => {
             lifecycle: selectMapLifecycle(null, { userAgent: iphone }),
             iosSafari: true,
             matrixHud: false,
+        }), false);
+        assert.equal(staticOffloadEnabled({
+            lifecycle: 'static-when-expanded',
+            iosSafari: true,
+            matrixHud: false,
+        }), false);
+        assert.equal(staticOffloadEnabled({
+            lifecycle: 'static-when-expanded',
+            iosSafari: true,
+            matrixHud: true,
         }), true);
         assert.equal(staticOffloadEnabled({
             lifecycle: 'keep',
@@ -198,7 +210,7 @@ describe('map lifecycle mount decision', () => {
             diagnostic: staticOffloadEnabled({
                 lifecycle: 'static-when-expanded',
                 iosSafari: true,
-                matrixHud: false,
+                matrixHud: true,
             }),
             offloadCommitted: true,
         }), false);

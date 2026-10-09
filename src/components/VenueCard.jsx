@@ -1218,8 +1218,11 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
           onPointerLeave={enableTilt ? handlePointerLeave : undefined}
         >
           <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: '28px 28px 0 0', zIndex: 0 }}>
-            <motion.div animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.18, 1], x: [0, 40, 0], y: [0, -30, 0] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 14, repeat: Infinity, ease: 'easeInOut' } : undefined} style={{ position: 'absolute', top: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: `radial-gradient(circle, ${blobA} 0%, transparent 65%)`, filter: 'blur(48px)' }} />
-            <motion.div animate={SUN_FORECAST_ANIMATIONS_ENABLED ? { scale: [1, 1.12, 1], x: [0, -30, 0], y: [0, 20, 0] } : {}} transition={SUN_FORECAST_ANIMATIONS_ENABLED ? { duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 2 } : undefined} style={{ position: 'absolute', bottom: '15%', left: -60, width: 280, height: 280, borderRadius: '50%', background: `radial-gradient(circle, ${blobB} 0%, transparent 65%)`, filter: 'blur(56px)' }} />
+            {/* Static glows. A wide radial gradient gives the same soft edge as
+                the old filter: blur() without the extra GPU surface over the
+                live map, and they no longer animate. */}
+            <div style={{ position: 'absolute', top: -128, right: -128, width: 416, height: 416, background: `radial-gradient(circle closest-side, ${blobA} 0%, transparent 100%)` }} />
+            <div style={{ position: 'absolute', bottom: 'calc(15% - 56px)', left: -116, width: 392, height: 392, background: `radial-gradient(circle closest-side, ${blobB} 0%, transparent 100%)` }} />
           </div>
 
           <div className="relative z-20 isolate shrink-0 overflow-hidden border-b border-slate-900/[0.06] bg-white px-4 [transform-style:flat]">
@@ -1274,8 +1277,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                     <div
                       className="absolute w-52 h-52 rounded-full pointer-events-none"
                       style={{
-                        background: 'radial-gradient(circle, rgba(245,158,11,0.22) 0%, rgba(148,163,184,0.12) 50%, transparent 70%)',
-                        filter: 'blur(30px)',
+                        background: 'radial-gradient(circle closest-side, rgba(245,158,11,0.22) 0%, rgba(148,163,184,0.12) 55%, transparent 100%)',
                       }}
                     />
                     <div className="relative z-10 w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg mb-2">
