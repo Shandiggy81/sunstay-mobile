@@ -62,6 +62,10 @@ import {
     clearResumeTimingStore,
     recordResumeMark,
 } from '../../utils/mapResumeTiming';
+import {
+    checkMarkerAlignment,
+    isMarkerAlignmentTraceEnabled,
+} from '../../utils/markerAlignmentTrace';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
 import {
     mapRecoveryControl,
@@ -1168,6 +1172,9 @@ const VenueMap = forwardRef(({
                     traceRef.current('map-resize-end', {
                         detail: `${plan.size.width}x${plan.size.height}`,
                     });
+                    if (isMarkerAlignmentTraceEnabled()) {
+                        checkMarkerAlignment(map.current, markersRef.current, { trigger: 'map-resize-end' });
+                    }
                 }, schedule.settleMs);
             });
             resizeObserver.observe(mapContainer.current);
@@ -1872,6 +1879,27 @@ const VenueMap = forwardRef(({
             }
         };
     }, [mapLoaded, recovery.generation, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, clusterTodMinutes]);
+
+    // Read-only pin drift samples. Listeners attach only while the HUD gate is on.
+    useEffect(() => {
+        if (!isMarkerAlignmentTraceEnabled()) return undefined;
+        const instance = map.current;
+        if (!mapLoaded || !instance) return undefined;
+        const sample = (trigger) => {
+            checkMarkerAlignment(instance, markersRef.current, { trigger });
+        };
+        const onZoomEnd = () => sample('zoomend');
+        const onPitchEnd = () => sample('pitchend');
+        const onRotateEnd = () => sample('rotateend');
+        instance.on('zoomend', onZoomEnd);
+        instance.on('pitchend', onPitchEnd);
+        instance.on('rotateend', onRotateEnd);
+        return () => {
+            instance.off('zoomend', onZoomEnd);
+            instance.off('pitchend', onPitchEnd);
+            instance.off('rotateend', onRotateEnd);
+        };
+    }, [mapLoaded]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces

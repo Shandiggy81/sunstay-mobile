@@ -24,6 +24,10 @@ import { getMapLifecycleSnapshot, getStaticOffloadSnapshot } from '../utils/mapL
 import { getMapSessionDiagnostics, getMarkerSyncStats } from '../utils/mapMarkerLifecycle';
 import { getMapOperationTrace, isMapOperationTraceEnabled } from '../utils/mapOperationTrace';
 import { formatResumeHudLines, getResumeTimingSnapshot } from '../utils/mapResumeTiming';
+import {
+    getMarkerAlignmentTrace,
+    subscribeMarkerAlignmentTrace,
+} from '../utils/markerAlignmentTrace';
 
 /**
  * DEV-only HUD. Renders small strings only — never API payloads.
@@ -34,7 +38,12 @@ export default function IsolationDevLog() {
 
     useEffect(() => {
         if (!import.meta.env.DEV && !MATRIX_HUD) return undefined;
-        return subscribeIsolationLog(() => setTick((n) => n + 1));
+        const unsubscribeLog = subscribeIsolationLog(() => setTick((n) => n + 1));
+        const unsubscribeAlignment = subscribeMarkerAlignmentTrace(() => setTick((n) => n + 1));
+        return () => {
+            unsubscribeLog();
+            unsubscribeAlignment();
+        };
     }, []);
 
     if (!import.meta.env.DEV && !MATRIX_HUD) return null;
@@ -55,6 +64,7 @@ export default function IsolationDevLog() {
     const mapDiag = getMapSessionDiagnostics();
     const operationTrace = getMapOperationTrace();
     const operationEvents = operationTrace.events.slice(-16);
+    const alignment = getMarkerAlignmentTrace().events.slice(-8);
 
     return (
         <aside
@@ -105,6 +115,11 @@ export default function IsolationDevLog() {
             {recent.map((event, index) => (
                 <p key={`${event.at}-${index}`}>
                     {event.kind}:{event.message}
+                </p>
+            ))}
+            {alignment.map((event) => (
+                <p key={`align-${event.seq}`} className="whitespace-nowrap">
+                    {event.line}
                 </p>
             ))}
         </aside>
