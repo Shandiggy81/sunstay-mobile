@@ -1,5 +1,5 @@
 import React, {
-    useEffect, useMemo, useRef, useState, useCallback,
+    useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback,
     forwardRef, useImperativeHandle, memo,
 } from 'react';
 import * as Sentry from '@sentry/react';
@@ -515,6 +515,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     const lastLightApplyAtRef = useRef(0);
     const panPausedRef = useRef(false);
     const publishTodRef = useRef(null);
+    const rangeRef = useRef(null);
     // Re-read Melbourne time each minute so "Now" and the label stay honest
     // in a long session.
     const [nowMinutes, setNowMinutes] = useState(() => melbourneMinutesNow());
@@ -692,6 +693,15 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
         resumeMapPan();
     };
 
+    // Chrome can apply a range input's value before its min/max, clamping it
+    // to the default 0–100 and then up to min (6:00 AM). React then believes
+    // the DOM already holds our value, so the thumb stays at 6 AM. Re-assert
+    // it after every render.
+    useLayoutEffect(() => {
+        const el = rangeRef.current;
+        if (el && el.value !== String(sliderMinutes)) el.value = String(sliderMinutes);
+    });
+
     const clock = formatClock(sliderMinutes);
     const timeLabel = describeSliderTime(sliderMinutes, nowMinutes);
 
@@ -748,6 +758,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
                         </span>
                     </div>
                     <input
+                        ref={rangeRef}
                         id="tod-slider"
                         type="range"
                         min={DAY_START_MIN}
