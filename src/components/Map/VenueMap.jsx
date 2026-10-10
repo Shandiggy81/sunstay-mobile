@@ -504,7 +504,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     // readouts, not this component or the map.
     const { setTodMinutes } = useMicroclimateActions();
     const [sliderMinutes, setSliderMinutes] = useState(() => {
-        const existing = Number(todMinutes);
+        // `todMinutes` is null until someone scrubs. Number(null) is 0, which
+        // used to clamp to 6:00 AM, so only reuse a real value.
+        const existing = todMinutes == null ? NaN : Number(todMinutes);
         if (Number.isFinite(existing)) {
             return Math.min(DAY_END_MIN, Math.max(DAY_START_MIN, Math.round(existing)));
         }
