@@ -1,5 +1,5 @@
 import React from 'react';
-import { logReactRenderError } from '../utils/iosCrashLog';
+import * as Sentry from '@sentry/react';
 import { resolveVenueDetailErrorView } from '../utils/venueDetailErrorFallback';
 
 /**
@@ -16,7 +16,7 @@ class VenueDetailErrorBoundary extends React.Component {
 
   componentDidCatch(error) {
     console.error('[VenueDetailErrorBoundary]', error?.message);
-    logReactRenderError(error, 'VenueDetailErrorBoundary');
+    Sentry.captureException(error, { tags: { boundary: 'VenueDetailErrorBoundary' } });
   }
 
   componentDidUpdate(prevProps) {

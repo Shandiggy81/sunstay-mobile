@@ -1,11 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import HourlyForecastStrip from './HourlyForecastStrip';
 import LiveSunTimeline from './LiveSunTimeline';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import { checkIfShaded } from '../utils/solarMath.js';
 import { resolveForecastView } from '../utils/resolveForecastView';
-import { noteSunForecast } from '../utils/sunForecastDiagnostics';
-import { traceMapOperation } from '../utils/mapOperationTrace';
 import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 
 const CARD =
@@ -95,7 +93,6 @@ export default function SunForecastPanel({
     }
   }, []);
 
-  const seenRef = useRef(new Set());
   const venueId = venue?.id ?? '';
   // Shimmer until the map camera is still. An active flyTo must not share
   // the frame with the hourly or auxiliary forecast requests.
@@ -107,26 +104,6 @@ export default function SunForecastPanel({
   });
   const itemCount = Number.isFinite(stripState.itemCount) ? stripState.itemCount : 0;
   const dataPresent = Boolean(stripState.dataPresent);
-
-  useEffect(() => {
-    const seen = seenRef.current;
-    traceMapOperation('sun-forecast-open', { venueId, at: Date.now() });
-    noteSunForecast(seen, 'sun-forecast-tab-enter', { venueId, state: 'enter' });
-    return () => {
-      traceMapOperation('sun-forecast-close', { venueId, at: Date.now() });
-      noteSunForecast(seen, 'sun-forecast-tab-exit', { venueId, state: 'exit' });
-      noteSunForecast(seen, 'sun-forecast-cleanup', { venueId, state: 'cleanup' });
-    };
-  }, [venueId]);
-
-  useEffect(() => {
-    if (view === 'loading') return;
-    noteSunForecast(seenRef.current, 'sun-forecast-rendered', {
-      venueId,
-      count: itemCount,
-      state: view,
-    });
-  }, [venueId, view, itemCount]);
 
   return (
     <div

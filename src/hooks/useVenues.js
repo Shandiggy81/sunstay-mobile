@@ -3,10 +3,8 @@ import { supabase } from '../lib/supabase';
 import { demoVenues } from '../data/demoVenues';
 import { interpretVenueResponse } from './interpretVenueResponse';
 import { venueRefreshBusy } from '../utils/pullRefreshStatus';
-import { VENUE_REFRESH_HANG } from '../utils/iosCrashIsolation';
 import {
     VENUE_REFRESH_TIMEOUT_MS,
-    abortableDelay,
     createVenueRefreshRequest,
     shouldCommitVenueResult,
 } from '../utils/venueRefreshRequest';
@@ -67,7 +65,7 @@ export function useVenues() {
 
     const fetchLiveVenues = useCallback(async ({ userInitiated = false } = {}) => {
         const request = getRefreshRequest();
-        if (!supabase && !(VENUE_REFRESH_HANG && userInitiated)) {
+        if (!supabase) {
             console.info('[useVenues] Supabase client not initialized, running on static demoVenues.');
             request.clearUserRefresh();
             if (mountedRef.current) {
@@ -84,9 +82,6 @@ export function useVenues() {
         }
 
         const outcome = await request.execute(async (signal, { isCurrent }) => {
-            if (VENUE_REFRESH_HANG && userInitiated) {
-                await abortableDelay(20000, signal);
-            }
             if (!supabase) {
                 return { ok: true, skipped: true, empty: false, rows: null, error: null };
             }

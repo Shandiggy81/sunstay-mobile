@@ -23,12 +23,6 @@ import {
     localTimeToSliderMinutes,
 } from '../../utils/todMinutes';
 import { motion } from 'framer-motion';
-import {
-    ISOLATION_EVENT_KINDS,
-    classifyMapboxErrorMessage,
-    logIsolationEvent,
-    setIsolationContext,
-} from '../../utils/iosCrashLog';
 import { syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
 import { registerMapCamera } from '../../utils/mapCameraSettle';
 import {
@@ -44,24 +38,14 @@ import {
     noteMarkerListeners,
     noteSourceWait,
     planMapResize,
-    publishMarkerSync,
     releaseMarkerRecords,
     releaseMarkerSyncFrame,
     requestMarkerSync,
     markerCoordinatePlan,
-    noteContextLossDiagnostic,
-    noteInvalidCoordinate,
-    noteMapGeneration,
     requiredMarkerGate,
     resumeMayGoLive,
     syncMarkerLayer,
 } from '../../utils/mapMarkerLifecycle';
-import { isMapOperationTraceEnabled, traceMapOperation } from '../../utils/mapOperationTrace';
-import {
-    claimCameraRestore,
-    clearResumeTimingStore,
-    recordResumeMark,
-} from '../../utils/mapResumeTiming';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
 import {
     mapRecoveryControl,
@@ -76,24 +60,16 @@ import {
 } from '../../utils/mapRecovery';
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
-import { MAP_LIFECYCLE, STATIC_OFFLOAD } from '../../utils/iosCrashIsolation';
 import {
-    MAP_LIFECYCLE_UNMOUNT_EXPANDED,
-    cameraForRemount,
     captureMapCamera,
+    claimCameraRestore,
     createGenerationCamera,
     dispatchGenerationCallback,
-    getMapLifecycleSnapshot,
-    mapLifecycleRemembersCamera,
     markerSyncAfterRestore,
     releaseMapOwners,
-    recordMapRemoveFailure,
     restoreMapCamera,
     teardownGenerationCamera,
-    trackCameraRestore,
     trackCameraTimer,
-    trackMapMount,
-    trackMapRemove,
 } from '../../utils/mapLifecycle';
 import {
     claimMapboxMount,
@@ -172,22 +148,7 @@ function markerScoreForVenue(reading, venue, calculateSunstayScore) {
 }
 
 const isFiniteCoord = (v) => Number.isFinite(Number(v));
-const reportedInvalidCoordinates = new Set();
-const isRenderableVenue = (v) => {
-    const plan = markerCoordinatePlan(v);
-    if (plan.ok) return true;
-    const key = `${plan.id}:${plan.reason}`;
-    if (!reportedInvalidCoordinates.has(key)) {
-        reportedInvalidCoordinates.add(key);
-        noteInvalidCoordinate(plan);
-        logIsolationEvent({
-            kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-            message: `invalid-coordinate ${plan.id} ${plan.reason} lng=${plan.longitude} lat=${plan.latitude}`,
-            source: 'VenueMap',
-        });
-    }
-    return false;
-};
+const isRenderableVenue = (v) => markerCoordinatePlan(v).ok;
 
 const FLY_TO_PADDING = { top: 50, bottom: 50, left: 0, right: 0 };
 
@@ -787,8 +748,6 @@ const VenueMap = forwardRef(({
     cozyWeatherActive = false,  // true when weather is cold/rainy
     cozyFilterActive  = false,  // true when user has 'Cozy' filter selected
     filtersControl    = null,   // Filters FAB — stacked above TOD, layout only
-    onGenerationReady = null,
-    onRestoreFailed = null,
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -807,19 +766,6 @@ const VenueMap = forwardRef(({
     const staleGenerationsRef = useRef(new Set());
     const recoveryCameraRef = useRef(null);
     const mapGenerationRef = useRef(0);
-    const traceRef = useRef(() => {});
-    const onGenerationReadyRef = useRef(onGenerationReady);
-    const onRestoreFailedRef = useRef(onRestoreFailed);
-    const generationReadyRef = useRef(null);
-    onGenerationReadyRef.current = onGenerationReady;
-    onRestoreFailedRef.current = onRestoreFailed;
-    traceRef.current = (name, extra = {}) => traceMapOperation(name, {
-        generation: mapGenerationRef.current,
-        phase: recoveryRef.current?.phase ?? null,
-        venueId: selectedVenue?.id ?? '',
-        at: Date.now(),
-        ...extra,
-    });
     const cameraClaimRef = useRef(new Set());
     const cameraGuardRef = useRef(createGenerationCamera(0));
     const syncSchedulerRef = useRef(createSyncScheduler());
@@ -833,7 +779,6 @@ const VenueMap = forwardRef(({
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
-    const [mapFailureKind, setMapFailureKind] = useState('');
     const webglLost = recovery.phase === 'paused'
         || recovery.phase === 'resuming'
         || recovery.phase === 'resume-failed';
@@ -960,13 +905,6 @@ const VenueMap = forwardRef(({
         if (map.current || mapInitLockRef.current) return;
         if (!MAPBOX_TOKEN?.startsWith('pk.')) {
             setMapError(true);
-            onRestoreFailedRef.current?.();
-            setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
-            logIsolationEvent({
-                kind: ISOLATION_EVENT_KINDS.MAPBOX_ERROR,
-                message: 'missing-or-invalid-token',
-                source: 'VenueMap',
-            });
             return;
         }
         if (!mapContainer.current) return;
@@ -975,7 +913,6 @@ const VenueMap = forwardRef(({
         if (reason === 'resume') {
             if (recoveryRef.current.phase !== 'resuming') return;
             mapGenerationRef.current = generation;
-            noteMapGeneration(generation);
         } else {
             const started = startMapLoad(recoveryRef.current);
             if (!started.ok) return;
@@ -990,17 +927,9 @@ const VenueMap = forwardRef(({
         );
         const mountClaim = claimMapboxMount();
         if (!mountClaim.ok) {
-            logIsolationEvent({
-                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-                message: mountClaim.reason === 'context-loss-cooldown'
-                    ? 'context-loss-cooldown'
-                    : 'mount-locked',
-                source: 'VenueMap',
-            });
             if (reason === 'resume') {
                 const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
                 if (failed.ok) applyRecovery(failed.state);
-                if (failed.ok && failed.state.sessionLocked) traceRef.current('session-lock');
                 noteMapboxContextLost(Date.now());
             } else {
                 applyRecovery(releaseInitLock(recoveryRef.current, 'abort').state);
@@ -1008,35 +937,12 @@ const VenueMap = forwardRef(({
             return undefined;
         }
         mapInitLockRef.current = true;
-        if (!trackMapMount()) {
-            releaseMapboxMount();
-            mapInitLockRef.current = false;
-            if (reason === 'resume') {
-                const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
-                if (failed.ok) applyRecovery(failed.state);
-                if (failed.ok && failed.state.sessionLocked) traceRef.current('session-lock');
-                noteMapboxContextLost(Date.now());
-            } else {
-                applyRecovery(releaseInitLock(recoveryRef.current, 'abort').state);
-            }
-            logIsolationEvent({
-                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-                message: 'duplicate-refused',
-                source: 'VenueMap',
-            });
-            return undefined;
-        }
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
         let disposed = false;
         let cleaned = false;
         let resizeObserver;
         let resizeFrame = 0;
-        const logMap = (kind, message) => {
-            if (disposed) return;
-            setIsolationContext({ mapEvent: message });
-            logIsolationEvent({ kind, message, source: 'VenueMap' });
-        };
         const loadTimeout = setTimeout(() => {
             if (disposed || !isCurrent()) return;
             if (recoveryRef.current.phase === 'resuming') {
@@ -1044,9 +950,6 @@ const VenueMap = forwardRef(({
                 return;
             }
             setMapError(true);
-            onRestoreFailedRef.current?.();
-            setMapFailureKind(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING);
-            logMap(ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING, 'map-load-timeout');
         }, 15000);
 
         // Detect touch/mobile devices up front. MSAA antialiasing sharpens the
@@ -1059,17 +962,10 @@ const VenueMap = forwardRef(({
         const memoryOptions = mapMemoryOptions(isMobileDevice);
         const reduceMobileGpu = () => {
             if (!isMobileDevice || disposed || !map.current) return;
-            const reduced = suppressMobileGpuLayers(map.current);
-            logMap(
-                ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-                `gpu-cut objects=${reduced.objects ? 1 : 0} terrain=${reduced.terrain ? 1 : 0} extrusion=${reduced.extrusion}`,
-            );
+            suppressMobileGpuLayers(map.current);
         };
 
         try {
-            if (reason === 'resume') {
-                recordResumeMark(generation, 'map-create-start');
-            }
             map.current = new mapboxgl.Map({
                 container:           mapContainer.current,
                 style:               MAP_STYLE,
@@ -1092,52 +988,21 @@ const VenueMap = forwardRef(({
             });
 
             if (reason === 'resume') {
-                recordResumeMark(generation, 'map-instance-created');
+                // Put the camera back where it was when the GPU context was lost.
                 const cameraClaim = claimCameraRestore(cameraClaimRef.current, generation);
                 cameraClaimRef.current = cameraClaim.claimed;
-                if (cameraClaim.restore) {
-                    recordResumeMark(generation, 'map-camera-start');
-                    const cameraResult = trackCameraRestore(restoreMapCamera(map.current, recoveryCameraRef.current));
-                    recordResumeMark(generation, 'map-camera-end');
-                    logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `resume-camera-${cameraResult}`);
-                }
-                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:inflight-animation-and-xweather-controller');
-            } else if (MAP_LIFECYCLE === MAP_LIFECYCLE_UNMOUNT_EXPANDED) {
-                const cameraResult = trackCameraRestore(restoreMapCamera(map.current, cameraForRemount()));
-                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `camera-${cameraResult}`);
-                if (getMapLifecycleSnapshot().mountCount >= 2) {
-                    logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'state-loss:overlays-tod-reset');
-                }
-            } else if (STATIC_OFFLOAD) {
-                const savedCamera = cameraForRemount();
-                const cameraClaim = claimCameraRestore(cameraClaimRef.current, generation);
-                cameraClaimRef.current = cameraClaim.claimed;
-                if (cameraClaim.restore && savedCamera) {
-                    const cameraResult = trackCameraRestore(restoreMapCamera(map.current, savedCamera));
-                    logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, `camera-${cameraResult}`);
-                    if (cameraResult === 'failure') onRestoreFailedRef.current?.();
-                }
+                if (cameraClaim.restore) restoreMapCamera(map.current, recoveryCameraRef.current);
             }
-            const mounted = getMapLifecycleSnapshot();
-            logMap(
-                ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-                `mount count=${mounted.mountCount} live=${mounted.liveInstances}`,
-            );
 
             let resizeSize = null;
             let pendingWidth = 0;
             let pendingHeight = 0;
-            let resizeCoalesced = 0;
             resizeObserver = new ResizeObserver((entries) => {
-                traceRef.current('resize-observer-callback');
                 const rect = entries?.[0]?.contentRect;
                 pendingWidth = rect?.width ?? mapContainer.current?.clientWidth ?? 0;
                 pendingHeight = rect?.height ?? mapContainer.current?.clientHeight ?? 0;
                 const schedule = coalesceResizeSchedule(resizeFrame !== 0);
-                if (schedule.replace) {
-                    clearTimeout(resizeFrame);
-                    resizeCoalesced += 1;
-                }
+                if (schedule.replace) clearTimeout(resizeFrame);
                 resizeFrame = setTimeout(() => {
                     resizeFrame = 0;
                     const decision = dispatchGenerationCallback(
@@ -1148,8 +1013,6 @@ const VenueMap = forwardRef(({
                     );
                     cameraGuardRef.current = decision.state;
                     if (!decision.ran) return;
-                    const coal = resizeCoalesced;
-                    resizeCoalesced = 0;
                     const phase = recoveryRef.current?.phase;
                     const plan = planMapResize({
                         width: pendingWidth,
@@ -1159,20 +1022,9 @@ const VenueMap = forwardRef(({
                         currentGeneration: mapGenerationRef.current,
                         mapAlive: !disposed && !!map.current && phase !== 'paused' && phase !== 'resume-failed',
                     });
-                    if (!plan.resize) {
-                        if (plan.reason === 'unchanged') {
-                            traceRef.current('resize-skipped-unchanged', { detail: `coal=${coal}` });
-                        }
-                        return;
-                    }
+                    if (!plan.resize) return;
                     resizeSize = plan.size;
-                    traceRef.current('map-resize-start', {
-                        detail: `${plan.size.width}x${plan.size.height} coal=${coal}`,
-                    });
                     map.current.resize();
-                    traceRef.current('map-resize-end', {
-                        detail: `${plan.size.width}x${plan.size.height}`,
-                    });
                 }, schedule.settleMs);
             });
             resizeObserver.observe(mapContainer.current);
@@ -1180,7 +1032,6 @@ const VenueMap = forwardRef(({
             map.current.on('load', () => {
                 if (disposed || !map.current || !isCurrent()) return;
                 clearTimeout(loadTimeout);
-                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'load');
                 // Hide Mapbox Standard's default POI labels so they don't compete
                 // with our custom venue markers. (Standard exposes basemap config
                 // properties instead of individual symbol layers.)
@@ -1196,32 +1047,25 @@ const VenueMap = forwardRef(({
                 map.current.dragRotate.disable();
                 map.current.touchZoomRotate.disableRotation();
                 if (reason === 'resume') {
-                    recordResumeMark(generation, 'map-load');
                     mapGenerationRef.current = generation;
-                    noteMapGeneration(generation);
                     mapInitLockRef.current = false;
                     setMapLoaded(true);
                     setMapError(false);
-                    setMapFailureKind('');
                     return;
                 }
                 const loaded = noteMapLoaded(recoveryRef.current, generation);
                 if (loaded.ok) {
                     mapGenerationRef.current = loaded.state.generation;
-                    noteMapGeneration(loaded.state.generation);
                     applyRecovery(loaded.state);
                     clearMapboxContextLoss();
                 }
                 mapInitLockRef.current = false;
                 setMapLoaded(true);
                 setMapError(false);
-                setMapFailureKind('');
             });
 
             map.current.on('style.load', () => {
                 if (disposed || !isCurrent()) return;
-                if (reason === 'resume') recordResumeMark(generation, 'map-style-ready');
-                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'style.load');
                 reduceMobileGpu();
             });
 
@@ -1229,8 +1073,6 @@ const VenueMap = forwardRef(({
                 if (disposed || !isCurrent()) return;
                 const msg = e.error?.message || e.message || '';
                 if (isSuppressedMapError(msg)) return;
-                const kind = classifyMapboxErrorMessage(msg);
-                logMap(kind, msg || 'map-error');
                 if (msg.includes('401') || msg.includes('403') || msg.includes('access token')) {
                     clearTimeout(loadTimeout);
                     if (recoveryRef.current.phase === 'resuming') {
@@ -1238,8 +1080,6 @@ const VenueMap = forwardRef(({
                         return;
                     }
                     setMapError(true);
-                    onRestoreFailedRef.current?.();
-                    setMapFailureKind(kind);
                 }
             });
 
@@ -1261,14 +1101,9 @@ const VenueMap = forwardRef(({
                 recoveryCameraRef.current = captureMapCamera(map.current);
                 Sentry.captureMessage('WebGL Context Lost', { level: 'warning', tags: { type: 'gpu_crash' } });
                 const paused = noteContextLost(recoveryRef.current, generation, now);
-                traceRef.current('context-loss');
-                onRestoreFailedRef.current?.();
                 if (paused.ok) {
-                    noteContextLossDiagnostic(paused.state);
                     applyRecovery(paused.state);
-                    if (paused.state.sessionLocked) traceRef.current('session-lock');
                 }
-                logMap(ISOLATION_EVENT_KINDS.MAPBOX_WEBGL_CONTEXT_LOST, 'webglcontextlost');
                 contextLossTimer = setTimeout(() => {
                     pendingTimersRef.current.delete(contextLossTimer);
                     teardownMap('context-loss');
@@ -1278,7 +1113,6 @@ const VenueMap = forwardRef(({
             const handleWebglContextRestored = (event) => {
                 event.stopImmediatePropagation();
                 event.stopPropagation();
-                logMap(ISOLATION_EVENT_KINDS.MAP_LIFECYCLE, 'webglcontextrestored-ignored');
             };
             if (canvas && typeof canvas.addEventListener === 'function') {
                 canvas.addEventListener('webglcontextlost', handleWebglContextLost, true);
@@ -1289,17 +1123,12 @@ const VenueMap = forwardRef(({
         } catch (err) {
             clearTimeout(loadTimeout);
             setMapError(true);
-            onRestoreFailedRef.current?.();
-            setMapFailureKind(ISOLATION_EVENT_KINDS.MAPBOX_ERROR);
-            logMap(ISOLATION_EVENT_KINDS.MAPBOX_ERROR, err?.message || 'map-init-failed');
             if (!map.current) {
-                trackMapRemove(null);
                 releaseMapboxMount();
                 mapInitLockRef.current = false;
                 if (reason === 'resume') {
                     const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
                     if (failed.ok) applyRecovery(failed.state);
-                    if (failed.ok && failed.state.sessionLocked) traceRef.current('session-lock');
                     noteMapboxContextLost(Date.now());
                 } else {
                     applyRecovery(releaseInitLock(recoveryRef.current, 'failed-init').state);
@@ -1328,9 +1157,6 @@ const VenueMap = forwardRef(({
             cameraGuardRef.current = retired;
             const lostCamera = retired.camera;
             if (lostCamera) recoveryCameraRef.current = lostCamera;
-            const camera = mapLifecycleRemembersCamera(MAP_LIFECYCLE, STATIC_OFFLOAD)
-                ? lostCamera
-                : null;
             let canvas = null;
             try { canvas = map.current?.getCanvas?.() ?? null; } catch { canvas = null; }
             const contextLostHandler = map.current?._sunstayWebglContextLostHandler;
@@ -1378,7 +1204,6 @@ const VenueMap = forwardRef(({
             }
             const removal = noteMapRemoved(recoveryRef.current, generation);
             recoveryRef.current = removal.state;
-            if (removal.remove) traceRef.current('map-remove');
             const released = removal.remove
                 ? releaseMapOwners({
                     markers,
@@ -1391,22 +1216,12 @@ const VenueMap = forwardRef(({
             map.current = null;
             if (released.removeError) {
                 console.warn('[VenueMap] map.remove failed:', released.removeError);
-                recordMapRemoveFailure(released.removeError);
             }
-            const snapshot = trackMapRemove(camera);
-            logIsolationEvent({
-                kind: ISOLATION_EVENT_KINDS.MAP_LIFECYCLE,
-                message: `remove count=${snapshot.removeCount} live=${snapshot.liveInstances} markers=${released.markerCleanups} listeners=${released.listenerCleanups}`,
-                source: 'VenueMap',
-            });
             releaseMapboxMount();
             mapInitLockRef.current = false;
             if (reason === 'failed-resume') {
-                recordResumeMark(generation, 'resume-failed');
-                clearResumeTimingStore();
                 const failed = noteResumeFailed(recoveryRef.current, generation, Date.now());
                 if (failed.ok) applyRecovery(failed.state);
-                if (failed.ok && failed.state.sessionLocked) traceRef.current('session-lock');
                 noteMapboxContextLost(Date.now());
             } else if (reason !== 'context-loss') {
                 applyRecovery(releaseInitLock(recoveryRef.current, reason === 'unmount' ? 'unmount' : 'abort').state);
@@ -1421,7 +1236,6 @@ const VenueMap = forwardRef(({
         return () => {
             mountMapRef.current = null;
             teardownMapRef.current('unmount');
-            clearResumeTimingStore();
         };
     }, []);
 
@@ -1446,12 +1260,8 @@ const VenueMap = forwardRef(({
 
     const onResumeMap = () => {
         if (map.current || mapInitLockRef.current) return;
-        const clickAt = performance.now();
         const decision = requestMapResume(recoveryRef.current, Date.now());
         if (!decision.ok) return;
-        recordResumeMark(decision.state.generation, 'resume-click', clickAt);
-        recordResumeMark(decision.state.generation, 'resume-start');
-        traceRef.current('resume-start');
         applyRecovery(decision.state);
         mountMapRef.current?.('resume');
     };
@@ -1463,11 +1273,8 @@ const VenueMap = forwardRef(({
         const loaded = noteMapLoaded(recoveryRef.current, generation);
         if (!loaded.ok) return;
         mapGenerationRef.current = loaded.state.generation;
-        noteMapGeneration(loaded.state.generation);
         applyRecovery(loaded.state);
         clearMapboxContextLoss();
-        recordResumeMark(generation, 'map-live');
-        recordResumeMark(generation, 'resume-placeholder-hidden');
     };
 
 
@@ -1475,10 +1282,6 @@ const VenueMap = forwardRef(({
     // ── Cloud toggle ────────────────────────────────────────────────
     useEffect(() => {
         if (!mapLoaded || !map.current || recovery.phase === 'resuming') return;
-        if (recovery.resumeAttempts > 0) {
-            recordResumeMark(recovery.generation, 'map-optional-overlays-start');
-        }
-
         if (cloudOn) {
             addOrUpdateCloudLayer(map.current);
         } else {
@@ -1528,9 +1331,6 @@ const VenueMap = forwardRef(({
                 source: CLUSTER_SOURCE_ID,
                 paint: { 'circle-radius': 0, 'circle-opacity': 0 }
             });
-            if (recoveryRef.current.phase === 'resuming') {
-                recordResumeMark(recoveryRef.current.generation, 'map-sources-layers-ready');
-            }
         } else {
             map.current.getSource(CLUSTER_SOURCE_ID).setData(geojsonData);
         }
@@ -1660,17 +1460,12 @@ const VenueMap = forwardRef(({
                     ...syncSchedulerRef.current,
                     ignored: syncSchedulerRef.current.ignored + 1,
                 };
-                publishMarkerSync(syncSchedulerRef.current);
-                traceRef.current('marker-sync-skipped-stale', { detail: trigger });
                 return;
             }
-            const coalBefore = syncSchedulerRef.current.coalesced || 0;
             const requested = requestMarkerSync(syncSchedulerRef.current, generation);
             syncSchedulerRef.current = requested.scheduler;
-            publishMarkerSync(syncSchedulerRef.current);
             if (!requested.run) return;
             if (trigger === 'effect') markerSignatureRef.current = '';
-            traceRef.current('marker-sync-start', { detail: trigger });
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             rafRef.current = requestAnimationFrame(() => {
                 rafRef.current = null;
@@ -1680,7 +1475,6 @@ const VenueMap = forwardRef(({
                         frame: false,
                         ignored: syncSchedulerRef.current.ignored + 1,
                     };
-                    publishMarkerSync(syncSchedulerRef.current);
                     return;
                 }
                 try {
@@ -1693,7 +1487,6 @@ const VenueMap = forwardRef(({
                 const decision = markerSyncDecision({ sourceLoaded });
                 if (!decision.sync) {
                     syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
-                    publishMarkerSync(syncSchedulerRef.current);
                     return;
                 }
 
@@ -1705,14 +1498,10 @@ const VenueMap = forwardRef(({
                 });
                 if (!gate.ready) {
                     syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
-                    publishMarkerSync(syncSchedulerRef.current);
                     return;
                 }
-                const coal = (syncSchedulerRef.current.coalesced || 0) - coalBefore;
                 if (trigger !== 'effect' && signature === markerSignatureRef.current) {
                     syncSchedulerRef.current = completeMarkerSync(syncSchedulerRef.current);
-                    publishMarkerSync(syncSchedulerRef.current);
-                    traceRef.current('marker-sync-end', { detail: `${trigger} noop coal=${coal}` });
                     return;
                 }
                 markerSignatureRef.current = signature;
@@ -1732,7 +1521,6 @@ const VenueMap = forwardRef(({
                             lat: coords?.[1],
                         });
                         if (!clusterPlan.ok) {
-                            noteInvalidCoordinate(clusterPlan);
                             return;
                         }
                         specs.push({
@@ -1766,7 +1554,6 @@ const VenueMap = forwardRef(({
                     if (!venue) return;
                     const venuePlan = markerCoordinatePlan(venue);
                     if (!venuePlan.ok) {
-                        noteInvalidCoordinate(venuePlan);
                         return;
                     }
                     const venueLng = venuePlan.longitude;
@@ -1817,26 +1604,16 @@ const VenueMap = forwardRef(({
                     clusterCreated,
                     venueCreated: synced.created.length - clusterCreated,
                 });
-                publishMarkerSync(syncSchedulerRef.current);
-                traceRef.current('marker-sync-end', {
-                    detail: `${trigger} c=${synced.created.length} r=${synced.reused.length} x=${synced.removed.length} coal=${coal}`,
-                });
-                if (generationReadyRef.current !== generation) {
-                    generationReadyRef.current = generation;
-                    onGenerationReadyRef.current?.(generation);
-                }
                 const requiredReady = resumeMayGoLive({ requiredMarkersReady: gate.ready });
                 if (
                     requiredReady
                     && recoveryRef.current.phase === 'resuming'
                     && recoveryRef.current.generation === generation
                 ) {
-                    recordResumeMark(generation, 'map-markers-ready');
                     finishResumeRef.current(generation);
                 }
                 } catch (err) {
                     syncSchedulerRef.current = noteSourceWait(syncSchedulerRef.current);
-                    publishMarkerSync(syncSchedulerRef.current);
                     console.warn('[VenueMap] marker sync failed:', err?.message);
                 }
             });
@@ -1850,7 +1627,6 @@ const VenueMap = forwardRef(({
         };
         instance.on('sourcedata', onSourceData);
         syncSchedulerRef.current = noteMarkerListeners(syncSchedulerRef.current, 2);
-        publishMarkerSync(syncSchedulerRef.current);
         const unbind = bindMapGestureListeners(
             instance,
             generation,
@@ -1870,7 +1646,6 @@ const VenueMap = forwardRef(({
                 rafRef.current = null;
             }
             syncSchedulerRef.current = releaseMarkerSyncFrame(syncSchedulerRef.current);
-            publishMarkerSync(syncSchedulerRef.current);
             if (map.current !== instance || mapGenerationRef.current !== generation) {
                 releaseMarkerRecords(markersRef.current);
                 markersRef.current = {};
@@ -1926,8 +1701,6 @@ const VenueMap = forwardRef(({
         const plan = markerCoordinatePlan(selectedVenue);
         if (!plan.ok) return;
 
-        let flyInstance = null;
-        let flyEnd = null;
         const generation = cameraGuardRef.current.generation;
         const handle = {
             cleared: false,
@@ -1943,7 +1716,6 @@ const VenueMap = forwardRef(({
             const decision = dispatchGenerationCallback(cameraGuardRef.current, generation, 'flyTo', () => {
                 const instance = map.current;
                 if (!instance || staleGenerationsRef.current.has(generation) || mapGenerationRef.current !== generation) return;
-                traceRef.current('map-flyto-start');
                 instance.flyTo({
                     center:    plan.coordinates,
                     zoom:      15,
@@ -1952,21 +1724,6 @@ const VenueMap = forwardRef(({
                     essential: false,
                     padding:   FLY_TO_PADDING,
                 });
-                if (!isMapOperationTraceEnabled()) return;
-                flyInstance = instance;
-                flyEnd = () => {
-                    const settled = dispatchGenerationCallback(
-                        cameraGuardRef.current,
-                        generation,
-                        'moveend',
-                        () => {
-                            if (map.current !== instance || staleGenerationsRef.current.has(generation)) return;
-                            traceRef.current('map-flyto-end');
-                        },
-                    );
-                    cameraGuardRef.current = settled.state;
-                };
-                instance.once('moveend', flyEnd);
             });
             cameraGuardRef.current = decision.state;
         }, 300);
@@ -1976,9 +1733,6 @@ const VenueMap = forwardRef(({
         return () => {
             handle.cancel();
             pendingTimersRef.current.delete(handle.id);
-            if (flyInstance && flyEnd) {
-                try { flyInstance.off('moveend', flyEnd); } catch { /* map already removed */ }
-            }
         };
     }, [selectedVenue]);
 
@@ -2010,9 +1764,6 @@ const VenueMap = forwardRef(({
                 }
             } catch (e) {
                 console.warn('[VenueMap] Xweather radar visibility update failed:', e?.message);
-            }
-            if (!cancelled && recovery.resumeAttempts > 0 && recovery.phase === 'live') {
-                recordResumeMark(recovery.generation, 'map-optional-overlays-end');
             }
         })();
 
@@ -2175,12 +1926,7 @@ const VenueMap = forwardRef(({
             )}
 
             {(!mapLoaded || mapError) && !recovery.sessionLocked && (
-                <div
-                    style={styles.overlay}
-                    data-map-failure-kind={mapError
-                        ? (mapFailureKind || ISOLATION_EVENT_KINDS.MAPBOX_ERROR)
-                        : ISOLATION_EVENT_KINDS.LAYOUT_OR_LOADING}
-                >
+                <div style={styles.overlay}>
                     {mapError ? (
                         <div style={{ textAlign: 'center', padding: 24 }}>
                             <div style={{ fontSize: 48, marginBottom: 16 }}>🗺️</div>
