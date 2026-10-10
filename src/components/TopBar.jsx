@@ -1,50 +1,35 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ListFilter } from 'lucide-react';
+import { ChevronDown, ListFilter } from 'lucide-react';
 import headerLogo from '../assets/logo-header.png';
 import { presentWind } from '../utils/presentWind';
 import { resolveFiltersControls } from '../utils/filtersControls';
+import { headerWeatherSummary } from '../utils/headerWeatherSummary';
 
 const LOGO_W = 251;
 const LOGO_H = 192;
 
-const STAT_PLACEHOLDER = '\u2013';
-
-const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpen, comfort }) => {
-    const temp = weather ? Math.round(weather.main?.temp || 0) : null;
-    const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
-    const description = weather?.weather?.[0]?.description || '';
+/**
+ * Compact weather header: one line ("22° · Sunny · Melbourne") with the
+ * details (wind, rain, cloud, comfort) one tap away, like Google Maps'
+ * "Weather in the area" card. Keeps the map as tall as possible on phones.
+ */
+const TopBar = ({ weather, onFiltersOpen, comfort }) => {
+    const [open, setOpen] = useState(false);
+    const detailsId = useId();
     const windView = presentWind(weather);
     const filtersUi = resolveFiltersControls();
-    const humidity = weather?.main?.humidity || 0;
-    const cloudiness = weather?.clouds?.all ?? null;
-
-    const cloudLabel = cloudiness === null ? null
-        : cloudiness < 25 ? 'Low'
-        : cloudiness < 60 ? 'Mid'
-        : 'High';
-
-    // Use real precipProbability if available, otherwise fallback estimate
-    const rainChance = weather?.precipProbability
-        ?? Math.min(100, Math.round(humidity * 0.3 + (condition.includes('rain') ? 40 : 0)));
-
-    const descFormatted = description
-        ? description.charAt(0).toUpperCase() + description.slice(1)
-        : 'Loading\u2026';
+    const summary = headerWeatherSummary(weather, { windView, comfort });
 
     return (
         <motion.div
-            initial={{ y: -60, opacity: 0 }}
+            initial={{ y: -40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.15, type: 'spring', damping: 24, stiffness: 240 }}
             className="z-40 flex-shrink-0 pt-[env(safe-area-inset-top,0px)]"
         >
-            {/* iOS-style translucent navigation material: blur + saturation lift
-                over a hairline separator, so map content reads through the bar. */}
-            <div className="relative flex min-h-[132px] items-center gap-3 border-b border-slate-900/[0.07] bg-white/72 px-4 py-3.5 backdrop-blur-xl backdrop-saturate-150">
-                {/* Brand badge — height-driven so the blue field reads as a
-                    rounded chip against the cream bar without stretching it. */}
-                <div className="relative z-10 flex flex-shrink-0 items-center self-center">
+            <div className="border-b border-slate-900/[0.07] bg-white/90">
+                <div className="flex items-center gap-3 px-4 py-2.5">
                     <img
                         src={headerLogo}
                         alt="Sunstay"
@@ -52,64 +37,68 @@ const TopBar = ({ searchQuery, onSearchChange, onRecenter, weather, onFiltersOpe
                         height={LOGO_H}
                         draggable={false}
                         decoding="async"
-                        className="h-12 w-auto select-none rounded-2xl shadow-sm"
+                        className="h-10 w-auto flex-shrink-0 select-none rounded-xl shadow-sm"
                     />
-                </div>
 
-                {/* Centre weather display */}
-                <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-1">
-                    <span className="max-w-full truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">Melbourne</span>
-                    <span className="min-h-[34px] min-w-[5ch] text-[32px] font-bold leading-none tracking-[-0.03em] tabular-nums text-slate-900">
-                        {weather ? `${temp}°C` : '\u00a0'}
-                    </span>
-                    <div className="flex min-h-[42px] flex-col items-center gap-1.5">
-                        <span className="max-w-[160px] truncate text-[13px] font-medium text-slate-600">
-                            {weather ? descFormatted : 'Loading\u2026'}
-                        </span>
-                        {comfort && comfort.label !== 'Loading' && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-900/[0.08]">
-                                <span aria-hidden="true">{comfort.icon}</span>
-                                {comfort.label}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right side stats with divider — always rendered (with dashes
-                    before weather resolves) so the bar never reflows on load. */}
-                <div className="relative z-10 h-[52px] w-px flex-shrink-0 self-center bg-slate-900/10" aria-hidden="true" />
-                <div className="relative z-10 flex min-w-[78px] max-w-[120px] flex-shrink-0 flex-col items-start gap-2">
-                    <span className="flex flex-col items-start gap-0.5 whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
-                        <span><span aria-hidden="true">💨</span> {weather ? (windView.speedLabel ?? STAT_PLACEHOLDER) : STAT_PLACEHOLDER}</span>
-                        {windView.gustLabel ? (
-                            <span className="pl-[1.15rem] text-[11px] font-semibold text-slate-500">{windView.gustLabel}</span>
-                        ) : null}
-                    </span>
-                    <span className="whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-slate-700">
-                        <span aria-hidden="true">🌧</span> {weather ? `${Math.round(rainChance)}%` : STAT_PLACEHOLDER}
-                    </span>
-                    <span className="whitespace-nowrap text-[13px] font-medium leading-none text-slate-700">
-                        <span aria-hidden="true">☁️</span> {cloudLabel ?? STAT_PLACEHOLDER}
-                    </span>
-                </div>
-
-                {typeof onFiltersOpen === 'function' && filtersUi.headerVisible && (
                     <button
                         type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onFiltersOpen(e);
-                        }}
-                        className="relative z-10 flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-white/80 px-3 text-[13px] font-semibold text-slate-800 shadow-[0_1px_3px_rgba(15,23,42,0.12)] ring-1 ring-inset ring-slate-900/[0.08] backdrop-blur-xl transition-colors touch-manipulation active:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-                        aria-label={filtersUi.headerAccessibleName}
-                        title={filtersUi.headerLabel}
+                        onClick={() => setOpen((value) => !value)}
+                        disabled={!summary.details.length}
+                        aria-expanded={open}
+                        aria-controls={detailsId}
+                        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 text-left transition-colors touch-manipulation active:bg-slate-900/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
                     >
-                        <ListFilter size={16} strokeWidth={2.25} aria-hidden="true" />
-                        <span>{filtersUi.headerLabel}</span>
+                        <span className="text-[28px] font-bold leading-none tracking-[-0.03em] tabular-nums text-slate-900">
+                            {summary.temperature}
+                        </span>
+                        <span className="flex min-w-0 flex-col leading-tight">
+                            <span className="truncate text-[14px] font-semibold text-slate-800">
+                                {summary.condition}
+                            </span>
+                            <span className="truncate text-[12px] font-medium text-slate-500">
+                                Melbourne{summary.comfort ? ` · ${summary.comfort}` : ''}
+                            </span>
+                        </span>
+                        {summary.details.length ? <ChevronDown
+                            size={16}
+                            strokeWidth={2.25}
+                            aria-hidden="true"
+                            className={`ml-auto flex-shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+                        /> : null}
                     </button>
-                )}
-            </div>
 
+                    {typeof onFiltersOpen === 'function' && filtersUi.headerVisible && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onFiltersOpen(e);
+                            }}
+                            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-white px-3 text-[13px] font-semibold text-slate-800 shadow-[0_1px_3px_rgba(15,23,42,0.12)] ring-1 ring-inset ring-slate-900/[0.08] transition-colors touch-manipulation active:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                            aria-label={filtersUi.headerAccessibleName}
+                            title={filtersUi.headerLabel}
+                        >
+                            <ListFilter size={16} strokeWidth={2.25} aria-hidden="true" />
+                            <span>{filtersUi.headerLabel}</span>
+                        </button>
+                    )}
+                </div>
+
+                {open && summary.details.length ? (
+                    <dl
+                        id={detailsId}
+                        className="grid grid-cols-3 gap-2 px-4 pb-3 text-[13px]"
+                    >
+                        {summary.details.map((item) => (
+                            <div key={item.label} className="rounded-2xl bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-900/[0.05]">
+                                <dt className="text-[11px] font-medium text-slate-500">{item.label}</dt>
+                                <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{item.value}</dd>
+                                {item.note ? <dd className="text-[11px] text-slate-500">{item.note}</dd> : null}
+                            </div>
+                        ))}
+                    </dl>
+                ) : null}
+            </div>
         </motion.div>
     );
 };

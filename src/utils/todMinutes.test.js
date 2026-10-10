@@ -4,7 +4,9 @@ import {
     TOD_DAY_START_MIN,
     TOD_DAY_END_MIN,
     TOD_SLIDER_STEP_MIN,
+    describeSliderTime,
     localTimeToSliderMinutes,
+    melbourneMinutesNow,
 } from './todMinutes.js';
 
 describe('localTimeToSliderMinutes', () => {
@@ -40,5 +42,29 @@ describe('localTimeToSliderMinutes', () => {
     it('follows AEDT so midday Melbourne is 12:00, not the UTC hour', () => {
         const noonAedt = new Date('2026-01-15T01:00:00Z'); // 12:00 AEDT
         assert.equal(localTimeToSliderMinutes(noonAedt), 12 * 60);
+    });
+});
+
+describe('describeSliderTime', () => {
+    it('says "Sun right now" when the thumb is at the current time', () => {
+        assert.deepEqual(describeSliderTime(10 * 60 + 15, 10 * 60 + 17), { label: 'Sun right now', atNow: true });
+    });
+
+    it('says later or earlier today when the user has scrubbed away', () => {
+        assert.deepEqual(describeSliderTime(15 * 60, 10 * 60), { label: 'Later today', atNow: false });
+        assert.deepEqual(describeSliderTime(8 * 60, 10 * 60), { label: 'Earlier today', atNow: false });
+    });
+
+    it('names the night instead of implying a shady daytime', () => {
+        assert.equal(describeSliderTime(TOD_DAY_START_MIN, 4 * 60).label, 'Before sunrise');
+        assert.equal(describeSliderTime(TOD_DAY_END_MIN, 22 * 60).label, 'After 8 pm');
+        assert.equal(describeSliderTime(12 * 60, 4 * 60).atNow, false);
+    });
+});
+
+describe('melbourneMinutesNow', () => {
+    it('reads Melbourne wall-clock time without clamping to the slider', () => {
+        // 2026-10-10T17:30Z is 04:30 AEDT on 11 Oct.
+        assert.equal(melbourneMinutesNow(new Date('2026-10-10T17:30:00Z')), 4 * 60 + 30);
     });
 });
