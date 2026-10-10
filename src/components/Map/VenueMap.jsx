@@ -4,6 +4,7 @@ import React, {
 } from 'react';
 import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
+import { Layers, Check } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
@@ -20,7 +21,9 @@ import {
     TOD_DAY_START_MIN as DAY_START_MIN,
     TOD_DAY_END_MIN as DAY_END_MIN,
     TOD_SLIDER_STEP_MIN,
+    describeSliderTime,
     localTimeToSliderMinutes,
+    melbourneMinutesNow,
 } from '../../utils/todMinutes';
 import { motion } from 'framer-motion';
 import { syncExistingClusterMarker } from '../../utils/syncClusterMarkers';
@@ -512,6 +515,13 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     const lastLightApplyAtRef = useRef(0);
     const panPausedRef = useRef(false);
     const publishTodRef = useRef(null);
+    // Re-read Melbourne time each minute so "Now" and the label stay honest
+    // in a long session.
+    const [nowMinutes, setNowMinutes] = useState(() => melbourneMinutesNow());
+    useEffect(() => {
+        const id = setInterval(() => setNowMinutes(melbourneMinutesNow()), 60_000);
+        return () => clearInterval(id);
+    }, []);
 
     useEffect(() => {
         const publish = createDebouncer((mins) => setTodMinutes(mins), TOD_SCRUB_DEBOUNCE_MS);
@@ -683,6 +693,19 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     };
 
     const clock = formatClock(sliderMinutes);
+    const timeLabel = describeSliderTime(sliderMinutes, nowMinutes);
+
+    const jumpToNow = () => {
+        const v = localTimeToSliderMinutes();
+        cancelPendingLight();
+        minutesRef.current = v;
+        setSliderMinutes(v);
+        lastLightApplyAtRef.current = performance.now();
+        applyLight(v, { castShadows: true });
+        if (typeof setScorePreviewMinutes === 'function') setScorePreviewMinutes(v);
+        publishTodRef.current?.cancel();
+        setTodMinutes(v);
+    };
 
     return (
         <motion.div
@@ -702,14 +725,26 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
                 <span className="select-none text-xl leading-none" aria-hidden="true">🌇</span>
                 <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center justify-between gap-2">
-                        <label htmlFor="tod-slider" className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
-                            Time of day
+                        <label htmlFor="tod-slider" className="text-[12px] font-semibold text-slate-600">
+                            {timeLabel.label}
                         </label>
-                        <span
-                            aria-live="polite"
-                            className="text-[13px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900"
-                        >
-                            {clock}
+                        <span className="flex items-center gap-2">
+                            <span
+                                aria-live="polite"
+                                className="text-[13px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900"
+                            >
+                                {clock}
+                            </span>
+                            {!timeLabel.atNow ? (
+                                <button
+                                    type="button"
+                                    onClick={jumpToNow}
+                                    className="flex min-h-8 items-center rounded-full bg-amber-500 px-3 text-[12px] font-bold text-slate-900 shadow-sm active:bg-amber-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                                    aria-label="Jump to the current time"
+                                >
+                                    Now
+                                </button>
+                            ) : null}
                         </span>
                     </div>
                     <input
@@ -776,6 +811,7 @@ const VenueMap = forwardRef(({
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
     const [showRadar,    setShowRadar]    = useState(false);
+    const [layersOpen,   setLayersOpen]   = useState(false);
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
@@ -1770,6 +1806,15 @@ const VenueMap = forwardRef(({
         return () => { cancelled = true; };
     }, [mapLoaded, showRadar, recovery.phase, recovery.generation, recovery.resumeAttempts]);
 
+    const layerOptions = [
+        { id: 'radar', icon: '🌧️', label: 'Rain radar', on: showRadar, disabled: false, toggle: () => setShowRadar(on => !on) },
+        { id: 'comfort', icon: '🔥', label: 'Comfort heatmap', on: comfortMapOn, disabled: !mapLoaded, toggle: () => setComfortMapOn(on => !on) },
+        ...(WEATHER_API_KEY
+            ? [{ id: 'cloud', icon: '☁️', label: 'Cloud cover', on: cloudOn, disabled: !mapLoaded, toggle: () => setCloudOn(on => !on) }]
+            : []),
+    ];
+    const activeLayerCount = layerOptions.filter(option => option.on).length;
+
     const recoveryControl = mapRecoveryControl(recovery, cooldownNow);
     const webglRecovery = webglRecoveryView(webglLost ? recovery.phase : 'live', cooldownNow);
 
@@ -1820,32 +1865,56 @@ const VenueMap = forwardRef(({
                 </div>
             ) : null}
 
-            {/* Dedicated rain-radar overlay toggle (RainViewer/Xweather). Visible even while Mapbox loads. lg:right-14 clears native zoom. */}
+            {/* One Layers button instead of three floating map buttons. Rain
+                radar stays reachable while Mapbox loads; the heatmap and cloud
+                layers need the loaded map. */}
             {!mapError && (
-                <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setShowRadar(!showRadar); }}
+                <div
+                    className="absolute right-4 top-4 z-50 flex flex-col items-end gap-2 lg:right-14"
                     onTouchEnd={e => e.stopPropagation()}
-                    className={`absolute right-4 top-4 z-50 flex min-h-11 items-center gap-2 rounded-full px-4 text-[14px] font-semibold tracking-[-0.01em] shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 transition-colors lg:right-14 ${
-                        showRadar
-                            ? 'bg-blue-600/90 text-white ring-1 ring-inset ring-white/30'
-                            : 'bg-white/72 text-slate-800 ring-1 ring-inset ring-slate-900/10 active:bg-white/90'
-                    }`}
-                    style={{ touchAction: 'auto', WebkitTapHighlightColor: 'transparent' }}
-                    aria-label={showRadar ? 'Hide rain radar' : 'Show rain radar'}
-                    aria-pressed={showRadar}
-                    title={showRadar ? 'Hide live rain radar' : 'Show live rain radar'}
                 >
-                    {showRadar ? (
-                        <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/80" />
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
-                        </span>
-                    ) : (
-                        <span aria-hidden="true">🌧️</span>
-                    )}
-                    <span>{showRadar ? 'Radar Active' : 'Live Radar'}</span>
-                </button>
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setLayersOpen(open => !open); }}
+                        className={`relative ${CONTROL_BUTTON} rounded-full border border-white/60 bg-white/90 text-slate-800 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] active:bg-white`}
+                        style={CONTROL_TOUCH_STYLE}
+                        aria-label="Map layers"
+                        aria-expanded={layersOpen}
+                        aria-controls="map-layers-menu"
+                    >
+                        <Layers size={19} strokeWidth={2.25} aria-hidden="true" />
+                        {activeLayerCount > 0 ? (
+                            <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-500 px-1 text-[11px] font-bold text-slate-900" aria-hidden="true">
+                                {activeLayerCount}
+                            </span>
+                        ) : null}
+                    </button>
+                    {layersOpen ? (
+                        <div
+                            id="map-layers-menu"
+                            role="group"
+                            aria-label="Map layers"
+                            className="w-[208px] overflow-hidden rounded-2xl border border-slate-900/[0.06] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(15,23,42,0.4)]"
+                        >
+                            {layerOptions.map(option => (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={option.on}
+                                    disabled={option.disabled}
+                                    onClick={(e) => { e.stopPropagation(); option.toggle(); }}
+                                    className="flex min-h-11 w-full items-center gap-3 px-4 text-left text-[14px] font-semibold text-slate-800 transition-colors active:bg-slate-50 disabled:opacity-40"
+                                    style={CONTROL_TOUCH_STYLE}
+                                >
+                                    <span aria-hidden="true" className="text-[17px]">{option.icon}</span>
+                                    <span className="flex-1">{option.label}</span>
+                                    {option.on ? <Check size={16} strokeWidth={2.5} className="text-amber-600" aria-hidden="true" /> : null}
+                                </button>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
             )}
 
             {/* Bottom-center stack: Filters sits cleanly above the TOD slider */}
@@ -1861,69 +1930,6 @@ const VenueMap = forwardRef(({
                     ) : null}
                 </div>
             </div>
-
-            {/* FAB stack */}
-            {mapLoaded && !mapError && (
-                <div
-                    className="absolute right-4 top-20 z-20 flex flex-col items-end gap-3"
-                    style={{
-                        touchAction:     'auto',
-                        pointerEvents:   'auto',
-                    }}
-                    onTouchEnd={e => e.stopPropagation()}
-                >
-                    <div className={CONTROL_GROUP}>
-                        {/* Comfort Heatmap FAB */}
-                        <button
-                            type="button"
-                            onClick={() => setComfortMapOn(prev => !prev)}
-                            onTouchEnd={e => { e.stopPropagation(); }}
-                            title={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
-                            className={`${CONTROL_BUTTON} ${
-                                comfortMapOn
-                                    ? 'bg-amber-500/90 text-white active:bg-amber-500'
-                                    : CONTROL_BUTTON_IDLE
-                            }`}
-                            style={CONTROL_TOUCH_STYLE}
-                            aria-label={comfortMapOn ? 'Hide comfort heatmap' : 'Show comfort heatmap'}
-                            aria-pressed={comfortMapOn}
-                        >
-                            🔥
-                        </button>
-
-                        {/* Cloud Cover FAB */}
-                        {WEATHER_API_KEY && (
-                            <button
-                                type="button"
-                                onClick={() => setCloudOn(prev => !prev)}
-                                onTouchEnd={e => { e.stopPropagation(); }}
-                                title={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
-                                className={`${CONTROL_BUTTON} ${
-                                    cloudOn
-                                        ? 'bg-slate-500/90 text-white active:bg-slate-500'
-                                        : CONTROL_BUTTON_IDLE
-                                }`}
-                                style={CONTROL_TOUCH_STYLE}
-                                aria-label={cloudOn ? 'Hide cloud cover' : 'Show cloud cover'}
-                                aria-pressed={cloudOn}
-                            >
-                                ☁️
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Cozy weather indicator — shows when cozyWeatherActive */}
-                    {cozyWeatherActive && (
-                        <div
-                            title="Cozy weather conditions active"
-                            className="pointer-events-none flex h-11 w-11 items-center justify-center rounded-full border border-amber-500/40 bg-amber-300/25 text-[19px] leading-none shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150"
-                            aria-label="Cozy weather active"
-                        >
-                            🧥
-                        </div>
-                    )}
-                </div>
-            )}
 
             {(!mapLoaded || mapError) && !recovery.sessionLocked && (
                 <div style={styles.overlay}>

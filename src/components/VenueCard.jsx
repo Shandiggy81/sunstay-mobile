@@ -50,6 +50,7 @@ import {
   VENUE_DETAIL_BRANCH,
 } from '../utils/venueDetailTabs';
 import { formatVenueDetailProbe, readVenueDetailLayoutProbe } from '../utils/venueDetailLayoutProbe';
+import { describeWind } from '../utils/headerWeatherSummary';
 
 
 // ── Surface tokens ─────────────────────────────────────────
@@ -57,10 +58,10 @@ import { formatVenueDetailProbe, readVenueDetailLayoutProbe } from '../utils/ven
 // elevation, hairline border and radius instead of drifting per block.
 const CARD =
   'rounded-3xl border border-slate-900/[0.06] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]';
-// Caption2 (11px) is the smallest size iOS uses for labels; slate-600 keeps
-// these micro-labels above 7:1 contrast on white.
+// Sentence-case section labels: easier to read than spaced-out capitals,
+// and slate-600 keeps them above 7:1 contrast on white.
 const MICRO_LABEL =
-  'text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600';
+  'text-[12px] font-semibold text-slate-600';
 
 // ── Live microclimate panel ────────────────────────────────
 // Surfaces the cached venues_in_bbox readings: sun_now / sun_hour_fraction
@@ -240,7 +241,7 @@ const BalconySunshineBlock = ({ balconyData, outdoorSun, curveHours, sunFraction
             {isSunNow ? '☀️' : '🪟'}
           </motion.span>
           <div className="min-w-0">
-            <span className={`block ${isSunNow ? 'text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700' : MICRO_LABEL}`}>
+            <span className={`block ${isSunNow ? 'text-[12px] font-semibold text-amber-700' : MICRO_LABEL}`}>
               {balconyData.type === 'pool' ? 'Pool & Outdoor Area' : balconyData.type === 'outdoor' ? 'Daily sun' : 'Balcony'}
             </span>
             <span className="block text-[17px] font-bold leading-snug tracking-[-0.01em] text-slate-900 tabular-nums">{formatSunHours(sunHoursNum)} Sun Today</span>
@@ -559,7 +560,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, wi
               <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
                 <span className="flex-shrink-0 text-xl" aria-hidden="true">🔆</span>
                 <div className="min-w-0">
-                  <span className={`block ${MICRO_LABEL}`}>UV Index</span>
+                  <span className={`block ${MICRO_LABEL}`}>UV index</span>
                   <span className="mt-0.5 block text-[17px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{uvIndex ?? '–'}</span>
                 </div>
               </div>
@@ -576,7 +577,7 @@ const DetailedForecastAccordion = ({ lat, lng, venue, uvIndex, aqLabel, wind, wi
               <div className={`${CARD} flex min-h-[64px] min-w-[144px] shrink-0 items-center gap-3 p-3`}>
                 <span className="flex-shrink-0 text-xl" aria-hidden="true">🌿</span>
                 <div className="min-w-0">
-                  <span className={`block ${MICRO_LABEL}`}>Air Quality</span>
+                  <span className={`block ${MICRO_LABEL}`}>Air quality</span>
                   <span className="mt-0.5 block truncate text-[17px] font-bold tracking-[-0.01em] text-slate-900">{aqLabel ?? '–'}</span>
                 </div>
               </div>
@@ -1458,26 +1459,26 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                   <div className="my-1 grid grid-cols-2 gap-2.5">
                     <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-slate-900/[0.06] bg-slate-50 p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <span className={MICRO_LABEL}>Wind &amp; Shelter</span>
+                        <span className={MICRO_LABEL}>Wind</span>
                         <Wind size={15} className="shrink-0 text-slate-600" aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
-                        <span className="block truncate text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900">{windSpeedDisplay}</span>
-                        {windView.gustLabel ? (
-                          <span className="block truncate text-[13px] font-medium text-slate-600">{windView.gustLabel}</span>
-                        ) : null}
+                        <span className="block truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-900">{describeWind(windView.speedKmh) ?? windSpeedDisplay}</span>
+                        <span className="block truncate text-[13px] font-medium tabular-nums text-slate-600">
+                          {windSpeedDisplay}{windView.gustKmh != null ? ` · gusts ${windView.gustKmh}` : ''}
+                        </span>
                         <span className="block truncate text-[13px] font-medium text-slate-600">{windShelter}</span>
                       </div>
                     </div>
 
                     <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-slate-900/[0.06] bg-slate-50 p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <span className={MICRO_LABEL}>UV &amp; Solar</span>
+                        <span className={MICRO_LABEL}>UV</span>
                         <Sun size={15} className="shrink-0 text-amber-500" aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
-                        <span className="block truncate text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900">UV {uvValue}</span>
-                        <span className="block truncate text-[13px] font-medium text-slate-600">{uvGuideline}</span>
+                        <span className="block truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-900">{uvGuideline}</span>
+                        <span className="block truncate text-[13px] font-medium tabular-nums text-slate-600">UV index {uvValue}</span>
                       </div>
                     </div>
 
@@ -1489,14 +1490,14 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       <div className="min-w-0">
                         <span className="block truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-900">{seatingLayout}</span>
                         <span className="block truncate text-[13px] font-medium text-slate-600">
-                          {hasCoveredSeating ? 'Covered' : 'Open Air'}
+                          {hasCoveredSeating ? 'Covered' : 'Open air'}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex min-h-[92px] flex-col justify-between rounded-2xl border border-slate-900/[0.06] bg-slate-50 p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <span className={MICRO_LABEL}>Heating / Cozy</span>
+                        <span className={MICRO_LABEL}>Heating</span>
                         <Flame size={15} className="shrink-0 text-amber-500" aria-hidden="true" />
                       </div>
                       <div className="min-w-0">
@@ -1649,7 +1650,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
                   {Array.isArray(actualHappyHour.days) && actualHappyHour.days.length > 0 && (
                     <div className="flex flex-col gap-2">
-                      <span className={MICRO_LABEL}>Available Days</span>
+                      <span className={MICRO_LABEL}>Available days</span>
                       <div className="flex flex-wrap gap-1.5">
                         {actualHappyHour.days.map((day, idx) => (
                           <span
@@ -1693,7 +1694,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
                     {shielding && (
                     <motion.div className="flex flex-col gap-2.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-                      <span className={MICRO_LABEL}>Venue Shielding</span>
+                      <span className={MICRO_LABEL}>Shelter</span>
                       {shielding?.windbreak != null && <ShieldBar label="Windbreak" value={Math.min(1, Math.max(0, Number(shielding.windbreak)))} color="#64748B" delay={0.1} />}
                       {shielding?.rainCover != null && <ShieldBar label="Rain Cover" value={Math.min(1, Math.max(0, Number(shielding.rainCover)))} color="#94A3B8" delay={0.2} />}
                       {shielding?.shade     != null && <ShieldBar label="Shade"      value={Math.min(1, Math.max(0, Number(shielding.shade)))}    color="#F59E0B" delay={0.3} />}
@@ -1702,7 +1703,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
 
                   {amenityChipsAllowed(detailBranch) && safeTags && safeTags.length > 0 && (
                     <div className="flex flex-col gap-2 border-t border-slate-900/[0.06] pt-3">
-                      <span className={MICRO_LABEL}>Venue Features &amp; Tags</span>
+                      <span className={MICRO_LABEL}>Features</span>
                       <div className="flex flex-wrap gap-1.5">
                         {safeTags.map((tag, idx) => (
                           <span

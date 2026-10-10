@@ -12,9 +12,10 @@ import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronUp, ChevronDown, Search,
-    Wind, Sun, Cloud, X, Locate, Crosshair
+    Wind, Sun, Cloud, X, Locate
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
+import { MAX_BOUNDS } from './config/mapConfig';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
 import {
@@ -725,6 +726,13 @@ const AppContent = () => {
                         setLocateHint('Could not find you');
                         return;
                     }
+                    const [[minLng, minLat], [maxLng, maxLat]] = MAX_BOUNDS;
+                    if (lng < minLng || lng > maxLng || lat < minLat || lat > maxLat) {
+                        // SunStay covers greater Melbourne; the map can't pan outside it.
+                        setLocateHint('Showing Melbourne');
+                        handleRecenter();
+                        return;
+                    }
                     try {
                         if (mapRef.current?.locateUser) {
                             mapRef.current.locateUser({ lng, lat, zoom: 14 });
@@ -738,17 +746,19 @@ const AppContent = () => {
                 (err) => {
                     setIsLocating(false);
                     const denied = err?.code === 1;
-                    setLocateHint(denied ? 'Location permission denied' : 'Could not find you');
+                    setLocateHint(denied ? 'Location off · showing Melbourne' : 'Could not find you · showing Melbourne');
+                    handleRecenter();
                     console.warn('[Sunstay] Locate Me failed:', err?.message || err);
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
             );
         } catch (e) {
             setIsLocating(false);
-            setLocateHint('Could not find you');
+            setLocateHint('Could not find you · showing Melbourne');
+            handleRecenter();
             console.warn('[Sunstay] Locate Me error:', e?.message);
         }
-    }, []);
+    }, [handleRecenter]);
 
     useEffect(() => {
         if (!locateHint) return undefined;
@@ -836,9 +846,6 @@ const AppContent = () => {
                 <WeatherBackground />
 
                 <TopBar
-                    searchQuery={searchQuery}
-                    onSearchChange={setSearchQuery}
-                    onRecenter={handleRecenter}
                     weather={weather}
                     onFiltersOpen={openMobileFilters}
                     comfort={comfort}
@@ -974,8 +981,8 @@ const AppContent = () => {
                                         {locateHint}
                                     </div>
                                 )}
-                                {/* Grouped navigation controls — one translucent
-                                    material stack with 44px hit areas. */}
+                                {/* One location button. If location is off or the user is
+                                    outside Melbourne, it falls back to the Melbourne view. */}
                                 <div className="flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/70 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 divide-y divide-slate-900/[0.07]">
                                     <motion.button
                                         type="button"
@@ -988,17 +995,6 @@ const AppContent = () => {
                                         id="locate-me"
                                     >
                                         <Locate size={19} strokeWidth={2.25} className={isLocating ? 'animate-pulse' : undefined} />
-                                    </motion.button>
-                                    <motion.button
-                                        type="button"
-                                        className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center text-slate-800 transition-colors active:bg-slate-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"
-                                        whileTap={{ scale: 0.92 }}
-                                        onClick={handleRecenter}
-                                        id="recenter-map"
-                                        aria-label="Recenter Melbourne"
-                                        title="Recenter Melbourne"
-                                    >
-                                        <Crosshair size={19} strokeWidth={2.25} />
                                     </motion.button>
                                 </div>
                                 {!selectedVenue && (

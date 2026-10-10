@@ -40,3 +40,28 @@ export function localTimeToSliderMinutes(date = new Date(), {
     const snapped = Math.round(clamped / step) * step;
     return Math.min(max, Math.max(min, snapped));
 }
+
+/** Melbourne wall-clock minutes past midnight, not clamped to the slider. */
+export function melbourneMinutesNow(date = new Date()) {
+    const safeDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+    const wall = melbourneHoursMinutes(safeDate);
+    return wall ? wall.hour * 60 + wall.minute : safeDate.getHours() * 60 + safeDate.getMinutes();
+}
+
+/**
+ * Plain label for the slider position relative to now. The slider only covers
+ * 6 am–8 pm, so at night "now" is pinned to an end and the label says so
+ * instead of implying it is daytime with no sun.
+ */
+export function describeSliderTime(sliderMinutes, nowRawMinutes, {
+    min = TOD_DAY_START_MIN,
+    max = TOD_DAY_END_MIN,
+    step = TOD_SLIDER_STEP_MIN,
+} = {}) {
+    const nowClamped = Math.min(max, Math.max(min, nowRawMinutes));
+    const atNow = Math.abs(sliderMinutes - nowClamped) < step;
+    if (atNow && nowRawMinutes < min) return { label: 'Before sunrise', atNow: true };
+    if (atNow && nowRawMinutes > max) return { label: 'After 8 pm', atNow: true };
+    if (atNow) return { label: 'Sun right now', atNow: true };
+    return { label: sliderMinutes > nowClamped ? 'Later today' : 'Earlier today', atNow: false };
+}

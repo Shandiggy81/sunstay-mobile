@@ -3,6 +3,7 @@ import HourlyForecastStrip from './HourlyForecastStrip';
 import LiveSunTimeline from './LiveSunTimeline';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import { checkIfShaded } from '../utils/solarMath.js';
+import { describeSunHeight } from '../utils/sunWords.js';
 import { resolveForecastView } from '../utils/resolveForecastView';
 import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 
@@ -19,7 +20,7 @@ function SolarPositionCard({ localSunData, sunWindow, venue, contextIsRaining, c
   let statusClass = 'bg-amber-50 text-amber-800 border border-amber-500/20';
 
   if (!localSunData.isSunUp) {
-    statusText = '🌙 Night (Sun is Down)';
+    statusText = '🌙 Night';
     statusClass = 'bg-slate-50 text-slate-700 border border-slate-900/[0.08]';
   } else if (isShaded) {
     statusText = '🏢 Shaded by Surroundings';
@@ -28,7 +29,7 @@ function SolarPositionCard({ localSunData, sunWindow, venue, contextIsRaining, c
     statusText = '🌧️ Raining Currently';
     statusClass = 'bg-slate-100 text-slate-700 border border-slate-900/[0.08]';
   } else if (contextCloudCover > 75) {
-    statusText = '☁️ Overcast (Geometrically clear)';
+    statusText = '☁️ Overcast — the sun is behind cloud';
     statusClass = 'bg-slate-100 text-slate-700 border border-slate-900/[0.08]';
   } else if (sunWindow) {
     const timeStr = sunWindow.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -37,15 +38,13 @@ function SolarPositionCard({ localSunData, sunWindow, venue, contextIsRaining, c
 
   return (
     <div className={`${CARD} flex flex-col gap-3 p-4`}>
-      <h3 className="text-[17px] font-bold tracking-[-0.01em] text-slate-900">Live 2D Solar Position</h3>
-      <div className="flex items-center justify-between gap-3 text-[15px]">
-        <span className="font-medium text-slate-600">Altitude (Elevation Angle)</span>
-        <span className="font-semibold tabular-nums text-slate-900">{localSunData.altitude?.toFixed(1) ?? '–'}°</span>
-      </div>
-      <div className="flex items-center justify-between gap-3 text-[15px]">
-        <span className="font-medium text-slate-600">Azimuth (Compass Angle)</span>
-        <span className="font-semibold tabular-nums text-slate-900">{localSunData.azimuth?.toFixed(1) ?? '–'}°</span>
-      </div>
+      <h3 className="text-[17px] font-bold tracking-[-0.01em] text-slate-900">Sun right now</h3>
+      <p className="text-[15px] font-medium text-slate-700">
+        {describeSunHeight(localSunData)}
+        {Number.isFinite(localSunData.altitude) && localSunData.isSunUp ? (
+          <span className="ml-1 text-[13px] text-slate-500">({Math.round(localSunData.altitude)}° up)</span>
+        ) : null}
+      </p>
       <div className={`mt-1 flex min-h-11 items-center justify-center rounded-2xl px-3 text-center text-[15px] font-semibold ${statusClass}`}>
         {statusText}
       </div>
