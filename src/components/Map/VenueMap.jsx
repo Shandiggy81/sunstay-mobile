@@ -195,8 +195,6 @@ function visibleVenueSetKey(venues) {
 // ── Map overlay chrome ──────────────────────────────────────────────────
 // Apple-Maps-style grouped control stack: one translucent material container
 // with hairline dividers, 44px hit areas, and no per-button shadows.
-const CONTROL_GROUP =
-    'flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/70 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 divide-y divide-slate-900/[0.07]';
 const CONTROL_BUTTON =
     'flex h-11 w-11 min-h-11 min-w-11 cursor-pointer items-center justify-center text-[19px] leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600';
 const CONTROL_BUTTON_IDLE = 'bg-transparent text-slate-800 active:bg-slate-900/10';
@@ -733,7 +731,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
             aria-hidden={isVenueSelected}
             inert={isVenueSelected || undefined}
         >
-            <div className="flex items-center gap-3 rounded-[22px] border border-white/60 bg-white/72 px-4 py-2.5 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150">
+            {/* No backdrop blur: this card floats over the live map, where blur
+                makes iOS Safari re-composite the map on every pan frame. */}
+            <div className="flex items-center gap-3 rounded-[22px] border border-white/60 bg-white/90 px-4 py-2.5 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)]">
                 <span className="select-none text-xl leading-none" aria-hidden="true">🌇</span>
                 <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center justify-between gap-2">

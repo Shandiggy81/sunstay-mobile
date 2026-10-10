@@ -27,15 +27,27 @@ Sentry.init({
 
 // Safari reloads a tab it killed for memory without a pagehide. Report that
 // so a return of the iOS crash shows up in Sentry, not just on a phone.
+// A tab cleared while it sat in the background is normal iOS behaviour, so
+// it is logged separately at info level instead of as a crash.
 let sessionStorageRef = null
 try { sessionStorageRef = window.sessionStorage } catch { sessionStorageRef = null }
 watchSessionCrashes({
     storage: sessionStorageRef,
     target: window,
-    report: () => Sentry.captureMessage('Abnormal Session Termination (Possible Jetsam Kill)', {
-        level: 'fatal',
-        tags: { type: 'oom_crash' },
-    }),
+    doc: document,
+    report: (kind) => {
+        if (kind === 'foreground') {
+            Sentry.captureMessage('Abnormal Session Termination (Possible Jetsam Kill)', {
+                level: 'fatal',
+                tags: { type: 'oom_crash', page_state: 'foreground' },
+            })
+        } else {
+            Sentry.captureMessage('Background tab evicted', {
+                level: 'info',
+                tags: { type: 'background_eviction', page_state: 'background' },
+            })
+        }
+    },
 })
 
 const container = document.getElementById('root')
