@@ -43,6 +43,7 @@ import MapErrorBoundary from './components/MapErrorBoundary';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import NetworkErrorModal from './components/common/NetworkErrorModal';
 import EmptyVenueState from './components/common/EmptyVenueState';
+import { areaCountLabel, venueInBounds } from './utils/searchArea';
 
 const FilterSheet = lazy(() => import('./components/FilterSheet'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
@@ -568,16 +569,28 @@ const AppContent = () => {
         });
     }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, settledSearchQuery, weather?.uvi]);
 
+    // "Search this area" narrows only the list to the map area the user
+    // searched. Pins, filter fitBounds and the microclimate fetch still use
+    // every filtered venue. A new filter or search starts from all venues.
+    const [areaBounds, setAreaBounds] = useState(null);
+    useEffect(() => { setAreaBounds(null); }, [activeFilters, settledSearchQuery]);
+    const handleShowAllAreas = useCallback(() => setAreaBounds(null), []);
+    const listVenues = useMemo(
+        () => (areaBounds ? filteredVenues.filter((venue) => venueInBounds(venue, areaBounds)) : filteredVenues),
+        [filteredVenues, areaBounds]
+    );
+    const areaEmpty = !!areaBounds && listVenues.length === 0 && filteredVenues.length > 0;
+
     // Filter first, then rank by the same score each card's badge shows:
     // cached microclimate at the slider minute, else the weather score.
     const { byId: microById, todMinutes: listTodMinutes } = useMicroclimateState();
     const sortedVenues = useMemo(
-        () => sortVenuesBySunstayScore(filteredVenues, (venue) => venueDisplayScore(venue, {
+        () => sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
             byId: microById,
             todMinutes: listTodMinutes,
             calculateSunstayScore,
         })),
-        [filteredVenues, calculateSunstayScore, previewMinutes, microById, listTodMinutes]
+        [listVenues, calculateSunstayScore, previewMinutes, microById, listTodMinutes]
     );
     const resultIdentity = useMemo(() => venueResultIdentity(sortedVenues), [sortedVenues]);
     const [visibleVenueCount, setVisibleVenueCount] = useState(INITIAL_VISIBLE_VENUES);
@@ -636,7 +649,27 @@ const AppContent = () => {
     }, [venues, filteredVenues, filteredVenueIds, activeFilters]);
     // --- END DIAGNOSTICS ---
 
-    const matchingCount = filteredVenues.length;
+    const matchingCount = listVenues.length;
+    const showAllChip = (className) => (
+        <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleShowAllAreas(); }}
+            className={`inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-amber-700 underline-offset-2 hover:underline touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${className}`}
+        >
+            Show all
+        </button>
+    );
+    const listEmptyState = areaEmpty ? (
+        <EmptyVenueState
+            announce
+            onClearFilters={handleShowAllAreas}
+            title="Nothing in this part of the map"
+            message="No venues match here. Zoom out and search again, or see every venue."
+            actionLabel="Show all venues"
+        />
+    ) : listVenues.length === 0 ? (
+        <EmptyVenueState announce onClearFilters={handleClearFilters} />
+    ) : null;
     const stableFilteredIds = filteredVenueIds;
 
     const handleVenueSelect = useCallback((venue) => {
@@ -666,6 +699,7 @@ const AppContent = () => {
     const handleClearFilters = useCallback(() => {
         setActiveFilters([]);
         setSearchQuery('');
+        setAreaBounds(null);
     }, []);
 
     const makeChatFilter = (filter) => () => {
@@ -882,7 +916,8 @@ const AppContent = () => {
 
                         <div className="ss-sidebar-count">
                             <span className="inline-flex items-center gap-2">
-                                {matchingCount} venue{matchingCount !== 1 ? 's' : ''}
+                                {areaBounds ? areaCountLabel(matchingCount) : `${matchingCount} venue${matchingCount !== 1 ? 's' : ''}`}
+                                {areaBounds ? showAllChip('-my-3') : null}
                                 {ENABLE_MANUAL_VENUE_REFRESH ? (
                                     <VenueRefreshButton
                                         onRefresh={requestRefresh}
@@ -919,9 +954,7 @@ const AppContent = () => {
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}
-                                        empty={filteredVenues.length === 0 ? (
-                                            <EmptyVenueState announce onClearFilters={handleClearFilters} />
-                                        ) : null}
+                                        empty={listEmptyState}
                                     />
                                 </MascotPullRefresh>
                         ) : null}
@@ -943,6 +976,8 @@ const AppContent = () => {
                                         cozyWeatherActive={cozyWeatherActive}
                                         cozyFilterActive={cozyFilterActive}
                                         isExpanded={mobileMapExpanded}
+                                        searchedArea={areaBounds}
+                                        onSearchArea={setAreaBounds}
                                     />
                                 </Suspense>
                             </MapErrorBoundary>
@@ -1060,7 +1095,8 @@ const AppContent = () => {
                     >
                         <div className="ss-mobile-sheet-grab" />
                         <span className="inline-flex items-center gap-2">
-                            {matchingCount} venues nearby
+                            {areaBounds ? areaCountLabel(matchingCount) : `${matchingCount} venues nearby`}
+                            {areaBounds ? showAllChip('-my-3') : null}
                             {ENABLE_MANUAL_VENUE_REFRESH ? (
                                 <VenueRefreshButton
                                     onRefresh={requestRefresh}
@@ -1091,7 +1127,8 @@ const AppContent = () => {
                                     <div className="ss-mobile-sheet-grab" />
                                     <h3>Venues</h3>
                                     <p className="inline-flex items-center justify-center gap-2">
-                                        {matchingCount} results
+                                        {areaBounds ? areaCountLabel(matchingCount) : `${matchingCount} results`}
+                                        {areaBounds ? showAllChip('-my-3') : null}
                                         {ENABLE_MANUAL_VENUE_REFRESH ? (
                                             <VenueRefreshButton
                                                 onRefresh={requestRefresh}
@@ -1164,9 +1201,7 @@ const AppContent = () => {
                                             selectedVenue={selectedVenue}
                                             onVenueSelect={handleVenueSelect}
                                             weather={weather}
-                                            empty={filteredVenues.length === 0 ? (
-                                                <EmptyVenueState announce onClearFilters={handleClearFilters} />
-                                            ) : null}
+                                            empty={listEmptyState}
                                         />
                                     </MascotPullRefresh>
                             </motion.div>
