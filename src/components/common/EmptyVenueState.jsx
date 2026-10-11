@@ -46,7 +46,14 @@ const MASCOT_OVERHANG = `${SALLY_OVERHANG / 16}rem`;
  * `announce` is opt-in because the list and the map overlay go empty together:
  * only one of the two should speak.
  */
-const EmptyVenueState = ({ onClearFilters, announce = false, className = '' }) => {
+const EmptyVenueState = ({
+    onClearFilters,
+    announce = false,
+    className = '',
+    title = 'A bit too specific!',
+    message = 'Sally and Rayray couldn’t find any sunny spots matching exactly what you’re looking for.',
+    actionLabel = 'Clear filters',
+}) => {
     const [mascotUnavailable, setMascotUnavailable] = useState(false);
     const prefersReducedMotion = useReducedMotion();
 
@@ -124,12 +131,11 @@ const EmptyVenueState = ({ onClearFilters, announce = false, className = '' }) =
                     </span>
 
                     <h2 className="text-[22px] font-black leading-tight tracking-[-0.02em] text-slate-900 sm:text-2xl">
-                        A bit too specific!
+                        {title}
                     </h2>
 
                     <p className="mx-auto mt-3 max-w-[19rem] text-[13.5px] leading-relaxed text-slate-500">
-                        Sally and Rayray couldn’t find any sunny spots matching exactly what
-                        you’re looking for.
+                        {message}
                     </p>
 
                     <button
@@ -138,7 +144,7 @@ const EmptyVenueState = ({ onClearFilters, announce = false, className = '' }) =
                         className="mt-6 flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 text-[13px] font-black uppercase tracking-[0.06em] text-slate-950 shadow-lg shadow-amber-500/30 transition-all duration-150 touch-manipulation hover:bg-amber-400 active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/35"
                     >
                         <RotateCcw size={16} strokeWidth={2.75} aria-hidden="true" />
-                        CLEAR FILTERS
+                        {actionLabel}
                     </button>
                 </div>
             </motion.div>

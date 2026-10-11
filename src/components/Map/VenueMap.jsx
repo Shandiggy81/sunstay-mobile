@@ -4,8 +4,9 @@ import React, {
 } from 'react';
 import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
-import { Layers, Check } from 'lucide-react';
+import { Layers, Check, Search } from 'lucide-react';
 import { clusterSize, sunPinView } from '../../utils/sunPin';
+import { areaPromptNeeded } from '../../utils/searchArea';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
@@ -734,6 +735,21 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     );
 }
 
+function readMapBounds(instance) {
+    try {
+        const bounds = instance?.getBounds?.();
+        if (!bounds) return null;
+        return {
+            minLng: bounds.getWest(),
+            minLat: bounds.getSouth(),
+            maxLng: bounds.getEast(),
+            maxLat: bounds.getNorth(),
+        };
+    } catch {
+        return null;
+    }
+}
+
 // ══════════════════════════════════════════════════════════════════════
 const VenueMap = forwardRef(({
     venues = [],
@@ -746,6 +762,8 @@ const VenueMap = forwardRef(({
     cozyWeatherActive = false,  // true when weather is cold/rainy
     cozyFilterActive  = false,  // true when user has 'Cozy' filter selected
     filtersControl    = null,   // Filters FAB — stacked above TOD, layout only
+    searchedArea      = null,   // bounds the list is narrowed to, or null
+    onSearchArea      = null,   // (bounds) => void — "Search this area" pill
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -775,6 +793,7 @@ const VenueMap = forwardRef(({
     const [cloudOn,      setCloudOn]      = useState(false);
     const [showRadar,    setShowRadar]    = useState(false);
     const [layersOpen,   setLayersOpen]   = useState(false);
+    const [areaPrompt,   setAreaPrompt]   = useState(null); // bounds to search, or null
 
     const [mapLoaded,    setMapLoaded]    = useState(false);
     const [mapError,     setMapError]     = useState(false);
@@ -1732,6 +1751,55 @@ const VenueMap = forwardRef(({
         };
     }, [mapLoaded, setBbox]);
 
+    // ── "Search this area" pill ─────────────────────────────────────
+    // Only a pan or zoom the user made offers it; flyTo, fitBounds and
+    // Locate move the camera without an originalEvent and never do.
+    const areaBaselineRef = useRef(null);
+    const searchedAreaRef = useRef(searchedArea);
+    useEffect(() => {
+        searchedAreaRef.current = searchedArea;
+        areaBaselineRef.current = searchedArea ?? readMapBounds(map.current);
+        setAreaPrompt(null);
+    }, [searchedArea]);
+
+    useEffect(() => {
+        if (!mapLoaded || !map.current || typeof onSearchArea !== 'function') return undefined;
+        const instance = map.current;
+        let userMove = false;
+
+        const onMoveStart = (e) => { userMove = !!e?.originalEvent; };
+        const onMoveEnd = () => {
+            if (map.current !== instance) return;
+            const bounds = readMapBounds(instance);
+            if (!bounds) return;
+            if (!userMove) {
+                // Programmatic camera moves reset the baseline while the
+                // list still shows everything.
+                if (!searchedAreaRef.current) areaBaselineRef.current = bounds;
+                return;
+            }
+            userMove = false;
+            setAreaPrompt(areaPromptNeeded(areaBaselineRef.current, bounds) ? bounds : null);
+        };
+
+        if (!areaBaselineRef.current) areaBaselineRef.current = searchedAreaRef.current ?? readMapBounds(instance);
+        instance.on('movestart', onMoveStart);
+        instance.on('moveend', onMoveEnd);
+        return () => {
+            try {
+                instance.off('movestart', onMoveStart);
+                instance.off('moveend', onMoveEnd);
+            } catch { /* noop */ }
+        };
+    }, [mapLoaded, onSearchArea]);
+
+    const onSearchAreaClick = useCallback((e) => {
+        e.stopPropagation();
+        if (!areaPrompt || typeof onSearchArea !== 'function') return;
+        onSearchArea(areaPrompt);
+        setAreaPrompt(null);
+    }, [areaPrompt, onSearchArea]);
+
     // Forecast fetches read this instance to see if flyTo is still running.
     // Registration is not part of map construction or teardown.
     useEffect(() => {
@@ -1924,6 +1992,21 @@ const VenueMap = forwardRef(({
                     ) : null}
                 </div>
             )}
+
+            {areaPrompt && !selectedVenue && !webglLost && mapLoaded && !mapError ? (
+                <div className="pointer-events-none absolute inset-x-0 top-4 z-50 flex justify-center px-20">
+                    <button
+                        type="button"
+                        onClick={onSearchAreaClick}
+                        onTouchEnd={e => e.stopPropagation()}
+                        className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-[14px] font-semibold text-slate-900 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.45)] ring-1 ring-inset ring-slate-900/[0.08] transition-colors touch-manipulation active:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                        style={CONTROL_TOUCH_STYLE}
+                    >
+                        <Search size={16} strokeWidth={2.5} aria-hidden="true" />
+                        Search this area
+                    </button>
+                </div>
+            ) : null}
 
             {/* Bottom-center stack: Filters sits cleanly above the TOD slider */}
             <div className="pointer-events-none absolute inset-x-0 z-40 bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]">
