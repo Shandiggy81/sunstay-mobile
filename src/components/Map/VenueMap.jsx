@@ -992,6 +992,7 @@ const VenueMap = forwardRef(({
         let cleaned = false;
         let resizeObserver;
         let resizeFrame = 0;
+        let removeWakeListeners = () => {};
         const loadTimeout = setTimeout(() => {
             if (disposed || !isCurrent()) return;
             if (recoveryRef.current.phase === 'resuming') {
@@ -1077,6 +1078,29 @@ const VenueMap = forwardRef(({
                 }, schedule.settleMs);
             });
             resizeObserver.observe(mapContainer.current);
+
+            // A tab left open in Safari can come back from the background or
+            // the back/forward cache with the map canvas at a stale size: the
+            // container never changed, so the ResizeObserver stays quiet, and
+            // only a strip of the map draws. Re-measure when the page is shown.
+            const onWake = (event) => {
+                if (event?.type === 'visibilitychange' && document.visibilityState !== 'visible') return;
+                if (disposed || !map.current || !isCurrent()) return;
+                const phase = recoveryRef.current?.phase;
+                if (phase === 'paused' || phase === 'resume-failed') return;
+                try {
+                    map.current.resize();
+                    map.current.triggerRepaint();
+                } catch (err) {
+                    console.warn('[VenueMap] wake resize failed:', err?.message);
+                }
+            };
+            window.addEventListener('pageshow', onWake);
+            document.addEventListener('visibilitychange', onWake);
+            removeWakeListeners = () => {
+                window.removeEventListener('pageshow', onWake);
+                document.removeEventListener('visibilitychange', onWake);
+            };
 
             map.current.on('load', () => {
                 if (disposed || !map.current || !isCurrent()) return;
@@ -1194,6 +1218,7 @@ const VenueMap = forwardRef(({
             for (const timer of pendingTimersRef.current) clearTimeout(timer);
             pendingTimersRef.current.clear();
             resizeObserver?.disconnect();
+            removeWakeListeners();
             if (resizeFrame) clearTimeout(resizeFrame);
             if (rafRef.current) {
                 cancelAnimationFrame(rafRef.current);
