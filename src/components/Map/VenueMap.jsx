@@ -5,6 +5,7 @@ import React, {
 import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
 import { Layers, Check } from 'lucide-react';
+import { clusterSize, sunPinView } from '../../utils/sunPin';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
@@ -200,141 +201,90 @@ const CONTROL_BUTTON =
 const CONTROL_BUTTON_IDLE = 'bg-transparent text-slate-800 active:bg-slate-900/10';
 const CONTROL_TOUCH_STYLE = { touchAction: 'auto', WebkitTapHighlightColor: 'transparent' };
 
-// ── Mini Sunstay Score badge (mirrors the list card + detail sheet ramp) ──
-const SCORE_BADGE_TIERS = [
-    { min: 75, bg: '#059669' }, // emerald — prime conditions
-    { min: 50, bg: '#D97706' }, // amber — good conditions
-    { min: 0,  bg: '#0284C7' }, // sky — worth a look
-];
-
-function getScoreBadgeColor(score) {
-    return (SCORE_BADGE_TIERS.find(t => score >= t.min) || SCORE_BADGE_TIERS[SCORE_BADGE_TIERS.length - 1]).bg;
-}
-
-function createScoreBadgeEl(score) {
-    const badge = document.createElement('div');
-    badge.className = 'ss-pin-score-badge';
-    badge.style.cssText = [
-        'position:absolute', 'top:-3px', 'right:-3px',
-        'min-width:18px', 'height:18px', 'padding:0 3px',
-        'border-radius:9px', 'border:2px solid #fff',
-        'display:flex', 'align-items:center', 'justify-content:center',
-        'font-size:9px', 'font-weight:800', 'color:#fff',
-        'box-shadow:0 1px 3px rgba(0,0,0,0.35)',
-        'pointer-events:none', 'line-height:1', 'z-index:20',
-        `background:${getScoreBadgeColor(score)}`,
-    ].join(';');
-    badge.textContent = String(score);
-    return badge;
-}
-
-function syncScoreBadge(el, score) {
-    let badge = el.querySelector('.ss-pin-score-badge');
-    if (Number.isFinite(score)) {
-        if (!badge) {
-            el.appendChild(createScoreBadgeEl(score));
-        } else {
-            badge.textContent = String(score);
-            badge.style.background = getScoreBadgeColor(score);
-        }
-    } else if (badge) {
-        badge.remove();
-    }
-}
-
 // ── Marker DOM helpers ──────────────────────────────────────────────────
-function createMarkerEl(pinKey, score) {
-    const { emoji, bg, border, color } = PIN_STATES[pinKey] || PIN_STATES.default;
+// Label pins: the venue's own icon + its sun score, coloured by sun tier
+// (see utils/sunPin). No infinite CSS animation and no backdrop blur, so a
+// map full of pins stays cheap for the iOS compositor.
+const PIN_TAIL_SVG = (fill, stroke) =>
+    `<svg width="14" height="8" viewBox="0 0 14 8" aria-hidden="true" style="display:block;margin-top:-1px"><path d="M1 0 L7 7 L13 0" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/></svg>`;
 
-    const el = document.createElement('div');
-    el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center; position:relative;';
-
-    const isSunny = pinKey === 'sunshine' || pinKey === 'sunny';
-
-    if (isSunny) {
-        const ring = document.createElement('div');
-        ring.className = 'absolute inset-0 rounded-full ss-pin-ping';
-        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75;';
-        el.appendChild(ring);
-    }
-
-    const inner = document.createElement('div');
-    inner.className = 'ss-pin-inner';
-
-    inner.style.cssText = [
-        'width:40px', 'height:40px', 'border-radius:50%',
-        `background:${bg}`, `border:2px solid ${border}`, `color:${color || '#0f172a'}`,
-        'display:flex', 'align-items:center', 'justify-content:center',
-        'font-size:20px', 'cursor:pointer',
-        'box-shadow:0 2px 8px rgba(0,0,0,0.15)',
-        'transition:transform 120ms ease, filter 120ms ease',
-        'user-select:none', 'line-height:1',
-        '-webkit-tap-highlight-color:transparent',
-        'position:relative', 'z-index:10'
-    ].join(';');
-
-    inner.textContent = emoji;
-
-    inner.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.15)'; });
-    inner.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
-
-    el.appendChild(inner);
-    syncScoreBadge(el, score);
-    return el;
+function paintMarkerEl(el, view) {
+    const bubble = el.querySelector('.ss-pin-bubble');
+    const icon = el.querySelector('.ss-pin-icon');
+    const score = el.querySelector('.ss-pin-score');
+    const tail = el.querySelector('.ss-pin-tail');
+    if (!bubble || !icon || !score || !tail) return;
+    bubble.style.background = view.bg;
+    bubble.style.borderColor = view.border;
+    bubble.style.color = view.text;
+    icon.textContent = view.icon;
+    score.textContent = view.scoreText;
+    score.style.display = view.scoreText ? '' : 'none';
+    tail.innerHTML = PIN_TAIL_SVG(view.bg, view.border);
+    el.setAttribute('aria-label', view.label);
+    el.dataset.sunTier = view.tier;
+    el.style.zIndex = view.tier === 'selected' ? '3' : view.tier === 'full' ? '2' : '1';
 }
 
-function updateMarkerEl(el, pinKey, score) {
-    const inner = el.querySelector('.ss-pin-inner');
-    if (!inner) return;
+function createMarkerEl(view) {
+    const el = document.createElement('div');
+    el.className = 'ss-sun-pin';
+    el.setAttribute('role', 'button');
+    el.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;';
 
-    const { emoji, bg, border, color } = PIN_STATES[pinKey] || PIN_STATES.default;
-    inner.textContent = emoji;
-    inner.style.background = bg;
-    inner.style.borderColor = border;
-    inner.style.color = color || '#0f172a';
+    const bubble = document.createElement('div');
+    bubble.className = 'ss-pin-bubble';
+    bubble.style.cssText = [
+        'display:flex', 'align-items:center', 'gap:4px',
+        'min-height:30px', 'padding:4px 9px', 'border-radius:12px',
+        'border:1.5px solid', 'box-shadow:0 3px 8px rgba(15,23,42,0.16)',
+        'font:700 14px/1 "Plus Jakarta Sans",system-ui,sans-serif',
+        'white-space:nowrap', 'transition:transform 120ms ease',
+    ].join(';');
+    const icon = document.createElement('span');
+    icon.className = 'ss-pin-icon';
+    icon.style.cssText = 'font-size:15px;line-height:1';
+    const score = document.createElement('span');
+    score.className = 'ss-pin-score';
+    score.style.cssText = 'font-variant-numeric:tabular-nums';
+    bubble.append(icon, score);
 
-    const isSunny = pinKey === 'sunshine' || pinKey === 'sunny';
-    const existingRing = el.querySelector('.ss-pin-ping');
+    const tail = document.createElement('div');
+    tail.className = 'ss-pin-tail';
+    el.append(bubble, tail);
 
-    if (isSunny && !existingRing) {
-        const ring = document.createElement('div');
-        ring.className = 'absolute inset-0 rounded-full ss-pin-ping';
-        ring.style.cssText = 'background: rgba(245, 158, 11, 0.4); opacity: 0.75;';
-        el.insertBefore(ring, inner);
-    } else if (!isSunny && existingRing) {
-        existingRing.remove();
-    }
-
-    syncScoreBadge(el, score);
+    el.addEventListener('mouseenter', () => { bubble.style.transform = 'scale(1.08)'; });
+    el.addEventListener('mouseleave', () => { bubble.style.transform = ''; });
+    paintMarkerEl(el, view);
+    return el;
 }
 
 function createClusterMarkerEl(count) {
     const el = document.createElement('div');
-    el.style.cssText = 'width:40px; height:40px; display:flex; align-items:center; justify-content:center;';
-    
+    el.style.cssText = 'display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;';
     const inner = document.createElement('div');
+    inner.className = 'ss-cluster-inner';
     inner.style.cssText = [
-        'width:40px', 'height:40px', 'border-radius:50%',
-        'background:#3B82F6', 'border:3px solid #1D4ED8',
+        'border-radius:50%', 'background:#ffffff', 'border:3px solid #f59e0b',
         'display:flex', 'align-items:center', 'justify-content:center',
-        'font-size:16px', 'font-weight:bold', 'color:white',
-        'cursor:pointer', 'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
-        'transition:transform 120ms ease', 'user-select:none',
-        '-webkit-tap-highlight-color:transparent'
+        'font:800 15px/1 "Plus Jakarta Sans",system-ui,sans-serif', 'color:#0f172a',
+        'box-shadow:0 3px 10px rgba(15,23,42,0.22)', 'transition:transform 120ms ease',
     ].join(';');
-
-    inner.textContent = count;
-
-    inner.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.1)'; });
-    inner.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
-
     el.appendChild(inner);
+    el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.08)'; });
+    el.addEventListener('mouseleave', () => { inner.style.transform = ''; });
+    updateClusterMarkerEl(el, count);
     return el;
 }
 
 function updateClusterMarkerEl(el, count) {
-    const inner = el.querySelector('div');
-    if (inner) inner.textContent = count;
+    const inner = el.querySelector('.ss-cluster-inner');
+    if (!inner) return;
+    const size = clusterSize(count);
+    inner.style.width = `${size}px`;
+    inner.style.height = `${size}px`;
+    inner.textContent = String(count);
+    el.setAttribute('aria-label', `${count} venues`);
 }
 
 // HTML markers sit on the map plane so they do not parallax when the 3D
@@ -856,6 +806,21 @@ const VenueMap = forwardRef(({
 
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
+
+    // Selected pin: ink bubble + amber score. Repaint only the pins whose
+    // selection changed instead of re-running the whole marker sync.
+    const selectedVenueIdRef = useRef(selectedVenue?.id ?? null);
+    useEffect(() => {
+        const id = selectedVenue?.id ?? null;
+        selectedVenueIdRef.current = id;
+        for (const record of Object.values(markersRef.current || {})) {
+            if (!record || record.isCluster || !record.el) continue;
+            const selected = id != null && record.venueId === String(id);
+            if (record.selected === selected) continue;
+            record.selected = selected;
+            paintMarkerEl(record.el, sunPinView({ pinKey: record.pinKey, score: record.score, emoji: record.emoji, selected }));
+        }
+    }, [selectedVenue?.id]);
 
     const liveVenueFeaturesRef = useRef(liveVenueFeatures);
     const liveKey = JSON.stringify(liveVenueFeatures);
@@ -1643,17 +1608,22 @@ const VenueMap = forwardRef(({
                         microReading,
                     );
                     const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
+                    const emoji = venue.emoji ?? null;
+                    const selected = String(selectedVenueIdRef.current ?? '') === String(venueId);
                     specs.push({
                         id: `venue-${venueId}`,
                         update(existing) {
-                            if (existing.pinKey !== pinKey || existing.score !== score) {
-                                updateMarkerEl(existing.el, pinKey, score);
+                            if (existing.pinKey !== pinKey || existing.score !== score
+                                || existing.emoji !== emoji || existing.selected !== selected) {
+                                paintMarkerEl(existing.el, sunPinView({ pinKey, score, emoji, selected }));
                                 existing.pinKey = pinKey;
                                 existing.score = score;
+                                existing.emoji = emoji;
+                                existing.selected = selected;
                             }
                         },
                         create() {
-                            const el = createMarkerEl(pinKey, score);
+                            const el = createMarkerEl(sunPinView({ pinKey, score, emoji, selected }));
                             el.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -1663,7 +1633,7 @@ const VenueMap = forwardRef(({
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(instance);
-                            return { marker, el, pinKey, score, isCluster: false, generation };
+                            return { marker, el, pinKey, score, emoji, selected, venueId: String(venueId), isCluster: false, generation };
                         },
                     });
                 });
