@@ -1,20 +1,21 @@
 # Supabase migration reconciliation (review only)
 
-Status: **review in progress — nothing in this folder has been applied.**
+Status: **steps 1–3 and the corrective migration are done in the repo; nothing
+has been applied to production.** Step 5 (`migration repair`) is still pending.
 Production project: `fksuqgvsazoxarocmaii` ("Sunstay global v2"), the project the
 live site (`sunstayglobal30.netlify.app`) uses.
 
 This folder sits outside `supabase/migrations/`, so the Supabase CLI ignores it.
 
-## Do not run `supabase db push`
+## Do not run `supabase db push` yet
 
-The active `supabase/migrations/` directory does **not** match production.
-`db push` would find 11 recorded production versions with no local file and
-would try to apply local files production never recorded, including one that
-creates a public write policy on `venues`. It stays unsafe until the plan below
-is finished.
+`supabase/migrations/` now holds production's 11 migrations under their
+production versions, plus `20261011120000`, which production doesn't have
+recorded yet. Until step 5 records it, `db push` would try to apply it. That
+would be harmless, because every statement is idempotent, but it should be
+recorded with `migration repair` instead.
 
-## Production vs repository (as of 2026-10-11)
+## Production vs repository before reconciliation (2026-10-11)
 
 Production stores the original SQL for every recorded migration in
 `supabase_migrations.schema_migrations.statements`. Hashes below are MD5 of
@@ -56,8 +57,8 @@ Production-only objects (not defined anywhere in the repo):
 Revoked EXECUTE on the three exposed SECURITY DEFINER functions from
 PUBLIC/anon/authenticated, enabled RLS on `buildings` and `buildings_stage`,
 and revoked all table privileges on both from PUBLIC/anon/authenticated.
-`proposed/20261011120000_lockdown_morphology_and_buildings.sql` records the same
-statements so the fix is not lost. It is idempotent.
+`supabase/migrations/20261011120000_lockdown_morphology_and_buildings.sql` records
+the same statements so the fix is not lost. It is idempotent.
 
 Separate, unapproved: `proposed/search_path_hardening.sql`.
 
@@ -65,17 +66,17 @@ Separate, unapproved: `proposed/search_path_hardening.sql`.
 
 Each step needs approval. None touches production except read-only fetches.
 
-1. Move every file in `supabase/migrations/` to `supabase/migrations_archive/`.
-2. Recreate the 11 production migrations under their exact production versions,
-   from `supabase migration fetch --linked` (read-only) or from the verified,
-   redacted review copies. Check each against the production hash.
-3. In the cron migration, replace the embedded anon JWT and project URL with
-   Vault lookups (`vault.decrypted_secrets`) or a documented placeholder.
-   **Never commit the literal JWT.**
-4. Run `supabase migration list` and confirm local and remote match exactly.
-5. Add the corrective migration from `proposed/`. Because production already
-   has these grants, record it with `supabase migration repair --status applied
-   20261011120000` instead of pushing it.
+1. Done: moved every file in `supabase/migrations/` to `supabase/migrations_archive/`.
+2. Done: recreated the 11 production migrations under their exact production
+   versions from the verified, redacted review copies. Each matches the
+   production hash.
+3. Done: the cron migration reads the project URL and anon key from Vault
+   (`vault.decrypted_secrets`). **Never commit the literal JWT.**
+4. Run `supabase migration list` and confirm the only difference is
+   `20261011120000` (local only).
+5. The corrective migration is in `supabase/migrations/`. Because production
+   already has these grants, record it with `supabase migration repair --status
+   applied 20261011120000` instead of pushing it.
 6. Add `supabase/functions/enrich-microclimate/index.ts` from the deployed v5
    source and `[functions.enrich-microclimate] verify_jwt = true` to
    `supabase/config.toml`.
