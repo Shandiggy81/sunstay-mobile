@@ -2,6 +2,12 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check } from 'lucide-react';
 import { FILTER_CATEGORIES } from '../data/demoVenues';
+import { clayIconFor, clayIconUrls } from '../utils/clayFilterIcons';
+
+// Hashed /assets/<name>-<hash>.webp URLs, so new artwork is never cached stale.
+const CLAY_ICON_URLS = clayIconUrls(
+    import.meta.glob('../assets/clay/*.webp', { eager: true, import: 'default' })
+);
 
 const FilterSheet = ({
     isOpen,
@@ -49,6 +55,7 @@ const FilterSheet = ({
                         <div className="ss-filter-chip-grid">
                             {FILTER_CATEGORIES.map(filter => {
                                 const isActive = safeActiveFilters.includes(filter.id);
+                                const clayIcon = clayIconFor(filter.id, CLAY_ICON_URLS);
                                 return (
                                     <button
                                         key={filter.id}
@@ -57,11 +64,26 @@ const FilterSheet = ({
                                         className={`ss-filter-chip ${isActive ? 'ss-filter-chip--active' : ''}`}
                                         aria-pressed={isActive}
                                     >
-                                        <div className="flex items-center gap-1.5">
-                                            <span>{filter.icon}</span>
-                                            <span>{filter.label}</span>
-                                        </div>
-                                        {isActive && <Check size={14} className="text-blue-600" />}
+                                        {clayIcon ? (
+                                            <img
+                                                src={clayIcon}
+                                                alt=""
+                                                width={44}
+                                                height={44}
+                                                loading="lazy"
+                                                decoding="async"
+                                                draggable={false}
+                                                className="ss-filter-chip-icon"
+                                            />
+                                        ) : (
+                                            <span className="ss-filter-chip-emoji" aria-hidden="true">{filter.icon}</span>
+                                        )}
+                                        <span>{filter.label}</span>
+                                        {isActive && (
+                                            <span className="ss-filter-chip-check" aria-hidden="true">
+                                                <Check size={13} strokeWidth={3} />
+                                            </span>
+                                        )}
                                     </button>
                                 );
                             })}

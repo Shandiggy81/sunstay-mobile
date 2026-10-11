@@ -6235,32 +6235,81 @@ body,
   color: #6b7280;
 }
 
+/* Clay icon tiles: three across on phones, icon above a short label. */
 .ss-filter-chip-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 20px;
 }
 
+@media (min-width: 480px) {
+  .ss-filter-chip-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .ss-filter-chip {
-  display: inline-flex;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 10px 16px;
-  border-radius: 20px;
+  gap: 4px;
+  min-height: 88px;
+  padding: 10px 6px 8px;
+  border-radius: 18px;
   border: 1.5px solid #e5e7eb;
   background: #fff;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: #4b5563;
+  line-height: 1.2;
+  text-align: center;
+  color: #334155;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .ss-filter-chip:active {
   transform: scale(0.97);
+}
+
+.ss-filter-chip:focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 2px;
+}
+
+.ss-filter-chip-icon {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ss-filter-chip-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.ss-filter-chip-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  color: #0f172a;
 }
 
 .ss-filter-chip--active {

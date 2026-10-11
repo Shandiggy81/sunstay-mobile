@@ -1088,7 +1088,9 @@ const AppContent = () => {
                     </Suspense>
                 </main>
 
-                {!mobileMapExpanded && !selectedVenue && (
+                {/* Hidden while Filters is open: the fixed bar sat on top of the
+                    sheet's "Show N venues" button and swallowed the tap. */}
+                {!mobileMapExpanded && !selectedVenue && !mobileFilterOpen && (
                     <div
                         className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
                         onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
