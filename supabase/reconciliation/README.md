@@ -1,19 +1,20 @@
 # Supabase migration reconciliation (review only)
 
-Status: **steps 1–3 and the corrective migration are done in the repo; nothing
-has been applied to production.** Step 5 (`migration repair`) is still pending.
+Status: **reconciled.** Steps 1–5 are done. On 2026-10-11, `supabase migration
+repair --status applied 20261011120000` recorded the corrective migration
+without running it, and `supabase migration list` now shows all 12 versions on
+both sides. No migration SQL was pushed.
 Production project: `fksuqgvsazoxarocmaii` ("Sunstay global v2"), the project the
 live site (`sunstayglobal30.netlify.app`) uses.
 
 This folder sits outside `supabase/migrations/`, so the Supabase CLI ignores it.
 
-## Do not run `supabase db push` yet
+## `supabase db push`
 
-`supabase/migrations/` now holds production's 11 migrations under their
-production versions, plus `20261011120000`, which production doesn't have
-recorded yet. Until step 5 records it, `db push` would try to apply it. That
-would be harmless, because every statement is idempotent, but it should be
-recorded with `migration repair` instead.
+`supabase/migrations/` matches production's recorded history exactly, so
+`db push` has nothing to apply. Before pushing new work, run
+`supabase migration list` and confirm the only local-only versions are the new
+ones you mean to push.
 
 ## Production vs repository before reconciliation (2026-10-11)
 
@@ -72,11 +73,10 @@ Each step needs approval. None touches production except read-only fetches.
    production hash.
 3. Done: the cron migration reads the project URL and anon key from Vault
    (`vault.decrypted_secrets`). **Never commit the literal JWT.**
-4. Run `supabase migration list` and confirm the only difference is
-   `20261011120000` (local only).
-5. The corrective migration is in `supabase/migrations/`. Because production
-   already has these grants, record it with `supabase migration repair --status
-   applied 20261011120000` instead of pushing it.
+4. Done: `supabase migration list` showed `20261011120000` as the only
+   local-only version and nothing remote-only.
+5. Done: recorded the corrective migration with `supabase migration repair
+   --status applied 20261011120000`; `migration list` then matched on both sides.
 6. Add `supabase/functions/enrich-microclimate/index.ts` from the deployed v5
    source and `[functions.enrich-microclimate] verify_jwt = true` to
    `supabase/config.toml`.

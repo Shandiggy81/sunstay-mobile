@@ -82,11 +82,11 @@ The main SunStay app has no user authentication. The separate sunstay-admin app 
   like service-role or `sb_secret_` keys. Callers must guard `if (supabase)`.
 - Schema, RPCs and policies: `supabase/migrations/`. Seeds: `supabase/seeds/`.
   `20260917_harden_venues_policies.sql` drops the public UPDATE policy on `venues`.
-- `supabase/migrations/` holds production's migration history (project `fksuqgvsazoxarocmaii`) under
-  its real versions, plus `20261011120000`, which production has not recorded yet. Older local files
-  are in `supabase/migrations_archive/`; never replay them. The deployed `enrich-microclimate` Edge
-  Function is not in the repo. Don't run `supabase db push` until `migration list` shows no
-  difference; see `supabase/reconciliation/README.md`.
+- `supabase/migrations/` matches production's recorded migration history (project
+  `fksuqgvsazoxarocmaii`) version for version. Older local files are in
+  `supabase/migrations_archive/`; never replay them. Before any `supabase db push`, run
+  `supabase migration list` and confirm only the new migrations are local-only; see
+  `supabase/reconciliation/README.md`.
 - New `public` functions and tables get anon/authenticated grants by default in this project.
   Revoke from `public, anon, authenticated` by name, and enable RLS on every new table.
 - `OwnerDashboard.jsx` is reachable from the venue card without sign-in and issues `venues` updates
