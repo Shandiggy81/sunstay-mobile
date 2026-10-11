@@ -976,14 +976,14 @@ const AppContent = () => {
                                 {locateHint && (
                                     <div
                                         role="status"
-                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/85 px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_6px_24px_-8px_rgba(15,23,42,0.5)] ring-1 ring-inset ring-white/15 backdrop-blur-xl"
+                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/85 px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_6px_24px_-8px_rgba(15,23,42,0.5)] ring-1 ring-inset ring-white/15"
                                     >
                                         {locateHint}
                                     </div>
                                 )}
                                 {/* One location button. If location is off or the user is
                                     outside Melbourne, it falls back to the Melbourne view. */}
-                                <div className="flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/70 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] backdrop-blur-xl backdrop-saturate-150 divide-y divide-slate-900/[0.07]">
+                                <div className="flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/90 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] divide-y divide-slate-900/[0.07]">
                                     <motion.button
                                         type="button"
                                         className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center text-sky-700 transition-colors active:bg-slate-900/10 disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"
