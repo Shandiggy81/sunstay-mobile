@@ -82,6 +82,13 @@ The main SunStay app has no user authentication. The separate sunstay-admin app 
   like service-role or `sb_secret_` keys. Callers must guard `if (supabase)`.
 - Schema, RPCs and policies: `supabase/migrations/`. Seeds: `supabase/seeds/`.
   `20260917_harden_venues_policies.sql` drops the public UPDATE policy on `venues`.
+- `supabase/migrations/` matches production's recorded migration history (project
+  `fksuqgvsazoxarocmaii`) version for version. Older local files are in
+  `supabase/migrations_archive/`; never replay them. Before any `supabase db push`, run
+  `supabase migration list` and confirm only the new migrations are local-only; see
+  `supabase/reconciliation/README.md`.
+- New `public` functions and tables get anon/authenticated grants by default in this project.
+  Revoke from `public, anon, authenticated` by name, and enable RLS on every new table.
 - `OwnerDashboard.jsx` is reachable from the venue card without sign-in and issues `venues` updates
   through the browser client.
 - Edge Function `supabase/functions/chat-sunny` calls Gemini with a server-side `GEMINI_API_KEY`
@@ -145,10 +152,9 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - `src/main.jsx` writes the boot error's `toString()` into `innerHTML` on a startup failure.
 
 ### Requires production configuration or dashboard verification
-- Whether the RLS hardening migration is applied in the production Supabase project, and what
-  policies currently govern `venues` writes.
-- Whether the deployed `chat-sunny` function enforces JWT verification as in `config.toml`, and
-  whether Gemini quota or rate limits protect it.
+- Whether Gemini quota or rate limits protect `chat-sunny`. (Production verified 2026-10-11: the
+  hardening migration is applied, `venues` has only a public SELECT policy with RLS on, and the
+  deployed `chat-sunny` has `verify_jwt = true`.)
 - Whether the Mapbox token is URL-restricted and whether keys from Git history have been rotated.
 - Whether `VITE_SENTRY_DSN` is set in Netlify so Sentry events are actually sent.
 

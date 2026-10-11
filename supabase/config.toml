@@ -2,3 +2,6 @@
 
 [functions.chat-sunny]
 verify_jwt = true
+
+[functions.enrich-microclimate]
+verify_jwt = true
