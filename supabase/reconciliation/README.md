@@ -77,9 +77,9 @@ Each step needs approval. None touches production except read-only fetches.
    local-only version and nothing remote-only.
 5. Done: recorded the corrective migration with `supabase migration repair
    --status applied 20261011120000`; `migration list` then matched on both sides.
-6. Add `supabase/functions/enrich-microclimate/index.ts` from the deployed v5
-   source and `[functions.enrich-microclimate] verify_jwt = true` to
-   `supabase/config.toml`.
+6. Done: added `supabase/functions/enrich-microclimate/index.ts` (the deployed
+   v5 source, unchanged) and `[functions.enrich-microclimate] verify_jwt = true`
+   to `supabase/config.toml`. Nothing was deployed.
 7. Only then consider `db push` for new work.
 
 Files to review before step 1: all of `supabase/migrations/`,
