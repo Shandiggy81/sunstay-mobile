@@ -59,11 +59,15 @@ export default function HourlyForecastStrip({
   fetchReady = true,
   venueId = '',
   onViewState,
+  // From SunForecastPanel's shared forecast, so this badge matches the
+  // timeline headline. The strip's own count is a fallback.
+  sunMinutesToday = null,
 }) {
   const [hourly, setHourly]                   = useState([]);
   const [loading, setLoading]                 = useState(true);
   const [error, setError]                     = useState(false);
   const [sunshineMinsToday, setSunshineMinsToday] = useState(null);
+  const badgeSunMins = Number.isFinite(sunMinutesToday) ? sunMinutesToday : sunshineMinsToday;
 
   const generationRef = useRef(createForecastGeneration());
   const latNum = lat != null ? Number(lat) : NaN;
@@ -231,11 +235,11 @@ export default function HourlyForecastStrip({
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
           12-Hour Forecast
         </span>
-        {sunshineMinsToday !== null && (
+        {badgeSunMins !== null && (
           <span style={{ color: '#FCD34D', fontSize: 11, fontWeight: 800 }}>
-            ☀️ {sunshineMinsToday >= 60
-              ? `${(sunshineMinsToday / 60).toFixed(1)} hrs direct sun today`
-              : `${sunshineMinsToday} mins direct sun today`}
+            ☀️ {badgeSunMins >= 60
+              ? `${(badgeSunMins / 60).toFixed(1)} hrs direct sun today`
+              : `${badgeSunMins} mins direct sun today`}
           </span>
         )}
       </div>

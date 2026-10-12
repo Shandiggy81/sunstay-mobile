@@ -4,17 +4,15 @@
  *
  * Props
  * ─────
- * sunData        { startHour, endHour }  from getSunData()
- * hourlyData     rawWeather.hourly       cloud_cover[], time[]
- * cloudcover     number | number[]       current or hourly cloud cover
+ * forecast       deriveSunForecast() result, shared with the "Sun right now"
+ *                card so the headline, the bar and the card always agree
  * displaySunrise string                  e.g. "6:42 AM"
  * displaySunset  string                  e.g. "5:18 PM"
- * peakStart      number | null           decimal hour — start of direct-sun peak
- * peakEnd        number | null           decimal hour — end of direct-sun peak
  */
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { formatHour } from '../utils/sunForecastState.js';
 
 // ─── constants ────────────────────────────────────────────────────
 const TIMELINE_START = 5;   // 5am left edge
@@ -27,72 +25,15 @@ function pct(hour) {
   return Math.max(0, Math.min(100, ((hour - TIMELINE_START) / SPAN) * 100));
 }
 
-function decimalNow() {
-  const n = new Date();
-  return n.getHours() + n.getMinutes() / 60;
-}
-
-function fmtHour(decimal) {
-  if (!Number.isFinite(decimal)) return '';
-  const h = Math.floor(decimal);
-  const m = Math.round((decimal - h) * 60);
-  const period = h < 12 ? 'am' : 'pm';
-  const dh = h === 0 || h === 12 ? 12 : h % 12;
-  return m > 0 ? `${dh}:${String(m).padStart(2, '0')}${period}` : `${dh}${period}`;
-}
-
-function parseHourFromTimeString(str) {
-  // Parses "6:42 AM" or "18:30" or "6:42am" → decimal hour
-  if (!str || str === '--') return null;
-  const clean = str.trim();
-  // try ISO-style HH:MM
-  const iso = clean.match(/^(\d{1,2}):(\d{2})$/);
-  if (iso) return parseInt(iso[1]) + parseInt(iso[2]) / 60;
-  // try 12-hour with AM/PM
-  const twelve = clean.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
-  if (twelve) {
-    let h = parseInt(twelve[1]);
-    const m = parseInt(twelve[2] || '0');
-    const pm = twelve[3].toLowerCase() === 'pm';
-    if (pm && h !== 12) h += 12;
-    if (!pm && h === 12) h = 0;
-    return h + m / 60;
-  }
-  // try locale string e.g. "6:42 AM"
-  const locale = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (locale) {
-    let h = parseInt(locale[1]);
-    const m = parseInt(locale[2]);
-    const pm = locale[3].toUpperCase() === 'PM';
-    if (pm && h !== 12) h += 12;
-    if (!pm && h === 12) h = 0;
-    return h + m / 60;
-  }
-  return null;
-}
-
-function getCloudAtHour(cloudcover, hour) {
-  if (Array.isArray(cloudcover)) {
-    // hourly array indexed by hour-of-day
-    return cloudcover[hour] ?? cloudcover[0] ?? 0;
-  }
-  return typeof cloudcover === 'number' ? cloudcover : 0;
-}
-
 // ─── segment classification ───────────────────────────────────────
-// Returns an array of { start, end, type: 'night'|'cloud'|'peak'|'day' }
-function buildSegments(sunriseHour, sunsetHour, peakStart, peakEnd, cloudcover) {
+// Returns an array of { start, end, type: 'night'|'rain'|'cloud'|'peak'|'day' }
+// from the shared forecast's hours. 'day' marks daylight with no forecast.
+const KIND_TO_SEGMENT = { night: 'night', rain: 'rain', cloud: 'cloud', sun: 'peak', day: 'day' };
+
+function buildSegments(hours) {
   const segments = [];
   for (let h = TIMELINE_START; h < TIMELINE_END; h++) {
-    let type;
-    if (h < sunriseHour || h >= sunsetHour) {
-      type = 'night';
-    } else if (peakStart != null && peakEnd != null && h >= peakStart && h < peakEnd) {
-      type = 'peak';
-    } else {
-      const cloud = getCloudAtHour(cloudcover, h);
-      type = cloud >= 60 ? 'cloud' : 'day';
-    }
+    const type = KIND_TO_SEGMENT[hours?.[h]?.kind] ?? 'night';
     // merge with previous segment if same type
     const last = segments[segments.length - 1];
     if (last && last.type === type) {
@@ -106,6 +47,7 @@ function buildSegments(sunriseHour, sunsetHour, peakStart, peakEnd, cloudcover) 
 
 const SEGMENT_STYLE = {
   night: { bg: '#1E293B', label: 'Night' },
+  rain:  { bg: '#64748B', label: 'Rain' },
   cloud: { bg: '#94A3B8', label: 'Cloud/Shade' },
   day:   { bg: '#CBD5E1', label: 'Daylight' },
   peak:  {
@@ -115,78 +57,22 @@ const SEGMENT_STYLE = {
   },
 };
 
-// ─── headline helpers ─────────────────────────────────────────────
-function buildHeadline(nowH, peakEnd, sunsetHour) {
-  // Use peakEnd if available, otherwise sunset
-  const referenceEnd = peakEnd ?? sunsetHour;
-  if (nowH >= sunsetHour) {
-    return { text: 'Sun has set for the day', emoji: '🌙', color: '#475569' };
-  }
-  if (peakEnd != null && nowH >= peakEnd) {
-    return { text: 'Direct sun has passed today', emoji: '🌤️', color: '#64748B' };
-  }
-  const hoursLeft = referenceEnd - nowH;
-  const h = Math.floor(hoursLeft);
-  const m = Math.round((hoursLeft - h) * 60);
-  if (h <= 0 && m <= 0) {
-    return { text: 'Sun has set for the day', emoji: '🌙', color: '#475569' };
-  }
-  const timeStr = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-  const isSunNow = peakEnd != null ? (nowH < peakEnd) : true;
-  return {
-    text: `${timeStr} of ${isSunNow ? 'direct sun' : 'daylight'} remaining`,
-    emoji: isSunNow ? '☀️' : '🌤️',
-    color: isSunNow ? '#D97706' : '#64748B',
-  };
-}
+const HEADLINE_COLOR = { sun: '#D97706', muted: '#64748B', night: '#475569' };
 
 // ─── component ────────────────────────────────────────────────────
 export default function LiveSunTimeline({
-  sunData,
-  hourlyData,
-  cloudcover,
+  forecast,
   displaySunrise,
   displaySunset,
-  peakStart = null,
-  peakEnd   = null,
 }) {
-  // Live clock — ticks every minute
-  const [nowH, setNowH] = useState(decimalNow);
-  useEffect(() => {
-    const id = setInterval(() => setNowH(decimalNow()), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  const nowH = forecast?.nowHour ?? 12;
+  const sunsetHour = forecast?.sunsetHour ?? 24;
 
-  // Resolve sunrise / sunset as decimal hours
-  const sunriseHour = useMemo(() => {
-    if (Number.isFinite(sunData?.startHour)) return sunData.startHour;
-    return parseHourFromTimeString(displaySunrise) ?? 6.5;
-  }, [sunData, displaySunrise]);
+  const segments = useMemo(() => buildSegments(forecast?.hours), [forecast?.hours]);
 
-  const sunsetHour = useMemo(() => {
-    if (Number.isFinite(sunData?.endHour)) return sunData.endHour;
-    return parseHourFromTimeString(displaySunset) ?? 17.5;
-  }, [sunData, displaySunset]);
-
-  // Resolve cloud cover array for the current day
-  const cloudArray = useMemo(() => {
-    if (Array.isArray(hourlyData?.cloud_cover)) return hourlyData.cloud_cover;
-    if (Array.isArray(hourlyData?.cloudcover))  return hourlyData.cloudcover;
-    if (Array.isArray(cloudcover))              return cloudcover;
-    return null;
-  }, [hourlyData, cloudcover]);
-
-  const effectiveCloud = cloudArray ?? cloudcover;
-
-  const segments = useMemo(
-    () => buildSegments(sunriseHour, sunsetHour, peakStart, peakEnd, effectiveCloud),
-    [sunriseHour, sunsetHour, peakStart, peakEnd, effectiveCloud]
-  );
-
-  const headline = useMemo(
-    () => buildHeadline(nowH, peakEnd, sunsetHour),
-    [nowH, peakEnd, sunsetHour]
-  );
+  const headline = forecast?.headline
+    ? { ...forecast.headline, color: HEADLINE_COLOR[forecast.headline.tone] ?? HEADLINE_COLOR.muted }
+    : { text: '', emoji: '🌤️', color: HEADLINE_COLOR.muted };
 
   const nowPct  = pct(nowH);
   const isNight = nowH >= sunsetHour;
@@ -228,7 +114,7 @@ export default function LiveSunTimeline({
           )}
         </div>
         {/* SUN NOW badge */}
-        {!isNight && peakStart != null && nowH >= peakStart && nowH < (peakEnd ?? sunsetHour) && (
+        {forecast?.now.kind === 'sun' && (
           <motion.span
             className="ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full flex-shrink-0"
             style={{ background: '#F59E0B', color: '#fff' }}
@@ -376,7 +262,7 @@ export default function LiveSunTimeline({
         {/* Current time label next to cursor */}
         <div className="ml-auto flex items-center gap-1">
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: isNight ? '#94A3B8' : '#F59E0B' }} />
-          <span style={{ fontSize: 9, fontWeight: 700, color: '#64748B' }}>Now {fmtHour(nowH)}</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: '#64748B' }}>Now {formatHour(nowH)}</span>
         </div>
       </div>
     </motion.div>
