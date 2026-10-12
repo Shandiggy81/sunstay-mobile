@@ -1,39 +1,42 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import HourlyForecastStrip from './HourlyForecastStrip';
 import LiveSunTimeline from './LiveSunTimeline';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import { checkIfShaded } from '../utils/solarMath.js';
 import { describeSunHeight } from '../utils/sunWords.js';
 import { resolveForecastView } from '../utils/resolveForecastView';
+import { deriveSunForecast, formatHour, toWallHour } from '../utils/sunForecastState.js';
 import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
+import { useWeather } from '../hooks/useWeather';
 
 const CARD =
   'rounded-3xl border border-slate-900/[0.06] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]';
 
-function SolarPositionCard({ localSunData, sunWindow, venue, contextIsRaining, contextCloudCover }) {
+function SolarPositionCard({ localSunData, sunWindow, forecast }) {
   if (!localSunData) return null;
 
-  const obstacleHeight = venue?.obstacle_height ?? 2;
-  const obstacleDistance = venue?.obstacle_distance ?? 1;
-  const isShaded = checkIfShaded(localSunData.altitude, obstacleHeight, obstacleDistance);
   let statusText = '☀️ Direct Sun';
   let statusClass = 'bg-amber-50 text-amber-800 border border-amber-500/20';
+  const kind = forecast?.now.kind;
 
-  if (!localSunData.isSunUp) {
+  if (!localSunData.isSunUp || kind === 'night') {
     statusText = '🌙 Night';
     statusClass = 'bg-slate-50 text-slate-700 border border-slate-900/[0.08]';
-  } else if (isShaded) {
+  } else if (kind === 'shaded') {
     statusText = '🏢 Shaded by Surroundings';
     statusClass = 'bg-slate-50 text-slate-700 border border-slate-900/[0.08]';
-  } else if (contextIsRaining) {
-    statusText = '🌧️ Raining Currently';
+  } else if (kind === 'rain') {
+    statusText = '🌧️ Rain this hour';
     statusClass = 'bg-slate-100 text-slate-700 border border-slate-900/[0.08]';
-  } else if (contextCloudCover > 75) {
+  } else if (kind === 'cloud') {
     statusText = '☁️ Overcast — the sun is behind cloud';
     statusClass = 'bg-slate-100 text-slate-700 border border-slate-900/[0.08]';
-  } else if (sunWindow) {
-    const timeStr = sunWindow.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    statusText = `☀️ Direct Sun (Until ${timeStr})`;
+  } else {
+    // Direct sun ends at whichever comes first: the sun dropping behind the
+    // surroundings (sunWindow) or the forecast turning cloudy or wet.
+    const shadeHour = toWallHour(sunWindow, forecast?.utcOffsetSeconds);
+    const ends = [shadeHour, forecast?.sunUntil].filter(Number.isFinite);
+    if (ends.length) statusText = `☀️ Direct Sun (Until ${formatHour(Math.min(...ends))})`;
   }
 
   return (
@@ -92,6 +95,28 @@ export default function SunForecastPanel({
     }
   }, []);
 
+  // One forecast read for the card, the timeline and the strip's badge. The
+  // Melbourne hourly forecast from WeatherContext is the source; the hourly
+  // props VenueCard passes are usually empty.
+  const { weather } = useWeather();
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const shaded = localSunData?.isSunUp
+    ? checkIfShaded(localSunData.altitude, venue?.obstacle_height ?? 2, venue?.obstacle_distance ?? 1)
+    : false;
+  const forecast = useMemo(() => deriveSunForecast({
+    hourly: weather?.hourly ?? hourlyData,
+    utcOffsetSeconds: weather?.utcOffsetSeconds,
+    now,
+    sunrise: sunData?.sunriseDate,
+    sunset: sunData?.sunsetDate,
+    shaded,
+    current: { cloudCover: contextCloudCover, isRaining: contextIsRaining },
+  }), [weather?.hourly, weather?.utcOffsetSeconds, hourlyData, now, sunData, shaded, contextCloudCover, contextIsRaining]);
+
   const venueId = venue?.id ?? '';
   // Shimmer until the map camera is still. An active flyTo must not share
   // the frame with the hourly or auxiliary forecast requests.
@@ -127,19 +152,13 @@ export default function SunForecastPanel({
         <SolarPositionCard
           localSunData={localSunData}
           sunWindow={sunWindow}
-          venue={venue}
-          contextIsRaining={contextIsRaining}
-          contextCloudCover={contextCloudCover}
+          forecast={forecast}
         />
 
         <LiveSunTimeline
-          sunData={sunData}
-          hourlyData={hourlyData}
-          cloudcover={cloudcover}
+          forecast={forecast}
           displaySunrise={displaySunrise}
           displaySunset={displaySunset}
-          peakStart={peakStart}
-          peakEnd={peakEnd}
         />
 
         <HourlyForecastStrip
@@ -149,6 +168,7 @@ export default function SunForecastPanel({
           fetchReady={isReadyToFetch}
           venueId={venueId}
           onViewState={handleViewState}
+          sunMinutesToday={forecast.sunMinutesToday}
         />
 
         {children}
