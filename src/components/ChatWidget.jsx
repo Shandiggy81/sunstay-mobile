@@ -8,6 +8,7 @@ import {
   buildSunnyContext,
   parseChatSunnyResponse,
   postChatSunny,
+  friendlyChatError,
   toLlmMessages,
 } from '../utils/sunnyTools';
 import thunderBuddy from '../assets/mascots/thunder-buddy.png';
@@ -279,7 +280,10 @@ const ChatWidget = ({
     });
     if (!result.ok) {
       setIsTyping(false);
-      return false;
+      const friendly = friendlyChatError(result.error);
+      if (!friendly) return false;
+      await addBotMsg(friendly, 400);
+      return true;
     }
 
     const parsed = parseChatSunnyResponse(result.payload);

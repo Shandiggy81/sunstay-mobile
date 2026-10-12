@@ -23,6 +23,12 @@
  * Gemini functionCall parts are mapped into that shape before the response
  * leaves the function. The frontend never sees Gemini's native payload.
  *
+ * Limits (limits.js): 10 requests/min and 60/hour per client IP
+ * (cf-connecting-ip, else the last x-forwarded-for hop) and 120/min per
+ * instance → 429 rate_limited with Retry-After. Bodies over 64 KB, more than
+ * 12 messages, a message over 2000 chars or sunnyContext over 24 KB → 413.
+ * Replies are capped at 512 output tokens.
+ *
  * Deploy:
  *   supabase functions deploy chat-sunny --project-ref fksuqgvsazoxarocmaii
  *   supabase secrets set GEMINI_API_KEY=... --project-ref fksuqgvsazoxarocmaii
@@ -31,6 +37,15 @@
  */
 
 import { geminiModelChain, shouldTryNextModel } from './geminiModels.js';
+import {
+  MAX_BODY_BYTES,
+  MAX_OUTPUT_TOKENS,
+  clientKey,
+  createRateLimiter,
+  payloadLimitError,
+} from './limits.js';
+
+const rateLimiter = createRateLimiter();
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -104,10 +119,10 @@ const FUNCTION_DECLARATIONS = [
   },
 ];
 
-const json = (body: Record<string, unknown>, status = 200) =>
+const json = (body: Record<string, unknown>, status = 200, extraHeaders: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extraHeaders },
   });
 
 function sanitizeMessages(raw: unknown) {
@@ -184,16 +199,39 @@ Deno.serve(async (req) => {
     return json({ reply: '', toolCalls: [], error: 'method_not_allowed' }, 405);
   }
 
+  const limit = rateLimiter.check(clientKey(req.headers));
+  if (!limit.ok) {
+    return json(
+      { reply: '', toolCalls: [], error: 'rate_limited' },
+      429,
+      { 'Retry-After': String(limit.retryAfterSec) },
+    );
+  }
+
   const apiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_API_KEY');
   if (!apiKey) {
     return json({ reply: '', toolCalls: [], error: 'missing_gemini_key' }, 503);
   }
 
+  const declaredLength = Number(req.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    return json({ reply: '', toolCalls: [], error: 'payload_too_large' }, 413);
+  }
+
   let body: { messages?: unknown; sunnyContext?: unknown };
   try {
-    body = await req.json();
+    const raw = await req.text();
+    if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) {
+      return json({ reply: '', toolCalls: [], error: 'payload_too_large' }, 413);
+    }
+    body = JSON.parse(raw);
   } catch {
     return json({ reply: '', toolCalls: [], error: 'invalid_json' }, 400);
+  }
+
+  const limitError = payloadLimitError(body);
+  if (limitError) {
+    return json({ reply: '', toolCalls: [], error: limitError }, 413);
   }
 
   const messages = sanitizeMessages(body?.messages);
@@ -222,7 +260,7 @@ Deno.serve(async (req) => {
     tool_config: {
       function_calling_config: { mode: 'AUTO' },
     },
-    generation_config: { temperature: 0.4 },
+    generation_config: { temperature: 0.4, max_output_tokens: MAX_OUTPUT_TOKENS },
   };
 
   let lastStatus = 0;
