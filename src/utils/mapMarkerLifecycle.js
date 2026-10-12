@@ -334,3 +334,19 @@ export function featuresForMarkerSync(map, sourceId) {
         return [];
     }
 }
+
+/**
+ * Mapbox pins the canvas to a pixel size when it last resized. iOS Safari can
+ * grow the map's box (the toolbar collapses, 100dvh changes) without telling
+ * the ResizeObserver, which leaves the lower part of the map undrawn. Compare
+ * the box with the canvas and say whether map.resize() is needed.
+ */
+export function canvasOutOfSync(container, canvas, tolerancePx = 1) {
+    const boxW = Number(container?.width);
+    const boxH = Number(container?.height);
+    const canvasW = Number(canvas?.width);
+    const canvasH = Number(canvas?.height);
+    if (![boxW, boxH, canvasW, canvasH].every(Number.isFinite)) return false;
+    if (boxW <= 0 || boxH <= 0) return false;
+    return Math.abs(boxW - canvasW) > tolerancePx || Math.abs(boxH - canvasH) > tolerancePx;
+}
