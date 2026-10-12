@@ -7,6 +7,7 @@ import mapboxgl from 'mapbox-gl';
 import { Layers, Check, Search } from 'lucide-react';
 import { clusterSize, sunPinView } from '../../utils/sunPin';
 import { areaPromptNeeded } from '../../utils/searchArea';
+import { parseXweatherCredentials } from '../../utils/xweatherKey';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
@@ -50,6 +51,7 @@ import {
     requiredMarkerGate,
     resumeMayGoLive,
     syncMarkerLayer,
+    canvasOutOfSync,
 } from '../../utils/mapMarkerLifecycle';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
 import {
@@ -321,7 +323,11 @@ const HEATMAP_SOURCE_ID = 'comfort-heatmap-src';
 const HEATMAP_LAYER_ID  = 'comfort-heatmap-lyr';
 
 const WEATHER_API_KEY = (import.meta.env.VITE_OPENWEATHER_KEY || '').trim();
-const XWEATHER_KEY = (import.meta.env.VITE_XWEATHER_KEY || '').trim();
+const XWEATHER_CREDENTIALS = parseXweatherCredentials(
+    import.meta.env.VITE_XWEATHER_KEY,
+    import.meta.env.VITE_XWEATHER_ID,
+    import.meta.env.VITE_XWEATHER_SECRET,
+);
 
 let mapsGlModulePromise = null;
 function loadMapsGl() {
@@ -1081,9 +1087,44 @@ const VenueMap = forwardRef(({
             };
             window.addEventListener('pageshow', onWake);
             document.addEventListener('visibilitychange', onWake);
+
+            // iOS Safari can grow the map box (toolbar collapse, 100dvh) without
+            // a ResizeObserver callback, leaving the canvas at its old height
+            // and the bottom of the map undrawn. Compare box and canvas after
+            // each render and on viewport changes; resize only on a mismatch.
+            // This is a size check, not a WebGL retry.
+            const syncCanvasSize = () => {
+                if (disposed || !map.current || !isCurrent()) return;
+                const phase = recoveryRef.current?.phase;
+                if (phase === 'paused' || phase === 'resume-failed') return;
+                try {
+                    const box = mapContainer.current;
+                    const canvas = map.current.getCanvas?.();
+                    if (!box || !canvas) return;
+                    const outOfSync = canvasOutOfSync(
+                        { width: box.clientWidth, height: box.clientHeight },
+                        { width: canvas.clientWidth, height: canvas.clientHeight },
+                    );
+                    if (!outOfSync) return;
+                    map.current.resize();
+                    map.current.triggerRepaint();
+                } catch (err) {
+                    console.warn('[VenueMap] canvas size sync failed:', err?.message);
+                }
+            };
+            const viewport = typeof window !== 'undefined' ? window.visualViewport : null;
+            window.addEventListener('resize', syncCanvasSize);
+            window.addEventListener('orientationchange', syncCanvasSize);
+            viewport?.addEventListener?.('resize', syncCanvasSize);
+            map.current.on('idle', syncCanvasSize);
+            const mapForSync = map.current;
             removeWakeListeners = () => {
                 window.removeEventListener('pageshow', onWake);
                 document.removeEventListener('visibilitychange', onWake);
+                window.removeEventListener('resize', syncCanvasSize);
+                window.removeEventListener('orientationchange', syncCanvasSize);
+                viewport?.removeEventListener?.('resize', syncCanvasSize);
+                try { mapForSync.off('idle', syncCanvasSize); } catch { /* map already removed */ }
             };
 
             map.current.on('load', () => {
@@ -1859,11 +1900,14 @@ const VenueMap = forwardRef(({
         (async () => {
             try {
                 if (showRadar && !controllerRef.current) {
-                    if (!XWEATHER_KEY) return;
+                    if (!XWEATHER_CREDENTIALS) {
+                        console.warn('[VenueMap] Rain radar needs VITE_XWEATHER_KEY as ID_SECRET');
+                        return;
+                    }
                     const { MapboxMapController, Account } = await loadMapsGl();
                     if (cancelled || map.current !== instance) return;
                     controllerRef.current = new MapboxMapController(instance, {
-                        account: new Account(XWEATHER_KEY),
+                        account: new Account(XWEATHER_CREDENTIALS.id, XWEATHER_CREDENTIALS.secret),
                     });
                 }
                 if (!controllerRef.current || cancelled) return;
