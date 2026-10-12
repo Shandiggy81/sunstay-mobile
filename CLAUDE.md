@@ -94,6 +94,10 @@ The main SunStay app has no user authentication. The separate sunstay-admin app 
 - Edge Function `supabase/functions/chat-sunny` calls Gemini with a server-side `GEMINI_API_KEY`
   secret. `supabase/config.toml` sets `verify_jwt = true`; the client sends the user token or the anon key.
 - Do not apply migrations, deploy functions or change remote Supabase without explicit approval.
+- **Merging to `main` deploys to production.** The Supabase GitHub integration redeploys every
+  function in `supabase/functions/` from `main` (seen 2026-10-11: both functions redeployed 41 s
+  after PR #104 merged) and may also push pending migrations. Treat merging a PR that touches
+  `supabase/` as a production deploy.
 
 ## Integrations and environment variables
 Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
@@ -140,7 +144,8 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - Third-party keys (Mapbox, Xweather, OpenWeatherMap, OpenAQ, OpenUV, Tomorrow.io) are `VITE_*`
   variables and ship in the client bundle; they are not proxied server-side.
 - `OwnerDashboard` has no sign-in gate and writes to `venues` from the browser.
-- `chat-sunny` accepts the public anon key as its bearer token and its code contains no rate limiting.
+- `chat-sunny` accepts the public anon key as its bearer token. Its limits (`limits.js`) are per
+  instance and in memory, so they cap bursts but are not a global quota.
 - Mapbox tokens and a Supabase publishable key appear in earlier Git history.
 - `src/index.css` still has 61 `backdrop-filter` rules; Xweather radar, cloud tiles and the comfort
   heatmap are optional map layers.
