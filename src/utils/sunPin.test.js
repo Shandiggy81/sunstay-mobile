@@ -46,6 +46,16 @@ describe('sunPinView', () => {
         assert.equal(v.tier, 'unknown');
         assert.equal(v.label, 'Sun score unknown');
     });
+
+    it('carries a clay icon URL alongside the emoji fallback without changing the rest', () => {
+        const plain = sunPinView({ pinKey: 'rain', score: 80, emoji: '🍺', selected: true });
+        const clay = sunPinView({ pinKey: 'rain', score: 80, emoji: '🍺', selected: true, iconUrl: '/assets/pint-1.webp' });
+        assert.equal(clay.iconUrl, '/assets/pint-1.webp');
+        assert.equal(clay.icon, '🍺');
+        assert.equal(plain.iconUrl, null);
+        assert.deepEqual({ ...clay, iconUrl: null }, plain);
+        assert.equal(sunPinView({ emoji: '🍺', iconUrl: '' }).iconUrl, null);
+    });
 });
 
 describe('clusterSize', () => {

@@ -31,9 +31,11 @@ export function sunTier(score) {
 }
 
 /**
- * @param {{ pinKey?: string, score?: number|null, emoji?: string|null, selected?: boolean }} input
+ * @param {{ pinKey?: string, score?: number|null, emoji?: string|null, iconUrl?: string|null, selected?: boolean }} input
+ *   iconUrl: the venue's clay pin image (utils/clayVenuePins); the pin shows
+ *   it in place of the emoji, which stays as the fallback if it fails to load.
  */
-export function sunPinView({ pinKey = 'default', score = null, emoji = null, selected = false } = {}) {
+export function sunPinView({ pinKey = 'default', score = null, emoji = null, iconUrl = null, selected = false } = {}) {
     const n = Number.isFinite(score) ? Math.round(score) : null;
     const tier = selected ? 'selected' : sunTier(n);
     const style = SUN_PIN_TIERS[tier];
@@ -45,6 +47,7 @@ export function sunPinView({ pinKey = 'default', score = null, emoji = null, sel
     return {
         tier,
         icon,
+        iconUrl: typeof iconUrl === 'string' && iconUrl ? iconUrl : null,
         scoreText,
         bg: style.bg,
         border: style.border,
