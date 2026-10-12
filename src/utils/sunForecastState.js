@@ -219,3 +219,32 @@ function buildHeadline({ nowKind, nowHour, sunriseHour, sunsetHour, hasDaylight,
   }
   return { text: 'No direct sun left today', emoji: '☁️', tone: 'muted' };
 }
+
+/**
+ * The venue card's hero chips from the same forecast as the Sun Forecast tab:
+ * today's direct-sun hours (the tab badge's number) and the longest stretch
+ * of direct sun as "7am – 11am". Null when there is no hourly forecast, so the
+ * caller keeps its geometry-only fallback.
+ */
+export function heroSunChip(forecast) {
+  if (!forecast?.hasHourly || forecast.sunMinutesToday == null) return null;
+
+  let best = null;
+  let start = null;
+  for (let h = 0; h <= 24; h += 1) {
+    const sunny = h < 24 && forecast.hours[h]?.kind === 'sun';
+    if (sunny && start == null) start = h;
+    if (!sunny && start != null) {
+      if (!best || h - start > best[1] - best[0]) best = [start, h];
+      start = null;
+    }
+  }
+
+  let window = null;
+  if (best) {
+    const from = Math.max(best[0], forecast.sunriseHour);
+    const to = Math.min(best[1], forecast.sunsetHour);
+    if (to > from) window = `${formatHour(from)} – ${formatHour(to)}`;
+  }
+  return { hours: forecast.sunMinutesToday / 60, window };
+}

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveSunForecast, formatDuration, formatHour } from './sunForecastState.js';
+import { deriveSunForecast, formatDuration, formatHour, heroSunChip } from './sunForecastState.js';
 
 // 13 Oct 2026 is daylight time in Melbourne: UTC+11.
 const AEDT = 11 * 3600;
@@ -155,5 +155,34 @@ describe('formatting', () => {
     assert.equal(formatDuration(45), '45m');
     assert.equal(formatDuration(120), '2h');
     assert.equal(formatDuration(460), '7h 40m');
+  });
+});
+
+describe('heroSunChip', () => {
+  it("matches the Sun Forecast tab: today's direct-sun hours and the longest sunny stretch", () => {
+    const f = deriveSunForecast({ ...base, hourly: rainyMorningClearAfternoon, now: at(9) });
+    const chip = heroSunChip(f);
+    assert.equal(chip.hours, f.sunMinutesToday / 60);
+    assert.equal(chip.hours.toFixed(1), '7.7');
+    assert.equal(chip.window, '12pm – 7:40pm');
+  });
+
+  it('picks the longest of several sunny stretches and clips it to sunrise', () => {
+    const hourly = hourlyFor((h) => (h <= 8 || (h >= 14 && h <= 15)
+      ? { cloud: 10, rain: 0 }
+      : { cloud: 90, rain: 10 }));
+    const chip = heroSunChip(deriveSunForecast({ ...base, hourly, now: at(12) }));
+    assert.equal(chip.window, '6:30am – 9am');
+    assert.equal(chip.hours, 4.5);
+  });
+
+  it('shows 0 hours and no window on an overcast day', () => {
+    const hourly = hourlyFor(() => ({ cloud: 90, rain: 10, code: 3 }));
+    assert.deepEqual(heroSunChip(deriveSunForecast({ ...base, hourly, now: at(12) })), { hours: 0, window: null });
+  });
+
+  it('returns null without an hourly forecast so the card keeps its fallback', () => {
+    assert.equal(heroSunChip(deriveSunForecast({ ...base, hourly: null, utcOffsetSeconds: AEDT, now: at(12) })), null);
+    assert.equal(heroSunChip(null), null);
   });
 });
