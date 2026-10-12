@@ -149,8 +149,6 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - No component tests, lint script or typecheck script.
 - `VenueCard.jsx` imports `src/data/venues.js` and `src/data/seedVenues.js` alongside the app's
   venue list; venue data lives in several files.
-- Stale or leftover files: `src/data/demoVenues.js.bak`, `vercel.json`, Expo `app.json`,
-  and a v3-style `tailwind.config.js` with no `@config` directive in `src/index.css`.
 - `src/main.jsx` writes the boot error's `toString()` into `innerHTML` on a startup failure.
 
 ### Requires production configuration or dashboard verification
