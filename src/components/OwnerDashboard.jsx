@@ -1,19 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import FohWeatherWidget from './FohWeatherWidget';
 import MascotReaction from './MascotReaction';
-
-// ── Shared Spinner ──────────────────────────────────────────────────────
-const Spinner = () => (
-  <motion.div
-    className="inline-block rounded-full"
-    style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.15)', borderTopColor: '#14B8A6' }}
-    animate={{ rotate: 360 }}
-    transition={{ duration: 0.7, repeat: Infinity, ease: 'linear' }}
-  />
-);
 
 // ── Section Heading ─────────────────────────────────────────────────────
 const SectionHeading = ({ children, style = {} }) => (
@@ -28,14 +17,14 @@ const InlineStatus = ({ text, type }) => (
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0 }}
-        style={{ fontSize: '0.7rem', color: type === 'error' ? '#F87171' : '#34D399', fontWeight: 600, marginLeft: 8 }}
+        style={{ fontSize: '0.7rem', color: type === 'error' ? '#F87171' : type === 'info' ? '#FBBF24' : '#34D399', fontWeight: 600, marginLeft: 8 }}
       >{text}</motion.span>
     )}
   </AnimatePresence>
 );
 
 // ── Dark Toggle Switch ──────────────────────────────────────────────────
-const DarkToggle = ({ label, icon, value, onChange, saving, saved, accentColor }) => {
+const DarkToggle = ({ label, icon, value, onChange, accentColor }) => {
   const accent = accentColor || '#14B8A6';
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
@@ -44,12 +33,6 @@ const DarkToggle = ({ label, icon, value, onChange, saving, saved, accentColor }
         <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>{label}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {saving && <Spinner />}
-        <AnimatePresence>
-          {saved && (
-            <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} style={{ fontSize: '0.75rem' }}>✅</motion.span>
-          )}
-        </AnimatePresence>
         <button
           onClick={() => onChange(!value)}
           style={{
@@ -113,7 +96,6 @@ function OwnerDashboardInner({
     defaultHours[d] = existing || { open: '08:00', close: '22:00', closed: false };
   });
   const [hours, setHours]             = useState(defaultHours);
-  const [hoursSaving, setHoursSaving] = useState(false);
   const [hoursStatus, setHoursStatus] = useState({ text: '', type: '' });
   const [showHoursEdit, setShowHoursEdit] = useState(false);
 
@@ -123,15 +105,11 @@ function OwnerDashboardInner({
     hasUmbrellas:      !!safeVenue?.hasUmbrellas,
     hasWindProtection: !!safeVenue?.hasWindProtection,
   });
-  const [heatingSaving, setHeatingSaving] = useState({});
-  const [heatingSaved,  setHeatingSaved]  = useState({});
 
   // ── Live Sunshine toggle ─────────────────────────────────────────
   const [sunshineNow, setSunshineNow] = useState(
     booleanFromVenue(safeVenue?.sunshineNow, false)
   );
-  const [sunshineSaving, setSunshineSaving] = useState(false);
-  const [sunshineSaved,  setSunshineSaved]  = useState(false);
 
   const [activeTags, setActiveTags] = useState(() => {
     if (Array.isArray(safeVenue.tags)) return safeVenue.tags;
@@ -139,7 +117,6 @@ function OwnerDashboardInner({
     return safeVenue.vibe ? [safeVenue.vibe] : [];
   });
   const [customTag,  setCustomTag]  = useState('');
-  const [vibeSaving, setVibeSaving] = useState(false);
   const [vibeStatus, setVibeStatus] = useState({ text: '', type: '' });
 
   const timeoutIdsRef = useRef(new Set());
@@ -155,28 +132,18 @@ function OwnerDashboardInner({
     scheduleTimeout(() => setter({ text: '', type: '' }), duration);
   }, [scheduleTimeout]);
 
-  // ── handleSaveHours — optimistic UI, silent on DB error ──────────
-  const handleSaveHours = async () => {
-    onVenueUpdate?.({ ...safeVenue, hours });
-    flashStatus(setHoursStatus, '✅ Saved');
+  // Changes stay on this device. Production RLS has no UPDATE policy on
+  // venues for anon or authenticated, so a browser write would match zero
+  // rows and report success; the dashboard used to flash "Saved" on that.
+  // Persisting owner edits needs a signed-in, server-side path first.
+  const PREVIEW_NOTE = 'Preview only · not saved';
 
-    if (!venueId || !supabase) {
-      console.warn('[OwnerDashboard] handleSaveHours: no venueId/supabase, local only');
-      return;
-    }
-    setHoursSaving(true);
-    try {
-      const { error } = await supabase.from('venues').update({ hours }).eq('id', venueId);
-      if (error) throw error;
-    } catch (err) {
-      console.warn('[OwnerDashboard] handleSaveHours DB error (ignored for demo):', err?.message ?? err);
-    } finally {
-      setHoursSaving(false);
-    }
+  const handleSaveHours = () => {
+    onVenueUpdate?.({ ...safeVenue, hours });
+    flashStatus(setHoursStatus, PREVIEW_NOTE, 'info', 3000);
   };
 
-  // ── handleHeatingToggle — optimistic UI, silent on DB error ──────
-  const handleHeatingToggle = useCallback(async (key, value) => {
+  const handleHeatingToggle = useCallback((key, value) => {
     setHeatingState(prev => ({ ...prev, [key]: value }));
     if (setLiveVenueFeatures) {
       setLiveVenueFeatures(prev => ({
@@ -185,26 +152,9 @@ function OwnerDashboardInner({
       }));
     }
     onVenueUpdate?.({ [key]: value });
-    setHeatingSaved(prev => ({ ...prev, [key]: true }));
-    scheduleTimeout(() => setHeatingSaved(prev => ({ ...prev, [key]: false })), 2000);
+  }, [venueId, setLiveVenueFeatures, onVenueUpdate]);
 
-    if (!venueId || !supabase) {
-      console.warn('[OwnerDashboard] handleHeatingToggle: no venueId/supabase, local only');
-      return;
-    }
-    setHeatingSaving(prev => ({ ...prev, [key]: true }));
-    try {
-      const { error } = await supabase.from('venues').update({ [key]: value }).eq('id', venueId);
-      if (error) throw error;
-    } catch (err) {
-      console.warn('[OwnerDashboard] handleHeatingToggle DB error (ignored for demo):', err?.message ?? err);
-    } finally {
-      setHeatingSaving(prev => ({ ...prev, [key]: false }));
-    }
-  }, [venueId, setLiveVenueFeatures, scheduleTimeout, onVenueUpdate]);
-
-  // ── handleSunshineToggle — same optimistic pattern ───────────────
-  const handleSunshineToggle = useCallback(async (value) => {
+  const handleSunshineToggle = useCallback((value) => {
     setSunshineNow(value);
     if (setLiveVenueFeatures) {
       setLiveVenueFeatures(prev => ({
@@ -213,42 +163,11 @@ function OwnerDashboardInner({
       }));
     }
     onVenueUpdate?.({ sunshineNow: value });
-    setSunshineSaved(true);
-    scheduleTimeout(() => setSunshineSaved(false), 2000);
+  }, [venueId, setLiveVenueFeatures, onVenueUpdate]);
 
-    if (!venueId || !supabase) {
-      console.warn('[OwnerDashboard] handleSunshineToggle: no venueId/supabase, local only');
-      return;
-    }
-    setSunshineSaving(true);
-    try {
-      const { error } = await supabase.from('venues').update({ sunshineNow: value }).eq('id', venueId);
-      if (error) throw error;
-    } catch (err) {
-      console.warn('[OwnerDashboard] handleSunshineToggle DB error (ignored for demo):', err?.message ?? err);
-    } finally {
-      setSunshineSaving(false);
-    }
-  }, [venueId, setLiveVenueFeatures, scheduleTimeout, onVenueUpdate]);
-
-  // ── handleSaveVibe — optimistic UI, silent on DB error ───────────
-  const handleSaveVibe = async () => {
+  const handleSaveVibe = () => {
     onVenueUpdate?.({ ...safeVenue, tags: activeTags });
-    flashStatus(setVibeStatus, '✅ Saved');
-
-    if (!venueId || !supabase) {
-      console.warn('[OwnerDashboard] handleSaveVibe: no venueId/supabase, local only');
-      return;
-    }
-    setVibeSaving(true);
-    try {
-      const { error } = await supabase.from('venues').update({ tags: activeTags }).eq('id', venueId);
-      if (error) throw error;
-    } catch (err) {
-      console.warn('[OwnerDashboard] handleSaveVibe DB error (ignored for demo):', err?.message ?? err);
-    } finally {
-      setVibeSaving(false);
-    }
+    flashStatus(setVibeStatus, PREVIEW_NOTE, 'info', 3000);
   };
 
   const addTag    = (tag) => { if (activeTags.length >= 8 || activeTags.includes(tag)) return; setActiveTags(t => [...t, tag]); };
@@ -293,7 +212,7 @@ function OwnerDashboardInner({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div>
             <h2 className="tracking-tight" style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{venueName}</h2>
-            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>Floor Ops Manager</span>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>Floor Ops Manager · Preview</span>
           </div>
           <button
             onClick={onClose}
@@ -303,6 +222,13 @@ function OwnerDashboardInner({
             <X size={16} color="#F1F5F9" />
           </button>
         </div>
+
+        <p
+          role="note"
+          style={{ margin: 0, padding: '10px 16px', background: 'rgba(245,158,11,0.15)', borderBottom: '1px solid rgba(245,158,11,0.35)', color: '#FCD34D', fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.4, flexShrink: 0 }}
+        >
+          Partner editing isn&apos;t live yet. Changes here only show on this device and aren&apos;t saved for other guests.
+        </p>
 
         {/* Pinned Actionable Alerts Banner (FOH Weather Intel) */}
         <div style={{ padding: '16px 16px 16px', background: 'rgba(15,23,42,0.65)', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
@@ -376,8 +302,8 @@ function OwnerDashboardInner({
                     })}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', marginTop: 14, marginBottom: 4 }}>
-                    <button type="button" onClick={handleSaveHours} disabled={hoursSaving} style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: hoursSaving ? 0.6 : 1 }}>
-                      {hoursSaving ? 'Saving...' : 'Update Trading Hours'}
+                    <button type="button" onClick={handleSaveHours} style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer' }}>
+                      Preview Trading Hours
                     </button>
                     <InlineStatus text={hoursStatus.text} type={hoursStatus.type} />
                   </div>
@@ -393,15 +319,13 @@ function OwnerDashboardInner({
             <SectionHeading>☀️ Live Floor Status</SectionHeading>
             <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
               Flip this when the beer garden is cracking.
-              Your map pin instantly turns into a ☀️ so punters know you're the spot to be.
+              On this device, your map pin turns into a ☀️ so you can see how it looks.
             </p>
             <DarkToggle
               label="Sun is Hitting the Garden"
               icon="☀️"
               value={sunshineNow}
               onChange={handleSunshineToggle}
-              saving={sunshineSaving}
-              saved={sunshineSaved}
               accentColor="#F59E0B"
             />
           </section>
@@ -411,7 +335,7 @@ function OwnerDashboardInner({
           <section>
             <SectionHeading>🔥 Winter Proofing</SectionHeading>
             <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
-              Got the fires roaring? Flip these on so locals know you're a cozy refuge. Your map pin instantly switches to 🔥.
+              Got the fires roaring? Flip these on to preview the 🔥 pin on this device.
             </p>
             {HEATING_FIELDS.map(({ key, label, icon }) => (
               <DarkToggle
@@ -420,8 +344,6 @@ function OwnerDashboardInner({
                 icon={icon}
                 value={heatingState[key]}
                 onChange={val => handleHeatingToggle(key, val)}
-                saving={heatingSaving[key]}
-                saved={heatingSaved[key]}
               />
             ))}
           </section>
@@ -461,9 +383,9 @@ function OwnerDashboardInner({
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <button onClick={handleSaveVibe} disabled={vibeSaving}
-                style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: vibeSaving ? 0.6 : 1 }}>
-                {vibeSaving ? 'Saving...' : 'Lock in Vibe'}
+              <button onClick={handleSaveVibe}
+                style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer' }}>
+                Preview Vibe
               </button>
               <InlineStatus text={vibeStatus.text} type={vibeStatus.type} />
             </div>

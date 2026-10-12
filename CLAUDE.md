@@ -89,8 +89,9 @@ The main SunStay app has no user authentication. The separate sunstay-admin app 
   `supabase/reconciliation/README.md`.
 - New `public` functions and tables get anon/authenticated grants by default in this project.
   Revoke from `public, anon, authenticated` by name, and enable RLS on every new table.
-- `OwnerDashboard.jsx` is reachable from the venue card without sign-in and issues `venues` updates
-  through the browser client.
+- `OwnerDashboard.jsx` is reachable from the venue card ("Manage this partner venue" in
+  `VenueCardActions.jsx`) without sign-in. It is a device-local preview: production has no UPDATE
+  policy on `venues` for anon or authenticated, so it makes no Supabase writes and says so.
 - Edge Function `supabase/functions/chat-sunny` calls Gemini with a server-side `GEMINI_API_KEY`
   secret. `supabase/config.toml` sets `verify_jwt = true`; the client sends the user token or the anon key.
 - Do not apply migrations, deploy functions or change remote Supabase without explicit approval.
@@ -139,7 +140,8 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 ### Verified repository facts
 - Third-party keys (Mapbox, Xweather, OpenWeatherMap, OpenAQ, OpenUV, Tomorrow.io) are `VITE_*`
   variables and ship in the client bundle; they are not proxied server-side.
-- `OwnerDashboard` has no sign-in gate and writes to `venues` from the browser.
+- `OwnerDashboard` has no sign-in gate and cannot persist owner edits; `sunstay-admin` has sign-in
+  but no venue editing. Real owner editing needs an authenticated, server-side write path.
 - `chat-sunny` accepts the public anon key as its bearer token and its code contains no rate limiting.
 - Mapbox tokens and a Supabase publishable key appear in earlier Git history.
 - `src/index.css` still has 61 `backdrop-filter` rules; Xweather radar, cloud tiles and the comfort
