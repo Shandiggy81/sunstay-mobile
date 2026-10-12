@@ -97,9 +97,9 @@ sunstay-mobile/
 │   ├── App.jsx                    # Main app component
 │   ├── main.jsx                   # Entry point
 │   └── index.css                  # Global styles
-├── app.json                       # Expo web configuration
 ├── index.html
-├── tailwind.config.js
+├── netlify.toml                   # Netlify build, redirects and headers
+├── postcss.config.js              # Tailwind v4 via @tailwindcss/postcss
 └── package.json
 ```
 
