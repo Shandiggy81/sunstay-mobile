@@ -14,13 +14,30 @@ import { buildSunnyContext, toLlmMessages } from './sunnyTools.js';
 const headers = (entries) => new Map(Object.entries(entries));
 
 describe('chat-sunny clientKey', () => {
-    it('uses the first x-forwarded-for hop', () => {
-        assert.equal(clientKey(headers({ 'x-forwarded-for': '203.0.113.7, 10.0.0.1' })), '203.0.113.7');
+    it('prefers cf-connecting-ip over x-forwarded-for', () => {
+        assert.equal(
+            clientKey(headers({ 'cf-connecting-ip': '198.51.100.2', 'x-forwarded-for': '203.0.113.7, 198.51.100.9' })),
+            '198.51.100.2',
+        );
     });
 
-    it('falls back to cf-connecting-ip, x-real-ip, then a shared bucket', () => {
-        assert.equal(clientKey(headers({ 'cf-connecting-ip': '198.51.100.2' })), '198.51.100.2');
+    it('uses the last x-forwarded-for hop, the one the edge appended', () => {
+        assert.equal(clientKey(headers({ 'x-forwarded-for': '203.0.113.7, 198.51.100.9' })), '198.51.100.9');
+        assert.equal(clientKey(headers({ 'x-forwarded-for': ' 198.51.100.9 ,' })), '198.51.100.9');
+    });
+
+    it('ignores caller-supplied x-forwarded-for entries, so rotating them does not dodge the limit', () => {
+        const limiter = createRateLimiter({ perClientPerMinute: 2, perClientPerHour: 60, perInstancePerMinute: 100 });
+        const t0 = 3_000_000;
+        const spoofed = (fake) => headers({ 'x-forwarded-for': `${fake}, 198.51.100.9` });
+        assert.equal(limiter.check(clientKey(spoofed('1.1.1.1')), t0).ok, true);
+        assert.equal(limiter.check(clientKey(spoofed('2.2.2.2')), t0 + 1).ok, true);
+        assert.equal(limiter.check(clientKey(spoofed('3.3.3.3')), t0 + 2).ok, false);
+    });
+
+    it('falls back to x-real-ip, then a shared bucket', () => {
         assert.equal(clientKey(headers({ 'x-real-ip': '198.51.100.3' })), '198.51.100.3');
+        assert.equal(clientKey(headers({ 'x-forwarded-for': ' , ' })), 'unknown');
         assert.equal(clientKey(headers({})), 'unknown');
         assert.equal(clientKey(null), 'unknown');
     });

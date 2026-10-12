@@ -23,7 +23,8 @@
  * Gemini functionCall parts are mapped into that shape before the response
  * leaves the function. The frontend never sees Gemini's native payload.
  *
- * Limits (limits.js): 10 requests/min and 60/hour per client IP, 120/min per
+ * Limits (limits.js): 10 requests/min and 60/hour per client IP
+ * (cf-connecting-ip, else the last x-forwarded-for hop) and 120/min per
  * instance → 429 rate_limited with Retry-After. Bodies over 64 KB, more than
  * 12 messages, a message over 2000 chars or sunnyContext over 24 KB → 413.
  * Replies are capped at 512 output tokens.

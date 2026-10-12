@@ -25,15 +25,22 @@ const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 const MAX_TRACKED_CLIENTS = 5000;
 
-/** First hop of x-forwarded-for, else the edge's client IP header. */
+/**
+ * The caller's IP as seen by the edge. cf-connecting-ip is set by Cloudflare
+ * and overwrites anything the caller sent. Failing that, use the LAST
+ * x-forwarded-for entry, which the platform's own proxy appends: earlier
+ * entries come from the caller and could be rotated to dodge the limit.
+ */
 export function clientKey(headers) {
   const get = (name) => (headers && typeof headers.get === 'function' ? headers.get(name) : null);
+  const cf = (get('cf-connecting-ip') || '').trim();
+  if (cf) return cf;
   const forwarded = get('x-forwarded-for');
   if (forwarded) {
-    const first = forwarded.split(',')[0].trim();
-    if (first) return first;
+    const hops = forwarded.split(',').map((hop) => hop.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1];
   }
-  return get('cf-connecting-ip') || get('x-real-ip') || 'unknown';
+  return (get('x-real-ip') || '').trim() || 'unknown';
 }
 
 /**

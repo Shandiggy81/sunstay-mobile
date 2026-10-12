@@ -7,6 +7,7 @@ import {
     buildSunnyContext,
     toLlmMessages,
     postChatSunny,
+    friendlyChatError,
 } from './sunnyTools.js';
 
 describe('validateToolCall', () => {
@@ -229,5 +230,29 @@ describe('postChatSunny', () => {
         });
         assert.equal(result.ok, false);
         assert.equal(result.error, 'offline');
+    });
+});
+
+describe('friendlyChatError', () => {
+    it('turns chat-sunny limit responses into a chat line', async () => {
+        for (const [status, expected] of [
+            [429, 'Sunny needs a breather — try again in a minute ☀️'],
+            [413, "That one's a bit long for me — try a shorter question?"],
+        ]) {
+            const result = await postChatSunny({
+                supabaseUrl: 'https://example.supabase.co',
+                anonKey: 'anon',
+                messages: [{ role: 'user', content: 'hi' }],
+                fetchImpl: async () => ({ ok: false, status, json: async () => ({ error: 'rate_limited' }) }),
+            });
+            assert.equal(result.ok, false);
+            assert.equal(friendlyChatError(result.error), expected);
+        }
+    });
+
+    it('leaves other failures to the keyword fallback', () => {
+        for (const error of ['http_500', 'http_502', 'offline', 'missing_supabase', null, undefined]) {
+            assert.equal(friendlyChatError(error), null);
+        }
     });
 });
