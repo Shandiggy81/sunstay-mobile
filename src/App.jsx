@@ -4,6 +4,7 @@ import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, use
 import { boundsOfVenues, lookupMicroclimateEntry, markerScoreFromMicroclimate, readMicroclimate } from './utils/microclimate';
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
+import { filterChoiceKey } from './utils/filterRefit';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
 import VenueCard from './components/VenueCard';
@@ -691,6 +692,8 @@ const AppContent = () => {
         <EmptyVenueState announce onClearFilters={handleClearFilters} />
     ) : null;
     const stableFilteredIds = filteredVenueIds;
+    // The map refits to the results only when this changes (see utils/filterRefit).
+    const mapFilterKey = useMemo(() => filterChoiceKey(activeFilters, settledSearchQuery), [activeFilters, settledSearchQuery]);
 
     const handleVenueSelect = useCallback((venue) => {
         if (!venue) return;
@@ -1014,6 +1017,7 @@ const AppContent = () => {
                                         onVenueSelect={handleVenueSelect}
                                         selectedVenue={selectedVenue}
                                         filteredVenueIds={stableFilteredIds}
+                                        filterKey={mapFilterKey}
                                         liveVenueFeatures={liveVenueFeatures}
                                         weatherColorFn={getMarkerWeatherColor}
                                         cozyWeatherActive={cozyWeatherActive}
