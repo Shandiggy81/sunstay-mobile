@@ -48,6 +48,9 @@ const EMOJI_ICONS = Object.freeze({
     '🛋': 'indoor-warmth',
 });
 
+// Only tags that say what kind of place a venue is. Feature tags ("Cozy",
+// "Indoor Warmth", "Live Music", "Specialty Coffee") describe what a venue
+// offers, so a venue matched only by those keeps its own emoji.
 const TAG_ICONS = Object.freeze({
     'rooftop': 'rooftop-bar',
     'beer garden': 'garden-table',
@@ -55,12 +58,6 @@ const TAG_ICONS = Object.freeze({
     'waterfront': 'waterfront',
     'beach': 'beach',
     'hotel': 'hotel-views',
-    'specialty coffee': 'coffee',
-    'live music': 'live-music',
-    'fireplace': 'fireplace',
-    'indoor warmth': 'indoor-warmth',
-    'cozy': 'indoor-warmth',
-    'craft beer': 'pint',
 });
 
 export const CLAY_PIN_ICON_NAMES = Object.freeze([...new Set([
