@@ -8,6 +8,7 @@ import HourlyForecastStrip from './HourlyForecastStrip';
 import SunForecastPanel from './SunForecastPanel';
 import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import { getSunData } from '../utils/getSunData';
+import { deriveSunForecast, heroSunChip } from '../utils/sunForecastState';
 import { useOpenAQ } from '../hooks/useOpenAQ';
 import { useTomorrowRain } from '../hooks/useTomorrowRain';
 import { useOpenUV } from '../hooks/useOpenUV';
@@ -1000,18 +1001,30 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
     const sunHoursFallback = getDeterministicSunHours(venue?.id);
     return { outdoor: `${sunHoursFallback}h`, covered: `${Math.max(4, sunHoursFallback - 2)}h`, labels: { outdoor: 'Outdoor', covered: 'Covered' } };
   }, [hasCurveTotals, curveTotals.totalHours, isHotelOrStay, outdoorSun, venue?.id]);
-  const directSunHours = hasCurveTotals
-    ? curveTotals.totalHours
-    : (Number.parseFloat(sunHours.outdoor) || 0);
+  // Hero chips read the same forecast as the Sun Forecast tab, so "4.3h direct
+  // sun" here matches its badge. Without an hourly forecast they fall back to
+  // the geometry-only curve below.
+  const heroSun = useMemo(() => heroSunChip(deriveSunForecast({
+    hourly: weatherData?.hourly,
+    utcOffsetSeconds: weatherData?.utcOffsetSeconds,
+    sunrise: sunData?.sunriseDate,
+    sunset: sunData?.sunsetDate,
+  })), [weatherData?.hourly, weatherData?.utcOffsetSeconds, sunData]);
+  const directSunHours = heroSun
+    ? heroSun.hours
+    : hasCurveTotals
+      ? curveTotals.totalHours
+      : (Number.parseFloat(sunHours.outdoor) || 0);
   // Include 0h from the RPC curve so a fully shaded venue still shows "0.0h"
   // rather than hiding the overlay or substituting a hashed 6–9h seed.
-  const hasSunHours = Number.isFinite(directSunHours) && (hasCurveTotals || directSunHours > 0);
+  const hasSunHours = Number.isFinite(directSunHours) && (heroSun != null || hasCurveTotals || directSunHours > 0);
   const peakSunWindow = useMemo(() => {
+    if (heroSun) return heroSun.window;
     if (hasCurveTotals) return curveTotals.peakWindow;
     const start = formatHourLabel(sunData?.startHour);
     const end = formatHourLabel(sunData?.endHour);
     return start && end ? `${start} – ${end}` : null;
-  }, [hasCurveTotals, curveTotals.peakWindow, sunData]);
+  }, [heroSun, hasCurveTotals, curveTotals.peakWindow, sunData]);
 
   const weatherCondition = useMemo(() => {
     if (weather?.weather?.[0]?.main) return weather.weather[0].main.toLowerCase();
