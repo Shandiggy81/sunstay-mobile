@@ -914,6 +914,19 @@ const VenueMap = forwardRef(({
     useImperativeHandle(ref, () => ({
         flyTo: (opts) => map.current?.flyTo(opts),
 
+        // Frame the given venues, like the filter-change fitBounds. A paused
+        // or lost map is skipped, not retried.
+        fitVenues: (venuesToFit) => {
+            if (!map.current) return;
+            const bounds = getBoundsFromVenues(Array.isArray(venuesToFit) ? venuesToFit : []);
+            if (!bounds) return;
+            try {
+                map.current.fitBounds(bounds, { padding: 50, duration: 800, maxZoom: 16, essential: false });
+            } catch (e) {
+                console.warn('[VenueMap] fitVenues failed:', e?.message);
+            }
+        },
+
         resizeAndFly: ([lng, lat]) => {
             if (!map.current) return;
             const generation = cameraGuardRef.current.generation;

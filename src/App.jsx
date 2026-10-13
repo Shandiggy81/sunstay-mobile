@@ -1,7 +1,9 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
-import { boundsOfVenues, markerScoreFromMicroclimate } from './utils/microclimate';
+import { boundsOfVenues, lookupMicroclimateEntry, markerScoreFromMicroclimate, readMicroclimate } from './utils/microclimate';
+import { deriveSunForecast } from './utils/sunForecastState';
+import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
 import VenueCard from './components/VenueCard';
@@ -439,6 +441,9 @@ const AppContent = () => {
 
     const [selectedVenue, setSelectedVenue]           = useState(null);
     const [isChatOpen, setIsChatOpen]                 = useState(false);
+    // "Centre on map" hides the venue card but keeps the venue selected, so
+    // its pin stays highlighted; tapping the pin brings the card back.
+    const [venueCardLowered, setVenueCardLowered]     = useState(false);
     // ── UNIFIED filter state: single source of truth ─────────────────
     // 'cozy-mode' replaces the old activeFilter === 'Cozy'
     // 'sunny-mode' replaces the old activeFilter === 'Sunny'
@@ -506,6 +511,21 @@ const AppContent = () => {
     const cozyFilterActive  = activeFilters.includes(FILTER_COZY);
     const sunnyFilterActive = activeFilters.includes(FILTER_SUNNY);
 
+    // The Sunny filter reads each venue's own sun at the slider time, plus the
+    // Melbourne hourly forecast for that hour (the same one the Sun Forecast
+    // tab uses). UV is safety info only.
+    const { byId: microById, todMinutes: listTodMinutes } = useMicroclimateState();
+    const sunnyForecastKind = useMemo(() => {
+        if (!sunnyFilterActive) return null;
+        const sun = getSunData(-37.8136, 144.9631);
+        return forecastKindAt(deriveSunForecast({
+            hourly: weather?.hourly,
+            utcOffsetSeconds: weather?.utcOffsetSeconds,
+            sunrise: sun?.sunriseDate,
+            sunset: sun?.sunsetDate,
+        }), listTodMinutes);
+    }, [sunnyFilterActive, weather?.hourly, weather?.utcOffsetSeconds, listTodMinutes]);
+
     // ── Unified venue filtering ────────────────────────────────────────
     // One pass feeds the map pins, sidebar list, mobile sheet, and counts.
     const filteredVenues = useMemo(() => {
@@ -543,9 +563,7 @@ const AppContent = () => {
                 if (!hasRoomMatch) return false;
             }
 
-            if (tagFilters.length > 0 && !tagFilters.some(id => venueMatchesWeatherTag(venue, id))) {
-                return false;
-            }
+            if (!matchesTagFilters(venue, tagFilters, venueMatchesWeatherTag)) return false;
 
             if (cozyFilterActive) {
                 const liveState = liveVenueFeatures[venue.id] || EMPTY_LIVE_FEATURES;
@@ -559,15 +577,18 @@ const AppContent = () => {
 
             if (sunnyFilterActive) {
                 const liveState = liveVenueFeatures[venue.id] || EMPTY_LIVE_FEATURES;
-                const uvIndexValue = weather?.uvi ?? 0;
-                if (uvIndexValue < 4 || liveState.roofClosed) return false;
+                const entry = lookupMicroclimateEntry(microById, venue.id);
+                const reading = entry ? readMicroclimate(entry, listTodMinutes) : null;
+                if (!isVenueInDirectSun({ reading, forecastKind: sunnyForecastKind, roofClosed: liveState.roofClosed })) {
+                    return false;
+                }
             }
 
             if (!venueMatchesSearchQuery(venue, query)) return false;
 
             return true;
         });
-    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, settledSearchQuery, weather?.uvi]);
+    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, settledSearchQuery, microById, listTodMinutes, sunnyForecastKind]);
 
     // "Search this area" narrows only the list to the map area the user
     // searched. Pins, filter fitBounds and the microclimate fetch still use
@@ -583,7 +604,6 @@ const AppContent = () => {
 
     // Filter first, then rank by the same score each card's badge shows:
     // cached microclimate at the slider minute, else the weather score.
-    const { byId: microById, todMinutes: listTodMinutes } = useMicroclimateState();
     const sortedVenues = useMemo(
         () => sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
             byId: microById,
@@ -676,13 +696,23 @@ const AppContent = () => {
         if (!venue) return;
         pullRefreshRef.current?.reset?.();
         setSelectedVenue(venue);
+        setVenueCardLowered(false);
         setMobileSheetState('peek');
     }, []);
 
     const handleCloseCard  = useCallback(() => {
         pullRefreshRef.current?.reset?.();
         setSelectedVenue(null);
+        setVenueCardLowered(false);
         setVenueSheetDragging(false);
+    }, []);
+
+    const handleCenterOnMap = useCallback((venue) => {
+        const lng = Number(venue?.lng ?? venue?.longitude);
+        const lat = Number(venue?.lat ?? venue?.latitude);
+        setVenueCardLowered(true);
+        setVenueSheetDragging(false);
+        if (Number.isFinite(lng) && Number.isFinite(lat)) mapRef.current?.resizeAndFly?.([lng, lat]);
     }, []);
     const toggleChat       = useCallback(() => setIsChatOpen(p => !p), []);
     const closeChat        = useCallback(() => setIsChatOpen(false), []);
@@ -723,6 +753,16 @@ const AppContent = () => {
         handleVenueSelect(randomVenue);
         setTimeout(() => setIsChatOpen(false), 1500);
     }, [handleVenueSelect, venues]);
+
+    // Chat "Show on map": keep the filters, close the chat and frame the
+    // current results on the map.
+    const handleShowOnMap = useCallback(() => {
+        setSelectedVenue(null);
+        setVenueCardLowered(false);
+        setMobileSheetState('peek');
+        setIsChatOpen(false);
+        mapRef.current?.fitVenues?.(filteredVenues);
+    }, [filteredVenues]);
 
     const handleSunnySetFilters = useCallback((tags) => {
         setActiveFilters(Array.isArray(tags) ? tags : []);
@@ -827,7 +867,10 @@ const AppContent = () => {
     const selectedVenueScore = weather?.score ?? weather?.rawWeather?.score ?? 70;
 
     const sheetDrag = sheetDragCompositing({ dragging: sheetDragging });
-    const sheetExpanded = mobileSheetState === 'expanded' && !selectedVenue;
+    // The list, Sunny and the footer hide while the venue card is showing,
+    // not while a venue is merely selected on the map.
+    const venueCardOpen = Boolean(selectedVenue) && !venueCardLowered;
+    const sheetExpanded = mobileSheetState === 'expanded' && !venueCardOpen;
     useEffect(() => {
         if (!selectedVenue) setVenueSheetDragging(false);
     }, [selectedVenue]);
@@ -1032,7 +1075,7 @@ const AppContent = () => {
                                         <Locate size={19} strokeWidth={2.25} className={isLocating ? 'animate-pulse' : undefined} />
                                     </motion.button>
                                 </div>
-                                {!selectedVenue && (
+                                {!venueCardOpen && (
                                     <SunnyMascot
                                         onClick={toggleChat}
                                         isChatOpen={isChatOpen}
@@ -1043,14 +1086,14 @@ const AppContent = () => {
                         </div>
                     </section>
 
-                    {selectedVenue && (
+                    {selectedVenue && !venueCardLowered && (
                         <VenueCard
                             key={selectedVenue.id}
                             venue={selectedVenue}
                             weather={weather}
                             liveVenueFeatures={selectedVenueLiveFeatures}
                             onClose={handleCloseCard}
-                            onCenter={handleVenueSelect}
+                            onCenter={handleCenterOnMap}
                             cozyWeatherActive={cozyWeatherActive}
                             setShowOwnerDashboard={setShowOwnerDashboard}
                             setSelectedVenue={setSelectedVenue}
@@ -1090,7 +1133,7 @@ const AppContent = () => {
 
                 {/* Hidden while Filters is open: the fixed bar sat on top of the
                     sheet's "Show N venues" button and swallowed the tap. */}
-                {!mobileMapExpanded && !selectedVenue && !mobileFilterOpen && (
+                {!mobileMapExpanded && !venueCardOpen && !mobileFilterOpen && (
                     <div
                         className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
                         onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
@@ -1222,6 +1265,7 @@ const AppContent = () => {
                     onFindDogFriendly={handleFindDogFriendly}
                     onFindSmoking={handleFindSmoking}
                     onSurpriseMe={handleSurpriseMe}
+                    onShowOnMap={handleShowOnMap}
                     onFindFamily={handleFindFamily}
                     onFindBusiness={handleFindBusiness}
                     onFindSunny={handleFindSunny}
@@ -1234,7 +1278,7 @@ const AppContent = () => {
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ duration: 0.6, delay: 0.6 }}
-                    className={`ss-footer-badge ${selectedVenue ? 'hidden' : ''}`}
+                    className={`ss-footer-badge ${venueCardOpen ? 'hidden' : ''}`}
                 >
                     <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
                     Sales Demo · {venues.length} Partner Venues
