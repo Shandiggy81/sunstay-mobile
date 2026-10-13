@@ -41,10 +41,16 @@ describe('clay venue pins', () => {
         }
     });
 
-    it('covers 46 of the 48 demo venues; the rest keep their emoji', () => {
+    it('covers 43 of the 48 demo venues; the rest keep their emoji', () => {
         const keep = demoVenues.filter((v) => pinIconName(v) === null).map((v) => v.venueName).sort();
         assert.equal(demoVenues.length, 48);
-        assert.deepEqual(keep, ['Botanical Hotel', 'La La Land Windsor']);
+        assert.deepEqual(keep, [
+            'Borsch, Vodka & Tears',
+            'Botanical Hotel',
+            'Chin Chin',
+            'La La Land Windsor',
+            'Pause Bar',
+        ]);
     });
 
     it('prefers typeLabel, then emoji, then tags, case-insensitively', () => {
@@ -52,7 +58,12 @@ describe('clay venue pins', () => {
         assert.equal(pinIconName({ typeLabel: 'Cocktail Lounge Bar', emoji: '🍺' }), 'indoor-warmth');
         assert.equal(pinIconName({ typeLabel: 'Cocktail Bar', emoji: '🍷' }), 'wine');
         assert.equal(pinIconName({ emoji: '🏖️' }), 'beach', 'variation selector is ignored');
-        assert.equal(pinIconName({ emoji: '🍸', tags: ['Sunny', 'LIVE MUSIC'] }), 'live-music');
+        assert.equal(pinIconName({ emoji: '🍸', tags: ['Sunny', 'ROOFTOP'] }), 'rooftop-bar');
+    });
+
+    it('ignores feature tags, so venues matched only by them keep their emoji', () => {
+        assert.equal(pinIconName({ emoji: '🥟', tags: ['Cozy', 'Indoor Warmth', 'Live Music'] }), null);
+        assert.equal(pinIconName({ emoji: '🍸', tags: ['Specialty Coffee', 'Craft Beer', 'Fireplace'] }), null);
     });
 
     it('returns null for no match, unknown keys and prototype names', () => {
