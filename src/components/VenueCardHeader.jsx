@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
+import { SHOW_WEATHER_GUARANTEE } from '../utils/demoDeadEnds';
 import { useWeather } from '../context/WeatherContext';
 
 export default function VenueCardHeader({
@@ -116,7 +117,7 @@ export default function VenueCardHeader({
           <span style={{ fontSize: '0.7rem', color: '#64748B' }}>
             {safeVibes.length ? `${safeVibes.join(', ')} · ${suburb}` : suburb}
           </span>
-          {(() => {
+          {SHOW_WEATHER_GUARANTEE && (() => {
             const isOutdoor = !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
             if (!isOutdoor) return null;
             const quote = getWeatherGuaranteeQuote({
