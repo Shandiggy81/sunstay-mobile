@@ -8,6 +8,7 @@ import { Layers, Check, Search } from 'lucide-react';
 import { clusterSize, sunPinView } from '../../utils/sunPin';
 import { clayPinUrlFor, clayPinUrls } from '../../utils/clayVenuePins';
 import { areaPromptNeeded } from '../../utils/searchArea';
+import { filterRefitNeeded } from '../../utils/filterRefit';
 import { parseXweatherCredentials } from '../../utils/xweatherKey';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
@@ -793,6 +794,7 @@ const VenueMap = forwardRef(({
     venues = [],
     selectedVenue,
     filteredVenueIds,
+    filterKey,
     onVenueSelect,
     liveVenueFeatures = {},
     // ── NEW: props wired from App.jsx ──────────────────────────────
@@ -811,6 +813,7 @@ const VenueMap = forwardRef(({
     const userMarkerRef    = useRef(null);
     const hasFlownToBounds = useRef(false);
     const filterBoundsKeyRef = useRef(null);
+    const filterChoiceKeyRef = useRef(undefined);
     const rafRef           = useRef(null);
     const mapInitLockRef   = useRef(false);
     const pendingTimersRef = useRef(new Set());
@@ -913,6 +916,19 @@ const VenueMap = forwardRef(({
     // ── Imperative API ──────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
         flyTo: (opts) => map.current?.flyTo(opts),
+
+        // Frame the given venues, like the filter-change fitBounds. A paused
+        // or lost map is skipped, not retried.
+        fitVenues: (venuesToFit) => {
+            if (!map.current) return;
+            const bounds = getBoundsFromVenues(Array.isArray(venuesToFit) ? venuesToFit : []);
+            if (!bounds) return;
+            try {
+                map.current.fitBounds(bounds, { padding: 50, duration: 800, maxZoom: 16, essential: false });
+            } catch (e) {
+                console.warn('[VenueMap] fitVenues failed:', e?.message);
+            }
+        },
 
         resizeAndFly: ([lng, lat]) => {
             if (!map.current) return;
@@ -1540,12 +1556,17 @@ const VenueMap = forwardRef(({
         if (safeVenues.length === 0) return;
 
         const nextKey = visibleVenueSetKey(visibleVenues);
-        if (filterBoundsKeyRef.current === null) {
-            filterBoundsKeyRef.current = nextKey;
-            return;
-        }
-        if (nextKey === filterBoundsKeyRef.current) return;
+        // Move the map only when the user changed a filter or search, not when
+        // sun data or the time slider changed which venues the Sunny filter keeps.
+        const refit = filterRefitNeeded({
+            prevSetKey: filterBoundsKeyRef.current,
+            nextSetKey: nextKey,
+            prevFilterKey: filterChoiceKeyRef.current,
+            nextFilterKey: filterKey,
+        });
         filterBoundsKeyRef.current = nextKey;
+        filterChoiceKeyRef.current = filterKey;
+        if (!refit) return;
 
         if (visibleVenues.length === 0) return;
 
@@ -1561,7 +1582,7 @@ const VenueMap = forwardRef(({
         } catch (e) {
             console.warn('[VenueMap] filter fitBounds failed:', e?.message);
         }
-    }, [mapLoaded, safeVenues, filteredIdSet]);
+    }, [mapLoaded, safeVenues, filteredIdSet, filterKey]);
 
     // ── Sync clustered markers for the live map generation ─────────
     useEffect(() => {

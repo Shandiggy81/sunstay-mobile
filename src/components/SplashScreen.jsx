@@ -1,5 +1,5 @@
 // src/components/SplashScreen.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Minimum time the splash stays visible, even if data resolves instantly —
@@ -15,6 +15,11 @@ export default function SplashScreen({ isReady = false, onComplete }) {
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const [forceReady, setForceReady] = useState(false);
   const [exiting, setExiting] = useState(false);
+  // The parent passes a new onComplete each render; read it through a ref so
+  // a re-render can't cancel the exit timer, and call it only once.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const completedRef = useRef(false);
 
   useEffect(() => {
     const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_DISPLAY_MS);
@@ -31,9 +36,20 @@ export default function SplashScreen({ isReady = false, onComplete }) {
   useEffect(() => {
     if (exiting || !minTimeElapsed || !(isReady || forceReady)) return;
     setExiting(true);
-    const exitTimer = setTimeout(onComplete, EXIT_ANIM_MS);
+  }, [isReady, forceReady, minTimeElapsed, exiting]);
+
+  // Starting the exit used to re-run the effect above, whose cleanup cleared
+  // this timer, so onComplete never ran and the "seen" flag was never saved.
+  // The timer now depends on `exiting` alone.
+  useEffect(() => {
+    if (!exiting) return undefined;
+    const exitTimer = setTimeout(() => {
+      if (completedRef.current) return;
+      completedRef.current = true;
+      onCompleteRef.current?.();
+    }, EXIT_ANIM_MS);
     return () => clearTimeout(exitTimer);
-  }, [isReady, forceReady, minTimeElapsed, exiting, onComplete]);
+  }, [exiting]);
 
   return (
     <AnimatePresence>
@@ -117,13 +133,8 @@ export default function SplashScreen({ isReady = false, onComplete }) {
             ))}
           </motion.div>
 
-          {/* Logo / Wordmark */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.65, ease: 'easeOut' }}
-            style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}
-          >
+          {/* Logo / Wordmark — shown immediately with the tagline */}
+          <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
             <div style={{
               fontSize: '2.6rem',
               fontWeight: 800,
@@ -138,10 +149,7 @@ export default function SplashScreen({ isReady = false, onComplete }) {
             </div>
 
             {/* Tagline */}
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.1 }}
+            <div
               style={{
                 fontSize: '0.92rem',
                 fontWeight: 400,
@@ -151,8 +159,8 @@ export default function SplashScreen({ isReady = false, onComplete }) {
               }}
             >
               Book where the sun actually shines
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
 
           {/* Horizon line */}
           <motion.div
