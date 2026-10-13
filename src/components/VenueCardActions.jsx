@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FEATURE_BADGES } from '../config/features';
+import { PHOTO_COMING_SOON_MESSAGE } from '../utils/demoDeadEnds';
+
+const PHOTO_NOTICE_MS = 4500;
 
 const Float = ({ children, delay = 0, range = 6, duration = 4, className = '' }) => (
   <motion.div
@@ -27,6 +30,20 @@ export default function VenueCardActions({
   setSelectedVenue,
   venue,
 }) {
+  // "Capture the Vibe" opens the camera, but photos aren't saved yet: say so,
+  // and drop the picked file straight away.
+  const [photoNotice, setPhotoNotice] = useState(false);
+  useEffect(() => {
+    if (!photoNotice) return undefined;
+    const timer = setTimeout(() => setPhotoNotice(false), PHOTO_NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [photoNotice]);
+  const handlePhotoPicked = (event) => {
+    const input = event.target;
+    if (input.files?.length) setPhotoNotice(true);
+    input.value = '';
+  };
+
   function isHappyHourNow(happyHour) {
     if (!happyHour) return false;
     const now = new Date();
@@ -66,8 +83,11 @@ export default function VenueCardActions({
             whileTap={{ scale: 0.97 }}
           >
             <motion.span className="font-black" style={{ fontSize: '15px', color: '#FFFFFF' }} animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}>📸 Capture the Vibe</motion.span>
-            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={() => {}} />
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoPicked} />
           </motion.label>
+          <p role="status" aria-live="polite" className={photoNotice ? 'rounded-xl bg-amber-50 px-3 py-2 text-center text-[13px] font-medium text-slate-700' : 'sr-only'}>
+            {photoNotice ? PHOTO_COMING_SOON_MESSAGE : ''}
+          </p>
         </div>
       </motion.div>
 

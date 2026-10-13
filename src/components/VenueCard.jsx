@@ -14,6 +14,7 @@ import { useTomorrowRain } from '../hooks/useTomorrowRain';
 import { useOpenUV } from '../hooks/useOpenUV';
 import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 import { getWeatherGuaranteeQuote } from '../utils/weatherGuarantee';
+import { SHOW_WEATHER_GUARANTEE, sunHoursSource } from '../utils/demoDeadEnds';
 import { checkIsAccommodation } from '../utils/accommodation';
 import VenueCardWeather from './VenueCardWeather';
 import VenueCardSun from './VenueCardSun';
@@ -1018,6 +1019,9 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
   // Include 0h from the RPC curve so a fully shaded venue still shows "0.0h"
   // rather than hiding the overlay or substituting a hashed 6–9h seed.
   const hasSunHours = Number.isFinite(directSunHours) && (heroSun != null || hasCurveTotals || directSunHours > 0);
+  // With no forecast and no sun curve the hours are a per-venue placeholder;
+  // label them so the demo doesn't present them as measured sun.
+  const sunHoursIsEstimate = sunHoursSource({ hasForecast: heroSun != null, hasCurve: hasCurveTotals }) === 'estimate';
   const peakSunWindow = useMemo(() => {
     if (heroSun) return heroSun.window;
     if (hasCurveTotals) return curveTotals.peakWindow;
@@ -1318,6 +1322,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
                       <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-slate-950/45 px-3 py-1 text-[13px] font-semibold text-white ring-1 ring-inset ring-white/25 backdrop-blur-md">
                         <span aria-hidden="true">☀️</span>
                         <span className="tabular-nums">{formatSunHours(directSunHours, { digits: 1 })}</span> direct sun
+                        {sunHoursIsEstimate ? <span className="font-medium text-white/75">· Estimate</span> : null}
                       </span>
                     ) : null}
                     {peakSunWindow ? (
@@ -1412,7 +1417,7 @@ function VenueCard({ venue, weather, onClose, onCenter, cozyWeatherActive, setSh
               ) : null}
               {detailBranch === VENUE_DETAIL_BRANCH.OVERVIEW && (
                 <>
-                  {(() => {
+                  {SHOW_WEATHER_GUARANTEE && (() => {
                     const isOutdoor = !!(venue?.outdoorArea || venue?.rooftop || venue?.beerGarden || venue?.balcony || venue?.outdoorSeating);
                     if (!isOutdoor) return null;
                     const quote = getWeatherGuaranteeQuote({

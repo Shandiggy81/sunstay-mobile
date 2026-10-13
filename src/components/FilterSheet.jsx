@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check } from 'lucide-react';
 import { FILTER_CATEGORIES } from '../data/demoVenues';
 import { clayIconFor, clayIconUrls } from '../utils/clayFilterIcons';
+import { SHOW_CUSTOM_FILTERS } from '../utils/demoDeadEnds';
 
 // Hashed /assets/<name>-<hash>.webp URLs, so new artwork is never cached stale.
 const CLAY_ICON_URLS = clayIconUrls(
@@ -89,6 +90,7 @@ const FilterSheet = ({
                             })}
                         </div>
                         
+                        {SHOW_CUSTOM_FILTERS && (
                         <div className="custom-filter-section">
                             <p className="filter-section-label">YOUR FILTERS</p>
                             <div className="custom-filter-chips">
@@ -108,6 +110,7 @@ const FilterSheet = ({
                                 <button onClick={onAddCustomFilter} className="add-filter-btn">+</button>
                             </div>
                         </div>
+                        )}
 
                         {/* Sticky Apply Button */}
                         <div className="ss-filter-sheet-footer">
