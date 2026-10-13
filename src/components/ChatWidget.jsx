@@ -14,7 +14,8 @@ import {
 import thunderBuddy from '../assets/mascots/thunder-buddy.png';
 import sunnySunglasses from '../assets/sunny-mascot.jpg';
 import { resolveChatAvatarKind } from '../utils/resolveChatAvatar';
-import { chatWindKmh, chatWindLabel } from '../utils/windUnits';
+import { chatWindLabel } from '../utils/windUnits';
+import { chatTempText, chatUvText, readChatWeather } from '../utils/chatWeather';
 
 const sunnyDefault = sunnySunglasses;
 
@@ -26,35 +27,29 @@ const CHAT_AVATARS = {
 
 // ─── Weather helpers ───────────────────────────────────────────────────────────
 const getWeatherMood = (weather) => {
-  if (!weather) return { emoji: '😎', label: 'Ready to help', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
-  const temp = weather.current?.temp ?? 20;
-  const cloud = weather.current?.cloudCover ?? 0;
-  const wind = chatWindKmh(weather) ?? 0;
-  const uv = weather.current?.uvIndex ?? 0;
-  const code = weather.current?.weatherCode ?? 0;
-  const isRain = code >= 500 && code < 600;
-  if (isRain) return { emoji: '🌧️', label: 'Rainy day mode', gradient: 'from-slate-400 via-blue-400 to-slate-500' };
+  const cw = readChatWeather(weather);
+  if (!cw.available) return { emoji: '😎', label: 'Ready to help', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
+  const wind = cw.windKmh ?? 0;
+  if (cw.isRain) return { emoji: '🌧️', label: 'Rainy day mode', gradient: 'from-slate-400 via-blue-400 to-slate-500' };
   if (wind > 30) return { emoji: '💨', label: 'Windy out there!', gradient: 'from-teal-400 via-cyan-400 to-blue-400' };
-  if (uv >= 8) return { emoji: '🕶️', label: 'UV is high today', gradient: 'from-orange-500 via-red-400 to-orange-400' };
-  if (cloud > 70) return { emoji: '☁️', label: 'Cloudy vibes', gradient: 'from-gray-400 via-slate-400 to-gray-500' };
-  if (temp >= 28) return { emoji: '🌞', label: 'Cracking day!', gradient: 'from-yellow-400 via-amber-400 to-orange-400' };
+  if ((cw.uv ?? 0) >= 8) return { emoji: '🕶️', label: 'UV is high today', gradient: 'from-orange-500 via-red-400 to-orange-400' };
+  if ((cw.cloud ?? 0) > 70) return { emoji: '☁️', label: 'Cloudy vibes', gradient: 'from-gray-400 via-slate-400 to-gray-500' };
+  if ((cw.temp ?? 0) >= 28) return { emoji: '🌞', label: 'Cracking day!', gradient: 'from-yellow-400 via-amber-400 to-orange-400' };
   return { emoji: '😎', label: 'Great day out', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
 };
 
 const buildGreeting = (weather) => {
-  if (!weather) return "G'day! I'm Sunny ☀️ Tell me what kind of spot you're after today!";
-  const temp = weather.current?.temp ?? 20;
-  const cloud = weather.current?.cloudCover ?? 0;
-  const wind = chatWindKmh(weather) ?? 0;
-  const uv = weather.current?.uvIndex ?? 0;
-  const code = weather.current?.weatherCode ?? 0;
-  const isRain = code >= 500 && code < 600;
-  if (isRain) return `G'day! It's ${temp}°C and raining out there right now 🌧️ Let me find you a cosy indoor spot — what kind of vibe are you after?`;
-  if (uv >= 8) return `G'day! UV is sitting at ${uv} right now ☀️ Pretty intense — I'd recommend shaded or covered venues. What are you after?`;
-  if (wind > 30) return `G'day! It's ${temp}°C but pretty windy at ${chatWindLabel(weather) ?? `${Math.round(wind)} km/h`} 💨 Wind-sheltered spots are the move today. What sounds good?`;
-  if (cloud > 70) return `G'day! It's ${temp}°C and overcast today ☁️ Perfect weather for a cosy indoor or covered spot. What kind of venue are you after?`;
-  if (temp >= 26) return `G'day! It's a beautiful ${temp}°C and sunny out right now ☀️ Perfect rooftop weather! What kind of spot are you looking for?`;
-  return `G'day! I'm Sunny — it's ${temp}°C out there right now 😎 What kind of venue are you after today?`;
+  const cw = readChatWeather(weather);
+  if (!cw.available) return "G'day! I'm Sunny ☀️ Live weather isn't available right now, but tell me what kind of spot you're after!";
+  const temp = chatTempText(cw);
+  const wind = cw.windKmh ?? 0;
+  if (cw.isRain) return `G'day! It's ${temp ? `${temp} and ` : ''}raining out there right now 🌧️ Let me find you a cosy indoor spot — what kind of vibe are you after?`;
+  if ((cw.uv ?? 0) >= 8) return `G'day! UV is sitting at ${cw.uv} right now ☀️ Pretty intense — I'd recommend shaded or covered venues. What are you after?`;
+  if (wind > 30) return `G'day! It's ${temp ? `${temp} but ` : ''}pretty windy at ${chatWindLabel(weather) ?? `${Math.round(wind)} km/h`} 💨 Wind-sheltered spots are the move today. What sounds good?`;
+  if (!temp) return "G'day! I'm Sunny 😎 I can't get the temperature right now — what kind of venue are you after today?";
+  if ((cw.cloud ?? 0) > 70) return `G'day! It's ${temp} and overcast today ☁️ Perfect weather for a cosy indoor or covered spot. What kind of venue are you after?`;
+  if (cw.temp >= 26) return `G'day! It's a beautiful ${temp} out right now ☀️ Perfect rooftop weather! What kind of spot are you looking for?`;
+  return `G'day! I'm Sunny — it's ${temp} out there right now 😎 What kind of venue are you after today?`;
 };
 
 // ─── Keyword matcher for free-text input ──────────────────────────────────────
@@ -76,13 +71,13 @@ const matchIntent = (text) => {
 
 // ─── Quick reply definitions ───────────────────────────────────────────────────
 const buildQuickReplies = (weather) => {
-  const code = weather?.current?.weatherCode ?? 0;
-  const isRain = code >= 500 && code < 600;
-  const uv = weather?.current?.uvIndex ?? 'moderate';
-  const wind = chatWindKmh(weather) ?? 0;
+  const cw = readChatWeather(weather);
+  const isRain = cw.isRain;
+  const uv = cw.uv ?? 0;
+  const wind = cw.windKmh ?? 0;
 
   const all = [
-    { intent: 'sunny',      text: '☀️ Sunny outdoor spots',          response: `Ripper! UV's at ${uv} right now — showing venues with the best sun exposure. ☀️`,          action: 'onFindSunny' },
+    { intent: 'sunny',      text: '☀️ Sunny outdoor spots',          response: `Ripper! ${chatUvText(cw)} — showing venues with direct sun. ☀️`,          action: 'onFindSunny' },
     { intent: 'cloudy',     text: '🌥️ Covered & cosy venues',        response: `Smart move — filtering to shaded and covered spots near you right now. 🌥️`,                action: 'onFindIndoor' },
     { intent: 'wind',       text: '💨 Wind-sheltered areas',          response: `Yeah it's blowy out there! Pulling up the most protected outdoor spots. 💨`,                action: 'onFindWindSheltered' },
     { intent: 'indoor',     text: '🌧️ Rainy day indoor picks',        response: `Staying dry — good call! Loading covered and shaded venues near you now. 🌧️`,              action: 'onFindIndoor' },
@@ -108,7 +103,7 @@ const buildQuickReplies = (weather) => {
 // ─── Follow-up chips shown after an action ────────────────────────────────────
 const followUpChips = [
   { text: '🔄 Try a different vibe', resetsChat: true },
-  { text: '🗺️ Show me on the map',   resetsChat: false, action: 'onSurpriseMe' },
+  { text: '🗺️ Show on map',          resetsChat: false, action: 'onShowOnMap' },
   { text: '🐶 Dog-friendly only',    resetsChat: false, action: 'onFindDogFriendly' },
   { text: '♿ Accessible venues',    resetsChat: false, action: 'onFindWheelchair' },
 ];
@@ -146,6 +141,7 @@ const ChatWidget = ({
   onFindDogFriendly,
   onFindSmoking,
   onSurpriseMe,
+  onShowOnMap,
   onFindFamily,
   onFindBusiness,
   onFindSunny,
@@ -158,6 +154,7 @@ const ChatWidget = ({
     onFindDogFriendly,
     onFindSmoking,
     onSurpriseMe,
+    onShowOnMap,
     onFindFamily,
     onFindBusiness,
     onFindSunny,
@@ -166,6 +163,7 @@ const ChatWidget = ({
     onFindWindSheltered,
   };
   const mood = getWeatherMood(weather);
+  const liveWeather = readChatWeather(weather);
   const avatar = CHAT_AVATARS[resolveChatAvatarKind(weather)];
   const quickReplies = buildQuickReplies(weather);
   const { byId, todMinutes } = useMicroclimateState();
@@ -382,11 +380,11 @@ const ChatWidget = ({
             </div>
 
             {/* ── Live weather strip ── */}
-            {weather?.current && (
+            {liveWeather.available && (
               <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center gap-3 flex-shrink-0">
                 <Thermometer className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                 <span className="text-xs font-semibold text-amber-700">
-                  {weather.current.temp}°C · UV {weather.current.uvIndex} · Wind {chatWindLabel(weather) ?? '–'} · Cloud {weather.current.cloudCover}%
+                  {chatTempText(liveWeather) ?? 'Temp unavailable'} · UV {liveWeather.uv ?? 'unavailable'} · Wind {chatWindLabel(weather) ?? 'unavailable'} · Cloud {liveWeather.cloud == null ? 'unavailable' : `${Math.round(liveWeather.cloud)}%`}
                 </span>
               </div>
             )}
