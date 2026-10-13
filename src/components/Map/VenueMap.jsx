@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
 import { Layers, Check, Search } from 'lucide-react';
 import { clusterSize, sunPinView } from '../../utils/sunPin';
+import { clayPinUrlFor, clayPinUrls } from '../../utils/clayVenuePins';
 import { areaPromptNeeded } from '../../utils/searchArea';
 import { parseXweatherCredentials } from '../../utils/xweatherKey';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -211,6 +212,37 @@ const CONTROL_TOUCH_STYLE = { touchAction: 'auto', WebkitTapHighlightColor: 'tra
 const PIN_TAIL_SVG = (fill, stroke) =>
     `<svg width="14" height="8" viewBox="0 0 14 8" aria-hidden="true" style="display:block;margin-top:-1px"><path d="M1 0 L7 7 L13 0" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/></svg>`;
 
+// 96px clay pin icons (utils/clayVenuePins), hashed or inlined by Vite.
+const CLAY_PIN_URLS = clayPinUrls(import.meta.glob('../../assets/clay/pins/*.webp', { eager: true, import: 'default' }));
+const PIN_ICON_PX = 20;
+
+// One <img> per pin, reused across repaints. A failed URL is remembered on the
+// element so later repaints keep the emoji instead of retrying it.
+function paintPinIcon(icon, view) {
+    const url = view.iconUrl && icon.dataset.failedSrc !== view.iconUrl ? view.iconUrl : null;
+    if (!url) {
+        if (icon.firstElementChild || icon.textContent !== view.icon) icon.textContent = view.icon;
+        return;
+    }
+    let img = icon.firstElementChild;
+    if (!img || img.tagName !== 'IMG') {
+        icon.textContent = '';
+        img = document.createElement('img');
+        img.width = PIN_ICON_PX;
+        img.height = PIN_ICON_PX;
+        img.alt = '';
+        img.decoding = 'async';
+        img.draggable = false;
+        img.style.cssText = `display:block;width:${PIN_ICON_PX}px;height:${PIN_ICON_PX}px;object-fit:contain;pointer-events:none`;
+        icon.append(img);
+    }
+    img.onerror = () => {
+        icon.dataset.failedSrc = url;
+        icon.textContent = view.icon;
+    };
+    if (img.getAttribute('src') !== url) img.src = url;
+}
+
 function paintMarkerEl(el, view) {
     const bubble = el.querySelector('.ss-pin-bubble');
     const icon = el.querySelector('.ss-pin-icon');
@@ -220,7 +252,7 @@ function paintMarkerEl(el, view) {
     bubble.style.background = view.bg;
     bubble.style.borderColor = view.border;
     bubble.style.color = view.text;
-    icon.textContent = view.icon;
+    paintPinIcon(icon, view);
     score.textContent = view.scoreText;
     score.style.display = view.scoreText ? '' : 'none';
     tail.innerHTML = PIN_TAIL_SVG(view.bg, view.border);
@@ -843,7 +875,7 @@ const VenueMap = forwardRef(({
             const selected = id != null && record.venueId === String(id);
             if (record.selected === selected) continue;
             record.selected = selected;
-            paintMarkerEl(record.el, sunPinView({ pinKey: record.pinKey, score: record.score, emoji: record.emoji, selected }));
+            paintMarkerEl(record.el, sunPinView({ pinKey: record.pinKey, score: record.score, emoji: record.emoji, iconUrl: record.iconUrl, selected }));
         }
     }, [selectedVenue?.id]);
 
@@ -1669,21 +1701,24 @@ const VenueMap = forwardRef(({
                     );
                     const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
                     const emoji = venue.emoji ?? null;
+                    const iconUrl = clayPinUrlFor(venue, CLAY_PIN_URLS);
                     const selected = String(selectedVenueIdRef.current ?? '') === String(venueId);
                     specs.push({
                         id: `venue-${venueId}`,
                         update(existing) {
                             if (existing.pinKey !== pinKey || existing.score !== score
-                                || existing.emoji !== emoji || existing.selected !== selected) {
-                                paintMarkerEl(existing.el, sunPinView({ pinKey, score, emoji, selected }));
+                                || existing.emoji !== emoji || existing.iconUrl !== iconUrl
+                                || existing.selected !== selected) {
+                                paintMarkerEl(existing.el, sunPinView({ pinKey, score, emoji, iconUrl, selected }));
                                 existing.pinKey = pinKey;
                                 existing.score = score;
                                 existing.emoji = emoji;
+                                existing.iconUrl = iconUrl;
                                 existing.selected = selected;
                             }
                         },
                         create() {
-                            const el = createMarkerEl(sunPinView({ pinKey, score, emoji, selected }));
+                            const el = createMarkerEl(sunPinView({ pinKey, score, emoji, iconUrl, selected }));
                             el.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -1693,7 +1728,7 @@ const VenueMap = forwardRef(({
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(instance);
-                            return { marker, el, pinKey, score, emoji, selected, venueId: String(venueId), isCluster: false, generation };
+                            return { marker, el, pinKey, score, emoji, iconUrl, selected, venueId: String(venueId), isCluster: false, generation };
                         },
                     });
                 });
