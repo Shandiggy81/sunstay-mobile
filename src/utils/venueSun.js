@@ -61,7 +61,7 @@ export function venueSunForecast({ venue, weather, now = new Date(), sunTimes } 
         sunrise: times?.sunriseDate,
         sunset: times?.sunsetDate,
         shaded,
-        current: { cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all, isRaining: raining },
+        current: { cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all, clearness: weather?.skyClearness, isRaining: raining },
     });
 }
 

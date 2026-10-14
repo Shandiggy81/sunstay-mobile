@@ -41,6 +41,7 @@ import { getSunData } from './utils/getSunData';
 import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import { venueDisplayScore } from './utils/venueDisplayScore';
 import { listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
+import { venueConditionChips } from './utils/venueConditionChips';
 import { feelsLikeIconName, venueIconName } from './utils/clayIcons';
 import ClayIcon from './components/common/ClayIcon';
 import { SEARCH_DEBOUNCE_MS } from './utils/debounce';
@@ -183,9 +184,15 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
         : weather;
     // Same sheltered feels-like and sun forecast as the venue card.
     const feelsLike = venueFeelsLike(venue, liveWeather);
-    const sunStatus = useMemo(
-        () => listSunStatus(venueSunForecast({ venue, weather: liveWeather })),
+    const sunForecast = useMemo(
+        () => venueSunForecast({ venue, weather: liveWeather }),
         [venue, liveWeather],
+    );
+    const sunStatus = useMemo(() => listSunStatus(sunForecast), [sunForecast]);
+    // Sun, wind and outdoor-space chips with pictures (utils/venueConditionChips).
+    const chips = useMemo(
+        () => venueConditionChips({ venue, forecast: sunForecast, weather: liveWeather }),
+        [venue, sunForecast, liveWeather],
     );
 
     // Per-venue Sunstay Score — same RPC microclimate score as the map pin
@@ -222,31 +229,26 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             role="button"
             tabIndex={0}
             onKeyDown={e => { if (e.target === e.currentTarget && ['Enter', ' '].includes(e.key)) { e.preventDefault(); onVenueSelect(venue); } }}
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment ? stayMomentBadge(venue, stayMoment) : sunStatus.text}.${sunstayScore != null ? ` Sun score ${sunstayScore} out of 100.` : ''}`}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : (chips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || sunStatus.text)}.${sunstayScore != null ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null ? ` Feels like ${feelsLike} degrees.` : ''}`}
             className={`ss-venue-list-card ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
             <div className="ss-vlc-icon" aria-hidden="true">
-                <ClayIcon name={venueIconName(venue)} size={40} />
+                <ClayIcon name={venueIconName(venue)} size={36} />
             </div>
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
                 {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
-                {!(stayMoment && isStay) && <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                    <ClayIcon name={sunStatus.icon} size={18} />
-                    <span className="truncate text-[12px] font-semibold tracking-[-0.01em] text-slate-700">
-                        {sunStatus.text}
-                    </span>
-                </div>}
             </div>
             <div className="ss-vlc-right">
                 {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
                 {scoreVisual && (
                     <div
                         className="ss-vlc-badge"
-                        style={{ background: scoreVisual.color + '18', color: scoreVisual.text }}
+                        style={{ background: scoreVisual.color + '1f', color: scoreVisual.text }}
                         title={`Sun score: ${sunstayScore}/100`}
                     >
+                        <ClayIcon name="sun" size={18} />
                         <span>{sunstayScore}</span>
                     </div>
                 )}
@@ -261,6 +263,16 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                     </div>
                 )}
             </div>
+            {!(stayMoment && isStay) && chips.length > 0 && (
+                <ul className="ss-vlc-chips" aria-hidden="true">
+                    {chips.map(chip => (
+                        <li key={chip.key} className={`ss-vlc-chip ss-vlc-chip--${chip.tone ?? chip.key}`}>
+                            <ClayIcon name={chip.icon} size={18} />
+                            <span>{chip.text}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
             {stayMoment && isStay && <div className="ss-stay-badge-row"><p className={`ss-stay-badge ${venue.minutes ? '' : 'ss-stay-badge--empty'}`} title={stayMomentBadge(venue, stayMoment)}>{stayMomentBadge(venue, stayMoment).replace(' · Estimated', '')}</p>{venue.bestRoom?.source === 'estimated' && <span>Estimated</span>}</div>}
         </motion.div>
     );
@@ -381,16 +393,47 @@ const VenueSearchInput = memo(({ id, value, onChange }) => (
 ));
 VenueSearchInput.displayName = 'VenueSearchInput';
 
+// 3D icons for the quick filters (src/assets/clay/*.webp).
+const QUICK_FILTER_ICONS = Object.freeze({ 'all-stays': 'hotel-views', 'all-homes': 'house' });
+
 const PropertyFilterPills = ({ activeFilters, onToggle }) => (
     <div className="flex gap-2" role="group" aria-label="Property types">
         {PROPERTY_FILTERS.map(filter => <button key={filter.id} type="button"
             onClick={() => onToggle(filter.id)} aria-pressed={activeFilters.includes(filter.id)}
-            className={`flex-1 min-h-[44px] min-w-[44px] rounded-full border px-3 text-[12px] font-semibold ${activeFilters.includes(filter.id)
+            className={`flex-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold ${activeFilters.includes(filter.id)
                 ? 'border-amber-300 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-slate-700'}`}>
-            <span aria-hidden="true">{filter.icon}</span> {filter.label}
+            <ClayIcon name={QUICK_FILTER_ICONS[filter.id]} size={24} /> {filter.label}
         </button>)}
     </div>
 );
+
+// One swipeable row of quick filters for the phone sheet: Stays, Homes,
+// Sunny, Cozy (and Clear when anything is on). Each chip keeps a 44px
+// touch target.
+const QuickFilterChips = ({ activeFilters, onToggle, onClear, showClear }) => {
+    const items = [
+        ...PROPERTY_FILTERS.map(f => ({ id: f.id, label: f.label, icon: QUICK_FILTER_ICONS[f.id] })),
+        { id: FILTER_SUNNY, label: 'Sunny now', icon: 'sun' },
+        { id: FILTER_COZY, label: 'Cozy', icon: 'indoor-warmth' },
+    ];
+    return (
+        <div className="ss-quick-chips" role="group" aria-label="Quick filters">
+            {items.map(item => {
+                const active = activeFilters.includes(item.id);
+                return (
+                    <button key={item.id} type="button" onClick={() => onToggle(item.id)} aria-pressed={active}
+                        className={`ss-quick-chip ${active ? 'ss-quick-chip--active' : ''}`}>
+                        <ClayIcon name={item.icon} size={26} />
+                        <span>{item.label}</span>
+                    </button>
+                );
+            })}
+            {showClear ? (
+                <button type="button" onClick={onClear} className="ss-quick-chip ss-quick-chip--clear">Clear</button>
+            ) : null}
+        </div>
+    );
+};
 
 // ── VenueChip ──────────────────────────────────────────────────────────
 const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
@@ -1203,7 +1246,7 @@ const AppContent = () => {
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
                                     <h3>Venues</h3>
-                                    <p className="inline-flex items-center justify-center gap-2">
+                                    <p className="inline-flex items-center gap-2">
                                         {areaBounds ? areaCountLabel(matchingCount) : `${matchingCount} results`}
                                         {areaBounds ? showAllChip('-my-3') : null}
                                         {ENABLE_MANUAL_VENUE_REFRESH ? (
@@ -1218,49 +1261,20 @@ const AppContent = () => {
                                         <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
                                     ) : null}
                                 </div>
-                                <div className="ss-mobile-sheet-search flex-shrink-0 px-4 py-2.5 flex flex-col gap-2.5 bg-white/70 border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
+                                <div className="ss-mobile-sheet-search flex-shrink-0 px-4 pt-1 pb-2 flex flex-col gap-2 bg-white border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
                                     <VenueSearchInput
                                         id="mobile-venue-search"
                                         value={searchQuery}
                                         onChange={setSearchQuery}
                                     />
-                                    <PropertyFilterPills activeFilters={activeFilters} onToggle={handleFilterToggle} />
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleFilterToggle(FILTER_COZY)}
-                                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                                cozyFilterActive
-                                                    ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
-                                                    : 'bg-white/90 text-gray-700 border-gray-200/80 hover:bg-gray-50'
-                                            }`}
-                                            aria-pressed={cozyFilterActive}
-                                        >
-                                            <span>🛋️</span>
-                                            <span>Cozy</span>
-                                        </button>
-                                        <button
-                                            onClick={() => handleFilterToggle(FILTER_SUNNY)}
-                                            className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
-                                                sunnyFilterActive
-                                                    ? 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm'
-                                                    : 'bg-white/90 text-gray-700 border-gray-200/80 hover:bg-gray-50'
-                                            }`}
-                                            aria-pressed={sunnyFilterActive}
-                                        >
-                                            <span>☀️</span>
-                                            <span>Sunny</span>
-                                        </button>
-                                        {(activeFilters.length > 0 || searchQuery.trim()) && (
-                                            <button
-                                                onClick={handleClearFilters}
-                                                className="min-h-[44px] px-3 py-2 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
-                                            >
-                                                Clear
-                                            </button>
-                                        )}
-                                    </div>
+                                    <QuickFilterChips
+                                        activeFilters={activeFilters}
+                                        onToggle={handleFilterToggle}
+                                        onClear={handleClearFilters}
+                                        showClear={activeFilters.length > 0 || Boolean(searchQuery.trim())}
+                                    />
                                 </div>
-                                    {stayPicker}
+                                {stayPicker}
                                     <MascotPullRefresh
                                         ref={pullRefreshRef}
                                         enabled

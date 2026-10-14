@@ -13,6 +13,8 @@
  * holds steady for the hour instead of flickering with passing showers.
  */
 
+import { SUNNY_CLEARNESS } from './skyClearness.js';
+
 export const CLOUDY_PCT = 60;
 export const RAIN_CHANCE_PCT = 50;
 const RAIN_CODE_MIN_CHANCE_PCT = 30;
@@ -30,6 +32,14 @@ function isRainyHour({ rainChance, code, rainMm }) {
   if (chance >= RAIN_CHANCE_PCT) return true;
   if ((rainMm ?? 0) >= RAIN_MM) return true;
   return code != null && isRainCode(code) && (rainChance == null || chance >= RAIN_CODE_MIN_CHANCE_PCT);
+}
+
+// Sunlight reaching the ground (sky_clearness, see skyClearness.js) decides
+// when it is known: thin high cloud pushes cloud_cover past 60% while the sun
+// still shines. Cloud cover is the fallback near sunrise and sunset.
+function isCloudyHour({ cloud, clearness }) {
+  if (clearness != null) return clearness < SUNNY_CLEARNESS;
+  return (cloud ?? 0) >= CLOUDY_PCT;
 }
 
 function finite(value) {
@@ -128,6 +138,7 @@ export function deriveSunForecast({
       rainChance: finite(hourly.precipitation_probability?.[i]),
       code: finite(hourly.weather_code?.[i] ?? hourly.weathercode?.[i]),
       rainMm: finite(hourly.precipitation?.[i]),
+      clearness: finite(hourly.sky_clearness?.[i]),
     });
   });
   const hasHourly = byHour.size > 0;
@@ -140,7 +151,7 @@ export function deriveSunForecast({
     if (daylight) {
       if (!byHour.has(hour)) kind = 'day';
       else if (isRainyHour(f)) kind = 'rain';
-      else if ((f.cloud ?? 0) >= CLOUDY_PCT) kind = 'cloud';
+      else if (isCloudyHour(f)) kind = 'cloud';
       else kind = 'sun';
     }
     hours.push({ hour, kind, cloud: f.cloud ?? null, rainChance: f.rainChance ?? null });
@@ -153,6 +164,7 @@ export function deriveSunForecast({
   else if (shaded) nowKind = 'shaded';
   else if (slotNow.kind !== 'day') nowKind = slotNow.kind;
   else if (current?.isRaining) nowKind = 'rain';
+  else if (finite(current?.clearness) != null) nowKind = current.clearness < SUNNY_CLEARNESS ? 'cloud' : 'sun';
   else if ((finite(current?.cloudCover) ?? 0) > 75) nowKind = 'cloud';
   else nowKind = 'unknown';
 
