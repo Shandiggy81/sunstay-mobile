@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   calculateBalconySunDay, calculateMonthlySunSummary, DEFAULT_TIME_ZONE,
-  formatGuestWindows, venueLocalDate,
+  formatGuestDate, formatGuestWindows, venueLocalDate,
 } from '../utils/balconySunEngine.js';
 
 export default function RoomSunCard({ room, venue }) {
@@ -105,7 +105,7 @@ export default function RoomSunCard({ room, venue }) {
 
       {daily ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-slate-700">
-          <p className="text-[11px] font-black uppercase tracking-widest text-amber-900">Today’s balcony sun · {daily.date}</p>
+          <p className="text-[11px] font-black uppercase tracking-widest text-amber-900">Today’s balcony sun · {formatGuestDate(daily.dayStart, timeZone)}</p>
           <p className="mt-1 text-[14px] font-bold">{Math.floor(daily.totalMinutes / 60)}h {daily.totalMinutes % 60}m total direct sun</p>
           <p className="mt-1 text-[13px] font-semibold break-words">
             {daily.windows.length ? formatGuestWindows(daily.windows, timeZone) : 'No direct sun on this balcony today'}

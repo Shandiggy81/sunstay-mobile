@@ -99,11 +99,32 @@ test('normalizeHourlyForecast converts genuine m/s gusts only when asked', () =>
     assert.equal(rows[0].gusts, 36);
 });
 
-test('normalizeHourlyForecast treats missing, zero, and non-finite gusts as 0', () => {
-    assert.equal(normalizeHourlyForecast(payload(1), { now: NOW })[0].gusts, 0);
+test('normalizeHourlyForecast distinguishes missing gusts from a real zero', () => {
+    assert.equal(normalizeHourlyForecast(payload(1), { now: NOW })[0].gusts, null);
     assert.equal(normalizeHourlyForecast(payload(1, { wind_gusts_10m: [0] }), { now: NOW })[0].gusts, 0);
-    assert.equal(normalizeHourlyForecast(payload(1, { wind_gusts_10m: [null] }), { now: NOW })[0].gusts, 0);
-    assert.equal(normalizeHourlyForecast(payload(1, { wind_gusts_10m: [NaN] }), { now: NOW })[0].gusts, 0);
+    assert.equal(normalizeHourlyForecast(payload(1, { wind_gusts_10m: [null] }), { now: NOW })[0].gusts, null);
+    assert.equal(normalizeHourlyForecast(payload(1, { wind_gusts_10m: [NaN] }), { now: NOW })[0].gusts, null);
+});
+
+test('normalizeHourlyForecast carries wind speed, FROM direction and gusts with safe missing values', () => {
+    const rows = normalizeHourlyForecast(payload(3, { wind_speed_10m: [19, 0], wind_direction_10m: [330, 0], wind_gusts_10m: [50, 0] }), { now: NOW });
+    assert.deepEqual(rows.map(r => r.windKmh), [19, 0, null]);
+    assert.deepEqual(rows.map(r => r.windDirection), [330, 0, null]);
+    assert.deepEqual(rows.map(r => r.gusts), [50, 0, null]);
+    const invalid = normalizeHourlyForecast(payload(1, { wind_direction_10m: [NaN], wind_gusts_10m: ['bad'] }), { now: NOW });
+    assert.equal(invalid[0].windDirection, null);assert.equal(invalid[0].gusts, null);
+});
+
+test('normalizeHourlyForecast resolves naive provider timestamps without the browser timezone', () => {
+    const data = { utc_offset_seconds: 39600, hourly: { time: ['2026-10-14T16:00'], temperature_2m: [20] } };
+    const old = process.env.TZ;
+    try {
+        for (const zone of ['UTC', 'America/Los_Angeles', 'Asia/Tokyo']) {
+            process.env.TZ = zone;
+            const rows = normalizeHourlyForecast(data, { now: new Date('2026-10-14T04:00Z') });
+            assert.equal(rows[0].time.toISOString(), '2026-10-14T05:00:00.000Z');
+        }
+    } finally { if (old === undefined) delete process.env.TZ;else process.env.TZ = old; }
 });
 
 test('normalizeHourlyForecast skips invalid timestamps and past hours', () => {

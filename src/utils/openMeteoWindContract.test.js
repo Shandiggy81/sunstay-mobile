@@ -23,6 +23,7 @@ describe('Open-Meteo wind unit contract', () => {
                         precipitation: 0,
                         weather_code: 0,
                         wind_speed_10m: 19,
+                        wind_direction_10m: 330,
                         wind_gusts_10m: 50,
                         cloud_cover: 10,
                         uv_index: 3,
@@ -37,6 +38,7 @@ describe('Open-Meteo wind unit contract', () => {
                         weather_code: [0],
                         cloud_cover: [10],
                         wind_speed_10m: [19],
+                        wind_direction_10m: [330],
                         wind_gusts_10m: [50],
                         shortwave_radiation: [400],
                         uv_index: [3],
@@ -62,6 +64,14 @@ describe('Open-Meteo wind unit contract', () => {
         assert.equal(request.searchParams.get('wind_speed_unit'), 'kmh');
         assert.equal(weather.windKmh, 19);
         assert.equal(weather.windGusts, 50);
+        assert.equal(weather.windDirection, 330);
+        assert.equal(weather.wind.deg, 330);
+        assert.deepEqual(weather.hourly.wind_direction_10m, [330]);
+        assert.deepEqual(weather.hourly.wind_gusts_10m, [50]);
+        for (const block of ['hourly', 'current']) {
+            assert.ok(request.searchParams.get(block).split(',').includes('wind_direction_10m'));
+            assert.ok(request.searchParams.get(block).split(',').includes('wind_gusts_10m'));
+        }
         assert.notEqual(weather.windKmh, 19 * 3.6);
         assert.notEqual(weather.windGusts, 50 * 3.6);
 
@@ -80,6 +90,24 @@ describe('Open-Meteo wind unit contract', () => {
             chatWindLabel({ current: { windSpeed: weather.wind.speed } }),
             '19 km/h'
         );
+    });
+
+    it('keeps omitted direction and gust fields null without treating missing gusts as calm', async () => {
+        const fetchFixture = globalThis.fetch;
+        globalThis.fetch = async (...args) => {
+            const response = await fetchFixture(...args), data = await response.json();
+            for (const block of [data.current, data.hourly]) {
+                delete block.wind_direction_10m;delete block.wind_gusts_10m;
+            }
+            return { ok: true, json: async () => data };
+        };
+        try {
+            const weather = await fetchOpenMeteoWeather(-13.3466, 131.9876, undefined, { timeoutMs: 1000 });
+            assert.equal(weather.windDirection, null);assert.equal(weather.wind.deg, null);
+            assert.equal(weather.windGusts, null);
+            assert.deepEqual(weather.hourly.wind_direction_10m, [null]);
+            assert.deepEqual(weather.hourly.wind_gusts_10m, [null]);
+        } finally { globalThis.fetch = fetchFixture; }
     });
 
     it('requests km/h from HourlyForecastStrip and never asks for m/s in production callers', () => {

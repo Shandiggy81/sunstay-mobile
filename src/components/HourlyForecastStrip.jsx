@@ -112,7 +112,7 @@ export default function HourlyForecastStrip({
     const params = new URLSearchParams({
       latitude:      String(latNum),
       longitude:     String(lngNum),
-      hourly:        'temperature_2m,apparent_temperature,weather_code,weathercode,precipitation_probability,cloud_cover,cloudcover,wind_gusts_10m,windgusts_10m,precipitation,visibility,sunshine_duration,shortwave_radiation,direct_normal_irradiance',
+      hourly:        'temperature_2m,apparent_temperature,weather_code,weathercode,precipitation_probability,cloud_cover,cloudcover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,windgusts_10m,precipitation,visibility,sunshine_duration,shortwave_radiation,direct_normal_irradiance',
       timezone:      'auto',
       forecast_days: '1',
       wind_speed_unit: 'kmh',

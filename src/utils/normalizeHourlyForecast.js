@@ -11,7 +11,8 @@
  */
 
 import { finiteOrNull, firstFinite } from './finiteOrNull.js';
-import { toWindGustsKmh } from './windUnits.js';
+import { toWindGustsKmh, toWindKmh } from './windUnits.js';
+import { openMeteoLocalTimeToDate } from './weatherService.js';
 
 /**
  * @param {object} payload Raw Open-Meteo forecast response.
@@ -29,8 +30,8 @@ export function normalizeHourlyForecast(payload, { now = new Date(), limit = 12,
 
     const rows = [];
     for (let i = 0; i < times.length && rows.length < cap; i++) {
-        const time = new Date(times[i]);
-        if (Number.isNaN(time.getTime())) continue;
+        const time = openMeteoLocalTimeToDate(times[i], firstFinite(payload?.utc_offset_seconds, hourly._tzOffsetSeconds) ?? 36000);
+        if (!time) continue;
         if (time.getTime() < from) continue;
 
         // Temperature is the one field a row cannot be rendered without.
@@ -40,7 +41,7 @@ export function normalizeHourlyForecast(payload, { now = new Date(), limit = 12,
         const gustsKmh = toWindGustsKmh(
             firstFinite(hourly.wind_gusts_10m?.[i], hourly.windgusts_10m?.[i]),
             { from: windSpeedUnit }
-        ) ?? 0;
+        );
 
         rows.push({
             time,
@@ -49,7 +50,9 @@ export function normalizeHourlyForecast(payload, { now = new Date(), limit = 12,
             code: firstFinite(hourly.weather_code?.[i], hourly.weathercode?.[i]) ?? 0,
             precip: firstFinite(hourly.precipitation_probability?.[i]) ?? 0,
             clouds: firstFinite(hourly.cloud_cover?.[i], hourly.cloudcover?.[i]) ?? 0,
-            gusts: Math.round(gustsKmh),
+            gusts: gustsKmh === null ? null : Math.round(gustsKmh),
+            windKmh: toWindKmh(firstFinite(hourly.wind_speed_10m?.[i], hourly.windspeed_10m?.[i]), { from: windSpeedUnit }),
+            windDirection: firstFinite(hourly.wind_direction_10m?.[i], hourly.winddirection_10m?.[i]),
             rainMm: (firstFinite(hourly.precipitation?.[i]) ?? 0).toFixed(1),
             visibility: Math.round((firstFinite(hourly.visibility?.[i]) ?? 10000) / 1000),
             sunshineMins: Math.round((firstFinite(hourly.sunshine_duration?.[i]) ?? 0) / 60),

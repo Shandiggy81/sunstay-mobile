@@ -4,7 +4,7 @@ import SunCalc from 'suncalc';
 import {
   calculateBalconySunDay, calculateMonthlySunSummary, formatSunTime, formatSunWindows,
   isDirectSun, parseFacing, venueDayBounds, venueLocalDate,
-  formatGuestTime, formatGuestWindows,
+  formatGuestDate, formatGuestTime, formatGuestWindows,
 } from './balconySunEngine.js';
 import { calculateBalconySun } from './calculateBalconySun.js';
 
@@ -90,6 +90,10 @@ describe('balcony calculation cache', () => {
 });
 
 describe('guest-friendly venue-local times', () => {
+  it('shows the friendly venue date, even when the UTC/viewer date is the day before', () => {
+    assert.equal(formatGuestDate(new Date('2026-10-13T13:00Z'), 'Australia/Melbourne'), 'Wed 14 Oct');
+    assert.equal(formatGuestDate(new Date('2026-10-13T13:00Z'), 'America/Los_Angeles'), 'Tue 13 Oct');
+  });
   const start = new Date('2026-12-20T19:42:00Z'), end = new Date('2026-12-21T02:07:00Z');
   const windows = [{ start, end }];
   it('uses compact am/pm and hides the zone for a viewer in the venue timezone', () => {
