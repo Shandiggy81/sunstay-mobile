@@ -75,7 +75,8 @@ export function venueFeelsLike(venue, weather) {
     const temp = finite(weather?.main?.temp);
     if (temp == null) return null;
     const shelter = getWindProfile(venue ?? {}).shelterFactor;
-    const value = calculateApparentTemp(temp, weather?.wind?.speed, weather?.main?.humidity, shelter);
+    const value = calculateApparentTemp(temp, weather?.wind?.speed, weather?.main?.humidity, shelter,
+        weather?.windDirection ?? weather?.wind?.deg, weather?.windGusts == null ? null : weather.windGusts / 3.6, venue);
     return Number.isFinite(value) ? Math.round(value) : null;
 }
 

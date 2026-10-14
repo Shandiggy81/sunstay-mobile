@@ -7,6 +7,9 @@
  */
 
 import { finiteOrNull } from '../utils/finiteOrNull.js';
+import { calculateWindExposure } from '../utils/windExposure.js';
+import { normalizeHourlyForecast } from '../utils/normalizeHourlyForecast.js';
+import { getCurrentHourlyIndex, openMeteoLocalTimeToDate } from '../utils/weatherService.js';
 
 // ── Wind Exposure Profiles ────────────────────────────────────────
 // Each venue gets a wind exposure profile based on its type, location,
@@ -89,6 +92,11 @@ export function getWindProfile(venue) {
     };
 }
 
+export function getVenueWindExposure(windMs, venue, direction = null, gustMs = null) {
+    return calculateWindExposure({ windMs, direction, gustMs, windProfile: venue?.windProfile,
+        fallbackFactor: getWindProfile(venue).exposure });
+}
+
 // ── Apparent Temperature Calculation ──────────────────────────────
 
 /**
@@ -102,9 +110,11 @@ export function getWindProfile(venue) {
  *   e  = water vapour pressure (hPa) = humidity/100 * 6.105 * exp(17.27 * Ta / (237.7 + Ta))
  *   ws = wind speed at 10m (m/s)
  *
- * We then adjust for venue shelter factor.
+ * We then adjust for venue shelter or a directional wind profile. Optional
+ * direction (FROM degrees), gustMs and venue arguments follow the legacy four.
+ * Gusts affect warnings, not the sustained-wind apparent-temperature formula.
  */
-export function calculateApparentTemp(tempC, windSpeedMs, humidity, shelterFactor = 0) {
+export function calculateApparentTemp(tempC, windSpeedMs, humidity, shelterFactor = 0, direction = null, gustMs = null, venue = null) {
     // Non-finite inputs (a missing field, or a non-numeric string) must not
     // propagate through the arithmetic below as NaN.
     const temp = finiteOrNull(tempC);
@@ -119,7 +129,8 @@ export function calculateApparentTemp(tempC, windSpeedMs, humidity, shelterFacto
     const e = (rh / 100) * 6.105 * Math.exp((17.27 * tempC) / (237.7 + tempC));
 
     // Effective wind speed at venue (reduced by shelter)
-    const effectiveWind = windSpeedMs * (1 - shelterFactor);
+    const effectiveWind = calculateWindExposure({ windMs: windSpeedMs, direction, gustMs,
+        windProfile: venue?.windProfile, fallbackFactor: 1 - shelterFactor }).effectiveWindMs;
 
     // Apparent temperature
     const at = tempC + 0.33 * e - 0.70 * effectiveWind - 4.00;
@@ -239,10 +250,14 @@ export function getComfortZone(apparentTemp) {
  *
  * @returns {{ level, label, advice, color, bgColor, borderColor, icon, effectiveWind }}
  */
-export function getWindWarning(windSpeedMs, venue) {
+export function getWindWarning(windSpeedMs, venue, direction = null, gustMs = null) {
     const profile = getWindProfile(venue);
-    const effectiveWind = (windSpeedMs || 0) * profile.exposure;
-    const windKmh = Math.round(effectiveWind * 3.6);
+    const exposure = getVenueWindExposure(windSpeedMs, venue, direction, gustMs);
+    // Gusts influence warnings only for an active directional profile; legacy venues keep their thresholds.
+    const effectiveWind = exposure.directional ? Math.max(exposure.effectiveWindMs ?? 0, exposure.effectiveGustMs ?? 0) : exposure.effectiveWindMs ?? 0;
+    const windKmh = Math.round((exposure.effectiveWindMs ?? 0) * 3.6);
+    const details = venue?.windProfile ? { factor: exposure.factor, tunnel: exposure.tunnel,
+        effectiveGust: exposure.effectiveGustMs === null ? null : Math.round(exposure.effectiveGustMs * 3.6) } : {};
 
     if (effectiveWind < 5) {
         return {
@@ -254,6 +269,7 @@ export function getWindWarning(windSpeedMs, venue) {
             borderColor: 'border-emerald-200',
             icon: '🍃',
             effectiveWind: windKmh,
+            ...details,
             exposureLabel: profile.label,
         };
     }
@@ -267,6 +283,7 @@ export function getWindWarning(windSpeedMs, venue) {
             borderColor: 'border-amber-200',
             icon: '🌿',
             effectiveWind: windKmh,
+            ...details,
             exposureLabel: profile.label,
         };
     }
@@ -280,6 +297,7 @@ export function getWindWarning(windSpeedMs, venue) {
             borderColor: 'border-orange-200',
             icon: '💨',
             effectiveWind: windKmh,
+            ...details,
             exposureLabel: profile.label,
         };
     }
@@ -292,6 +310,7 @@ export function getWindWarning(windSpeedMs, venue) {
         borderColor: 'border-red-200',
         icon: '🌬️',
         effectiveWind: windKmh,
+        ...details,
         exposureLabel: profile.label,
     };
 }
@@ -309,10 +328,17 @@ export function getWindWarning(windSpeedMs, venue) {
  * @param {object} venue - venue object for exposure calculation
  * @returns {Array<{ hour, label, temp, wind, feelsLike, comfort, windWarning }>}
  */
-export function generateHourlyForecast(currentTemp, currentWind, humidity, venue) {
+export function generateHourlyForecast(currentTemp, currentWind, humidity, venue, direction = null, gustMs = null, options = {}) {
     const profile = getWindProfile(venue);
-    const now = new Date();
-    const currentHour = now.getHours();
+    const now = options.now ?? new Date();
+    const profiled = Boolean(venue?.windProfile || venue?.noiseProfile);
+    let clock;
+    try { clock = new Intl.DateTimeFormat('en-GB', { timeZone: venue?.timeZone ?? venue?.timezone ?? 'Australia/Melbourne', hour: '2-digit', hourCycle: 'h23' }); }
+    catch { clock = new Intl.DateTimeFormat('en-GB', { timeZone: 'Australia/Melbourne', hour: '2-digit', hourCycle: 'h23' }); }
+    const currentHour = profiled ? Number(clock.format(now)) : now.getHours();
+    const index = getCurrentHourlyIndex(options.hourly, options.utcOffsetSeconds, now);
+    const firstTime = openMeteoLocalTimeToDate(options.hourly?.time?.[index], options.utcOffsetSeconds) ?? now;
+    const actualRows = profiled ? normalizeHourlyForecast({ hourly: options.hourly, utc_offset_seconds: options.utcOffsetSeconds }, { now: firstTime, limit: 24 }) : [];
     const safeCurrentTemp = Number.isFinite(Number(currentTemp)) ? Number(currentTemp) : 20;
     const safeCurrentWind = Number.isFinite(Number(currentWind)) ? Number(currentWind) : 0;
     const safeHumidity = Number.isFinite(Number(humidity)) ? Number(humidity) : 50;
@@ -344,12 +370,18 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
 
     const hours = [];
     for (let i = 0; i < 24; i++) {
-        const h = (currentHour + i) % 24;
-        const hourWind = baseWind * (windMultipliers[h] || 1);
-        const hourTemp = baseTemp + (tempOffsets[h] || 0);
-        const feelsLike = calculateApparentTemp(hourTemp, hourWind, safeHumidity, profile.shelterFactor);
+        const time = new Date((profiled && options.hourly ? firstTime : now).getTime() + i * 3600000);
+        // Match timestamps rather than array indices: omitted rows must not shift future weather into "Now".
+        const actual = actualRows.find(row => row.time.getTime() === time.getTime());
+        const h = profiled ? Number(clock.format(time)) : (currentHour + i) % 24;
+        const hourWind = actual?.windKmh != null ? actual.windKmh / 3.6 : baseWind * (windMultipliers[h] || 1);
+        const hourTemp = actual?.temp ?? baseTemp + (tempOffsets[h] || 0);
+        const hourDirection = options.hourly ? actual?.windDirection ?? null : direction;
+        const hourGust = options.hourly ? actual?.gusts == null ? null : actual.gusts / 3.6
+            : finiteOrNull(gustMs) === null ? null : gustMs * (windMultipliers[h] || 1) / currentMultiplier;
+        const feelsLike = calculateApparentTemp(hourTemp, hourWind, safeHumidity, profile.shelterFactor, hourDirection, hourGust, venue);
         const comfort = getComfortZone(feelsLike);
-        const windWarning = getWindWarning(hourWind, venue);
+        const windWarning = getWindWarning(hourWind, venue, hourDirection, hourGust);
 
         // Format hour label
         const isPM = h >= 12;
@@ -362,6 +394,8 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
             temp: Math.round(hourTemp),
             wind: Math.round(hourWind * 3.6), // km/h
             windMs: Math.round(hourWind * 10) / 10,
+            time, windDirection: hourDirection, gustMs: hourGust,
+            windExposure: getVenueWindExposure(hourWind, venue, hourDirection, hourGust),
             feelsLike: Math.round(feelsLike),
             comfort,
             windWarning,
@@ -467,11 +501,10 @@ export function getOptimalBookingTime(hourlyForecast) {
  * Generate a wind impact explanation string.
  * Example: "15km/h westerly makes 24°C feel like 21°C"
  */
-export function getWindImpactExplanation(tempC, windSpeedMs, apparentTemp, venue) {
+export function getWindImpactExplanation(tempC, windSpeedMs, apparentTemp, venue, direction = null, gustMs = null) {
     if (tempC == null || windSpeedMs == null || apparentTemp == null) return null;
 
-    const profile = getWindProfile(venue);
-    const effectiveKmh = Math.round(windSpeedMs * profile.exposure * 3.6);
+    const effectiveKmh = Math.round((getVenueWindExposure(windSpeedMs, venue, direction, gustMs).effectiveWindMs ?? 0) * 3.6);
     const diff = Math.round(tempC - apparentTemp);
 
     if (Math.abs(diff) < 1) {

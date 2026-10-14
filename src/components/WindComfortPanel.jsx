@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { useWeather } from '../context/WeatherContext';
 import { finiteOrNull } from '../utils/finiteOrNull';
+import { describeWindExposure } from '../utils/windExposure';
+import { estimateNoise } from '../utils/noiseExposure';
 import {
     getWindProfile,
     getWindWarning,
@@ -162,12 +164,14 @@ const HourlyForecastStrip = ({ forecast, onHourTap }) => {
                     };
 
                     return (
-                        <motion.div
+                        <motion.button
+                            type="button"
                             key={i}
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.02 }}
                             className={`hourly-item ${h?.isCurrent ? 'hourly-item-current' : ''}`}
+                            style={{ minWidth: 44, minHeight: 44 }}
                             onClick={() => onHourTap && onHourTap(h)}
                         >
                             <span className="hourly-label">{h?.label ?? '–'}</span>
@@ -181,7 +185,7 @@ const HourlyForecastStrip = ({ forecast, onHourTap }) => {
                                 title={`${h?.wind ?? '–'}km/h — ${h?.windWarning?.label ?? 'unknown'}`}
                             />
                             <span className="hourly-wind">{Number.isFinite(h?.wind) ? h.wind : '–'}</span>
-                        </motion.div>
+                        </motion.button>
                     );
                 })}
             </div>
@@ -218,6 +222,9 @@ const WindComfortPanel = ({ venue }) => {
         const feelsLikeApi = finiteOrNull(weather.main?.feels_like);
         const windSpeed = finiteOrNull(weather.wind?.speed) ?? 0;
         const humidity = finiteOrNull(weather.main?.humidity);
+        const direction = finiteOrNull(weather.windDirection ?? weather.wind?.deg);
+        const gusts = finiteOrNull(weather.windGusts);
+        const gustMs = gusts === null ? null : gusts / 3.6;
 
         // Temperature drives the gauge, the comfort zone and every hourly row.
         // Without it there is nothing to model, so fall through to the
@@ -225,15 +232,16 @@ const WindComfortPanel = ({ venue }) => {
         if (temp === null) return null;
 
         const windProfile = getWindProfile(venue);
-        const windWarning = getWindWarning(windSpeed, venue);
+        const windWarning = getWindWarning(windSpeed, venue, direction, gustMs);
         const apparentTemp = calculateApparentTemp(
-            temp, windSpeed, humidity, windProfile.shelterFactor
+            temp, windSpeed, humidity, windProfile.shelterFactor, direction, gustMs, venue
         );
         const comfort = getComfortZone(apparentTemp);
-        const hourlyForecast = generateHourlyForecast(temp, windSpeed, humidity, venue);
+        const hourlyForecast = generateHourlyForecast(temp, windSpeed, humidity, venue, direction, gustMs,
+            { hourly: weather.hourly, utcOffsetSeconds: weather.utcOffsetSeconds });
         const windTrend = getWindTrend(hourlyForecast);
         const optimalBooking = getOptimalBookingTime(hourlyForecast);
-        const windImpact = getWindImpactExplanation(temp, windSpeed, apparentTemp, venue);
+        const windImpact = getWindImpactExplanation(temp, windSpeed, apparentTemp, venue, direction, gustMs);
 
         return {
             temp: Math.round(temp),
@@ -252,6 +260,11 @@ const WindComfortPanel = ({ venue }) => {
     }, [weather, venue]);
 
     if (!windData) return <WindComfortUnavailable />;
+    // Resolve a stored selection against fresh rows, so refreshed weather never leaves a stale comfort verdict.
+    const activeHour = windData.hourlyForecast.find(row => row.time?.getTime() === selectedHour?.time?.getTime()) ?? windData.hourlyForecast[0];
+    const outdoorWind = activeHour?.windExposure;
+    const outdoorNoise = estimateNoise(venue, activeHour?.time);
+    const showOutdoorComfort = Boolean(venue?.windProfile || venue?.noiseProfile);
 
     const TrendIcon = windData.windTrend?.direction === 'building'
         ? TrendingUp
@@ -271,6 +284,21 @@ const WindComfortPanel = ({ venue }) => {
 
             {/* ── Wind Warning Badge ─────────────────────── */}
             <WindWarningBadge warning={windData.windWarning} />
+
+            {showOutdoorComfort && (
+                <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-50 p-3 text-slate-700" role="status">
+                    <p className="text-[12px] font-bold">Outdoor comfort · {activeHour?.label === 'Now' ? 'Now' : activeHour?.label ?? 'Selected hour'}</p>
+                    <p className="mt-1 text-[12px]">
+                        Effective wind: {outdoorWind?.effectiveWindMs == null ? 'Unknown' : `${Math.round(outdoorWind.effectiveWindMs * 3.6)} km/h`}
+                        {outdoorWind?.effectiveGustMs != null ? ` · Gusts ${Math.round(outdoorWind.effectiveGustMs * 3.6)} km/h` : ''}
+                        {' · '}Noise: {outdoorNoise.label}
+                    </p>
+                    {outdoorWind && <p className={`mt-1 text-[12px] ${outdoorWind.tunnel ? 'font-semibold text-amber-900' : 'text-slate-600'}`}>
+                        {describeWindExposure(outdoorWind, activeHour?.label === 'Now' ? 'now' : `at ${activeHour?.label ?? 'this hour'}`)}
+                    </p>}
+                    <p className="mt-1 text-[11px] text-slate-600">{venue.comfortProfilesIllustrative ? 'Illustrative profiles · ' : 'Profile-based estimates · '}{outdoorNoise.note ?? outdoorWind?.note ?? 'Verify conditions at the outdoor space.'}</p>
+                </div>
+            )}
 
             {/* ── Venue Wind Note ─────────────────────────── */}
             {windData.windProfile?.venueNote && (

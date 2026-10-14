@@ -243,6 +243,13 @@ export function formatSunWindows(windows, timeZone = DEFAULT_TIME_ZONE) {
   }).join('; ');
 }
 
+export function formatGuestDate(instant, timeZone = DEFAULT_TIME_ZONE) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone, weekday: 'short', day: 'numeric', month: 'short',
+  }).formatToParts(new Date(instant)).map(part => [part.type, part.value]));
+  return `${parts.weekday} ${parts.day} ${parts.month}`;
+}
+
 export function formatGuestTime(instant, timeZone = DEFAULT_TIME_ZONE, viewerTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone) {
   const rounded = new Date(Math.round(new Date(instant).getTime() / MINUTE) * MINUTE);
   const canonical = zone => new Intl.DateTimeFormat('en-GB', { timeZone: zone }).resolvedOptions().timeZone;

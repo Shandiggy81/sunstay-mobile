@@ -1,4 +1,5 @@
 // src/utils/weatherService.js
+import { firstFinite } from './finiteOrNull.js';
 
 export const toUnixTimestamp = (isoDateTime) => {
     if (!isoDateTime) return null;
@@ -214,6 +215,7 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
             'precipitation',
             'weather_code',
             'wind_speed_10m',
+            'wind_direction_10m',
             'wind_gusts_10m',
             'cloud_cover',
             'uv_index',
@@ -228,6 +230,7 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
             'weather_code',
             'cloud_cover',
             'wind_speed_10m',
+            'wind_direction_10m',
             'wind_gusts_10m',
             'shortwave_radiation',
             'uv_index',
@@ -282,7 +285,8 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
             humidity: current.relative_humidity_2m ?? 50,
         },
         weather: [weatherDesc],
-        wind: { speed: (current.wind_speed_10m ?? 0) / 3.6 }, // convert kmh → m/s
+        wind: { speed: (current.wind_speed_10m ?? 0) / 3.6,
+            deg: firstFinite(current.wind_direction_10m, hourly.wind_direction_10m?.[hourlyIndex]) }, // speed km/h → m/s; direction comes FROM
         clouds: { all: cloudCover },
         uvi: uvIndex,
         sys: {
@@ -294,7 +298,8 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
         theme: getThemeFromCondition(weatherDesc.description),
         isDay: current.is_day === 1,
         shortwaveRadiation: current.shortwave_radiation ?? hourly.shortwave_radiation?.[hourlyIndex] ?? 0,
-        windGusts: current.wind_gusts_10m ?? hourly.wind_gusts_10m?.[hourlyIndex] ?? 0,
+        windGusts: firstFinite(current.wind_gusts_10m, hourly.wind_gusts_10m?.[hourlyIndex]),
+        windDirection: firstFinite(current.wind_direction_10m, hourly.wind_direction_10m?.[hourlyIndex]),
         windKmh: current.wind_speed_10m ?? hourly.wind_speed_10m?.[hourlyIndex] ?? 0,
         precipitation: current.precipitation ?? 0,
         precipProbability,
@@ -303,6 +308,8 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
         utcOffsetSeconds,
         hourly: {
             ...hourly,
+            wind_direction_10m: Array.isArray(hourly.time) ? hourly.time.map((_, i) => firstFinite(hourly.wind_direction_10m?.[i])) : [],
+            wind_gusts_10m: Array.isArray(hourly.time) ? hourly.time.map((_, i) => firstFinite(hourly.wind_gusts_10m?.[i])) : [],
             _tzOffsetSeconds: utcOffsetSeconds,
             _currentIndex: hourlyIndex,
         },
