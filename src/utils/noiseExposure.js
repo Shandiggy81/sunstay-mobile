@@ -7,9 +7,7 @@ export function noiseLabel(db) {
     return db < 50 ? 'Quiet' : db < 60 ? 'Conversational' : db < 70 ? 'Busy' : 'Loud';
 }
 
-/** A profile-based estimate, never a measurement. weekendFactor scales the
- * supplied dB estimate as a simple venue heuristic; it is not an acoustic model.
- */
+/** A profile-based estimate, never a measurement. Weekend offsets are added in dB. */
 export function estimateNoise(venue, instant) {
     const profile = venue?.noiseProfile;
     const baseline = finiteOrNull(profile?.baselineDb);
@@ -31,8 +29,12 @@ export function estimateNoise(venue, instant) {
         const peakDb = finiteOrNull(profile.peakDb);
         const weekend = parts.weekday === 'Sat' || parts.weekday === 'Sun';
         const weekendFactor = finiteOrNull(profile.weekendFactor);
-        const factor = weekend && weekendFactor !== null && weekendFactor >= 0 ? weekendFactor : 1;
-        const db = (peak && peakDb !== null && peakDb >= 0 ? peakDb : baseline) * factor;
+        // Decibels are logarithmic: a legacy intensity factor becomes an additive
+        // 10*log10(factor) offset (0.8 ≈ -1 dB), never a multiplier of the dB value.
+        const configuredOffset = finiteOrNull(profile.weekendOffsetDb)
+            ?? (weekendFactor !== null && weekendFactor > 0 ? 10 * Math.log10(weekendFactor) : 0);
+        const offset = weekend ? Math.max(-15, Math.min(15, configuredOffset)) : 0;
+        const db = (peak && peakDb !== null && peakDb >= 0 ? peakDb : baseline) + offset;
         if (!Number.isFinite(db)) return unknown();
         return { db: Math.round(db * 10) / 10, label: noiseLabel(db), peak,
             source: profile.source, note: typeof profile.note === 'string' ? profile.note : null };
