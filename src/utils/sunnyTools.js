@@ -12,6 +12,8 @@
  * @module utils/sunnyTools
  */
 
+import { forecastSummary, topTags, venueSunWindowToday } from './sunnySuggestions.js';
+
 export const SUNNY_TOOL_NAMES = Object.freeze(['setTimeOfDay', 'setFilters', 'panToVenue']);
 
 const TOD_MIN = 0;
@@ -219,26 +221,65 @@ function slimVenue(row) {
 /**
  * Hidden context posted with the chat, never rendered in the transcript.
  *
- * @param {{ timeOfDay: number|null, activeVenue: object|null, visibleById: Record<string, object>|Array }} input
+ * Besides the slider time and venues, it carries a compact forecast for the
+ * rest of today (`forecastToday`) and, per venue, its sun window today
+ * (`sunWindow`, e.g. "10am–2pm" or "none") and up to three amenity tags, so
+ * Sunny can answer "sunny beer at 4pm?". Kept small: chat-sunny rejects a
+ * context over MAX_CONTEXT_CHARS (limits.js).
+ *
+ * @param {{
+ *   timeOfDay: number|null,
+ *   activeVenue: object|null,
+ *   visibleById: Record<string, object>|Array,
+ *   forecast?: object|null,   deriveSunForecast() result
+ *   weather?: object|null,    WeatherContext weather (hourly temperature / rain)
+ *   venues?: object[],        full venue rows, for tags (bbox rows carry none)
+ *   now?: Date,
+ * }} input
  */
-export function buildSunnyContext({ timeOfDay = null, activeVenue = null, visibleById = {} } = {}) {
+export function buildSunnyContext({
+    timeOfDay = null,
+    activeVenue = null,
+    visibleById = {},
+    forecast = null,
+    weather = null,
+    venues = null,
+    now = new Date(),
+} = {}) {
     const rows = Array.isArray(visibleById) ? visibleById : Object.values(visibleById || {});
+    const fullById = new Map(
+        (Array.isArray(venues) ? venues : []).filter((v) => v?.id != null).map((v) => [String(v.id), v]),
+    );
+    const enrich = (row, slim) => {
+        const window = venueSunWindowToday(row.sun_hour_fraction, forecast);
+        if (window) slim.sunWindow = window;
+        const tags = topTags(fullById.get(slim.id) ?? row);
+        if (tags.length) slim.tags = tags;
+        return slim;
+    };
+
     const visibleVenues = [];
     for (const row of rows) {
         const slim = slimVenue(row);
-        if (slim) visibleVenues.push(slim);
+        if (slim) visibleVenues.push(enrich(row, slim));
         if (visibleVenues.length >= MAX_VISIBLE_VENUES) break;
     }
 
     const slimActive = activeVenue ? slimVenue(activeVenue) : null;
+    if (slimActive) {
+        const activeRow = rows.find((r) => r && String(r.id) === slimActive.id) ?? activeVenue;
+        enrich({ ...activeVenue, ...activeRow }, slimActive);
+    }
 
     const tod = asFiniteNumber(timeOfDay);
-
-    return {
+    const context = {
         timeOfDay: tod == null ? null : clampTodMinutes(tod),
         activeVenue: slimActive,
         visibleVenues,
     };
+    const today = forecastSummary(forecast, weather, { now });
+    if (today) context.forecastToday = today;
+    return context;
 }
 
 /**
