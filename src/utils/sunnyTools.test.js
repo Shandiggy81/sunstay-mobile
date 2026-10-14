@@ -9,6 +9,7 @@ import {
     postChatSunny,
     friendlyChatError,
 } from './sunnyTools.js';
+import { sunMomentsByVenue } from './sunMomentFilters.js';
 
 describe('validateToolCall', () => {
     it('accepts setTimeOfDay minutes in 0–1439 and rounds', () => {
@@ -178,6 +179,28 @@ describe('buildSunnyContext', () => {
         assert.equal(ctx.visibleVenues.length, 1);
         assert.equal(ctx.visibleVenues[0].effective_sun, 0.8);
         assert.equal(ctx.visibleVenues[0].comfort_hint, 'sun');
+    });
+
+    it('lists venues in sun for a moment first and names their moments', () => {
+        // 50 viewport rows; only the last two have a horizon. Open sky gets
+        // sunset drinks, a west wall does not.
+        const rows = Array.from({ length: 50 }, (_, i) => ({ id: `v${i}`, name: `V${i}`, lat: -37.8136, lng: 144.9631 }));
+        const westWall = Array.from({ length: 36 }, (_, s) => (s >= 21 && s <= 33 ? 60 : 0));
+        const horizons = new Map([['v48', Array(36).fill(0)], ['v49', westWall]]);
+        const now = new Date(Date.UTC(2026, 9, 14, 22, 0));   // 9am Melbourne
+        const sunMomentsById = sunMomentsByVenue(rows, horizons, { now });
+        const ctx = buildSunnyContext({ visibleById: rows, sunMomentsById, now });
+        assert.equal(ctx.visibleVenues.length, 40);
+        assert.deepEqual(ctx.visibleVenues.slice(0, 2).map((v) => v.id), ['v48', 'v49']);
+        assert.ok(ctx.visibleVenues[0].sunMoments.includes('Sunset drinks'));
+        assert.ok(ctx.visibleVenues[1].sunMoments.includes('Morning coffee'));
+        assert.ok(!ctx.visibleVenues[1].sunMoments.includes('Sunset drinks'));
+        assert.equal(ctx.visibleVenues[2].sunMoments, undefined);
+    });
+
+    it('works without sun moments', () => {
+        const ctx = buildSunnyContext({ visibleById: [{ id: 'a', name: 'A' }], sunMomentsById: null });
+        assert.equal(ctx.visibleVenues[0].sunMoments, undefined);
     });
 });
 

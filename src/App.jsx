@@ -6,6 +6,8 @@ import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
 import { filterChoiceKey } from './utils/filterRefit';
+import { activeSunMoments, isSunMomentFilter, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
+import { useSunHorizons } from './hooks/useSunHorizons';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
 import VenueCard from './components/VenueCard';
@@ -408,13 +410,14 @@ const PropertyFilterPills = ({ activeFilters, onToggle }) => (
 );
 
 // One swipeable row of quick filters for the phone sheet: Stays, Homes,
-// Sunny, Cozy (and Clear when anything is on). Each chip keeps a 44px
-// touch target.
+// Sunny, Cozy, the sun moments (coffee, lunch, sunset) and Clear when
+// anything is on. Each chip keeps a 44px touch target.
 const QuickFilterChips = ({ activeFilters, onToggle, onClear, showClear }) => {
     const items = [
         ...PROPERTY_FILTERS.map(f => ({ id: f.id, label: f.label, icon: QUICK_FILTER_ICONS[f.id] })),
         { id: FILTER_SUNNY, label: 'Sunny now', icon: 'sun' },
         { id: FILTER_COZY, label: 'Cozy', icon: 'indoor-warmth' },
+        ...SUN_MOMENT_FILTERS.map(f => ({ id: f.id, label: f.label, icon: f.icon })),
     ];
     return (
         <div className="ss-quick-chips" role="group" aria-label="Quick filters">
@@ -590,6 +593,19 @@ const AppContent = () => {
         }), listTodMinutes);
     }, [sunnyFilterActive, weather?.hourly, weather?.utcOffsetSeconds, listTodMinutes]);
 
+    // Sun-moment chips (and Sunny's chat): which venues get sun today in
+    // each moment, from their stored building horizon and today's Melbourne
+    // forecast. Computed only while a chip is on or the chat is open.
+    const sunHorizons = useSunHorizons(venues);
+    const wantedSunMoments = useMemo(() => activeSunMoments(activeFilters), [activeFilters]);
+    const needSunMoments = wantedSunMoments.length > 0 || isChatOpen;
+    const sunMomentsById = useMemo(() => {
+        if (!needSunMoments) return null;
+        const liveWeather = weather && weather.source !== 'demo' ? weather : null;
+        const forecast = liveWeather ? venueSunForecast({ venue: { lat: -37.8136, lng: 144.9631 }, weather: liveWeather }) : null;
+        return sunMomentsByVenue(venues, sunHorizons, { forecast });
+    }, [needSunMoments, venues, sunHorizons, weather]);
+
     // ── Unified venue filtering ────────────────────────────────────────
     // One pass feeds the map pins, sidebar list, mobile sheet, and counts.
     const filteredVenues = useMemo(() => {
@@ -600,7 +616,8 @@ const AppContent = () => {
             !f.startsWith('all-') &&
             !f.startsWith('sun-') &&
             f !== FILTER_COZY &&
-            f !== FILTER_SUNNY
+            f !== FILTER_SUNNY &&
+            !isSunMomentFilter(f)
         );
         const query = settledSearchQuery.trim().toLowerCase();
 
@@ -641,11 +658,14 @@ const AppContent = () => {
                 }
             }
 
+            if (wantedSunMoments.length > 0
+                && !venueMatchesSunMoments(sunMomentsById?.get(String(venue.id)), wantedSunMoments)) return false;
+
             if (!venueMatchesSearchQuery(venue, query)) return false;
 
             return true;
         });
-    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, settledSearchQuery, microById, listTodMinutes, sunnyForecastKind]);
+    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, settledSearchQuery, microById, listTodMinutes, sunnyForecastKind, wantedSunMoments, sunMomentsById]);
 
     // "Search this area" narrows only the list to the map area the user
     // searched. Pins, filter fitBounds and the microclimate fetch still use
@@ -1313,6 +1333,7 @@ const AppContent = () => {
                     selectedVenue={selectedVenue}
                     onSetFilters={handleSunnySetFilters}
                     venues={venues}
+                    sunMomentsById={sunMomentsById}
                     onOpenVenue={handleChatOpenVenue}
                     onFindWheelchair={handleFindWheelchair}
                     onFindDogFriendly={handleFindDogFriendly}
