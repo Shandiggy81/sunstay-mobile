@@ -309,7 +309,7 @@ export const venues = [
     },
     {
         id: 24,
-        name: "Pullman Melbourne on the Park",
+        name: "Pullman East Melbourne",
         address: "192 Wellington Pde, East Melbourne",
         vibe: "Boutique Hotel",
         type: "Hotel",
