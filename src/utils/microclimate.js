@@ -137,33 +137,57 @@ export function describeSun(fraction) {
     return 'In shade';
 }
 
+// Same threshold enrich-microclimate's comfortHint uses for "breezy".
+export const BREEZY_WIND_MS = 4.5;
+// Below this the air is near still, so exposure does not matter.
+export const CALM_WIND_MS = 1.5;
+
 /**
- * `effective_wind` and `wind_shelter_score` are normalised 0–1 exposure
- * factors, matching `effective_sun`. 0 is fully sheltered, 1 fully exposed.
- * Anything outside that range is treated as unusable rather than guessed at,
- * so a future change of units shows up as a missing reading instead of a
- * confidently wrong one.
+ * Units written by supabase/functions/enrich-microclimate:
+ *   - `wind_shelter_score` is 0–1, 1 fully sheltered from the current wind
+ *     direction (`1 − sector multiplier × 0.9`).
+ *   - `effective_wind` is a wind speed in m/s: the 10 m speed times that
+ *     sector multiplier, i.e. the wind felt at the venue.
+ *
+ * Exposure is read from `wind_shelter_score` only. A shelter score outside
+ * 0–1 is treated as unusable rather than guessed at.
  *
  * @param {object|null} entry
- * @returns {number|null} 0–1
+ * @returns {number|null} 0–1, 0 fully sheltered and 1 fully exposed
  */
 export function resolveWindExposure(entry) {
     if (!entry) return null;
-    const wind = asFiniteNumber(entry.effective_wind);
-    if (wind == null || wind < 0 || wind > 1) return null;
-    return wind;
+    const shelter = asFiniteNumber(entry.wind_shelter_score);
+    if (shelter == null || shelter < 0 || shelter > 1) return null;
+    return 1 - shelter;
+}
+
+/**
+ * `effective_wind` as the wind speed felt at the venue, in m/s.
+ *
+ * @param {object|null} entry
+ * @returns {number|null} m/s, or null when absent or negative
+ */
+export function resolveEffectiveWindMs(entry) {
+    if (!entry) return null;
+    const ms = asFiniteNumber(entry.effective_wind);
+    if (ms == null || ms < 0) return null;
+    return ms;
 }
 
 /**
  * @param {number|null} exposure - 0–1
+ * @param {number|null} [windMs] - effective wind at the venue; an exposed or
+ *   breezy spot reads "Calm" when the wind there is near still
  * @returns {string|null}
  */
-export function describeWindExposure(exposure) {
+export function describeWindExposure(exposure, windMs = null) {
     const n = asFiniteNumber(exposure);
     if (n == null) return null;
-    if (n >= 0.66) return 'Exposed';
-    if (n >= 0.33) return 'Breezy';
-    return 'Sheltered';
+    if (n < 0.33) return 'Sheltered';
+    const ms = asFiniteNumber(windMs);
+    if (ms != null && ms < CALM_WIND_MS) return 'Calm';
+    return n >= 0.66 ? 'Exposed' : 'Breezy';
 }
 
 // enrich-microclimate writes machine codes ("shaded_calm"); show plain words.
@@ -272,6 +296,7 @@ export function formatReadingTime(minutes) {
  *   sunPercent: string,
  *   sunLabel: string|null,
  *   windExposure: number|null,
+ *   windSpeedMs: number|null,
  *   windLabel: string|null,
  *   comfortHint: string|null,
  *   isLiveSun: boolean,
@@ -281,6 +306,7 @@ export function formatReadingTime(minutes) {
 export function readMicroclimate(entry, minutes, now = new Date()) {
     const sunFraction = resolveSunFraction(entry, minutes, now);
     const windExposure = resolveWindExposure(entry);
+    const windSpeedMs = resolveEffectiveWindMs(entry);
     const comfortHint = resolveComfortHint(entry);
     const hourLocal = localHourForMinutes(minutes, now);
     const isLiveSun = Boolean(
@@ -295,7 +321,8 @@ export function readMicroclimate(entry, minutes, now = new Date()) {
         sunPercent: formatSunPercent(sunFraction),
         sunLabel: describeSun(sunFraction),
         windExposure,
-        windLabel: describeWindExposure(windExposure),
+        windSpeedMs,
+        windLabel: describeWindExposure(windExposure, windSpeedMs),
         comfortHint,
         isLiveSun,
         confidence: asFiniteNumber(entry?.geometry_confidence),
@@ -313,9 +340,11 @@ export function pinStateFromMicroclimate(reading) {
     if (!reading?.available) return null;
     const sun = asFiniteNumber(reading.sunFraction);
     const wind = asFiniteNumber(reading.windExposure);
+    const windMs = asFiniteNumber(reading.windSpeedMs);
     if (sun == null && wind == null) return null;
     if (sun != null && sun >= 0.75) return 'sunshine';
-    if (wind != null && wind >= 0.66) return 'windy';
+    // Exposed only matters when there is wind to be exposed to.
+    if (wind != null && wind >= 0.66 && (windMs == null || windMs >= BREEZY_WIND_MS)) return 'windy';
     if (sun != null && sun >= 0.4) return 'sunny';
     if (sun != null && sun > 0) return 'cloudy';
     if (sun != null) return 'default';

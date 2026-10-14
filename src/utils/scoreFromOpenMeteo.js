@@ -6,6 +6,10 @@
  */
 import { calculateSunstayScore } from './calculateSunstayScore.js';
 import { getSunPositionForMap } from './sunPosition.js';
+import { directSunScore } from './directSunScore.js';
+import { describeSun } from './microclimate.js';
+import { checkIfShaded } from './solarMath.js';
+import { hasObstacleData } from './venueSun.js';
 import { getVenueFacingBearing } from '../data/sunshineIntelligence.js';
 import { getCurrentHourlyIndex, wallClockHourKey } from './weatherService.js';
 
@@ -235,4 +239,43 @@ export function buildSunstayScoreInput(weather, venue, options = {}) {
 export function scoreVenueFromWeather(weather, venue, options = {}) {
     if (!weather) return { ...FALLBACK_RESULT };
     return calculateSunstayScore(buildSunstayScoreInput(weather, venue, options));
+}
+
+/**
+ * Direct-sun score (0–100) for a venue with no microclimate profile: sun
+ * height at the venue × forecast cloud cover × seating exposure, at `at`
+ * (the time-of-day slider) or now. Same meaning and scale as the cached
+ * profile score, so the "Sun score" label holds for both.
+ *
+ * @param {object|null|undefined} weather
+ * @param {object|null|undefined} venue
+ * @param {object} [options]
+ * @param {Date} [options.at] - settled Melbourne instant; hourly cloud + sun at that time
+ * @param {Date} [options.now]
+ * @param {{ altitude?: number }|null} [options.sun] - skip suncalc when provided
+ * @returns {{ score: number|null, label: string|null, unavailable?: boolean }}
+ */
+export function sunScoreFromWeather(weather, venue, options = {}) {
+    if (!weather) return { score: null, label: 'Score unavailable', unavailable: true };
+    const explicitAt = options.at instanceof Date && !Number.isNaN(options.at.getTime())
+        ? options.at
+        : null;
+    const useLiveNow = !explicitAt || isLiveScoreTimestamp(weather, explicitAt);
+    const now = useLiveNow
+        ? (options.now instanceof Date ? options.now : new Date())
+        : explicitAt;
+    const scoredWeather = explicitAt ? weatherForScoreTime(weather, explicitAt) : weather;
+    const sun = options.sun ?? sunPositionForVenue(venue, now);
+    const altitude = toFiniteNumber(sun?.altitude ?? sun?.altitudeDeg);
+    const shaded = altitude != null && altitude > 0 && hasObstacleData(venue)
+        && checkIfShaded(altitude, Number(venue.obstacle_height), Number(venue.obstacle_distance));
+
+    const score = directSunScore({
+        sunAltitudeDeg: altitude,
+        cloudCoverPct: toFiniteNumber(scoredWeather?.cloudCoverPct ?? scoredWeather?.clouds?.all),
+        exposure: deriveVenueExposure(venue),
+        shaded,
+    });
+    if (score == null) return { score: null, label: 'Score unavailable', unavailable: true };
+    return { score, label: describeSun(score / 100) };
 }

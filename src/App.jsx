@@ -169,7 +169,7 @@ const getSunstayScoreVisual = (score) => {
 const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
     // Read from context: the list never passed this prop, so venues without a
     // microclimate profile showed no badge.
-    const { calculateSunstayScore, unavailable: weatherUnavailableFlag, error: weatherError } = useWeather();
+    const { calculateSunScore, unavailable: weatherUnavailableFlag, error: weatherError } = useWeather();
     // Server-side microclimate for this venue at the time-of-day slider's
     // position. Absent until the bbox fetch lands, and absent for venues with
     // no profile row, so every use below is guarded.
@@ -186,14 +186,14 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
 
     // Per-venue Sunstay Score — same RPC microclimate score as the map pin
     // and the detail sheet, so scrubbing TOD cannot show 84 on the card and
-    // 4 on the marker. Weather-adjusted calculateSunstayScore is the fallback
-    // for venues with no profile row.
+    // 4 on the marker. Venues with no profile row fall back to the direct-sun
+    // calculateSunScore (sun height × cloud × exposure), not the comfort index.
     const sunstayScore = useMemo(() => {
         const profileScore = markerScoreFromMicroclimate(micro);
         if (profileScore != null) return profileScore;
-        const raw = typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : null;
+        const raw = typeof calculateSunScore === 'function' ? calculateSunScore(venue) : null;
         return Number.isFinite(raw) ? Math.round(raw) : null;
-    }, [micro, calculateSunstayScore, venue]);
+    }, [micro, calculateSunScore, venue]);
     const scoreVisual = useMemo(
         () => (sunstayScore != null ? getSunstayScoreVisual(sunstayScore) : null),
         [sunstayScore]
@@ -394,7 +394,7 @@ VenueChip.displayName = 'VenueChip';
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(hasSeenSplash);
-    const { weather, loading: weatherLoading, calculateSunstayScore, previewMinutes } = useWeather();
+    const { weather, loading: weatherLoading, calculateSunScore, previewMinutes } = useWeather();
     const { venues, refetch, isRefreshing } = useVenues();
     const pullRefreshRef = useRef(null);
     const [refreshStatus, setRefreshStatus] = useState('');
@@ -601,14 +601,14 @@ const AppContent = () => {
     const areaEmpty = !!areaBounds && listVenues.length === 0 && filteredVenues.length > 0;
 
     // Filter first, then rank by the same score each card's badge shows:
-    // cached microclimate at the slider minute, else the weather score.
+    // cached microclimate at the slider minute, else the direct-sun score.
     const sortedVenues = useMemo(
         () => sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
             byId: microById,
             todMinutes: listTodMinutes,
-            calculateSunstayScore,
+            calculateSunScore,
         })),
-        [listVenues, calculateSunstayScore, previewMinutes, microById, listTodMinutes]
+        [listVenues, calculateSunScore, previewMinutes, microById, listTodMinutes]
     );
     const resultIdentity = useMemo(() => venueResultIdentity(sortedVenues), [sortedVenues]);
     const [visibleVenueCount, setVisibleVenueCount] = useState(INITIAL_VISIBLE_VENUES);

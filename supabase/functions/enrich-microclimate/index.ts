@@ -13,6 +13,13 @@
  *   - Service role only — never called from the Mapbox client
  *   - venues use lat/lng columns (not geography location)
  *   - sun_hour_fraction is indexed by Australia/Melbourne local hour
+ *
+ * Units written per venue (the client reads them in src/utils/microclimate.js):
+ *   - effective_sun       0–1, sun_hour_fraction[hour] × (1 − cloud/100)
+ *   - effective_wind      m/s, 10 m wind speed × sector exposure multiplier
+ *                         (the wind felt at the venue; NOT a 0–1 factor)
+ *   - wind_shelter_score  0–1, 1 − multiplier × 0.9 (1 = fully sheltered);
+ *                         the client derives exposure as 1 − this
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -115,8 +122,11 @@ export function scoreVenue(
   weather: Weather,
   hourLocal: number,
 ): {
+  /** 0–1 */
   effective_sun: number;
+  /** m/s at the venue */
   effective_wind: number;
+  /** 0–1, 1 = fully sheltered from the current wind direction */
   wind_shelter_score: number;
   comfort_hint: string;
 } {
@@ -130,6 +140,7 @@ export function scoreVenue(
   const mult =
     profile.wind_exposure_by_sector?.[sector] ??
     (1 - shelterFromAspect(profile.canyon_aspect_hw));
+  // weather.windSpeed is m/s (wind_speed_unit=ms), so this stays m/s.
   const effective_wind = Math.max(0, weather.windSpeed * mult);
   const wind_shelter_score = Math.min(1, Math.max(0, 1 - mult * 0.9));
   return {
