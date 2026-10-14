@@ -6,6 +6,10 @@ import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
 import RoomSunCard from './RoomSunCard';
+import SunMomentsPanel from './SunMomentsPanel.jsx';
+import { useVenueSunHorizon } from '../hooks/useVenueSunHorizon';
+import { outdoorSunDay, roomsBySunToday, sunMomentsFromDay } from '../utils/sunMoments.js';
+import { DEFAULT_TIME_ZONE, venueLocalDate } from '../utils/balconySunEngine.js';
 import ClayIcon from './common/ClayIcon';
 import {
   AboutAndHours,
@@ -529,6 +533,21 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
   const roomIntelligence = venue?.roomIntelligence || fullVenueData?.roomIntelligence;
   const roomTypes = Array.isArray(venue?.roomTypes) ? venue.roomTypes : [];
   const showStay = isHotelOrStay && (roomIntelligence || roomTypes.length > 0);
+  // Bars, cafes and other outdoor venues: today's sun from the buildings
+  // around them (stored horizon) plus today's forecast sky.
+  const sunHorizon = useVenueSunHorizon(showStay ? null : venue?.id);
+  const venueTimeZone = venue?.timeZone ?? DEFAULT_TIME_ZONE;
+  let todayKey = null;
+  try { todayKey = venueLocalDate(now, venueTimeZone); } catch { /* bad time zone: no section */ }
+  // Recomputed when the venue's day changes, not every minute.
+  const outdoorDay = useMemo(
+    () => (sunHorizon && todayKey ? outdoorSunDay({ lat, lng, horizon: sunHorizon, date: todayKey, timeZone: venueTimeZone }) : null),
+    [sunHorizon, lat, lng, todayKey, venueTimeZone],
+  );
+  const outdoorMoments = useMemo(
+    () => (outdoorDay ? sunMomentsFromDay({ daily: outdoorDay, forecast, timeZone: venueTimeZone }) : null),
+    [outdoorDay, forecast, venueTimeZone],
+  );
   const happyHour = verifiedHappyHour(venue);
   const hoursView = venueHoursView(venue);
   const description = [venue?.venue_description, venue?.description, venue?.about]
@@ -665,6 +684,16 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
                     <TodaysSun forecast={forecast} sentence={sentence} />
                   </ForecastErrorBoundary>
 
+                  {outdoorDay && outdoorMoments ? (
+                    <ForecastErrorBoundary>
+                      <section aria-labelledby="sun-moments-heading" className="flex flex-col gap-3">
+                        <h3 id="sun-moments-heading" className={SECTION_TITLE}>Sun moments today</h3>
+                        <SunMomentsPanel daily={outdoorDay} summary={outdoorMoments} timeZone={venueTimeZone} now={now} label="sun at this venue" />
+                        <p className="text-[11px] text-slate-500">Estimated from the sun&apos;s path and the buildings around the venue (City of Melbourne / OpenStreetMap data). Sky badges use today&apos;s forecast.</p>
+                      </section>
+                    </ForecastErrorBoundary>
+                  ) : null}
+
                   <ForecastErrorBoundary>
                     <HourByHour items={hours} />
                   </ForecastErrorBoundary>
@@ -691,7 +720,7 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
                     <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
                       <h3 id="stay-heading" className={SECTION_TITLE}>{venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay'}</h3>
                       <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
-                      {roomTypes.map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} />)}
+                      {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />)}
                     </section>
                   ) : null}
 

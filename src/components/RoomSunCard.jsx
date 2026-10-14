@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Coffee, Sun, Wine } from 'lucide-react';
-import SunDayTimeline from './SunDayTimeline.jsx';
+import SunMomentsPanel from './SunMomentsPanel.jsx';
+import ClayIcon from './common/ClayIcon';
+import { sunMomentsFromDay } from '../utils/sunMoments.js';
 import {
   calculateBalconySunDay, calculateMonthlySunSummary, DEFAULT_TIME_ZONE,
   formatGuestDate, venueLocalDate,
@@ -9,7 +10,12 @@ import {
 import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
 import { roomSourceLabel } from '../utils/roomProfiles.js';
 
-export default function RoomSunCard({ room, venue, date, highlighted = false }) {
+// "North-facing rooms · Level 8" → "North-facing rooms" (the level is shown underneath).
+const roomTitle = (name) => String(name ?? '').replace(/\s*·\s*Level\s+\d+\s*$/i, '');
+const DIRECTIONS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+const directionWord = (deg) => DIRECTIONS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+
+export default function RoomSunCard({ room, venue, date, highlighted = false, forecast = null }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const update = () => setNow(new Date());
@@ -73,7 +79,7 @@ export default function RoomSunCard({ room, venue, date, highlighted = false }) 
 
   const pct = missingGeometry ? Math.max(0, Math.min(100, sunScore || 0)) : 0;
   const daily = sun?.daily;
-  const exposureLabel = room.source && !room.hasBalcony && !room.hasOutdoorArea ? 'facade sun' : 'balcony sun';
+  const exposureLabel = room.source && !room.hasBalcony && !room.hasOutdoorArea ? 'sun on this side' : 'sun on the balcony';
   const months = seasonal?.options === options && seasonal.year === year ? seasonal.months : undefined;
   const bestMonths = months?.filter(month => month.totalMinutes > 0)
     .sort((a, b) => b.totalMinutes - a.totalMinutes || a.month - b.month).slice(0, 3)
@@ -89,44 +95,42 @@ export default function RoomSunCard({ room, venue, date, highlighted = false }) 
   return (
     <motion.div
       data-matching-room={highlighted ? "true" : undefined}
-      className="rounded-2xl p-4 flex flex-col gap-3 mb-3"
-      style={{ background: '#ffffff', border: highlighted ? '2px solid #F59E0B' : '1px solid rgba(0,0,0,0.08)', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
+      className="rounded-3xl p-4 flex flex-col gap-3 mb-3"
+      style={{ background: '#ffffff', border: highlighted ? '2px solid #F59E0B' : '1px solid rgba(15,23,42,0.08)', boxShadow: '0 8px 24px rgba(15,23,42,0.05)' }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {highlighted && <p className="text-xs font-bold text-amber-800">Best room for your sun moment</p>}
-      <div className="flex justify-between items-start">
-        <div>
-          <h4 className="font-black text-slate-800 text-[15px]">{name}</h4>
-          <p className="text-slate-500 text-[12px] font-semibold mt-0.5">
-            Level {floorLevel} &bull; {typeof orientation === 'number' ? `${Math.round(orientation)}°` : orientation} facing
-          </p>
+      {highlighted && <p className="self-start rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">Best room for your sun moment</p>}
+      <div className="flex justify-between items-start gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50" aria-hidden="true">
+            <ClayIcon name="hotel-views" size={40} />
+          </span>
+          <div className="min-w-0">
+            <h4 className="text-[16px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900">{roomTitle(name)}</h4>
+            <p className="mt-0.5 text-[12px] font-semibold text-slate-500">
+              Level {floorLevel} · {typeof orientation === 'number' ? `faces ${directionWord(orientation)} (${Math.round(orientation)}°)` : `${orientation} facing`}
+            </p>
+          </div>
         </div>
         {baseNightlyRateDemo != null && baseNightlyRateDemo !== '' && <div className="text-right shrink-0">
           <span className="font-black text-slate-800">${baseNightlyRateDemo}</span>
           <span className="text-slate-500 text-[10px] block">/ night</span>
         </div>}
       </div>
-      {room.source === 'venue-verified' ? <p className="text-[11px] font-semibold text-emerald-700">Verified by venue</p>
-        : roomSourceLabel(room) ? <p className="text-[11px] text-slate-500">{roomSourceLabel(room)}</p> : null}
+      {room.source === 'venue-verified' ? <p className="self-start rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Verified by venue</p>
+        : roomSourceLabel(room) ? <p className="self-start rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{roomSourceLabel(room)}</p> : null}
 
       {daily ? (
-        <div className="border-t border-slate-100 pt-3 text-slate-700">
-          <p className="text-[28px] font-extrabold leading-tight text-slate-800">{Math.floor(daily.totalMinutes / 60)}h {daily.totalMinutes % 60}m</p>
-          <p className="mt-1 text-[12px] text-slate-500">{exposureLabel} · {formatGuestDate(daily.dayStart, timeZone)}</p>
-          <SunDayTimeline daily={daily} timeZone={timeZone} now={now} label={exposureLabel} />
-          <div className="space-y-2 text-[14px]">
-            {(daily.windows.length ? daily.windows : [null]).map((window, index) => <p key={index} className="flex items-start gap-2 font-medium"><Sun size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-700" /><span>{window ? `Sun ${formatCompactGuestWindows([window], timeZone)}` : `No direct ${exposureLabel} today`}</span></p>)}
-            <p className={`flex items-start gap-2 ${daily.morningCoffee.available ? 'text-emerald-700' : 'text-slate-500'}`}><Coffee size={16} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{daily.morningCoffee.available ? `✓ Morning coffee · ${formatCompactGuestWindows(daily.morningCoffee.windows, timeZone)}` : 'No morning sun'}</span></p>
-            <p className={`flex items-start gap-2 ${daily.sunsetDrinks.available ? 'text-emerald-700' : 'text-slate-500'}`}><Wine size={16} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{daily.sunsetDrinks.available ? `✓ Sunset drinks · ${formatCompactGuestWindows(daily.sunsetDrinks.windows, timeZone)}` : daily.sunsetDrinks.available === null ? 'No sunset today' : 'No sunset sun'}</span></p>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]" aria-label="Best months, representative 15th-of-month estimates">
-            <span className="mr-1 text-slate-500">Best months</span>
-            {months === undefined ? <span role="status" className="h-5 w-12 rounded-full bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating best months</span></span>
-              : bestMonths?.length ? bestMonths.map(month => <span key={month} className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-900">{month}</span>)
+        <div className="flex flex-col gap-3">
+          <SunMomentsPanel daily={daily} summary={sunMomentsFromDay({ daily, forecast, timeZone })} timeZone={timeZone} now={now} label={exposureLabel} />
+          <div className="flex flex-wrap items-center gap-1.5 text-[12px]" aria-label="Best months, representative 15th-of-month estimates">
+            <span className="mr-1 inline-flex items-center gap-1 font-semibold text-slate-600"><ClayIcon name="sun-cloud" size={20} />Best months</span>
+            {months === undefined ? <span role="status" className="h-6 w-12 rounded-full bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating best months</span></span>
+              : bestMonths?.length ? bestMonths.map(month => <span key={month} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-bold text-amber-900">{month}</span>)
               : <span className="text-slate-500">{months === null ? 'Unavailable' : 'No modelled direct sun'}</span>}
           </div>
-          <p className="mt-3 text-[11px] text-slate-500">Estimated from the sun&apos;s path, not a weather forecast.</p>
+          <p className="text-[11px] text-slate-500">Estimated from the sun&apos;s path and nearby buildings. Sky badges use today&apos;s forecast.</p>
         </div>
       ) : missingGeometry ? (
       <div className="flex items-center gap-3 mt-1" style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '8px 12px' }}>
