@@ -93,7 +93,8 @@ export function getCurrentHourlyIndex(hourly, utcOffsetSeconds = MELBOURNE_OFFSE
 
 export const OPEN_METEO_CACHE_TTL_MS = 30 * 60 * 1000;
 export const OPEN_METEO_FETCH_TIMEOUT_MS = 9000;
-export const OPEN_METEO_CACHE_PREFIX = 'sunstay_om_v1_';
+// v2: payloads carry sky_clearness (skyClearness.js); v1 entries predate it.
+export const OPEN_METEO_CACHE_PREFIX = 'sunstay_om_v2_';
 
 const openMeteoMemoryCache = new Map();
 
