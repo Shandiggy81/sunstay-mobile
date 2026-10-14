@@ -8,3 +8,4 @@ One-off data migration and patch scripts. Not part of the app build — for deve
 | `update.cjs` | Updated happy hour data import by venue name |
 | `patch_bento.js` | One-off patch to add Framer Motion whileTap haptics to VenueCard bento cells |
 | `fix_venue_card.ps1` | PowerShell patch to restore Weather Description block in VenueCard (lines 625–642) |
+| `loadCityBuildings.mjs` | Loads City of Melbourne 2023 Building Footprints (CC BY 4.0) into `public.buildings`. Dry run by default; `--apply` needs the service role key and explicit approval |
