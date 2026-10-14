@@ -957,7 +957,8 @@ export const demoVenues = [
         sunshineScore: 33,
         shelterFactor: 0.6,
         companyName: "Pullman Melbourne",
-        venueName: "Pullman Melbourne On the Park",
+        // Renamed from "Pullman Melbourne On the Park" (Accor's current name, 15 Oct 2026).
+        venueName: "Pullman East Melbourne",
         address: "192 Wellington Parade, East Melbourne VIC 3002",
         suburb: "East Melbourne",
         // Coordinates: Google Maps place listing for the official address (checked 14 Oct 2026; pin verified inside a building footprint).
@@ -1014,7 +1015,7 @@ export const demoVenues = [
         venue_description: "A five-star East Melbourne hotel opposite the sporting precinct and near Fitzroy Gardens.",
         official_website_url: "https://all.accor.com/hotel/9875/index.en.shtml",
         contact_phone: "(03) 9419 2000",
-        notes: "Pullman Melbourne On the Park.",
+        notes: "Pullman East Melbourne (formerly Pullman Melbourne On the Park).",
         image: null,
     },
     {
