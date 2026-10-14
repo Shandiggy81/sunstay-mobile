@@ -4,7 +4,9 @@
  * When a `venues_in_bbox` row exists, the score is `resolveSunFraction` at
  * the slider's `todMinutes` (via `markerScoreFromMicroclimate`), so the
  * sheet cannot disagree with the active marker. WeatherContext
- * `getSunstayScoreResult` is a soft fallback for venues with no RPC profile.
+ * `getSunScoreResult` (direct sun: sun height × cloud × exposure) is the
+ * fallback for venues with no RPC profile; it is a sun score, like the
+ * profile, not the comfort index.
  */
 import {
   markerScoreFromMicroclimate,
@@ -13,7 +15,7 @@ import {
 
 export function resolveOverviewScore({
   loading = false,
-  getSunstayScoreResult,
+  getSunScoreResult,
   venue,
   microclimateEntry = null,
   todMinutes = null,
@@ -34,11 +36,11 @@ export function resolveOverviewScore({
     return { score: null, label: null, unavailable: false, loading: true };
   }
 
-  if (typeof getSunstayScoreResult !== 'function') {
+  if (typeof getSunScoreResult !== 'function') {
     return { score: null, label: 'Score unavailable', unavailable: true, loading: false };
   }
 
-  const result = getSunstayScoreResult(venue) || {};
+  const result = getSunScoreResult(venue) || {};
   if (result.unavailable || !Number.isFinite(result.score)) {
     return {
       score: null,

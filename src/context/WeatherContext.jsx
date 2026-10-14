@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { fetchOpenMeteoWeather } from '../utils/weatherService';
-import { scoreVenueFromWeather } from '../utils/scoreFromOpenMeteo';
+import { scoreVenueFromWeather, sunScoreFromWeather } from '../utils/scoreFromOpenMeteo';
 import { computeBestWindow } from '../utils/getBestWindow';
 import { melbourneDate } from '../utils/sunPosition';
 
@@ -146,6 +146,23 @@ export const WeatherProvider = ({ children }) => {
         return getSunstayScoreResult(venue).score;
     }, [getSunstayScoreResult]);
 
+    // Direct sun on the seats (sun height × cloud × exposure), for the
+    // "Sun score" fallback when a venue has no microclimate profile.
+    // calculateSunstayScore above is the comfort index, not a sun score.
+    const getSunScoreResult = useCallback((venue) => {
+        if (!weather || weatherUnavailable) {
+            return { score: null, label: 'Score unavailable', unavailable: true };
+        }
+        if (previewMinutes == null) {
+            return sunScoreFromWeather(weather, venue);
+        }
+        return sunScoreFromWeather(weather, venue, { at: melbourneDate(previewMinutes) });
+    }, [weather, previewMinutes, weatherUnavailable]);
+
+    const calculateSunScore = useCallback((venue) => {
+        return getSunScoreResult(venue).score;
+    }, [getSunScoreResult]);
+
     const value = {
         weather,
         loading,
@@ -161,6 +178,8 @@ export const WeatherProvider = ({ children }) => {
         getBestWindow,
         calculateSunstayScore,
         getSunstayScoreResult,
+        calculateSunScore,
+        getSunScoreResult,
         previewMinutes,
         setScorePreviewMinutes,
     };

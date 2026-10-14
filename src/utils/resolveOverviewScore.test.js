@@ -19,22 +19,22 @@ const rpcEntry = (overrides = {}) => ({
   ...overrides,
 });
 
-test('uses getSunstayScoreResult as the only Overview score source', () => {
+test('uses getSunScoreResult as the only Overview score source', () => {
   const venue = { id: 'v1' };
   const result = resolveOverviewScore({
     loading: false,
     venue,
     weatherScore: 12,
     solarScore: 99,
-    getSunstayScoreResult: (v) => {
+    getSunScoreResult: (v) => {
       assert.equal(v, venue);
-      return { score: 81, label: 'Peak Comfort' };
+      return { score: 81, label: 'Full sun' };
     },
   });
 
   assert.deepEqual(result, {
     score: 81,
-    label: 'Peak Comfort',
+    label: 'Full sun',
     unavailable: false,
     loading: false,
   });
@@ -46,7 +46,7 @@ test('does not fall back to weather.score or solar helpers when context score is
     venue: { id: 'v1' },
     weatherScore: 70,
     solarScore: 55,
-    getSunstayScoreResult: () => ({ score: null, label: 'Score unavailable', unavailable: true }),
+    getSunScoreResult: () => ({ score: null, label: 'Score unavailable', unavailable: true }),
   });
 
   assert.equal(result.score, null);
@@ -58,7 +58,7 @@ test('returns a loading state without mixing in fallback scores', () => {
   const result = resolveOverviewScore({
     loading: true,
     weatherScore: 70,
-    getSunstayScoreResult: () => ({ score: 88, label: 'Peak Comfort' }),
+    getSunScoreResult: () => ({ score: 88, label: 'Full sun' }),
   });
 
   assert.deepEqual(result, {
@@ -79,7 +79,7 @@ test('score at scrubbed todMinutes matches resolveSunFraction for that RPC entry
     microclimateEntry: entry,
     todMinutes,
     now: AEST_DAY,
-    getSunstayScoreResult: () => ({ score: 84, label: 'Peak Comfort' }),
+    getSunScoreResult: () => ({ score: 84, label: 'Full sun' }),
   });
 
   const fraction = resolveSunFraction(entry, todMinutes, AEST_DAY);
@@ -98,7 +98,7 @@ test('night-time RPC sun of 0 does not fall through to the wall-clock weather sc
     microclimateEntry: rpcEntry(),
     todMinutes: 18 * 60,
     now: AEST_DAY,
-    getSunstayScoreResult: () => ({ score: 84, label: 'Peak Comfort' }),
+    getSunScoreResult: () => ({ score: 84, label: 'Full sun' }),
   });
 
   assert.equal(resolveSunFraction(rpcEntry(), 18 * 60, AEST_DAY), 0);
@@ -113,7 +113,7 @@ test('prefers the RPC profile even while weather is still loading', () => {
     microclimateEntry: rpcEntry(),
     todMinutes: 12 * 60,
     now: AEST_DAY,
-    getSunstayScoreResult: () => ({ score: 84, label: 'Peak Comfort' }),
+    getSunScoreResult: () => ({ score: 84, label: 'Full sun' }),
   });
 
   assert.equal(result.score, 100);
@@ -121,7 +121,7 @@ test('prefers the RPC profile even while weather is still loading', () => {
   assert.equal(result.unavailable, false);
 });
 
-test('falls back to getSunstayScoreResult when the venue has no RPC profile', () => {
+test('falls back to getSunScoreResult when the venue has no RPC profile', () => {
   const venue = { id: 'v1' };
   const result = resolveOverviewScore({
     loading: false,
@@ -129,12 +129,12 @@ test('falls back to getSunstayScoreResult when the venue has no RPC profile', ()
     microclimateEntry: { id: 'v1', sun_now: null, sun_hour_fraction: null },
     todMinutes: 14 * 60,
     now: AEST_DAY,
-    getSunstayScoreResult: () => ({ score: 81, label: 'Peak Comfort' }),
+    getSunScoreResult: () => ({ score: 81, label: 'Full sun' }),
   });
 
   assert.deepEqual(result, {
     score: 81,
-    label: 'Peak Comfort',
+    label: 'Full sun',
     unavailable: false,
     loading: false,
   });

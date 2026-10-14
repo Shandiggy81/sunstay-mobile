@@ -9,6 +9,7 @@ import {
     formatSunPercent,
     describeSun,
     resolveWindExposure,
+    resolveEffectiveWindMs,
     describeWindExposure,
     resolveComfortHint,
     formatReadingTime,
@@ -180,14 +181,27 @@ describe('formatSunPercent and describeSun', () => {
 });
 
 describe('wind exposure', () => {
-    it('accepts a normalised 0-1 reading', () => {
-        assert.equal(resolveWindExposure(entry({ effective_wind: 0.55 })), 0.55);
-        assert.equal(resolveWindExposure(entry({ effective_wind: 0 })), 0);
+    // What enrich-microclimate writes: effective_wind = speed (m/s) x sector
+    // multiplier, wind_shelter_score = 1 - multiplier x 0.9.
+    const edgeRow = (speedMs, mult) => entry({
+        effective_wind: speedMs * mult,
+        wind_shelter_score: Math.min(1, Math.max(0, 1 - mult * 0.9)),
     });
 
-    it('rejects out-of-range values instead of guessing the unit', () => {
+    it('reads exposure as 1 - wind_shelter_score', () => {
+        assert.equal(resolveWindExposure(entry({ wind_shelter_score: 0.45 })), 0.55);
+        assert.equal(resolveWindExposure(entry({ wind_shelter_score: 1 })), 0);
+        assert.equal(resolveWindExposure(entry({ wind_shelter_score: 0 })), 1);
+    });
+
+    it('does not read effective_wind (m/s) as exposure', () => {
+        assert.equal(resolveWindExposure(entry({ effective_wind: 0.55 })), null);
         assert.equal(resolveWindExposure(entry({ effective_wind: 18 })), null);
-        assert.equal(resolveWindExposure(entry({ effective_wind: -1 })), null);
+    });
+
+    it('rejects an out-of-range shelter score instead of guessing', () => {
+        assert.equal(resolveWindExposure(entry({ wind_shelter_score: 1.4 })), null);
+        assert.equal(resolveWindExposure(entry({ wind_shelter_score: -0.1 })), null);
     });
 
     it('returns null when absent', () => {
@@ -195,11 +209,39 @@ describe('wind exposure', () => {
         assert.equal(resolveWindExposure(null), null);
     });
 
+    it('keeps effective_wind as metres per second', () => {
+        assert.equal(resolveEffectiveWindMs(entry({ effective_wind: 6.3 })), 6.3);
+        assert.equal(resolveEffectiveWindMs(entry({ effective_wind: 0 })), 0);
+        assert.equal(resolveEffectiveWindMs(entry({ effective_wind: -1 })), null);
+        assert.equal(resolveEffectiveWindMs(entry()), null);
+        assert.equal(resolveEffectiveWindMs(null), null);
+    });
+
+    it('labels a typical edge-function row instead of dropping it', () => {
+        // 7 m/s on an exposed corner: effective_wind 6.3, well over 1.
+        const exposed = readMicroclimate(edgeRow(7, 0.9), 12 * 60, AEST_DAY);
+        assert.equal(exposed.windSpeedMs, 6.3);
+        assert.ok(Math.abs(exposed.windExposure - 0.81) < 1e-9);
+        assert.equal(exposed.windLabel, 'Exposed');
+
+        const laneway = readMicroclimate(edgeRow(7, 0.2), 12 * 60, AEST_DAY);
+        assert.equal(laneway.windLabel, 'Sheltered');
+
+        const still = readMicroclimate(edgeRow(1, 0.9), 12 * 60, AEST_DAY);
+        assert.equal(still.windLabel, 'Calm');
+    });
+
     it('bands exposure into plain language', () => {
         assert.equal(describeWindExposure(0.9), 'Exposed');
         assert.equal(describeWindExposure(0.5), 'Breezy');
         assert.equal(describeWindExposure(0.1), 'Sheltered');
         assert.equal(describeWindExposure(null), null);
+    });
+
+    it('says Calm when the wind at the venue is near still', () => {
+        assert.equal(describeWindExposure(0.9, 0.8), 'Calm');
+        assert.equal(describeWindExposure(0.9, 5), 'Exposed');
+        assert.equal(describeWindExposure(null, 0.8), null);
     });
 });
 
@@ -331,12 +373,14 @@ describe('readMicroclimate', () => {
 
     it('surfaces wind and comfort when the weather refresh has run', () => {
         const withWeather = entry({
-            effective_wind: 0.55,
+            effective_wind: 3.2,
+            wind_shelter_score: 0.45,
             comfort_hint: 'Pleasant, light breeze',
             effective_sun: 0.72,
         });
         const read = readMicroclimate(withWeather, 10 * 60, AEST_DAY);
         assert.equal(read.windExposure, 0.55);
+        assert.equal(read.windSpeedMs, 3.2);
         assert.equal(read.windLabel, 'Breezy');
         assert.equal(read.comfortHint, 'Pleasant, light breeze');
         assert.equal(read.sunFraction, 0.72);
@@ -376,10 +420,15 @@ describe('pinStateFromMicroclimate', () => {
         assert.equal(pinStateFromMicroclimate(readMicroclimate(entry(), 20 * 60, AEST_DAY)), 'default');
     });
 
-    it('uses cached effective_wind for exposed pins when sun is not full', () => {
-        const windy = entry({ effective_wind: 0.8, sun_hour_fraction: LOCAL_CURVE });
+    it('uses cached wind for exposed pins when sun is not full', () => {
+        const windy = entry({ effective_wind: 7.2, wind_shelter_score: 0.2, sun_hour_fraction: LOCAL_CURVE });
         assert.equal(pinStateFromMicroclimate(readMicroclimate(windy, 15 * 60, AEST_DAY)), 'windy');
         assert.equal(pinStateFromMicroclimate(readMicroclimate(windy, 12 * 60, AEST_DAY)), 'sunshine');
+    });
+
+    it('does not mark an exposed venue windy on a calm day', () => {
+        const calm = entry({ effective_wind: 1.8, wind_shelter_score: 0.2, sun_hour_fraction: LOCAL_CURVE });
+        assert.equal(pinStateFromMicroclimate(readMicroclimate(calm, 15 * 60, AEST_DAY)), 'cloudy');
     });
 });
 

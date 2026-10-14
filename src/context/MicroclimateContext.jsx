@@ -23,6 +23,7 @@ const EMPTY_READING = Object.freeze({
     sunPercent: '—',
     sunLabel: null,
     windExposure: null,
+    windSpeedMs: null,
     windLabel: null,
     comfortHint: null,
     isLiveSun: false,
