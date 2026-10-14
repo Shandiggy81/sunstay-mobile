@@ -1,3 +1,5 @@
+import { isPropertyVenue } from './propertyTypes.js';
+
 export const ACCOMMODATION_VIBES = [
   'hotel', 'airbnb', 'apartment', 'loft', 'penthouse',
   'suite', 'villa', 'resort', 'motel', 'hostel', 'bnb',
@@ -7,6 +9,7 @@ export const ACCOMMODATION_VIBES = [
 
 export function checkIsAccommodation(venue) {
   if (!venue) return false;
+  if (venue.typeCategory) return isPropertyVenue(venue);
   const typeStr = (venue.type || '').toLowerCase();
   const vibeStr = (Array.isArray(venue.vibe) ? venue.vibe.join(' ') : (venue.vibe || '')).toLowerCase();
   

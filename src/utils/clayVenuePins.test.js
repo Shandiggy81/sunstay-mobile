@@ -49,9 +49,9 @@ describe('clay venue pins', () => {
         }
     });
 
-    it('covers 47 of the 48 demo venues; the rest keep their emoji', () => {
+    it('covers 55 of the 56 demo venues; the rest keep their emoji', () => {
         const keep = demoVenues.filter((v) => pinIconName(v) === null).map((v) => v.venueName).sort();
-        assert.equal(demoVenues.length, 48);
+        assert.equal(demoVenues.length, 56);
         assert.deepEqual(keep, ['Pause Bar']);
     });
 

@@ -17,8 +17,8 @@ export default function OutdoorComfortTiles({ wind, noise, hourLabel, venue }) {
                     <p className="text-[12px] font-semibold text-slate-500">Wind here</p>
                     <p className="mt-1 text-[28px] font-extrabold leading-tight text-slate-800">{Math.round(wind.effectiveWindMs * 3.6)} <span className="text-[12px] font-medium text-slate-500">km/h</span></p>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] font-medium">
-                        {direction && <span className="flex items-center gap-1"><ArrowUp size={12} aria-hidden="true" className="shrink-0" style={{ transform: `rotate(${wind.direction}deg)` }} />From {direction}</span>}
-                        {Number.isFinite(wind.effectiveGustMs) && <span>Gusts {Math.round(wind.effectiveGustMs * 3.6)} km/h</span>}
+                        {direction && <span className="flex items-center gap-1"><ArrowUp size={12} aria-hidden="true" className="shrink-0" style={{ transform: `rotate(${wind.direction + 180}deg)` }} />From {direction}</span>}
+                        {Number.isFinite(wind.effectiveGustMs) && <span><span className="block text-slate-500">Gusts</span><span className="whitespace-nowrap">{Math.round(wind.effectiveGustMs * 3.6)} km/h</span></span>}
                     </div>
                     {sheltered && <span className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Sheltered</span>}
                 </div>}

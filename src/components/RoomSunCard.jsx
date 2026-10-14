@@ -72,6 +72,7 @@ export default function RoomSunCard({ room, venue }) {
 
   const pct = missingGeometry ? Math.max(0, Math.min(100, sunScore || 0)) : 0;
   const daily = sun?.daily;
+  const exposureLabel = room.source && !room.hasBalcony && !room.hasOutdoorArea ? 'facade sun' : 'balcony sun';
   const months = seasonal?.options === options && seasonal.year === year ? seasonal.months : undefined;
   const bestMonths = months?.filter(month => month.totalMinutes > 0)
     .sort((a, b) => b.totalMinutes - a.totalMinutes || a.month - b.month).slice(0, 3)
@@ -95,22 +96,24 @@ export default function RoomSunCard({ room, venue }) {
         <div>
           <h4 className="font-black text-slate-800 text-[15px]">{name}</h4>
           <p className="text-slate-500 text-[12px] font-semibold mt-0.5">
-            Level {floorLevel} &bull; {orientation} facing
+            Level {floorLevel} &bull; {typeof orientation === 'number' ? `${Math.round(orientation)}°` : orientation} facing
           </p>
         </div>
-        <div className="text-right">
+        {baseNightlyRateDemo != null && baseNightlyRateDemo !== '' && <div className="text-right shrink-0">
           <span className="font-black text-slate-800">${baseNightlyRateDemo}</span>
           <span className="text-slate-500 text-[10px] block">/ night</span>
-        </div>
+        </div>}
       </div>
+      {room.source === 'estimated' ? <p className="text-[11px] text-slate-500">Estimated from building shape</p>
+        : room.source === 'venue-verified' ? <p className="text-[11px] font-semibold text-emerald-700">Verified by venue</p> : null}
 
       {daily ? (
         <div className="border-t border-slate-100 pt-3 text-slate-700">
           <p className="text-[28px] font-extrabold leading-tight text-slate-800">{Math.floor(daily.totalMinutes / 60)}h {daily.totalMinutes % 60}m</p>
-          <p className="mt-1 text-[12px] text-slate-500">balcony sun · {formatGuestDate(daily.dayStart, timeZone)}</p>
-          <SunDayTimeline daily={daily} timeZone={timeZone} now={now} />
+          <p className="mt-1 text-[12px] text-slate-500">{exposureLabel} · {formatGuestDate(daily.dayStart, timeZone)}</p>
+          <SunDayTimeline daily={daily} timeZone={timeZone} now={now} label={exposureLabel} />
           <div className="space-y-2 text-[14px]">
-            {(daily.windows.length ? daily.windows : [null]).map((window, index) => <p key={index} className="flex items-start gap-2 font-medium"><Sun size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-700" /><span>{window ? `Sun ${formatCompactGuestWindows([window], timeZone)}` : 'No direct balcony sun today'}</span></p>)}
+            {(daily.windows.length ? daily.windows : [null]).map((window, index) => <p key={index} className="flex items-start gap-2 font-medium"><Sun size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-700" /><span>{window ? `Sun ${formatCompactGuestWindows([window], timeZone)}` : `No direct ${exposureLabel} today`}</span></p>)}
             <p className={`flex items-start gap-2 ${daily.morningCoffee.available ? 'text-emerald-700' : 'text-slate-500'}`}><Coffee size={16} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{daily.morningCoffee.available ? `✓ Morning coffee · ${formatCompactGuestWindows(daily.morningCoffee.windows, timeZone)}` : 'No morning sun'}</span></p>
             <p className={`flex items-start gap-2 ${daily.sunsetDrinks.available ? 'text-emerald-700' : 'text-slate-500'}`}><Wine size={16} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{daily.sunsetDrinks.available ? `✓ Sunset drinks · ${formatCompactGuestWindows(daily.sunsetDrinks.windows, timeZone)}` : daily.sunsetDrinks.available === null ? 'No sunset today' : 'No sunset sun'}</span></p>
           </div>

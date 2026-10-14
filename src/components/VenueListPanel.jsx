@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { isPropertyVenue } from '../utils/propertyTypes.js';
 
 export const VenueListPanel = ({ venue, isSelected, onClick, weather }) => {
     const condition = (weather?.weather?.[0]?.main || '').toLowerCase();
@@ -16,7 +17,7 @@ export const VenueListPanel = ({ venue, isSelected, onClick, weather }) => {
             <div className="flex-1 min-w-0">
                 <div className="text-white font-semibold text-sm truncate leading-tight">{venue.venueName}</div>
                 <div className="text-white/40 text-xs truncate mt-0.5">
-                    {venue.typeCategory === 'ShortStay' || venue.typeCategory === 'Hotel' ? venue.typeLabel : venue.vibe}
+                    {isPropertyVenue(venue) ? venue.typeLabel ?? venue.typeCategory : venue.vibe}
                     {venue.suburb ? ` · ${venue.suburb}` : ''}
                 </div>
             </div>
