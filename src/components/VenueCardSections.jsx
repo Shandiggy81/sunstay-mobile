@@ -210,7 +210,7 @@ export function ConditionsGrid({ tiles, children }) {
       <h3 id="conditions-heading" className={SECTION_TITLE}>Conditions</h3>
       <div className="grid grid-cols-2 gap-2.5">
         {tiles.map((tile) => (
-          <div key={tile.label} className="flex min-h-[108px] items-start justify-between gap-2 rounded-3xl border border-slate-900/[0.08] bg-white p-3.5">
+          <div key={tile.label} className="flex min-h-[108px] items-start justify-between gap-2 rounded-3xl border border-slate-900/[0.08] bg-white p-3.5 last:odd:col-span-2">
             <div className="min-w-0">
               <span className="block text-[13px] font-semibold text-slate-600">{tile.label}</span>
               <span className="mt-1 block text-[22px] font-extrabold leading-tight tracking-[-0.01em] tabular-nums text-slate-900">{tile.value}</span>
