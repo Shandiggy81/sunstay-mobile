@@ -222,13 +222,13 @@ const ChatWidget = ({
   const quickReplies = buildQuickReplies(weather);
   const { byId, todMinutes } = useMicroclimateState();
   const { setTodMinutes } = useMicroclimateActions();
-  const { calculateSunstayScore } = useWeather();
+  const { calculateSunScore } = useWeather();
   // Demo or failed weather must not be presented as a forecast.
   const forecastWeather = liveWeather.available && weather?.source !== 'demo' ? weather : null;
   // Same ranking score and status line as the venue list.
   const scoreFor = useCallback(
-    (venue) => venueDisplayScore(venue, { byId, todMinutes, calculateSunstayScore }),
-    [byId, todMinutes, calculateSunstayScore],
+    (venue) => venueDisplayScore(venue, { byId, todMinutes, calculateSunScore }),
+    [byId, todMinutes, calculateSunScore],
   );
   const statusFor = useCallback(
     (venue) => listSunStatus(venueSunForecast({ venue, weather: forecastWeather })),

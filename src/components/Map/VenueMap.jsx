@@ -149,11 +149,11 @@ function readingForVenue(microById, venueId, todMinutes) {
     return readMicroclimate(entry, todMinutes);
 }
 
-function markerScoreForVenue(reading, venue, calculateSunstayScore) {
+function markerScoreForVenue(reading, venue, calculateSunScore) {
     const profileScore = markerScoreFromMicroclimate(reading);
     if (profileScore != null) return profileScore;
-    const rawScore = typeof calculateSunstayScore === 'function'
-        ? calculateSunstayScore(venue)
+    const rawScore = typeof calculateSunScore === 'function'
+        ? calculateSunScore(venue)
         : null;
     return Number.isFinite(rawScore) ? Math.round(rawScore) : null;
 }
@@ -817,7 +817,7 @@ const VenueMap = forwardRef(({
         || recovery.phase === 'resuming'
         || recovery.phase === 'resume-failed';
 
-    const { weather, calculateSunstayScore } = useWeather();
+    const { weather, calculateSunstayScore, calculateSunScore } = useWeather();
     const { setBbox } = useMicroclimateActions();
     // Reader: cached venues_in_bbox rows + slider minutes. Pin colour/size
     // use these fields (effective_sun, effective_wind, sun_hour_fraction)
@@ -1696,7 +1696,7 @@ const VenueMap = forwardRef(({
                         cozyFilterActiveRef.current,
                         microReading,
                     );
-                    const score = markerScoreForVenue(microReading, venue, calculateSunstayScore);
+                    const score = markerScoreForVenue(microReading, venue, calculateSunScore);
                     const emoji = venue.emoji ?? null;
                     const iconUrl = clayPinUrlFor(venue, CLAY_PIN_URLS);
                     const selected = String(selectedVenueIdRef.current ?? '') === String(venueId);
@@ -1787,7 +1787,7 @@ const VenueMap = forwardRef(({
                 markersRef.current = {};
             }
         };
-    }, [mapLoaded, recovery.generation, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunstayScore, microById, clusterTodMinutes]);
+    }, [mapLoaded, recovery.generation, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunScore, microById, clusterTodMinutes]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces

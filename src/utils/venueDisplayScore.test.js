@@ -26,22 +26,22 @@ describe('venueDisplayScore', () => {
         const byId = { a: profile('a') };
         const weatherScore = () => 12;
         assert.equal(venueDisplayScore({ id: 'a' }, {
-            byId, todMinutes: 14 * 60, calculateSunstayScore: weatherScore, now: AEST_DAY,
+            byId, todMinutes: 14 * 60, calculateSunScore: weatherScore, now: AEST_DAY,
         }), 70);
         assert.equal(venueDisplayScore({ id: 'a' }, {
-            byId, todMinutes: 12 * 60, calculateSunstayScore: weatherScore, now: AEST_DAY,
+            byId, todMinutes: 12 * 60, calculateSunScore: weatherScore, now: AEST_DAY,
         }), 100);
     });
 
     it('falls back to the rounded weather score when there is no profile', () => {
         assert.equal(venueDisplayScore({ id: 'b' }, {
-            byId: { a: profile('a') }, todMinutes: 12 * 60, calculateSunstayScore: () => 63.6, now: AEST_DAY,
+            byId: { a: profile('a') }, todMinutes: 12 * 60, calculateSunScore: () => 63.6, now: AEST_DAY,
         }), 64);
     });
 
     it('keeps a zero profile reading instead of falling back', () => {
         assert.equal(venueDisplayScore({ id: 'a' }, {
-            byId: { a: profile('a') }, todMinutes: 20 * 60, calculateSunstayScore: () => 90, now: AEST_DAY,
+            byId: { a: profile('a') }, todMinutes: 20 * 60, calculateSunScore: () => 90, now: AEST_DAY,
         }), 0);
     });
 
@@ -52,7 +52,7 @@ describe('venueDisplayScore', () => {
     });
 
     it('returns null when neither score is known', () => {
-        assert.equal(venueDisplayScore({ id: 'x' }, { calculateSunstayScore: () => null }), null);
+        assert.equal(venueDisplayScore({ id: 'x' }, { calculateSunScore: () => null }), null);
         assert.equal(venueDisplayScore({ id: 'x' }), null);
         assert.equal(venueDisplayScore(null), null);
     });
@@ -68,7 +68,7 @@ describe('venueDisplayScore', () => {
                 'high-profile': profile('high-profile', { sun_hour_fraction: CURVE.map(() => 0.5) }),
             },
             todMinutes: 20 * 60,
-            calculateSunstayScore: (v) => weather[v.id],
+            calculateSunScore: (v) => weather[v.id],
             now: AEST_DAY,
         };
         const scoreFn = (v) => venueDisplayScore(v, options);

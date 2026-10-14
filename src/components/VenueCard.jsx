@@ -59,7 +59,8 @@ const finite = (value) => {
 
 // ── Live microclimate panel ────────────────────────────────
 // Surfaces the cached venues_in_bbox readings: sun_now / sun_hour_fraction
-// (Melbourne-local hour), effective_sun, effective_wind and comfort_hint.
+// (Melbourne-local hour), effective_sun, wind_shelter_score (exposure),
+// effective_wind (m/s at the venue) and comfort_hint.
 // Rendered only when the venue actually has a profile row.
 const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) {
   if (!reading?.available) return null;
@@ -423,7 +424,7 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
     loading: weatherLoading,
     error: weatherError,
     unavailable: weatherUnavailableFlag,
-    getSunstayScoreResult,
+    getSunScoreResult,
   } = useWeather();
   const weatherData = contextWeather ?? weather ?? null;
   const weatherUnavailable = Boolean(
@@ -454,7 +455,7 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
 
   const overviewScore = resolveOverviewScore({
     loading: weatherLoading,
-    getSunstayScoreResult,
+    getSunScoreResult,
     venue,
     microclimateEntry,
     todMinutes,
