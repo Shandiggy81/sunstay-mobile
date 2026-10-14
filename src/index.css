@@ -6196,7 +6196,7 @@ body,
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 9000;
+  z-index: var(--z-sheet-backdrop);
 }
 
 .ss-filter-sheet {
@@ -6204,7 +6204,7 @@ body,
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 9001;
+  z-index: var(--z-sheet);
   background: #fff;
   border-radius: 24px 24px 0 0;
   padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 20px));
@@ -6925,3 +6925,29 @@ body,
 .venue-mascot-img {
   will-change: opacity;
 }
+
+/* Shared filter and comparison sheet layers, above the venue list (300). */
+:root { --z-sheet-backdrop: 9000; --z-sheet: 9001; }
+
+/* Stay sun moments */
+.ss-stay-picker { padding: 8px 12px; background: #f8fafc; flex-shrink: 0; }
+.ss-stay-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ss-stay-chips button, .ss-stay-chips input, .ss-stay-compare-toggle { min-height: 44px; min-width: 44px; border-radius: 12px; padding: 6px 9px; font-size: 11px; font-weight: 700; color: #475569; border: 1px solid #e2e8f0; background: white; }
+.ss-stay-chips button[aria-pressed=true], .ss-stay-compare-toggle[aria-pressed=true] { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+.ss-stay-chips label { font-size: 11px; color: #475569; display: flex; align-items: center; gap: 6px; }
+.ss-stay-badge { margin-top: 5px; font-size: 11px; color: #92400e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ss-stay-badge--empty { color: #64748b; }
+.ss-stay-compare-toggle:disabled { opacity: .45; }
+.ss-stay-overlay { position: fixed; inset: 0; background: #0006; z-index: var(--z-sheet-backdrop); overscroll-behavior: contain; display: flex; align-items: flex-end; justify-content: center; }
+.ss-stay-comparison { position: relative; z-index: var(--z-sheet); box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12); overscroll-behavior: contain; width: 100%; max-width: 800px; max-height: 85dvh; overflow: auto; background: #fff; border-radius: 24px 24px 0 0; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); color: #334155; }
+.ss-stay-comparison header { display: flex; align-items: center; justify-content: space-between; font-weight: 800; }
+.ss-stay-comparison header button { min-height: 44px; min-width: 44px; }
+.ss-stay-table { overflow-x: auto; overscroll-behavior: contain; margin-top: 12px; }
+.ss-stay-table table { border-collapse: collapse; font-size: 12px; width: 100%; }
+.ss-stay-table th, .ss-stay-table td { min-width: 130px; padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+.ss-stay-table small { display: block; font-weight: 400; margin-top: 6px; }
+.ss-stay-comparison > p { font-size: 11px; margin-top: 12px; color: #64748b; }
+.ss-venue-list-card--sun-moment { flex-wrap: wrap; gap: 6px 10px; }
+.ss-stay-badge-row { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; }
+.ss-stay-badge-row .ss-stay-badge { flex: 1; margin: 0; }
+.ss-stay-badge-row > span { flex-shrink: 0; color: #64748b; font-size: 10px; }

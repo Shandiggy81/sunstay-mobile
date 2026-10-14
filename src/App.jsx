@@ -9,6 +9,9 @@ import { filterChoiceKey } from './utils/filterRefit';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
 import VenueCard from './components/VenueCard';
+import StaySunPicker from './components/StaySunPicker.jsx';
+import StayComparison from './components/StayComparison.jsx';
+import { rankStays, stayMomentBadge, quickStayDate, compareStayRank } from './utils/stayRanking.js';
 import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
 import TopBar from './components/TopBar';
@@ -167,7 +170,7 @@ const getSunstayScoreVisual = (score) => {
 };
 
 // ── VenueListCard ──────────────────────────────────────────────────────
-const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
+const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull }) => {
     // Read from context: the list never passed this prop, so venues without a
     // microclimate profile showed no badge.
     const { calculateSunstayScore, unavailable: weatherUnavailableFlag, error: weatherError } = useWeather();
@@ -217,8 +220,10 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
                 onVenueSelect(venue);
             }}
             role="button"
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${sunStatus.text}.${sunstayScore != null ? ` Sun score ${sunstayScore} out of 100.` : ''}`}
-            className={`ss-venue-list-card relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
+            tabIndex={0}
+            onKeyDown={e => { if (e.target === e.currentTarget && ['Enter', ' '].includes(e.key)) { e.preventDefault(); onVenueSelect(venue); } }}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment ? stayMomentBadge(venue, stayMoment) : sunStatus.text}.${sunstayScore != null ? ` Sun score ${sunstayScore} out of 100.` : ''}`}
+            className={`ss-venue-list-card ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
             <div className="ss-vlc-icon" aria-hidden="true">
@@ -227,14 +232,15 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
                 {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
-                <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                {!(stayMoment && isStay) && <div className="mt-1 flex min-w-0 items-center gap-1.5">
                     <ClayIcon name={sunStatus.icon} size={18} />
                     <span className="truncate text-[12px] font-semibold tracking-[-0.01em] text-slate-700">
                         {sunStatus.text}
                     </span>
-                </div>
+                </div>}
             </div>
             <div className="ss-vlc-right">
+                {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
                 {scoreVisual && (
                     <div
                         className="ss-vlc-badge"
@@ -255,6 +261,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
                     </div>
                 )}
             </div>
+            {stayMoment && isStay && <div className="ss-stay-badge-row"><p className={`ss-stay-badge ${venue.minutes ? '' : 'ss-stay-badge--empty'}`} title={stayMomentBadge(venue, stayMoment)}>{stayMomentBadge(venue, stayMoment).replace(' · Estimated', '')}</p>{venue.bestRoom?.source === 'estimated' && <span>Estimated</span>}</div>}
         </motion.div>
     );
 });
@@ -294,6 +301,7 @@ const LiveVenueList = memo(function LiveVenueList({
     safeAreaFooter = false,
     showLoadMore = false,
     onLoadMore,
+    stayMoment, comparedIds = [], onCompare,
 }) {
     if (venues.length === 0) {
         return (
@@ -330,6 +338,10 @@ const LiveVenueList = memo(function LiveVenueList({
                             isSelected={selectedVenue?.id === venue.id}
                             onVenueSelect={onVenueSelect}
                             weather={weather}
+                            stayMoment={stayMoment}
+                            compared={comparedIds.includes(venue.id)}
+                            compareFull={comparedIds.length >= 3}
+                            onCompare={onCompare}
                         />
                     </div>
                 )}
@@ -606,13 +618,24 @@ const AppContent = () => {
 
     // Filter first, then rank by the same score each card's badge shows:
     // cached microclimate at the slider minute, else the weather score.
+    const staysActive = activeFilters.includes('all-stays');
+    const [stayMoment, setStayMoment] = useState('coffee');
+    const [stayDate, setStayDate] = useState(null);
+    const [comparedIds, setComparedIds] = useState([]);
+    const [compareOpen, setCompareOpen] = useState(false);
+    const compareTriggerRef = useRef(null);
+    const closeStayComparison = useCallback(() => setCompareOpen(false), []);
+    const toggleCompare = useCallback(id => setComparedIds(ids => ids.includes(id) ? ids.filter(v => v !== id) : ids.length < 3 ? [...ids, id] : ids), []);
+    const rankedStays = useMemo(() => staysActive ? listVenues.flatMap(venue => rankStays([venue], { moment: stayMoment, date: /^\d{4}-/.test(stayDate ?? '') ? stayDate : quickStayDate(stayDate || 'today', new Date(), venue.timeZone ?? venue.timezone ?? 'Australia/Melbourne') })).sort(compareStayRank) : [], [staysActive, listVenues, stayMoment, stayDate]);
+    const comparisonVenues = useMemo(() => rankedStays.filter(v => comparedIds.includes(v.id)), [rankedStays, comparedIds]);
+    const stayPicker = staysActive ? <StaySunPicker moment={stayMoment} date={stayDate} onMoment={setStayMoment} onDate={setStayDate} compareCount={comparisonVenues.length} onCompare={event => { compareTriggerRef.current = event.currentTarget; setCompareOpen(true); }} /> : null;
     const sortedVenues = useMemo(
-        () => sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
+        () => staysActive ? rankedStays : sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
             byId: microById,
             todMinutes: listTodMinutes,
             calculateSunstayScore,
         })),
-        [listVenues, calculateSunstayScore, previewMinutes, microById, listTodMinutes]
+        [staysActive, rankedStays, listVenues, calculateSunstayScore, previewMinutes, microById, listTodMinutes]
     );
     const resultIdentity = useMemo(() => venueResultIdentity(sortedVenues), [sortedVenues]);
     const [visibleVenueCount, setVisibleVenueCount] = useState(INITIAL_VISIBLE_VENUES);
@@ -982,6 +1005,7 @@ const AppContent = () => {
                             </span>
                         </div>
 
+                        {!isMobile && stayPicker}
                         {!isMobile ? (
                                 <MascotPullRefresh
                                     ref={pullRefreshRef}
@@ -995,6 +1019,9 @@ const AppContent = () => {
                                         className="ss-mascot-ptr__scroller"
                                         virtuosoRef={sidebarVirtuosoRef}
                                         venues={renderedVenues}
+                                        stayMoment={staysActive ? stayMoment : null}
+                                        comparedIds={comparedIds}
+                                        onCompare={toggleCompare}
                                         showLoadMore={hasMoreVenues}
                                         onLoadMore={handleLoadMoreVenues}
                                         selectedVenue={selectedVenue}
@@ -1094,6 +1121,7 @@ const AppContent = () => {
                         <VenueCard
                             key={selectedVenue.id}
                             venue={selectedVenue}
+                            stayMatch={staysActive ? rankedStays.find(v => v.id === selectedVenue.id) : null}
                             weather={weather}
                             liveVenueFeatures={selectedVenueLiveFeatures}
                             onClose={handleCloseCard}
@@ -1232,6 +1260,7 @@ const AppContent = () => {
                                         )}
                                     </div>
                                 </div>
+                                    {stayPicker}
                                     <MascotPullRefresh
                                         ref={pullRefreshRef}
                                         enabled
@@ -1246,6 +1275,9 @@ const AppContent = () => {
                                             onPointerDownCapture={stopSheetPointer}
                                             safeAreaFooter
                                             venues={renderedVenues}
+                                        stayMoment={staysActive ? stayMoment : null}
+                                        comparedIds={comparedIds}
+                                        onCompare={toggleCompare}
                                             showLoadMore={hasMoreVenues}
                                             onLoadMore={handleLoadMoreVenues}
                                             selectedVenue={selectedVenue}
@@ -1259,6 +1291,7 @@ const AppContent = () => {
                     )}
                 </AnimatePresence>
 
+                {staysActive && compareOpen && comparisonVenues.length > 0 && <StayComparison venues={comparisonVenues} moment={stayMoment} onClose={closeStayComparison} returnFocusRef={compareTriggerRef} />}
                 <ChatWidget
                     isOpen={isChatOpen}
                     onClose={closeChat}
