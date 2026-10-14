@@ -54,6 +54,18 @@ export function venuePinUpdateSql(venue) {
     return `update public.venues set lat = ${sqlLiteral(lat, 'float')}, lng = ${sqlLiteral(lng, 'float')}, updated_at = now() where id = ${sqlLiteral(id, 'text')};`;
 }
 
+/** Updates only the named columns of an existing venue (by id). */
+export function venueColumnsUpdateSql(venue, columns) {
+    if (!venue?.id) throw new TypeError('Venue is missing id');
+    if (!columns?.length) throw new TypeError('No columns to update');
+    const sets = columns.map(column => {
+        const type = VENUE_SEED_COLUMNS[column];
+        if (!type || column === 'id') throw new TypeError(`Column ${column} cannot be updated here`);
+        return `${quoteIdent(column)} = ${sqlLiteral(venue[column] ?? null, type)}`;
+    });
+    return `update public.venues set ${[...sets, 'updated_at = now()'].join(', ')} where id = ${sqlLiteral(venue.id, 'text')};`;
+}
+
 /** insert ... on conflict (id) do update, one statement per venue. */
 export function venueUpsertSql(venue) {
     const { columns, values } = venueSeedRow(venue);

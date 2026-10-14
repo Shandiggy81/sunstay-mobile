@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sqlLiteral, venuePinUpdateSql, venueSeedRow, venueUpsertSql } from './venueSeed.js';
+import { sqlLiteral, venueColumnsUpdateSql, venuePinUpdateSql, venueSeedRow, venueUpsertSql } from './venueSeed.js';
 
 const venue = {
     id: 'dv-test-01', venueName: "Borsch, Vodka & Tears", address: "O'Connell St", suburb: 'Windsor',
@@ -57,4 +57,12 @@ test('upsert SQL quotes camelCase columns and updates on conflict', () => {
     assert.match(sql, /on conflict \(id\) do update set "venueName" = excluded\."venueName"/);
     assert.match(sql, /updated_at = now\(\);$/);
     assert.doesNotMatch(sql, /"id" = excluded/);
+});
+
+test('column update touches only the named columns', () => {
+    const sql = venueColumnsUpdateSql({ id: 'dv-1', roomTypes: [{ name: "it's" }], venue_description: 'x', lat: 1 }, ['roomTypes', 'venue_description']);
+    assert.equal(sql, `update public.venues set "roomTypes" = '[{"name":"it''s"}]'::jsonb, "venue_description" = 'x', updated_at = now() where id = 'dv-1';`);
+    assert.throws(() => venueColumnsUpdateSql({ id: 'a' }, ['id']), TypeError);
+    assert.throws(() => venueColumnsUpdateSql({ id: 'a' }, ['secret']), TypeError);
+    assert.throws(() => venueColumnsUpdateSql({ id: 'a' }, []), TypeError);
 });

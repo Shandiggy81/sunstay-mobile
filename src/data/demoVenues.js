@@ -1,5 +1,6 @@
 import { PROPERTY_FILTERS } from '../utils/propertyTypes.js';
 import { calculateFacadeSun, estimateRoomTypesFromFacades } from '../utils/facadeSun.js';
+import ROOM_PROFILES from './roomProfiles.generated.js';
 
 /**
  * DemoVenue Layer
@@ -1611,3 +1612,15 @@ export const demoVenues = [
         image: null,
     },
 ];
+
+// Stays inside the City of Melbourne building data get room profiles computed
+// from their real building and neighbours (scripts/buildRoomProfiles.mjs),
+// replacing the hand-written and street-direction rooms above.
+const ILLUSTRATIVE_DESCRIPTION = 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.';
+export const REAL_PROFILE_DESCRIPTION = 'Room sun estimated from City of Melbourne building data (this building and its neighbours). Rooms, balcony access and floor levels need venue verification.';
+for (const venue of demoVenues) {
+    const profile = ROOM_PROFILES[venue.id];
+    if (!profile?.rooms?.length) continue;
+    venue.roomTypes = profile.rooms;
+    if (!venue.venue_description || venue.venue_description === ILLUSTRATIVE_DESCRIPTION) venue.venue_description = REAL_PROFILE_DESCRIPTION;
+}

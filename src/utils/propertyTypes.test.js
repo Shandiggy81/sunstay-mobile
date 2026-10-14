@@ -42,7 +42,7 @@ test('every demo venue has a category and all ten previously untyped hospitality
     }
 });
 
-test('eight Melbourne stays have sourced public details and 2–3 unpriced, estimated facade rooms', () => {
+test('eight Melbourne stays have sourced public details and 1–4 unpriced, estimated facade rooms', () => {
     const stays = demoVenues.filter(venue => venue.id.startsWith('dv-melb-stay-'));
     assert.equal(stays.length, 8);
     assert.deepEqual([...new Set(stays.map(v => v.suburb))].sort(), ['CBD', 'Docklands', 'Southbank', 'St Kilda']);
@@ -53,9 +53,9 @@ test('eight Melbourne stays have sourced public details and 2–3 unpriced, esti
         assert.ok(venue.venueName && venue.address && venue.official_website_url.startsWith('https://'));
         assert.ok(venue.lat > -38 && venue.lat < -37.5 && venue.lng > 144.8 && venue.lng < 145.1);
         assert.equal(matchesPropertyTypeFilters(venue, ['all-stays']), true);
-        assert.ok(venue.roomTypes.length >= 2 && venue.roomTypes.length <= 3);
+        assert.ok(venue.roomTypes.length >= 1 && venue.roomTypes.length <= 4);
         for (const room of venue.roomTypes) {
-            assert.equal(room.source, 'estimated');assert.ok(Number.isFinite(room.orientation));
+            assert.ok(['estimated', 'estimated-buildings'].includes(room.source));assert.ok(Number.isFinite(room.orientation));
             assert.equal('baseNightlyRateDemo' in room, false);assert.equal('hasBalcony' in room, false);
         }
     }
