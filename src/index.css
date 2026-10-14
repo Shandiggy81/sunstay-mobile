@@ -2938,9 +2938,10 @@ body,
 
 .ss-venue-list-card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 8px 12px;
+  padding: 12px 14px;
   min-height: 52px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.8);
@@ -2974,8 +2975,8 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   flex-shrink: 0;
   border-radius: 16px;
   background: #fffbeb; /* amber-50 */
@@ -3021,11 +3022,47 @@ body,
   display: flex;
   align-items: center;
   gap: 3px;
-  padding: 2px 8px;
-  border-radius: 8px;
-  font-size: 10px;
-  font-weight: 700;
+  padding: 2px 8px 2px 4px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
+
+/* Sun · wind · outdoor-space chips across the bottom of a list row. */
+.ss-vlc-chips {
+  flex-basis: 100%;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ss-vlc-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.ss-vlc-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px 3px 4px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.ss-vlc-chip--sun { background: #fef3c7; color: #78350f; }
+.ss-vlc-chip--breezy { background: #e0f2fe; color: #075985; }
+.ss-vlc-chip--windy { background: #dbeafe; color: #1e3a8a; }
+.ss-vlc-chip--outdoor { background: #ecfdf5; color: #065f46; }
 
 .ss-vlc-temp {
   display: flex;
@@ -3687,7 +3724,8 @@ body,
   bottom: 0;
   left: 0;
   right: 0;
-  height: 60dvh;
+  /* Tall enough to show ~5 venues; stops short of the weather header. */
+  height: 84dvh;
   z-index: 40;
   background: #ffffff;
   transform-origin: bottom;
@@ -3715,28 +3753,81 @@ body,
 }
 
 .ss-mobile-sheet-head {
-  padding: 24px 16px 12px;
+  /* One slim row: "Venues  67 results" under the grab bar. */
+  padding: 14px 16px 4px;
   position: relative;
-  text-align: center;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-  background: rgba(255, 255, 255, 0.5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  background: #ffffff;
+}
+
+.ss-mobile-sheet-head .ss-mobile-sheet-grab {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .ss-mobile-sheet-head h3 {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
-  color: #1f2937;
-  margin-top: 4px;
+  color: var(--color-ink);
+  letter-spacing: -0.02em;
 }
 
 .ss-mobile-sheet-head p {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  color: #9ca3af;
+  color: #64748b;
 }
 
-.ss-mobile-sheet-search {
-  min-height: 120px;
+.ss-mobile-sheet-head .ss-venue-refresh-status {
+  flex-basis: 100%;
+}
+
+/* Quick filters: one swipeable row of 3D-icon chips. */
+.ss-quick-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.ss-quick-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.ss-quick-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px 0 8px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.ss-quick-chip--active {
+  border-color: #fcd34d;
+  background: #fef3c7;
+  color: #78350f;
+}
+
+.ss-quick-chip--clear {
+  padding: 0 14px;
+  border-color: transparent;
+  color: #b45309;
 }
 
 .ss-mobile-sheet-list {

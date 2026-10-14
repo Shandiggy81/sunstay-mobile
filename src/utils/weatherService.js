@@ -1,5 +1,6 @@
 // src/utils/weatherService.js
 import { firstFinite } from './finiteOrNull.js';
+import { codeForClearness, currentSkyClearness, effectiveCloudCover, hourlySkyClearness } from './skyClearness.js';
 
 export const toUnixTimestamp = (isoDateTime) => {
     if (!isoDateTime) return null;
@@ -269,9 +270,24 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
         ? precipFromHour
         : rainingNow ? 70 : 0;
     const uvIndex = current.uv_index ?? hourly.uv_index?.[hourlyIndex] ?? 0;
-    const cloudCover = current.cloud_cover ?? hourly.cloud_cover?.[hourlyIndex] ?? 0;
 
-    const wmoCode = current.weather_code ?? 0;
+    // Thin high cloud counts towards cloud_cover but barely dims the sun, so
+    // judge the cloud codes by how much sunlight is forecast to reach the
+    // ground (see skyClearness.js). Raw codes stay in weather_code_raw.
+    const skyClearness = hourlySkyClearness(hourly, utcOffsetSeconds, lat, lon);
+    const rawHourlyCodes = Array.isArray(hourly.weather_code) ? hourly.weather_code : null;
+    const hourlyCodes = rawHourlyCodes
+        ? rawHourlyCodes.map((code, i) => codeForClearness(code, skyClearness[i]))
+        : rawHourlyCodes;
+    const currentClearness = currentSkyClearness(current.shortwave_radiation, lat, lon)
+        ?? skyClearness[hourlyIndex] ?? null;
+    const wmoCode = codeForClearness(current.weather_code ?? 0, currentClearness) ?? 0;
+    const rawCloudCover = current.cloud_cover ?? hourly.cloud_cover?.[hourlyIndex] ?? 0;
+    const cloudCover = effectiveCloudCover(rawCloudCover, currentClearness) ?? rawCloudCover;
+    const rawHourlyCloud = Array.isArray(hourly.cloud_cover) ? hourly.cloud_cover : null;
+    const hourlyCloud = rawHourlyCloud
+        ? rawHourlyCloud.map((pct, i) => effectiveCloudCover(pct, skyClearness[i]))
+        : rawHourlyCloud;
     const weatherDesc = getWeatherFromOpenMeteoCode(wmoCode);
 
     // Derive sunrise/sunset unix from daily ISO strings
@@ -306,8 +322,15 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
         cloudCoverPct: cloudCover,
         apparentTemp: current.apparent_temperature ?? current.temperature_2m ?? 20,
         utcOffsetSeconds,
+        skyClearness: currentClearness,
+        cloudCoverRaw: rawCloudCover,
         hourly: {
             ...hourly,
+            weather_code: hourlyCodes,
+            weather_code_raw: rawHourlyCodes,
+            sky_clearness: skyClearness,
+            cloud_cover: hourlyCloud,
+            cloud_cover_raw: rawHourlyCloud,
             wind_direction_10m: Array.isArray(hourly.time) ? hourly.time.map((_, i) => firstFinite(hourly.wind_direction_10m?.[i])) : [],
             wind_gusts_10m: Array.isArray(hourly.time) ? hourly.time.map((_, i) => firstFinite(hourly.wind_gusts_10m?.[i])) : [],
             _tzOffsetSeconds: utcOffsetSeconds,

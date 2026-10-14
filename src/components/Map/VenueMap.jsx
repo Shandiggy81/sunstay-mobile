@@ -12,6 +12,7 @@ import { filterRefitNeeded } from '../../utils/filterRefit';
 import { parseXweatherCredentials } from '../../utils/xweatherKey';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
+import { sunLightFor } from '../../utils/mapSunLight';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
 import { useMicroclimateActions, useMicroclimateState } from '../../context/MicroclimateContext';
@@ -444,39 +445,12 @@ function formatClock(mins) {
     return `${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-function hexToRgb(hex) {
-    const h = hex.replace('#', '');
-    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-}
-
-function lerpColor(a, b, t) {
-    const ca = hexToRgb(a);
-    const cb = hexToRgb(b);
-    const c = ca.map((v, i) => Math.round(v + (cb[i] - v) * t));
-    return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-}
-
 // Translate a minutes-of-day value into Mapbox v3 3D-lighting parameters using
 // the real Melbourne sun position from suncalc (computed for today's date).
+// The light curve itself is in utils/mapSunLight.js (unit-tested).
 function computeSunLight(minutes, lat, lng) {
     const { azimuth, altitude } = SunCalc.getPosition(melbourneDate(minutes), lat, lng);
-    const azDeg  = rad2deg(azimuth);   // suncalc: 0 = due south, positive toward west
-    const altDeg = rad2deg(altitude);  // suncalc: 0 = horizon, 90 = zenith
-
-    // Mapbox directional-light azimuth: 0 = due north, proceeding clockwise.
-    const azimuthal = (azDeg + 180 + 360) % 360;
-    // Mapbox directional-light polar angle: 0 = straight overhead (short shadows),
-    // 90 = at the horizon (long, raking shadows). Clamp so the sun stays above
-    // ground even at dawn/dusk, keeping shadows long instead of disappearing.
-    const polar = Math.max(5, Math.min(89, 90 - altDeg));
-
-    // Daylight factor: 0 when the sun is at/below the horizon, 1 when it is high.
-    const dayFactor = Math.max(0, Math.min(1, altDeg / 45));
-    const color = lerpColor('#ffedd5', '#ffffff', dayFactor); // warm golden → crisp white
-    const intensity = 0.5 + 0.5 * dayFactor;                  // dim at dawn/dusk → peak midday
-    const ambientIntensity = 0.25 + 0.15 * dayFactor;         // low fill so shadows read strongly
-
-    return { direction: [azimuthal, polar], color, intensity, ambientIntensity };
+    return sunLightFor(rad2deg(altitude), rad2deg(azimuth));
 }
 
 // Floating slider that scrubs the global 3D-building light. Local React
