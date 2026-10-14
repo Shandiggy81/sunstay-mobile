@@ -4,6 +4,7 @@ import SunCalc from 'suncalc';
 import {
   calculateBalconySunDay, calculateMonthlySunSummary, formatSunTime, formatSunWindows,
   isDirectSun, parseFacing, venueDayBounds, venueLocalDate,
+  formatGuestTime, formatGuestWindows,
 } from './balconySunEngine.js';
 import { calculateBalconySun } from './calculateBalconySun.js';
 
@@ -55,6 +56,69 @@ describe('balcony reference fixtures', () => {
     near(open.totalMinutes, 453);
     near(roof.totalMinutes, 346);
     assert.ok(roof.totalMinutes < open.totalMinutes);
+  });
+});
+
+describe('balcony calculation cache', () => {
+  it('returns the same cached daily and monthly results for equivalent inputs', () => {
+    const options = { ...LISBON, year: 2028, obstructions: [{ start: 350, end: 20, minAltitude: 10 }], overhang: { depth: 1.2, height: 2.7 } };
+    const equivalent = { ...options, obstructions: [{ minAltitude: 10, end: 20, start: 350 }], overhang: { height: 2.7, depth: 1.2 } };
+    assert.strictEqual(calculateBalconySunDay(options), calculateBalconySunDay(equivalent));
+    assert.strictEqual(calculateMonthlySunSummary(options), calculateMonthlySunSummary(equivalent));
+    assert.strictEqual(calculateBalconySunDay({ ...options, facing: 'E' }), calculateBalconySunDay({ ...options, facing: 90 }));
+  });
+  it('keys every geometry and period field, including legacy calculation parameters', () => {
+    const options = { ...MELBOURNE, date: '2028-06-21', year: 2028 };
+    const daily = calculateBalconySunDay(options), monthly = calculateMonthlySunSummary(options);
+    for (const change of [{ lat: -37.8 }, { lng: 144.9 }, { facing: 'W' }, { timeZone: 'Europe/Athens' },
+      { obstructions: [{ start: 350, end: 20, minAltitude: 25 }] }, { overhang: { depth: 1.2, height: 2.7 } },
+      { fovDeg: 90 }, { minAltitude: 5 }]) {
+      assert.notStrictEqual(calculateBalconySunDay({ ...options, ...change }), daily);
+      assert.notStrictEqual(calculateMonthlySunSummary({ ...options, ...change }), monthly);
+    }
+    assert.notStrictEqual(calculateBalconySunDay({ ...options, date: '2028-06-22' }), daily);
+    assert.notStrictEqual(calculateMonthlySunSummary({ ...options, year: 2029 }), monthly);
+    assert.throws(() => calculateBalconySunDay({ ...options, lat: NaN }), RangeError);
+  });
+  it('bounds memory by evicting the oldest calculation results', () => {
+    const options = { ...MELBOURNE, lat: -37.7, date: '2028-01-01' };
+    const first = calculateBalconySunDay(options);
+    for (let i = 1; i <= 128; i++) calculateBalconySunDay({ ...options, date: new Date(Date.UTC(2028, 0, 1 + i)) });
+    assert.notStrictEqual(calculateBalconySunDay(options), first);
+    assert.deepEqual(calculateBalconySunDay(options), first);
+  });
+});
+
+describe('guest-friendly venue-local times', () => {
+  const start = new Date('2026-12-20T19:42:00Z'), end = new Date('2026-12-21T02:07:00Z');
+  const windows = [{ start, end }];
+  it('uses compact am/pm and hides the zone for a viewer in the venue timezone', () => {
+    assert.equal(formatGuestTime(start, 'Australia/Melbourne', 'Australia/Melbourne'), '6:42am');
+    assert.equal(formatGuestWindows(windows, 'Australia/Melbourne', 'Australia/Melbourne'), '6:42am–1:07pm');
+    assert.equal(formatGuestTime(new Date('2026-12-21T02:07:40Z'), 'Australia/Melbourne', 'Australia/Melbourne'), '1:08pm');
+    assert.match(formatSunTime(start, 'Australia/Melbourne'), /^06:42 GMT\+11$/, 'existing formatter is unchanged');
+  });
+  it('appends an abbreviation only for a different viewer timezone, once per window', () => {
+    assert.equal(formatGuestTime(start, 'Australia/Melbourne', 'America/Los_Angeles'), '6:42am AEDT');
+    assert.equal(formatGuestWindows(windows, 'Australia/Melbourne', 'America/Los_Angeles'), '6:42am–1:07pm AEDT');
+    assert.equal(formatGuestTime(new Date('2027-06-21T08:00Z'), 'Europe/Athens', 'UTC'), '11:00am EEST');
+    assert.equal(formatGuestTime(new Date('2027-06-21T08:00Z'), 'America/New_York', 'UTC'), '4:00am EDT');
+    assert.equal(formatGuestTime(new Date('2027-06-21T08:00Z'), 'Asia/Tokyo', 'UTC'), '5:00pm JST');
+  });
+  it('uses the runtime viewer timezone by default and recognises timezone aliases', () => {
+    const original = process.env.TZ;
+    try {
+      process.env.TZ = 'Australia/Melbourne';assert.equal(formatGuestWindows(windows), '6:42am–1:07pm');
+      process.env.TZ = 'America/Los_Angeles';assert.equal(formatGuestWindows(windows), '6:42am–1:07pm AEDT');
+    } finally { if (original === undefined) delete process.env.TZ; else process.env.TZ = original; }
+    assert.equal(formatGuestTime(new Date('2027-06-21T08:00Z'), 'US/Eastern', 'America/New_York'), '4:00am');
+  });
+  it('preserves midnight/next-day markers, separate windows and a DST abbreviation change', () => {
+    const midnight = { start: new Date('2026-12-21T12:00Z'), end: new Date('2026-12-21T13:00Z') };
+    assert.equal(formatGuestWindows([midnight], 'Australia/Melbourne', 'Australia/Melbourne'), '11:00pm–12:00am (next day)');
+    assert.equal(formatGuestWindows([...windows, midnight], 'Australia/Melbourne', 'Australia/Melbourne'), '6:42am–1:07pm; 11:00pm–12:00am (next day)');
+    const dst = { start: new Date('2026-11-01T04:30Z'), end: new Date('2026-11-01T07:30Z') };
+    assert.equal(formatGuestWindows([dst], 'America/New_York', 'UTC'), '12:30am EDT–2:30am EST');
   });
 });
 

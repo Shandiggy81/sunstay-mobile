@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   calculateBalconySunDay, calculateMonthlySunSummary, DEFAULT_TIME_ZONE,
-  formatSunWindows, venueLocalDate,
+  formatGuestWindows, venueLocalDate,
 } from '../utils/balconySunEngine.js';
 
 export default function RoomSunCard({ room, venue }) {
@@ -23,19 +23,40 @@ export default function RoomSunCard({ room, venue }) {
   try { today = venueLocalDate(now, timeZone); } catch { /* Show an error, not an unrelated demo score. */ }
   const obstructions = room?.obstructions;
   const overhang = room?.overhang;
+  const options = useMemo(() => ({ lat, lng, facing: orientation, timeZone, obstructions, overhang }),
+    [lat, lng, orientation, timeZone, obstructions, overhang]);
   const sun = useMemo(() => {
     if (missingGeometry) return null;
     try {
       if (!today) throw new Error('Invalid venue timezone');
       // TODO: obstructionLevel ("Partial", "Open", etc.) needs a surveyed angular
       // horizon. Do not translate those labels into invented shading geometry.
-      const options = { lat, lng, facing: orientation, timeZone, obstructions, overhang };
-      return {
-        daily: calculateBalconySunDay({ ...options, date: today }),
-        months: calculateMonthlySunSummary({ ...options, year: Number(today.slice(0, 4)) }),
-      };
+      return { daily: calculateBalconySunDay({ ...options, date: today }) };
     } catch { return { error: true }; }
-  }, [lat, lng, orientation, timeZone, today, obstructions, overhang, missingGeometry]);
+  }, [options, today, missingGeometry]);
+  const [seasonal, setSeasonal] = useState(null);
+  const year = today ? Number(today.slice(0, 4)) : null;
+  const hasDaily = Boolean(sun?.daily);
+  useEffect(() => {
+    if (!hasDaily) return;
+    let cancelled = false;
+    const calculate = () => {
+      if (cancelled) return;
+      try { setSeasonal({ options, year, months: calculateMonthlySunSummary({ ...options, year }) }); }
+      catch { setSeasonal({ options, year, months: null }); }
+    };
+    // Cross a paint boundary before doing the 12 representative-day calculations.
+    let idle, timer;
+    const frame = requestAnimationFrame(() => {
+      if (typeof window.requestIdleCallback === 'function') idle = window.requestIdleCallback(calculate, { timeout: 1000 });
+      else timer = setTimeout(calculate, 0);
+    });
+    return () => {
+      cancelled = true; cancelAnimationFrame(frame);
+      if (idle !== undefined) window.cancelIdleCallback(idle);
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [options, year, hasDaily]);
   if (!room) return null;
 
   const {
@@ -48,12 +69,13 @@ export default function RoomSunCard({ room, venue }) {
 
   const pct = missingGeometry ? Math.max(0, Math.min(100, sunScore || 0)) : 0;
   const daily = sun?.daily;
-  const bestMonths = sun?.months?.filter(month => month.totalMinutes > 0)
+  const months = seasonal?.options === options && seasonal.year === year ? seasonal.months : undefined;
+  const bestMonths = months?.filter(month => month.totalMinutes > 0)
     .sort((a, b) => b.totalMinutes - a.totalMinutes || a.month - b.month).slice(0, 3)
     .sort((a, b) => a.month - b.month).map(month =>
       new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone }).format(new Date(`${month.date}T12:00:00Z`))).join(', ');
   const verdict = value => value.available === null ? 'Unavailable · no sunset today'
-    : value.available ? `Yes · ${formatSunWindows(value.windows, timeZone)}` : 'No';
+    : value.available ? `Yes · ${formatGuestWindows(value.windows, timeZone)}` : 'No';
 
   const { bg, border, text, fill } = pct >= 75
     ? { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.28)', text: '#065F46', fill: '#10B981' }
@@ -86,12 +108,12 @@ export default function RoomSunCard({ room, venue }) {
           <p className="text-[11px] font-black uppercase tracking-widest text-amber-900">Today’s balcony sun · {daily.date}</p>
           <p className="mt-1 text-[14px] font-bold">{Math.floor(daily.totalMinutes / 60)}h {daily.totalMinutes % 60}m total direct sun</p>
           <p className="mt-1 text-[13px] font-semibold break-words">
-            {daily.windows.length ? formatSunWindows(daily.windows, timeZone) : 'No direct sun on this balcony today'}
+            {daily.windows.length ? formatGuestWindows(daily.windows, timeZone) : 'No direct sun on this balcony today'}
           </p>
           <p className="mt-2 text-[12px]"><span className="font-bold">☕ Morning coffee:</span> {verdict(daily.morningCoffee)}</p>
           <p className="mt-1 text-[12px]"><span className="font-bold">🥂 Sunset drinks:</span> {verdict(daily.sunsetDrinks)}</p>
-          <p className="mt-2 text-[11px] text-slate-600">Best months: {bestMonths || 'No modelled direct sun'} · 15th-of-month estimates</p>
-          <p className="mt-1 text-[11px] text-slate-600">{timeZone}. Astronomical estimate, not a cloud forecast. 5-minute sampling; detected transitions rounded to the nearest minute. Short sun/shade gaps may be missed.</p>
+          <p className="mt-2 text-[11px] text-slate-600">Best months: {months === undefined ? 'Calculating…' : months === null ? 'Unavailable' : bestMonths || 'No modelled direct sun'} · 15th-of-month estimates</p>
+          <p className="mt-1 text-[11px] text-slate-600">Estimated from the sun&apos;s path, not a weather forecast.</p>
         </div>
       ) : missingGeometry ? (
       <div className="flex items-center gap-3 mt-1" style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '8px 12px' }}>

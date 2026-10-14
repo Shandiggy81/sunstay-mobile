@@ -8,6 +8,23 @@ export const DIRECTION_MAP = {
 };
 const MINUTE = 60000, HOUR = 60 * MINUTE, DAY = 24 * HOUR, RAD = Math.PI / 180;
 const normalise = n => ((n % 360) + 360) % 360;
+// Bounded LRU shared across room mounts. Treat returned cached results as read-only.
+const resultCache = new Map();
+const CACHE_LIMIT = 128;
+function cacheKey(kind, room, timeZone, period) {
+  return JSON.stringify([kind, room.lat, room.lng, room.facing, timeZone, room.horizon,
+    room.overhang ? [room.overhang.depth, room.overhang.height] : null, room.halfFov, room.minAltitude, period]);
+}
+function cachedResult(key) {
+  const result = resultCache.get(key);
+  if (result) { resultCache.delete(key); resultCache.set(key, result); }
+  return result;
+}
+function rememberResult(key, result) {
+  resultCache.set(key, result);
+  if (resultCache.size > CACHE_LIMIT) resultCache.delete(resultCache.keys().next().value);
+  return result;
+}
 
 export function parseFacing(value) {
   if (value == null || String(value).trim() === '') return null;
@@ -169,14 +186,17 @@ function solarEvents(room, start, end) {
   return events;
 }
 
-/** Pure astronomical exposure; no weather, browser-local clock or input mutation.
+/** Cached astronomical exposure; no weather, browser-local clock or input mutation.
  * date: venue-local YYYY-MM-DD or an absolute Date/instant. Detected edges are
  * refined below one second; formatSunTime displays the nearest minute. Five-minute
  * sampling can miss shorter sun/shade intervals occurring between samples.
  */
 export function calculateBalconySunDay(options) {
   const timeZone = options.timeZone ?? DEFAULT_TIME_ZONE, room = geometry(options);
-  const bounds = venueDayBounds(options.date, timeZone);
+  const date = calendarDate(options.date, timeZone);
+  const key = cacheKey('day', room, timeZone, date), cached = cachedResult(key);
+  if (cached) return cached;
+  const bounds = venueDayBounds(date, timeZone);
   const start = bounds.start.getTime(), end = bounds.end.getTime(), formatter = dateFormatter(timeZone);
   const windows = sampleWindows(start, end, t => directPosition(SunCalc.getPosition(new Date(t), room.lat, room.lng), room));
   const events = solarEvents(room, start, end);
@@ -187,7 +207,7 @@ export function calculateBalconySunDay(options) {
   const sunset = events.sunset?.getTime();
   const drinks = sunset === undefined ? [] : windows.map(([a, b]) => [Math.max(a, sunset - 90 * MINUTE), Math.min(b, sunset)]).filter(([a, b]) => b > a);
   const golden = (a, b) => a && b && a < b ? { start: a, end: b } : null;
-  return {
+  return rememberResult(key, {
     date: bounds.date, timeZone, dayStart: bounds.start, dayEnd: bounds.end,
     windows: dateWindows(windows), totalMinutes: Math.round(minutesIn(windows)),
     morningCoffee: { available: coffee.length > 0, windows: dateWindows(coffee) },
@@ -195,17 +215,20 @@ export function calculateBalconySunDay(options) {
     sunrise: events.sunrise ?? null, sunset: events.sunset ?? null,
     // SunCalc definitions: sunrise (-0.833°) to 6°, and 6° to sunset.
     goldenHours: { morning: golden(events.sunrise, events.goldenHourEnd), evening: golden(events.goldenHour, events.sunset) },
-  };
+  });
 }
 
 export function calculateMonthlySunSummary(options) {
   if (!Number.isInteger(options.year) || options.year < 1900 || options.year > 2100) throw new RangeError('Year must be an integer between 1900 and 2100.');
-  return Array.from({ length: 12 }, (_, index) => {
+  const key = cacheKey('year', geometry(options), options.timeZone ?? DEFAULT_TIME_ZONE, options.year);
+  const cached = cachedResult(key);
+  if (cached) return cached;
+  return rememberResult(key, Array.from({ length: 12 }, (_, index) => {
     const date = `${options.year}-${String(index + 1).padStart(2, '0')}-15`;
     const result = calculateBalconySunDay({ ...options, date });
     return { month: index + 1, date, totalMinutes: result.totalMinutes,
       morningCoffee: result.morningCoffee.available, sunsetDrinks: result.sunsetDrinks.available };
-  });
+  }));
 }
 
 export function formatSunTime(instant, timeZone = DEFAULT_TIME_ZONE) {
@@ -217,5 +240,38 @@ export function formatSunWindows(windows, timeZone = DEFAULT_TIME_ZONE) {
   return windows.map(({ start, end }) => {
     const nextDay = venueLocalDate(start, timeZone) !== venueLocalDate(end, timeZone) ? ' (next day)' : '';
     return `${formatSunTime(start, timeZone)}–${formatSunTime(end, timeZone)}${nextDay}`;
+  }).join('; ');
+}
+
+export function formatGuestTime(instant, timeZone = DEFAULT_TIME_ZONE, viewerTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone) {
+  const rounded = new Date(Math.round(new Date(instant).getTime() / MINUTE) * MINUTE);
+  const canonical = zone => new Intl.DateTimeFormat('en-GB', { timeZone: zone }).resolvedOptions().timeZone;
+  const differentZone = canonical(timeZone) !== canonical(viewerTimeZone);
+  const parts = new Intl.DateTimeFormat('en-AU', {
+    timeZone, hour: 'numeric', minute: '2-digit', hour12: true,
+  }).formatToParts(rounded);
+  const p = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  let abbreviation = '';
+  if (differentZone) {
+    // Localised short names vary: AEST in en-AU, EEST in en-GB, EDT in en-US.
+    for (const locale of ['en-AU', 'en-GB', 'en-US', 'en-IN', 'ja-JP']) {
+      const name = new Intl.DateTimeFormat(locale, { timeZone, timeZoneName: 'short' })
+        .formatToParts(rounded).find(part => part.type === 'timeZoneName').value;
+      if (/^[A-Z]{2,6}$/.test(name) && !/^(GMT|UTC)[+-]/.test(name)) { abbreviation = name; break; }
+    }
+    // Some zones have no short name in Intl. Keep their real name rather than inventing an abbreviation or showing GMT offsets.
+    if (!abbreviation) abbreviation = new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'long' })
+      .formatToParts(rounded).find(part => part.type === 'timeZoneName').value;
+  }
+  return `${p.hour}:${p.minute}${p.dayPeriod.toLowerCase()}${differentZone ? ` ${abbreviation}` : ''}`;
+}
+
+export function formatGuestWindows(windows, timeZone = DEFAULT_TIME_ZONE, viewerTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone) {
+  return windows.map(({ start, end }) => {
+    const nextDay = venueLocalDate(start, timeZone) !== venueLocalDate(end, timeZone) ? ' (next day)' : '';
+    const startLabel = formatGuestTime(start, timeZone, viewerTimeZone), endLabel = formatGuestTime(end, timeZone, viewerTimeZone);
+    const startZone = startLabel.slice(startLabel.indexOf(' ')), endZone = endLabel.slice(endLabel.indexOf(' '));
+    const compactStart = startLabel.includes(' ') && startZone === endZone ? startLabel.split(' ')[0] : startLabel;
+    return `${compactStart}–${endLabel}${nextDay}`;
   }).join('; ');
 }
