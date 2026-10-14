@@ -46,6 +46,14 @@ export function venueSeedRow(venue) {
     return { columns, values: columns.map(key => sqlLiteral(venue[key], VENUE_SEED_COLUMNS[key])) };
 }
 
+/** Moves an existing venue's pin only; touches no other column. */
+export function venuePinUpdateSql(venue) {
+    const { id, lat, lng } = venue ?? {};
+    if (!id) throw new TypeError('Venue is missing id');
+    if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) throw new RangeError(`Venue ${id} has invalid coordinates`);
+    return `update public.venues set lat = ${sqlLiteral(lat, 'float')}, lng = ${sqlLiteral(lng, 'float')}, updated_at = now() where id = ${sqlLiteral(id, 'text')};`;
+}
+
 /** insert ... on conflict (id) do update, one statement per venue. */
 export function venueUpsertSql(venue) {
     const { columns, values } = venueSeedRow(venue);

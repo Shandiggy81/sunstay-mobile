@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sqlLiteral, venueSeedRow, venueUpsertSql } from './venueSeed.js';
+import { sqlLiteral, venuePinUpdateSql, venueSeedRow, venueUpsertSql } from './venueSeed.js';
 
 const venue = {
     id: 'dv-test-01', venueName: "Borsch, Vodka & Tears", address: "O'Connell St", suburb: 'Windsor',
@@ -41,6 +41,13 @@ test('rejects missing required fields and bad coordinates', () => {
     assert.throws(() => venueSeedRow({ ...venue, venueName: '' }), /venueName/);
     assert.throws(() => venueSeedRow({ ...venue, lat: undefined }), /lat/);
     assert.throws(() => venueSeedRow({ ...venue, lat: -137 }), RangeError);
+});
+
+test('pin update changes only lat/lng for one id', () => {
+    assert.equal(venuePinUpdateSql({ id: "dv-o'x", lat: -37.8, lng: 144.9, venueName: 'ignored' }),
+        "update public.venues set lat = -37.8, lng = 144.9, updated_at = now() where id = 'dv-o''x';");
+    assert.throws(() => venuePinUpdateSql({ id: 'a', lat: 'x', lng: 144 }), RangeError);
+    assert.throws(() => venuePinUpdateSql({ lat: -37, lng: 144 }), TypeError);
 });
 
 test('upsert SQL quotes camelCase columns and updates on conflict', () => {
