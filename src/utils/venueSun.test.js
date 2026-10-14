@@ -108,6 +108,27 @@ describe('venueSunForecast text', () => {
         assert.equal(hasObstacleData({ obstacle_height: 20, obstacle_distance: '5' }), true);
         const open = forecastAt(12);
         assert.notEqual(open.now.kind, 'shaded', 'no 2 m-at-1 m default shade');
+    });
+
+    it('ignores the Supabase default obstacle (2 m at 1 m)', () => {
+        assert.equal(hasObstacleData({ obstacle_height: 2, obstacle_distance: 1 }), false);
+        assert.equal(hasObstacleData({ obstacle_height: '2', obstacle_distance: '1' }), false);
+        assert.equal(hasObstacleData({ obstacle_height: 2.0, obstacle_distance: '1.0' }), false);
+        assert.equal(hasObstacleData({ obstacle_height: 20, obstacle_distance: 5 }), true);
+        assert.equal(hasObstacleData({ obstacle_height: 2, obstacle_distance: 5 }), true, 'only the exact default pair is ignored');
+        assert.equal(hasObstacleData({ obstacle_height: 2 }), false);
+
+        // A live row with the defaults, at noon with the sun about 60° up:
+        // the default would shade it, so it must follow the forecast instead.
+        const supabaseRow = venueSunForecast({
+            venue: { ...VENUE, obstacle_height: 2, obstacle_distance: 1 },
+            weather: weatherFixture(),
+            now: at(12),
+            sunTimes: SUN_TIMES,
+        });
+        assert.equal(supabaseRow.now.kind, 'sun');
+        assert.equal(sunStatText(supabaseRow), 'Sun until 2pm');
+        assert.equal(listSunStatus(supabaseRow).text, 'Sunny · until 2pm');
 
         const walled = venueSunForecast({
             venue: { ...VENUE, obstacle_height: 400, obstacle_distance: 1 },

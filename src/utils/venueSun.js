@@ -17,13 +17,20 @@ function finite(value) {
     return typeof n === 'number' && Number.isFinite(n) ? n : null;
 }
 
+// The Supabase venues table defaults every row to obstacle_height 2 and
+// obstacle_distance 1, so that pair is a placeholder, not a survey.
+const DEFAULT_OBSTACLE = Object.freeze({ height: 2, distance: 1 });
+
 /**
  * Only venues with surveyed surroundings are marked shaded by geometry. The
- * old 2 m-at-1 m default shaded every venue whenever the sun was below 63°,
- * which in Melbourne is most of the year, and contradicted the forecast.
+ * 2 m-at-1 m default shades every venue whenever the sun is below 63°,
+ * which in Melbourne is most of the year, and contradicts the forecast.
  */
 export function hasObstacleData(venue) {
-    return finite(venue?.obstacle_height) != null && finite(venue?.obstacle_distance) != null;
+    const height = finite(venue?.obstacle_height);
+    const distance = finite(venue?.obstacle_distance);
+    if (height == null || distance == null) return false;
+    return !(height === DEFAULT_OBSTACLE.height && distance === DEFAULT_OBSTACLE.distance);
 }
 
 /**
