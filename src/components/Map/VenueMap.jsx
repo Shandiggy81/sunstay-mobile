@@ -69,6 +69,7 @@ import {
 } from '../../utils/mapRecovery';
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
+import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
 import {
     captureMapCamera,
     claimCameraRestore,
@@ -1072,6 +1073,7 @@ const VenueMap = forwardRef(({
                 cooperativeGestures: false,
                 fadeDuration:        0,
                 maxTileCacheSize:    memoryOptions.maxTileCacheSize,
+                customAttribution:   CITY_BUILDINGS_ATTRIBUTION,
                 ...(memoryOptions.config ? { config: memoryOptions.config } : {}),
             });
 
