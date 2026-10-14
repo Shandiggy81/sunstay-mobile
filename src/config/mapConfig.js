@@ -19,7 +19,8 @@ export const INITIAL_VIEW_STATE = {
     bearing: 0
 };
 
-export const MAX_BOUNDS = [[144.5, -38.2], [145.5, -37.5]];
+// Kept in its own module so Node tests can import it without import.meta.env.
+export { MAX_BOUNDS } from './mapBounds.js';
 
 export const MARKER_STYLE = {
     width: 'auto',
