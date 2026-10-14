@@ -506,7 +506,9 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
     !liveFeaturesForVenue?.fireplaceOn && liveFeaturesForVenue?.heatersOn ? 'Outdoor heaters on now' : null,
   ].filter(Boolean);
 
-  // Older venue data files carry room details and happy hours for some names.
+  // The old catalogue (src/data/venues.js) carries room details for some
+  // stays. It is never used for happy hours: those must be the venue's own,
+  // confirmed ones.
   const fullVenueData = useMemo(() => {
     const lookupName = String(displayName || '').toLowerCase();
     if (!lookupName) return null;
@@ -518,7 +520,7 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
   const roomIntelligence = venue?.roomIntelligence || fullVenueData?.roomIntelligence;
   const roomTypes = Array.isArray(venue?.roomTypes) ? venue.roomTypes : [];
   const showStay = isHotelOrStay && (roomIntelligence || roomTypes.length > 0);
-  const happyHour = verifiedHappyHour(venue, venue?.happyHour ?? fullVenueData?.happyHour);
+  const happyHour = verifiedHappyHour(venue);
   const hoursView = venueHoursView(venue);
   const description = [venue?.venue_description, venue?.description, venue?.about]
     .find((d) => typeof d === 'string' && d.trim())?.trim() ?? null;

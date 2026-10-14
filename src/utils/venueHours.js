@@ -1,8 +1,9 @@
 /**
- * Opening hours and happy hours are shown only after the venue has confirmed
- * them. A venue row opts in with `hoursVerifiedAt` / `happyHourVerifiedAt`
- * (an ISO date or timestamp of the confirmation). No venue is verified yet,
- * so the card points people to the venue's website instead of stating hours.
+ * Opening hours and happy hours are shown only once they have been checked
+ * against a source. A venue row opts in with `hoursVerifiedAt` +
+ * `hoursSourceUrl`, or `happyHourVerifiedAt` + `happyHourSourceUrl` (the
+ * date it was checked and the page it was checked on). Anything else, the
+ * card points people to the venue's website instead of stating hours.
  */
 
 export const HOURS_UNCONFIRMED_NOTE =
@@ -15,6 +16,17 @@ export function isVerifiedAt(value) {
     return Number.isFinite(time);
 }
 
+/** True for an absolute http(s) URL. */
+export function isSourceUrl(value) {
+    if (typeof value !== 'string' || !value.trim()) return false;
+    try {
+        const url = new URL(value.trim());
+        return url.protocol === 'https:' || url.protocol === 'http:';
+    } catch {
+        return false;
+    }
+}
+
 function openingHoursText(venue) {
     const raw = venue?.opening_hours ?? venue?.openingHours ?? venue?.hours;
     return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
@@ -22,21 +34,25 @@ function openingHoursText(venue) {
 
 /**
  * @param {object} venue
- * @returns {{ verified: true, text: string } | { verified: false, note: string }}
+ * @returns {{ verified: true, text: string, sourceUrl: string } | { verified: false, note: string }}
  */
 export function venueHoursView(venue) {
     const text = openingHoursText(venue);
-    if (text && isVerifiedAt(venue?.hoursVerifiedAt)) return { verified: true, text };
+    if (text && isVerifiedAt(venue?.hoursVerifiedAt) && isSourceUrl(venue?.hoursSourceUrl)) {
+        return { verified: true, text, sourceUrl: venue.hoursSourceUrl.trim() };
+    }
     return { verified: false, note: HOURS_UNCONFIRMED_NOTE };
 }
 
 /**
- * The venue's happy hour when it has been confirmed, else null.
+ * The venue's own happy hour when it has been checked against a source, else
+ * null. Only the venue row's `happyHour` counts; happy hours from other data
+ * files are never borrowed.
  *
  * @param {object} venue
- * @param {object|null} [happyHour] overrides `venue.happyHour`
  */
-export function verifiedHappyHour(venue, happyHour = venue?.happyHour) {
+export function verifiedHappyHour(venue) {
+    const happyHour = venue?.happyHour;
     if (!happyHour || typeof happyHour !== 'object') return null;
-    return isVerifiedAt(venue?.happyHourVerifiedAt) ? happyHour : null;
+    return isVerifiedAt(venue?.happyHourVerifiedAt) && isSourceUrl(venue?.happyHourSourceUrl) ? happyHour : null;
 }
