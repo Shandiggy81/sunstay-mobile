@@ -7,7 +7,8 @@
  * turn that into the cloud percentage the score uses.
  *
  * Same maths as src/utils/skyClearness.js in the app (kept separate because
- * Edge Functions cannot import from src/). Tested by
+ * Edge Functions cannot import from src/). Plain JavaScript (JSDoc types) so the Node test runner can import it on any
+ * Node 22 release; Deno imports it from index.ts. Tested by
  * src/utils/enrichMicroclimateSky.test.js.
  */
 
@@ -17,7 +18,8 @@ export const MIN_CLEAR_SKY_WM2 = 80;
 const RAD = Math.PI / 180;
 
 /** Sun altitude in degrees (NOAA approximation, ±0.5°). */
-export function solarAltitudeDeg(date: Date, lat: number, lng: number): number {
+/** @param {Date} date @param {number} lat @param {number} lng @returns {number} */
+export function solarAltitudeDeg(date, lat, lng) {
   const start = Date.UTC(date.getUTCFullYear(), 0, 1);
   const doy = Math.floor((date.getTime() - start) / 86400000) + 1;
   const utcH = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
@@ -33,14 +35,16 @@ export function solarAltitudeDeg(date: Date, lat: number, lng: number): number {
 }
 
 /** Clear-sky sunlight on flat ground, W/m² (Haurwitz). */
-export function clearSkyGhi(altitudeDeg: number): number {
+/** @param {number} altitudeDeg @returns {number} */
+export function clearSkyGhi(altitudeDeg) {
   if (!Number.isFinite(altitudeDeg) || altitudeDeg <= 0) return 0;
   const s = Math.sin(altitudeDeg * RAD);
   return 1098 * s * Math.exp(-0.057 / s);
 }
 
 /** 0 (dull) … 1 (clear), or null when the sun is too low to judge. */
-export function skyClearness(radiation: number | null | undefined, altitudeDeg: number): number | null {
+/** @param {number|null|undefined} radiation @param {number} altitudeDeg @returns {number|null} */
+export function skyClearness(radiation, altitudeDeg) {
   const clear = clearSkyGhi(altitudeDeg);
   if (radiation == null || !Number.isFinite(radiation) || radiation < 0 || clear < MIN_CLEAR_SKY_WM2) return null;
   return Math.min(1, radiation / clear);
@@ -50,7 +54,8 @@ export function skyClearness(radiation: number | null | undefined, altitudeDeg: 
  * Cloud cover as the sun experiences it: clearness 1 → 0 %, the sunny
  * threshold → 60 %, 0.1 → 100 %. Unknown clearness keeps the reported value.
  */
-export function effectiveCloudCover(reportedPct: number, clearness: number | null): number {
+/** @param {number} reportedPct @param {number|null} clearness @returns {number} */
+export function effectiveCloudCover(reportedPct, clearness) {
   if (clearness == null || !Number.isFinite(clearness)) return reportedPct;
   const pct = ((1 - clearness) / (1 - SUNNY_CLEARNESS)) * 60;
   return Math.round(Math.max(0, Math.min(100, pct)));
@@ -61,13 +66,11 @@ export function effectiveCloudCover(reportedPct: number, clearness: number | nul
  * current shortwave_radiation is a 15-minute mean, so the sun is placed
  * 7.5 minutes earlier.
  */
-export function scoringCloudCover(
-  reportedPct: number,
-  radiation: number | null | undefined,
-  lat: number,
-  lng: number,
-  now: Date = new Date(),
-): number {
+/**
+ * @param {number} reportedPct @param {number|null|undefined} radiation
+ * @param {number} lat @param {number} lng @param {Date} [now] @returns {number}
+ */
+export function scoringCloudCover(reportedPct, radiation, lat, lng, now = new Date()) {
   const alt = solarAltitudeDeg(new Date(now.getTime() - 7.5 * 60 * 1000), lat, lng);
   return effectiveCloudCover(reportedPct, skyClearness(radiation, alt));
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import SunCalc from 'suncalc';
-import { clearSkyGhi, effectiveCloudCover, scoringCloudCover, skyClearness, solarAltitudeDeg } from '../../supabase/functions/enrich-microclimate/sky.ts';
+import { clearSkyGhi, effectiveCloudCover, scoringCloudCover, skyClearness, solarAltitudeDeg } from '../../supabase/functions/enrich-microclimate/sky.js';
 
 const LAT = -37.8136, LNG = 144.9631;
 

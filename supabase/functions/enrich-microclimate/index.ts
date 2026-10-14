@@ -23,7 +23,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { scoringCloudCover } from "./sky.ts";
+import { scoringCloudCover } from "./sky.js";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -42,7 +42,7 @@ type ProfileRow = {
 
 type LatLng = { lat: number; lng: number };
 // cloud: Open-Meteo's reported cloud_cover (stored as-is).
-// sunCloud: cloud as the sun experiences it (sky.ts), used for effective_sun.
+// sunCloud: cloud as the sun experiences it (sky.js), used for effective_sun.
 type Weather = { windSpeed: number; windDir: number; cloud: number; sunCloud?: number };
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
