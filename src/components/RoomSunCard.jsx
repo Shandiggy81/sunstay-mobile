@@ -8,7 +8,7 @@ import {
 } from '../utils/balconySunEngine.js';
 import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
 
-export default function RoomSunCard({ room, venue }) {
+export default function RoomSunCard({ room, venue, date, highlighted = false }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const update = () => setNow(new Date());
@@ -23,7 +23,7 @@ export default function RoomSunCard({ room, venue }) {
   const lng = venue?.lng == null || venue.lng === '' ? null : Number(venue.lng);
   const missingGeometry = orientation == null || String(orientation).trim() === '' || lat === null || lng === null;
   let today = null;
-  try { today = venueLocalDate(now, timeZone); } catch { /* Show an error, not an unrelated demo score. */ }
+  try { today = date || venueLocalDate(now, timeZone); } catch { /* Show an error, not an unrelated demo score. */ }
   const obstructions = room?.obstructions;
   const overhang = room?.overhang;
   const options = useMemo(() => ({ lat, lng, facing: orientation, timeZone, obstructions, overhang }),
@@ -87,11 +87,13 @@ export default function RoomSunCard({ room, venue }) {
 
   return (
     <motion.div
+      data-matching-room={highlighted ? "true" : undefined}
       className="rounded-2xl p-4 flex flex-col gap-3 mb-3"
-      style={{ background: '#ffffff', border: '1px solid rgba(0,0,0,0.08)', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
+      style={{ background: '#ffffff', border: highlighted ? '2px solid #F59E0B' : '1px solid rgba(0,0,0,0.08)', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
     >
+      {highlighted && <p className="text-xs font-bold text-amber-800">Best room for your sun moment</p>}
       <div className="flex justify-between items-start">
         <div>
           <h4 className="font-black text-slate-800 text-[15px]">{name}</h4>

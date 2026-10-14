@@ -348,7 +348,7 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
 }
 
 // ── Main VenueCard ────────────────────────────────────────────
-function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture }) {
+function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture, stayMatch }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const compactRef = useRef(false);
@@ -363,6 +363,15 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
     setCompact(false);
     resetVenueDetailScroller(scrollerRef.current);
   }, [venue?.id]);
+
+  useEffect(() => {
+    if (!stayMatch?.bestRoom) return;
+    const frame = requestAnimationFrame(() => {
+      const target = scrollerRef.current?.querySelector('[data-matching-room="true"]');
+      if (target && scrollerRef.current) scrollerRef.current.scrollTo({ top: target.offsetTop - scrollerRef.current.offsetTop - 80, behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [venue?.id, stayMatch?.bestRoom]);
 
   const handleScroll = useCallback((event) => {
     const show = event.currentTarget.scrollTop > COMPACT_HEADER_AT;
@@ -682,7 +691,7 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
                     <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
                       <h3 id="stay-heading" className={SECTION_TITLE}>{venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay'}</h3>
                       <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
-                      {roomTypes.map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} />)}
+                      {roomTypes.map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} />)}
                     </section>
                   ) : null}
 
