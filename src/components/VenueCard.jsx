@@ -31,8 +31,6 @@ import { useTomorrowRain } from '../hooks/useTomorrowRain';
 import { useOpenUV } from '../hooks/useOpenUV';
 import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 import { checkIsAccommodation } from '../utils/accommodation';
-import { presentWind } from '../utils/presentWind';
-import { describeWind } from '../utils/headerWeatherSummary';
 import { useWeather } from '../context/WeatherContext';
 import { useMicroclimateState } from '../context/MicroclimateContext';
 import { formatReadingTime, lookupMicroclimateEntry, readMicroclimate } from '../utils/microclimate';
@@ -42,6 +40,7 @@ import { resolveOverviewScore } from '../utils/resolveOverviewScore';
 import { errorBoundaryRemountKey, resetVenueDetailScroller, venueOverlayPresenceKey } from '../utils/venueDetailTabs';
 import { feelsLikeIconName, venueIconName, weatherIconName } from '../utils/clayIcons';
 import { venueStatTiles } from '../utils/venueStatTiles.js';
+import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
 import { hourlyStrip, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { venueOfferings } from '../utils/venueOfferings';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
@@ -479,16 +478,9 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
   const temp = finite(liveWeather?.main?.temp);
   // Sheltered feels-like at this venue: the same number as its list row.
   const feelsLike = venueFeelsLike(venue, liveWeather);
-  const windView = presentWind(liveWeather);
   const rainChance = finite(liveWeather?.precipProbability);
   const uvIndex = finite(liveWeather?.uvi ?? liveWeather?.uvIndex);
   const tiles = [
-    {
-      label: 'Wind',
-      value: windView.speedLabel ?? '–',
-      note: [describeWind(windView.speedKmh), windView.gustKmh != null ? `gusts ${windView.gustKmh} km/h` : null].filter(Boolean).join(' · ') || null,
-      icon: 'windsock',
-    },
     {
       label: 'Rain chance',
       value: rainChance != null ? `${Math.round(rainChance)}%` : '–',
@@ -549,6 +541,7 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
     () => (outdoorDay ? sunMomentsFromDay({ daily: outdoorDay, forecast, timeZone: venueTimeZone }) : null),
     [outdoorDay, forecast, venueTimeZone],
   );
+  const sunSection = venueCardSunSection({ showStay, outdoorDay, outdoorMoments });
   const happyHour = verifiedHappyHour(venue);
   const hoursView = venueHoursView(venue);
   const description = [venue?.venue_description, venue?.description, venue?.about]
@@ -666,10 +659,15 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
                         Show on map
                       </button>
                     ) : null}
-                    <VenueStatRow
-                      tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike })}
-                      sunny={forecast.now?.kind === 'sun'}
-                    />
+                    <div className="flex flex-col gap-2.5">
+                      <VenueStatRow
+                        tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike })}
+                        sunny={forecast.now?.kind === 'sun'}
+                      />
+                      {sunSection !== 'today' ? (
+                        <p className="text-[13px] font-medium leading-relaxed text-slate-600">{sentence}</p>
+                      ) : null}
+                    </div>
                     {weatherUnavailable && !weatherLoading ? (
                       <p className="-mt-2 text-[13px] font-medium text-slate-600" role="status">
                         Live weather is unavailable right now, so the forecast below is limited.
@@ -677,11 +675,21 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
                     ) : null}
                   </div>
 
-                  <ForecastErrorBoundary>
-                    <TodaysSun forecast={forecast} sentence={sentence} />
-                  </ForecastErrorBoundary>
+                  {sunSection === 'stay' ? (
+                    <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
+                      <h3 id="stay-heading" className={SECTION_TITLE}>{venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay'}</h3>
+                      <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
+                      {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />)}
+                    </section>
+                  ) : null}
 
-                  {outdoorDay && outdoorMoments ? (
+                  {sunSection === 'today' ? (
+                    <ForecastErrorBoundary>
+                      <TodaysSun forecast={forecast} sentence={sentence} />
+                    </ForecastErrorBoundary>
+                  ) : null}
+
+                  {sunSection === 'moments' ? (
                     <ForecastErrorBoundary>
                       <section aria-labelledby="sun-moments-heading" className="flex flex-col gap-3">
                         <h3 id="sun-moments-heading" className={SECTION_TITLE}>Sun moments today</h3>
@@ -712,14 +720,6 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
                   </ConditionsGrid>
 
                   <VenueOfferingsList key={venue?.id} offerings={offerings} liveNotes={liveNotes} />
-
-                  {showStay ? (
-                    <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
-                      <h3 id="stay-heading" className={SECTION_TITLE}>{venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay'}</h3>
-                      <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
-                      {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />)}
-                    </section>
-                  ) : null}
 
                   <AboutAndHours description={description} hours={hoursView} />
                   <HappyHourSection happyHour={happyHour} />
