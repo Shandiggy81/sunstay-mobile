@@ -12,18 +12,34 @@ import {
   toLlmMessages,
 } from '../utils/sunnyTools';
 import thunderBuddy from '../assets/mascots/thunder-buddy.png';
-import sunnySunglasses from '../assets/sunny-mascot.jpg';
+import ClayIcon, { clayIconUrl } from './common/ClayIcon';
 import { resolveChatAvatarKind } from '../utils/resolveChatAvatar';
 import { chatWindLabel } from '../utils/windUnits';
 import { chatTempText, chatUvText, readChatWeather } from '../utils/chatWeather';
+import { useWeather } from '../context/WeatherContext';
+import { melbourneHourNow } from '../utils/microclimate';
+import { venueDisplayScore } from '../utils/venueDisplayScore';
+import { venueIconName } from '../utils/clayIcons';
+import { listSunStatus, venueSunForecast } from '../utils/venueSun';
+import {
+  BRUCEY_LINE,
+  isDogIntent,
+  resolveSuggestedVenues,
+  suggestVenuesForTag,
+  timeOfDayChip,
+} from '../utils/sunnySuggestions';
 
-const sunnyDefault = sunnySunglasses;
-
+// Sunny is the clay sun in sunglasses; Thunder Buddy stays for storms.
+const SUNNY_AVATAR = { src: clayIconUrl('high-uv'), alt: 'Sunny', clay: true };
 const CHAT_AVATARS = {
   thunder: { src: thunderBuddy, alt: 'Thunder Buddy' },
-  sunny: { src: sunnySunglasses, alt: 'Sunny' },
-  default: { src: sunnyDefault, alt: 'Sunny' },
+  sunny: SUNNY_AVATAR,
+  default: SUNNY_AVATAR,
 };
+
+// Melbourne CBD: the forecast point for chat context (same as WeatherContext).
+const CBD = { lat: -37.8136, lng: 144.9631 };
+const DOG_TAG = 'Pet Friendly';
 
 // ─── Weather helpers ───────────────────────────────────────────────────────────
 const getWeatherMood = (weather) => {
@@ -76,18 +92,20 @@ const buildQuickReplies = (weather) => {
   const uv = cw.uv ?? 0;
   const wind = cw.windKmh ?? 0;
 
+  // `tag` picks the venue cards shown under the reply (null = best sun score
+  // overall); `suggest: false` shows none.
   const all = [
-    { intent: 'sunny',      text: '☀️ Sunny outdoor spots',          response: `Ripper! ${chatUvText(cw)} — showing venues with direct sun. ☀️`,          action: 'onFindSunny' },
-    { intent: 'cloudy',     text: '🌥️ Covered & cosy venues',        response: `Smart move — filtering to shaded and covered spots near you right now. 🌥️`,                action: 'onFindIndoor' },
-    { intent: 'wind',       text: '💨 Wind-sheltered areas',          response: `Yeah it's blowy out there! Pulling up the most protected outdoor spots. 💨`,                action: 'onFindWindSheltered' },
-    { intent: 'indoor',     text: '🌧️ Rainy day indoor picks',        response: `Staying dry — good call! Loading covered and shaded venues near you now. 🌧️`,              action: 'onFindIndoor' },
-    { intent: 'rooftop',    text: '🔥 Rooftop bars right now',        response: `Rooftops incoming! The Emerson and Good Heavens are looking quality right now. 🔥`,         action: 'onFindRooftop' },
-    { intent: 'dog',        text: '🐶 Dog-friendly spots',            response: "Bring the pup! Filtering to dog-friendly venues now... 🐾",                                action: 'onFindDogFriendly' },
-    { intent: 'family',     text: '👨‍👩‍👧 Family-friendly venues',        response: "Family outing! Finding the best family-friendly spots near you... 👨‍👩‍👧",                    action: 'onFindFamily' },
-    { intent: 'business',   text: '💼 Good spots to work from',       response: "Work mode! Finding venues with great vibes for getting things done... 💼",                 action: 'onFindBusiness' },
-    { intent: 'accessible', text: '♿ Wheelchair accessible',         response: "On it! Filtering to fully accessible venues near you... ♿",                               action: 'onFindWheelchair' },
-    { intent: 'smoking',    text: '🚬 Smoking-friendly areas',        response: "Got it! Showing venues with designated outdoor smoking areas... 🚬",                       action: 'onFindSmoking' },
-    { intent: 'surprise',   text: '🎲 Surprise me!',                  response: "Ooh, adventurous! Picking the best weather-matched venue for you right now... 🎲",         action: 'onSurpriseMe' },
+    { intent: 'sunny',      icon: 'sun',           text: 'Sunny outdoor spots',   tag: null,                    response: `Ripper! ${chatUvText(cw)}. These are getting the best sun right now.`, action: 'onFindSunny' },
+    { intent: 'cloudy',     icon: 'umbrella',      text: 'Covered and cosy',      tag: 'Indoor Warmth',         response: 'Smart move. Here are some covered, cosy spots.',                       action: 'onFindIndoor' },
+    { intent: 'wind',       icon: 'windsock',      text: 'Out of the wind',       tag: 'Shaded',                response: "Yeah it's blowy out there! These are more protected.",                 action: 'onFindWindSheltered' },
+    { intent: 'indoor',     icon: 'indoor-warmth', text: 'Rainy day picks',       tag: 'Indoor Warmth',         response: 'Staying dry, good call. A few warm indoor spots.',                     action: 'onFindIndoor' },
+    { intent: 'rooftop',    icon: 'rooftop-bar',   text: 'Rooftop bars',          tag: 'Rooftop',               response: 'Rooftops incoming! These are scoring best right now.',                 action: 'onFindRooftop' },
+    { intent: 'dog',        icon: 'brucey',        text: 'Dog-friendly spots',    tag: DOG_TAG,                 response: 'Bring the pup! Filtering to dog-friendly venues.',                     action: 'onFindDogFriendly' },
+    { intent: 'family',     icon: 'pram',          text: 'Family-friendly',       tag: 'Pram Friendly',         response: 'Family outing! A few pram-friendly spots.',                            action: 'onFindFamily' },
+    { intent: 'business',   icon: 'large-groups',  text: 'Room for a group',      tag: 'Large Groups',          response: 'Bringing the crew? These have room.',                                  action: 'onFindBusiness' },
+    { intent: 'accessible', icon: 'wheelchair',    text: 'Wheelchair accessible', tag: 'Wheelchair Accessible', response: 'On it. These are wheelchair accessible.',                              action: 'onFindWheelchair' },
+    { intent: 'smoking',    icon: 'smoking-area',  text: 'Smoking areas',         tag: 'Smoking Area',          response: 'Got it. These have an outdoor smoking area.',                          action: 'onFindSmoking' },
+    { intent: 'surprise',   icon: 'sparkles',      text: 'Surprise me',           suggest: false,               response: 'Ooh, adventurous! Picking one for you now.',                           action: 'onSurpriseMe' },
   ];
 
   // Surface weather-contextual suggestions first
@@ -97,16 +115,51 @@ const buildQuickReplies = (weather) => {
   else if (wind > 30) ordered = [all.find(r => r.intent === 'wind'), ...all.filter(r => r.intent !== 'wind')];
   else ordered = [all.find(r => r.intent === 'sunny'), all.find(r => r.intent === 'rooftop'), ...all.filter(r => !['sunny','rooftop'].includes(r.intent))];
 
-  return ordered.filter(Boolean);
+  // A chip for this part of the day (morning coffee, lunch, after-work, sunset) leads.
+  return [timeOfDayChip(melbourneHourNow()), ...ordered].filter(Boolean);
 };
 
 // ─── Follow-up chips shown after an action ────────────────────────────────────
 const followUpChips = [
-  { text: '🔄 Try a different vibe', resetsChat: true },
-  { text: '🗺️ Show on map',          resetsChat: false, action: 'onShowOnMap' },
-  { text: '🐶 Dog-friendly only',    resetsChat: false, action: 'onFindDogFriendly' },
-  { text: '♿ Accessible venues',    resetsChat: false, action: 'onFindWheelchair' },
+  { text: 'Try a different vibe', icon: 'sparkles',   resetsChat: true },
+  { text: 'Show on map',          icon: 'map-pin',    resetsChat: false, action: 'onShowOnMap', suggest: false },
+  { text: 'Dog-friendly only',    icon: 'brucey',     resetsChat: false, action: 'onFindDogFriendly', tag: DOG_TAG },
+  { text: 'Accessible venues',    icon: 'wheelchair', resetsChat: false, action: 'onFindWheelchair', tag: 'Wheelchair Accessible' },
 ];
+
+const chipClass =
+  'flex-shrink-0 snap-start inline-flex min-h-11 items-center gap-1.5 pl-1.5 pr-4 bg-white border border-slate-200 rounded-full text-[13px] font-semibold text-slate-800 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
+
+// ─── Venue mini cards under a reply ───────────────────────────────────────────
+const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
+  <ul className="mt-2 flex w-full max-w-[88%] flex-col gap-2" aria-label="Suggested venues">
+    {venues.map((venue) => {
+      const status = statusFor(venue);
+      const name = venue.venueName ?? venue.name ?? 'Venue';
+      return (
+        <li key={venue.id}>
+          <button
+            type="button"
+            onClick={() => onOpen(venue)}
+            className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-sm transition-colors hover:border-amber-400 active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            aria-label={`Open ${name}. ${status.text}`}
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+              <ClayIcon name={venueIconName(venue)} size={36} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[14px] font-bold text-slate-900">{name}</span>
+              <span className="mt-0.5 flex items-center gap-1 text-[12px] font-medium text-slate-600">
+                <ClayIcon name={status.icon} size={16} />
+                <span className="truncate">{status.text}</span>
+              </span>
+            </span>
+          </button>
+        </li>
+      );
+    })}
+  </ul>
+);
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
 const TypingIndicator = () => (
@@ -136,7 +189,6 @@ const ChatWidget = ({
   weather = null,
   selectedVenue = null,
   onSetFilters,
-  onPanToVenue,
   onFindWheelchair,
   onFindDogFriendly,
   onFindSmoking,
@@ -148,6 +200,8 @@ const ChatWidget = ({
   onFindRooftop,
   onFindIndoor,
   onFindWindSheltered,
+  venues = [],
+  onOpenVenue,
 }) => {
   const actionMap = {
     onFindWheelchair,
@@ -168,6 +222,18 @@ const ChatWidget = ({
   const quickReplies = buildQuickReplies(weather);
   const { byId, todMinutes } = useMicroclimateState();
   const { setTodMinutes } = useMicroclimateActions();
+  const { calculateSunstayScore } = useWeather();
+  // Demo or failed weather must not be presented as a forecast.
+  const forecastWeather = liveWeather.available && weather?.source !== 'demo' ? weather : null;
+  // Same ranking score and status line as the venue list.
+  const scoreFor = useCallback(
+    (venue) => venueDisplayScore(venue, { byId, todMinutes, calculateSunstayScore }),
+    [byId, todMinutes, calculateSunstayScore],
+  );
+  const statusFor = useCallback(
+    (venue) => listSunStatus(venueSunForecast({ venue, weather: forecastWeather })),
+    [forecastWeather],
+  );
 
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -209,15 +275,35 @@ const ChatWidget = ({
     setMessages(prev => [...prev, { id: Date.now(), type: 'user', text, ts: new Date() }]);
   };
 
-  const addBotMsg = (text, delay = 900) => {
+  const addBotMsg = (text, delay = 900, extra = {}) => {
     setIsTyping(true);
     return new Promise(resolve => {
       scheduleTimeout(() => {
         setIsTyping(false);
-        setMessages(prev => [...prev, { id: Date.now(), type: 'bot', text, ts: new Date() }]);
+        setMessages(prev => [...prev, { id: Date.now() + Math.random(), type: 'bot', text, ts: new Date(), ...extra }]);
         resolve();
       }, delay);
     });
+  };
+
+  // Up to three tappable venue cards. Dog-friendly picks come from Brucey.
+  const addVenueCards = async (picked, { dog = false } = {}) => {
+    if (!picked.length) {
+      if (dog) await addBotMsg("Brucey couldn't sniff out a dog-friendly spot nearby right now.", 400, { avatar: 'brucey' });
+      return;
+    }
+    if (dog) await addBotMsg(BRUCEY_LINE, 450, { avatar: 'brucey', venues: picked });
+    else await addBotMsg(picked.length === 1 ? 'Tap to have a look:' : 'Tap one to have a look:', 450, { venues: picked });
+  };
+
+  const suggestFor = (item) => {
+    if (!item || item.suggest === false || item.tag === undefined) return Promise.resolve();
+    return addVenueCards(suggestVenuesForTag(venues, item.tag, scoreFor), { dog: item.tag === DOG_TAG });
+  };
+
+  const openVenue = (venue) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    onOpenVenue?.(venue);
   };
 
   const fireAction = (actionKey, delay = 400) => {
@@ -232,7 +318,16 @@ const ChatWidget = ({
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     addUserMsg(reply.text);
     await addBotMsg(reply.response);
-    fireAction(reply.action);
+    if (reply.action) fireAction(reply.action);
+    else {
+      // Time-of-day chips filter by their tag, or by sun for lunch.
+      scheduleTimeout(() => {
+        if (reply.tag) onSetFilters?.([reply.tag]);
+        else onFindSunny?.();
+        setHasActed(true);
+      }, 400);
+    }
+    await suggestFor(reply);
   };
 
   const handleFollowUp = async (chip) => {
@@ -243,8 +338,9 @@ const ChatWidget = ({
       return;
     }
     addUserMsg(chip.text);
-    await addBotMsg("On it! Updating the map for you now... 🗺️", 700);
+    await addBotMsg('On it! Updating the map for you now.', 700);
     fireAction(chip.action, 300);
+    await suggestFor(chip);
     setHasActed(false);
   };
 
@@ -274,6 +370,9 @@ const ChatWidget = ({
         timeOfDay: todMinutes,
         activeVenue: selectedVenue,
         visibleById: byId,
+        forecast: venueSunForecast({ venue: CBD, weather: forecastWeather }),
+        weather: forecastWeather,
+        venues,
       }),
     });
     if (!result.ok) {
@@ -285,10 +384,17 @@ const ChatWidget = ({
     }
 
     const parsed = parseChatSunnyResponse(result.payload);
+    // panToVenue no longer opens a venue straight away: the venues Sunny
+    // names become cards under its reply, and a tap opens one.
+    const namedIds = [];
     const notes = applySunnyToolCalls(parsed.toolCalls, {
       setTimeOfDay: setTodMinutes,
       setFilters: onSetFilters,
-      panToVenue: onPanToVenue,
+      panToVenue: (id) => {
+        if (!venues.some((v) => String(v?.id) === String(id))) return false;
+        namedIds.push(id);
+        return true;
+      },
     });
     const reply = (parsed.reply || '').trim()
       || (parsed.toolCalls.length ? 'On it — updating the map.' : '');
@@ -296,6 +402,10 @@ const ChatWidget = ({
 
     if (reply) await addBotMsg(reply);
     for (const note of notes) await addBotMsg(note, 450);
+    const dog = isDogIntent(history[history.length - 1]?.text);
+    const picked = resolveSuggestedVenues(namedIds, venues);
+    if (picked.length) await addVenueCards(picked, { dog });
+    else if (dog) await addVenueCards(suggestVenuesForTag(venues, DOG_TAG, scoreFor), { dog });
     if (parsed.toolCalls.length) setHasActed(true);
     return true;
   };
@@ -318,6 +428,7 @@ const ChatWidget = ({
       if (matched) {
         await addBotMsg(matched.response);
         fireAction(matched.action);
+        await suggestFor(matched);
         return;
       }
     }
@@ -343,7 +454,7 @@ const ChatWidget = ({
             <div className={`bg-gradient-to-r ${mood.gradient} px-5 py-4 flex items-center justify-between flex-shrink-0`}>
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full shadow-sm ring-2 ring-white/50">
+                  <div className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-full shadow-sm ring-2 ring-white/50 ${avatar.clay ? 'bg-amber-50' : ''}`}>
                     <img
                       key={avatar.src}
                       src={avatar.src}
@@ -351,16 +462,9 @@ const ChatWidget = ({
                       width={48}
                       height={48}
                       draggable={false}
-                      className="h-full w-full object-cover"
+                      className={`h-full w-full ${avatar.clay ? 'object-contain p-0.5' : 'object-cover'}`}
                     />
                   </div>
-                  <motion.span
-                    className="absolute -bottom-0.5 -right-0.5 text-base leading-none"
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                  >
-                    {mood.emoji}
-                  </motion.span>
                 </div>
                 <div>
                   <h3 className="text-white font-black text-base tracking-tight leading-none mb-1">Sunny · Weather Guide</h3>
@@ -398,13 +502,23 @@ const ChatWidget = ({
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex flex-col ${msg.type === 'user' ? 'items-end' : 'items-start'}`}
                 >
-                  <div className={`max-w-[88%] px-5 py-3 rounded-3xl text-[14px] font-medium shadow-sm leading-relaxed ${
-                    msg.type === 'user'
-                      ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-br-md'
-                      : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md'
-                  }`}>
-                    {msg.text}
+                  <div className="flex max-w-[88%] items-end gap-2">
+                    {msg.avatar === 'brucey' ? (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 ring-1 ring-amber-200">
+                        <ClayIcon name="brucey" size={34} alt="Brucey" />
+                      </span>
+                    ) : null}
+                    <div className={`px-5 py-3 rounded-3xl text-[14px] font-medium shadow-sm leading-relaxed ${
+                      msg.type === 'user'
+                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-br-md'
+                        : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md'
+                    }`}>
+                      {msg.text}
+                    </div>
                   </div>
+                  {msg.venues?.length ? (
+                    <VenueSuggestionCards venues={msg.venues} statusFor={statusFor} onOpen={openVenue} />
+                  ) : null}
                   <span className="text-[10px] text-gray-400 mt-1 px-2">{fmtTime(msg.ts)}</span>
                 </motion.div>
               ))}
@@ -425,15 +539,16 @@ const ChatWidget = ({
                   <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
                     {quickReplies.map((reply, i) => (
                       <motion.button
-                        key={i}
+                        key={reply.intent}
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: i * 0.06 }}
                         whileHover={{ scale: 1.04 }}
                         whileTap={{ scale: 0.97 }}
                         onClick={() => handleQuickReply(reply)}
-                        className="flex-shrink-0 snap-start h-9 px-4 bg-white border border-gray-200 rounded-full text-[12px] font-semibold text-gray-700 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-all whitespace-nowrap"
+                        className={chipClass}
                       >
+                        <ClayIcon name={reply.icon} size={30} />
                         {reply.text}
                       </motion.button>
                     ))}
@@ -459,8 +574,9 @@ const ChatWidget = ({
                       whileHover={{ scale: 1.04 }}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => handleFollowUp(chip)}
-                      className="flex-shrink-0 h-9 px-4 bg-white border border-gray-200 rounded-full text-[12px] font-semibold text-gray-700 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-all whitespace-nowrap"
+                      className={chipClass}
                     >
+                      <ClayIcon name={chip.icon} size={30} />
                       {chip.text}
                     </motion.button>
                   ))}

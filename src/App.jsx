@@ -732,10 +732,10 @@ const AppContent = () => {
         setAreaBounds(null);
     }, []);
 
+    // The chat stays open: Sunny shows matching venues as cards to tap.
     const makeChatFilter = (filter) => () => {
         setActiveFilters([filter]);
         setSelectedVenue(null);
-        setTimeout(() => setIsChatOpen(false), 1500);
     };
     const handleFindWheelchair    = useCallback(makeChatFilter('Wheelchair Accessible'), []);
     const handleFindDogFriendly   = useCallback(makeChatFilter('Pet Friendly'), []);
@@ -768,14 +768,12 @@ const AppContent = () => {
         setActiveFilters(Array.isArray(tags) ? tags : []);
     }, []);
 
-    const handleSunnyPanToVenue = useCallback((venueId) => {
-        const id = String(venueId ?? '');
-        if (!id) return false;
-        const venue = venues.find((v) => String(v.id) === id);
-        if (!venue) return false;
+    // A venue card in the chat: open the venue and close the chat.
+    const handleChatOpenVenue = useCallback((venue) => {
+        if (!venue) return;
         handleVenueSelect(venue);
-        return true;
-    }, [venues, handleVenueSelect]);
+        setIsChatOpen(false);
+    }, [handleVenueSelect]);
 
     const handleRecenter = useCallback(() => {
         mapRef.current?.flyTo({ center: [144.9631, -37.8136], zoom: 12, duration: 1200 });
@@ -1261,7 +1259,8 @@ const AppContent = () => {
                     weather={weather}
                     selectedVenue={selectedVenue}
                     onSetFilters={handleSunnySetFilters}
-                    onPanToVenue={handleSunnyPanToVenue}
+                    venues={venues}
+                    onOpenVenue={handleChatOpenVenue}
                     onFindWheelchair={handleFindWheelchair}
                     onFindDogFriendly={handleFindDogFriendly}
                     onFindSmoking={handleFindSmoking}
