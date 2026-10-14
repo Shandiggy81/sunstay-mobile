@@ -1,19 +1,59 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import {
+  calculateBalconySunDay, calculateMonthlySunSummary, DEFAULT_TIME_ZONE,
+  formatSunWindows, venueLocalDate,
+} from '../utils/balconySunEngine.js';
 
-export default function RoomSunCard({ room }) {
+export default function RoomSunCard({ room, venue }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const update = () => setNow(new Date());
+    const timer = setInterval(update, 60000);
+    document.addEventListener('visibilitychange', update);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', update); };
+  }, []);
+
+  const timeZone = venue?.timeZone ?? venue?.timezone ?? DEFAULT_TIME_ZONE;
+  const orientation = room?.orientation;
+  const lat = venue?.lat == null || venue.lat === '' ? null : Number(venue.lat);
+  const lng = venue?.lng == null || venue.lng === '' ? null : Number(venue.lng);
+  const missingGeometry = orientation == null || String(orientation).trim() === '' || lat === null || lng === null;
+  let today = null;
+  try { today = venueLocalDate(now, timeZone); } catch { /* Show an error, not an unrelated demo score. */ }
+  const obstructions = room?.obstructions;
+  const overhang = room?.overhang;
+  const sun = useMemo(() => {
+    if (missingGeometry) return null;
+    try {
+      if (!today) throw new Error('Invalid venue timezone');
+      // TODO: obstructionLevel ("Partial", "Open", etc.) needs a surveyed angular
+      // horizon. Do not translate those labels into invented shading geometry.
+      const options = { lat, lng, facing: orientation, timeZone, obstructions, overhang };
+      return {
+        daily: calculateBalconySunDay({ ...options, date: today }),
+        months: calculateMonthlySunSummary({ ...options, year: Number(today.slice(0, 4)) }),
+      };
+    } catch { return { error: true }; }
+  }, [lat, lng, orientation, timeZone, today, obstructions, overhang, missingGeometry]);
   if (!room) return null;
 
   const {
     name,
-    orientation,
     floorLevel,
     sunScore,
     sunProfile,
     baseNightlyRateDemo
   } = room;
 
-  const pct = Math.max(0, Math.min(100, sunScore || 0));
+  const pct = missingGeometry ? Math.max(0, Math.min(100, sunScore || 0)) : 0;
+  const daily = sun?.daily;
+  const bestMonths = sun?.months?.filter(month => month.totalMinutes > 0)
+    .sort((a, b) => b.totalMinutes - a.totalMinutes || a.month - b.month).slice(0, 3)
+    .sort((a, b) => a.month - b.month).map(month =>
+      new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone }).format(new Date(`${month.date}T12:00:00Z`))).join(', ');
+  const verdict = value => value.available === null ? 'Unavailable · no sunset today'
+    : value.available ? `Yes · ${formatSunWindows(value.windows, timeZone)}` : 'No';
 
   const { bg, border, text, fill } = pct >= 75
     ? { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.28)', text: '#065F46', fill: '#10B981' }
@@ -41,6 +81,19 @@ export default function RoomSunCard({ room }) {
         </div>
       </div>
 
+      {daily ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-slate-700">
+          <p className="text-[11px] font-black uppercase tracking-widest text-amber-900">Today’s balcony sun · {daily.date}</p>
+          <p className="mt-1 text-[14px] font-bold">{Math.floor(daily.totalMinutes / 60)}h {daily.totalMinutes % 60}m total direct sun</p>
+          <p className="mt-1 text-[13px] font-semibold break-words">
+            {daily.windows.length ? formatSunWindows(daily.windows, timeZone) : 'No direct sun on this balcony today'}
+          </p>
+          <p className="mt-2 text-[12px]"><span className="font-bold">☕ Morning coffee:</span> {verdict(daily.morningCoffee)}</p>
+          <p className="mt-1 text-[12px]"><span className="font-bold">🥂 Sunset drinks:</span> {verdict(daily.sunsetDrinks)}</p>
+          <p className="mt-2 text-[11px] text-slate-600">Best months: {bestMonths || 'No modelled direct sun'} · 15th-of-month estimates</p>
+          <p className="mt-1 text-[11px] text-slate-600">{timeZone}. Astronomical estimate, not a cloud forecast. 5-minute sampling; detected transitions rounded to the nearest minute. Short sun/shade gaps may be missed.</p>
+        </div>
+      ) : missingGeometry ? (
       <div className="flex items-center gap-3 mt-1" style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '8px 12px' }}>
         <div className="relative flex-shrink-0" style={{ width: 36, height: 36 }}>
           <svg width="36" height="36" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
@@ -60,15 +113,21 @@ export default function RoomSunCard({ room }) {
         </div>
 
         <div className="flex-1 min-w-0">
-          <span className="text-[10px] font-black uppercase tracking-widest block" style={{ color: text }}>Sun Score</span>
+          <span className="text-[10px] font-black uppercase tracking-widest block" style={{ color: text }}>Illustrative sun profile</span>
           <p className="text-[13px] font-semibold mt-0.5 text-slate-700 leading-tight">
             {sunProfile?.peakTime && `Peak sun: ${sunProfile.peakTime}`}
           </p>
           <p className="text-[11px] font-medium text-slate-500 mt-0.5">
             {sunProfile?.useCase && `Ideal for ${sunProfile.useCase.toLowerCase()}`}
           </p>
+          <p className="text-[11px] text-slate-600 mt-1">Live estimate needs room orientation and venue coordinates.</p>
         </div>
       </div>
+      ) : (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-[12px] text-slate-700" role="status">
+          Balcony sun unavailable. Check the room bearing, coordinates, timezone and measured shading geometry.
+        </p>
+      )}
     </motion.div>
   );
 }
