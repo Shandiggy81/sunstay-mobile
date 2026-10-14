@@ -21,13 +21,20 @@ const TYPE_LABEL_RULES = Object.freeze([
     [/beer garden/, 'garden-table'],
     [/\bbeach/, 'beach'],
     [/waterfront|riverside|\briver\b|\bbay\b|harbou?r|\bpier\b/, 'waterfront'],
+    [/cocktail/, 'cocktail'],
     [/\bwine\b/, 'wine'],
     [/caf[eé]|coffee|espresso|roaster/, 'coffee'],
     [/hotel|\bstay\b|apartment|resort|motel|\binn\b|lodge/, 'hotel-views'],
     [/live music/, 'live-music'],
     [/fireplace|fire ?pit/, 'fireplace'],
+    [/food truck/, 'food-truck'],
+    [/billiard|pool hall|pool table/, 'pool-table'],
+    [/botanic/, 'botanical'],
+    [/heritage|historic/, 'heritage'],
     [/\bcos[yz]\b|lounge/, 'indoor-warmth'],
     [/\bpub\b|tavern|brewery|brewhouse|ale ?house/, 'pint'],
+    // Last, so "Pub & Restaurant" stays a pub and "Waterfront Restaurant" waterfront.
+    [/restaurant|dining|bistro|eatery|trattoria|gastronomia/, 'dining'],
 ]);
 
 const EMOJI_ICONS = Object.freeze({
@@ -46,6 +53,14 @@ const EMOJI_ICONS = Object.freeze({
     '🎸': 'live-music',
     '🔥': 'fireplace',
     '🛋': 'indoor-warmth',
+    '🍸': 'cocktail',
+    '🍹': 'cocktail',
+    '🌿': 'botanical',
+    '🌳': 'botanical',
+    '🏛': 'heritage',
+    '🚚': 'food-truck',
+    '🎱': 'pool-table',
+    '🍽': 'dining',
 });
 
 // Only tags that say what kind of place a venue is. Feature tags ("Cozy",

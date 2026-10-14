@@ -166,9 +166,19 @@ export function describeWindExposure(exposure) {
     return 'Sheltered';
 }
 
+// enrich-microclimate writes machine codes ("shaded_calm"); show plain words.
+const COMFORT_HINT_WORDS = Object.freeze({
+    sunny_calm: 'Sunny and calm',
+    sunny_breezy: 'Sunny but breezy',
+    shaded_calm: 'Shaded and calm',
+    shaded_breezy: 'Shaded and breezy',
+});
+
 /**
- * Trim the server's comfort hint for display. Returns null for blank strings
- * so callers can fall back rather than render an empty row.
+ * The server's comfort hint in plain words. Known codes are mapped, any
+ * other snake_case code becomes "Words like this", and free text is trimmed.
+ * Returns null for blank strings so callers can fall back rather than render
+ * an empty row.
  *
  * @param {object|null} entry
  * @returns {string|null}
@@ -177,7 +187,14 @@ export function resolveComfortHint(entry) {
     const hint = entry?.comfort_hint;
     if (typeof hint !== 'string') return null;
     const trimmed = hint.trim();
-    return trimmed === '' ? null : trimmed;
+    if (trimmed === '') return null;
+    const key = trimmed.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(COMFORT_HINT_WORDS, key)) return COMFORT_HINT_WORDS[key];
+    if (/^[a-z]+(_[a-z]+)+$/.test(key)) {
+        const words = key.replace(/_/g, ' ');
+        return words.charAt(0).toUpperCase() + words.slice(1);
+    }
+    return trimmed;
 }
 
 // A bbox of exactly zero area matches nothing, and a single venue produces
@@ -316,6 +333,27 @@ export function markerScoreFromMicroclimate(reading) {
     const sun = asFiniteNumber(reading?.sunFraction);
     if (sun == null) return null;
     return Math.round(clamp01(sun) * 100);
+}
+
+/**
+ * Merge a fresh `venues_in_bbox` response into the rows already held.
+ *
+ * Rows for venues in the new viewport replace their old copies; rows for
+ * venues outside it are kept. Replacing the whole map made the score depend
+ * on the camera: zoom in on one venue and every list row outside the
+ * viewport lost its profile and fell back to the weather score (63 in the
+ * list while the pin and card, in view, showed the profile's 13).
+ *
+ * @param {Record<string, object>|null|undefined} prev
+ * @param {Array<object>|null|undefined} rows
+ * @returns {Record<string, object>} `prev` itself when nothing changed
+ */
+export function mergeMicroclimateRows(prev, rows) {
+    const list = Array.isArray(rows) ? rows.filter((row) => row?.id != null) : [];
+    if (list.length === 0) return prev ?? Object.create(null);
+    const next = Object.assign(Object.create(null), prev);
+    for (const row of list) next[row.id] = row;
+    return next;
 }
 
 /**
