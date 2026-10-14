@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rankStays, quickStayDate } from './stayRanking.js';
+import { rankStays, quickStayDate, stayMomentBadge } from './stayRanking.js';
 import { calculateBalconySunDay, venueDayBounds } from './balconySunEngine.js';
 const room = (orientation, name = orientation) => ({ id: name, name, orientation, floorLevel: 12 });
 const stay = (name, rooms) => ({ id: name, venueName: name, typeCategory: 'Hotel', lat: -37.81, lng: 144.96, roomTypes: rooms });
@@ -44,4 +44,15 @@ test('absolute dates respect venue timezone and invalid dates are rejected', () 
   assert.equal(result.daily.date,'2026-10-03');
   assert.throws(()=>rankStays([],{date:'2026-02-30'}),RangeError);
   assert.throws(()=>rankStays([],{moment:'invalid',date}),RangeError);
+});
+
+test('badge uses floorLevel only and omits missing levels instead of using height in metres', () => {
+  const venue = { bestRoom: { orientation: 'W', floorHeight: 42 }, windowsText: '6:02–7:32pm' };
+  assert.equal(stayMomentBadge(venue, 'sunset'), '🥂 Sunset 6:02–7:32pm · West-facing');
+  for (const floorLevel of [null, undefined, '']) {
+    assert.ok(!stayMomentBadge({ ...venue, bestRoom: { ...venue.bestRoom, floorLevel } }, 'sunset').includes('Level'));
+  }
+  for (const floorLevel of [0, 12]) {
+    assert.ok(stayMomentBadge({ ...venue, bestRoom: { ...venue.bestRoom, floorLevel } }, 'sunset').endsWith(`, Level ${floorLevel}`));
+  }
 });

@@ -232,12 +232,12 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
                 {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
-                <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                {!(stayMoment && isStay) && <div className="mt-1 flex min-w-0 items-center gap-1.5">
                     <ClayIcon name={sunStatus.icon} size={18} />
                     <span className="truncate text-[12px] font-semibold tracking-[-0.01em] text-slate-700">
                         {sunStatus.text}
                     </span>
-                </div>
+                </div>}
             </div>
             <div className="ss-vlc-right">
                 {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
@@ -623,10 +623,12 @@ const AppContent = () => {
     const [stayDate, setStayDate] = useState(null);
     const [comparedIds, setComparedIds] = useState([]);
     const [compareOpen, setCompareOpen] = useState(false);
+    const compareTriggerRef = useRef(null);
+    const closeStayComparison = useCallback(() => setCompareOpen(false), []);
     const toggleCompare = useCallback(id => setComparedIds(ids => ids.includes(id) ? ids.filter(v => v !== id) : ids.length < 3 ? [...ids, id] : ids), []);
     const rankedStays = useMemo(() => staysActive ? listVenues.flatMap(venue => rankStays([venue], { moment: stayMoment, date: /^\d{4}-/.test(stayDate ?? '') ? stayDate : quickStayDate(stayDate || 'today', new Date(), venue.timeZone ?? venue.timezone ?? 'Australia/Melbourne') })).sort(compareStayRank) : [], [staysActive, listVenues, stayMoment, stayDate]);
     const comparisonVenues = useMemo(() => rankedStays.filter(v => comparedIds.includes(v.id)), [rankedStays, comparedIds]);
-    const stayPicker = staysActive ? <StaySunPicker moment={stayMoment} date={stayDate} onMoment={setStayMoment} onDate={setStayDate} compareCount={comparisonVenues.length} onCompare={() => setCompareOpen(true)} /> : null;
+    const stayPicker = staysActive ? <StaySunPicker moment={stayMoment} date={stayDate} onMoment={setStayMoment} onDate={setStayDate} compareCount={comparisonVenues.length} onCompare={event => { compareTriggerRef.current = event.currentTarget; setCompareOpen(true); }} /> : null;
     const sortedVenues = useMemo(
         () => staysActive ? rankedStays : sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
             byId: microById,
@@ -1289,7 +1291,7 @@ const AppContent = () => {
                     )}
                 </AnimatePresence>
 
-                {staysActive && compareOpen && comparisonVenues.length > 0 && <StayComparison venues={comparisonVenues} moment={stayMoment} onClose={() => setCompareOpen(false)} />}
+                {staysActive && compareOpen && comparisonVenues.length > 0 && <StayComparison venues={comparisonVenues} moment={stayMoment} onClose={closeStayComparison} returnFocusRef={compareTriggerRef} />}
                 <ChatWidget
                     isOpen={isChatOpen}
                     onClose={closeChat}
