@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import { useWeather } from '../context/WeatherContext';
 import { finiteOrNull } from '../utils/finiteOrNull';
-import { describeWindExposure } from '../utils/windExposure';
 import { estimateNoise } from '../utils/noiseExposure';
+import OutdoorComfortTiles from './OutdoorComfortTiles.jsx';
 import {
     getWindProfile,
     getWindWarning,
@@ -286,18 +286,7 @@ const WindComfortPanel = ({ venue }) => {
             <WindWarningBadge warning={windData.windWarning} />
 
             {showOutdoorComfort && (
-                <div className="mt-3 rounded-xl border border-amber-500/25 bg-amber-50 p-3 text-slate-700" role="status">
-                    <p className="text-[12px] font-bold">Outdoor comfort · {activeHour?.label === 'Now' ? 'Now' : activeHour?.label ?? 'Selected hour'}</p>
-                    <p className="mt-1 text-[12px]">
-                        Effective wind: {outdoorWind?.effectiveWindMs == null ? 'Unknown' : `${Math.round(outdoorWind.effectiveWindMs * 3.6)} km/h`}
-                        {outdoorWind?.effectiveGustMs != null ? ` · Gusts ${Math.round(outdoorWind.effectiveGustMs * 3.6)} km/h` : ''}
-                        {' · '}Noise: {outdoorNoise.label}
-                    </p>
-                    {outdoorWind && <p className={`mt-1 text-[12px] ${outdoorWind.tunnel ? 'font-semibold text-amber-900' : 'text-slate-600'}`}>
-                        {describeWindExposure(outdoorWind, activeHour?.label === 'Now' ? 'now' : `at ${activeHour?.label ?? 'this hour'}`)}
-                    </p>}
-                    <p className="mt-1 text-[11px] text-slate-600">{venue.comfortProfilesIllustrative ? 'Illustrative profiles · ' : 'Profile-based estimates · '}{outdoorNoise.note ?? outdoorWind?.note ?? 'Verify conditions at the outdoor space.'}</p>
-                </div>
+                <OutdoorComfortTiles wind={outdoorWind} noise={outdoorNoise} hourLabel={activeHour?.label} venue={venue} />
             )}
 
             {/* ── Venue Wind Note ─────────────────────────── */}
