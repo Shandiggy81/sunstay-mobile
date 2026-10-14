@@ -201,6 +201,7 @@ const ChatWidget = ({
   onFindIndoor,
   onFindWindSheltered,
   venues = [],
+  sunMomentsById = null,
   onOpenVenue,
 }) => {
   const actionMap = {
@@ -373,6 +374,7 @@ const ChatWidget = ({
         forecast: venueSunForecast({ venue: CBD, weather: forecastWeather }),
         weather: forecastWeather,
         venues,
+        sunMomentsById,
       }),
     });
     if (!result.ok) {

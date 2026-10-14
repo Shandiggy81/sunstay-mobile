@@ -13,6 +13,7 @@
  */
 
 import { forecastSummary, topTags, venueSunWindowToday } from './sunnySuggestions.js';
+import { SUN_MOMENTS } from './sunMoments.js';
 
 export const SUNNY_TOOL_NAMES = Object.freeze(['setTimeOfDay', 'setFilters', 'panToVenue']);
 
@@ -26,6 +27,7 @@ const MAX_MESSAGE_CHARS = 2000;
 const MAX_TURNS = 12;
 
 const KNOWN_TOOLS = new Set(SUNNY_TOOL_NAMES);
+const MOMENT_TITLES = new Map(SUN_MOMENTS.map((m) => [m.key, m.title]));
 
 function asFiniteNumber(value) {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -224,8 +226,11 @@ function slimVenue(row) {
  * Besides the slider time and venues, it carries a compact forecast for the
  * rest of today (`forecastToday`) and, per venue, its sun window today
  * (`sunWindow`, e.g. "10am–2pm" or "none") and up to three amenity tags, so
- * Sunny can answer "sunny beer at 4pm?". Kept small: chat-sunny rejects a
- * context over MAX_CONTEXT_CHARS (limits.js).
+ * Sunny can answer "sunny beer at 4pm?". Venues with sun in a moment today
+ * (sunMomentFilters: building horizon plus a sky that isn't cloud or rain)
+ * carry `sunMoments`, e.g. ["Morning coffee", "Sunset drinks"], and are
+ * listed first so "sunset drinks in the sun?" finds them. Kept small:
+ * chat-sunny rejects a context over MAX_CONTEXT_CHARS (limits.js).
  *
  * @param {{
  *   timeOfDay: number|null,
@@ -234,6 +239,7 @@ function slimVenue(row) {
  *   forecast?: object|null,   deriveSunForecast() result
  *   weather?: object|null,    WeatherContext weather (hourly temperature / rain)
  *   venues?: object[],        full venue rows, for tags (bbox rows carry none)
+ *   sunMomentsById?: Map<string, string[]>|null,  sunMomentsByVenue() result
  *   now?: Date,
  * }} input
  */
@@ -244,9 +250,16 @@ export function buildSunnyContext({
     forecast = null,
     weather = null,
     venues = null,
+    sunMomentsById = null,
     now = new Date(),
 } = {}) {
-    const rows = Array.isArray(visibleById) ? visibleById : Object.values(visibleById || {});
+    const momentsFor = (id) => (sunMomentsById instanceof Map ? sunMomentsById.get(String(id)) : null);
+    const allRows = Array.isArray(visibleById) ? visibleById : Object.values(visibleById || {});
+    // Venues with a sun moment first, so the cap below never drops them.
+    const rows = [
+        ...allRows.filter((r) => r?.id != null && momentsFor(r.id)?.length),
+        ...allRows.filter((r) => !(r?.id != null && momentsFor(r.id)?.length)),
+    ];
     const fullById = new Map(
         (Array.isArray(venues) ? venues : []).filter((v) => v?.id != null).map((v) => [String(v.id), v]),
     );
@@ -255,6 +268,8 @@ export function buildSunnyContext({
         if (window) slim.sunWindow = window;
         const tags = topTags(fullById.get(slim.id) ?? row);
         if (tags.length) slim.tags = tags;
+        const moments = (momentsFor(slim.id) ?? []).map((key) => MOMENT_TITLES.get(key)).filter(Boolean);
+        if (moments.length) slim.sunMoments = moments;
         return slim;
     };
 
