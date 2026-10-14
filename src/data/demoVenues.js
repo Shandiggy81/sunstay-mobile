@@ -376,7 +376,7 @@ export const demoVenues = [
         // Illustrative outdoor-space wind/noise profiles; not surveyed or verified venue claims.
         comfortProfilesIllustrative: true,
         windProfile: { sectors: [{ from: 330, to: 30, factor: 1.6, note: "Northerlies funnel between the CBD buildings" }], defaultFactor: 0.95 },
-        noiseProfile: { source: "main road", baselineDb: 55, peakHours: [[7, 9], [16, 19]], peakDb: 64, weekendFactor: 0.9, note: "Illustrative Bourke Street traffic exposure" },
+        noiseProfile: { source: "main road", baselineDb: 55, peakHours: [[7, 9], [16, 19]], peakDb: 64, weekendOffsetDb: -2, note: "Illustrative Bourke Street traffic exposure" },
         address: "Level 2, 79 Bourke Street, Melbourne VIC 3000",
         full_street_address: "Level 2, 79 Bourke Street, Melbourne VIC 3000",
         suburb: "CBD",
@@ -430,7 +430,7 @@ export const demoVenues = [
         // Illustrative laneway seating scenario, not a verified outdoor area or acoustic survey.
         comfortProfilesIllustrative: true,
         windProfile: { sectors: [{ from: 180, to: 300, factor: 0.25, note: "Surrounding laneway walls shelter this direction" }], defaultFactor: 0.4 },
-        noiseProfile: { source: "nightlife", baselineDb: 48, peakHours: [[18, 24]], peakDb: 62, weekendFactor: 1.1, note: "Illustrative laneway evening activity" },
+        noiseProfile: { source: "nightlife", baselineDb: 48, peakHours: [[18, 24]], peakDb: 62, weekendOffsetDb: 4, note: "Illustrative laneway evening activity" },
         address: "125 Flinders Lane, Melbourne VIC 3000",
         full_street_address: "125 Flinders Lane, Melbourne VIC 3000",
         suburb: "CBD",
@@ -573,7 +573,7 @@ export const demoVenues = [
         // Illustrative road-facing outdoor comfort profiles; need venue/guest verification.
         comfortProfilesIllustrative: true,
         windProfile: { sectors: [{ from: 90, to: 180, factor: 1.2, note: "Road-facing tables catch cross-street wind" }], defaultFactor: 0.6 },
-        noiseProfile: { source: "main road", baselineDb: 62, peakHours: [[7, 9], [16, 19]], peakDb: 70, weekendFactor: 0.8, note: "Illustrative tables facing Punt Road" },
+        noiseProfile: { source: "main road", baselineDb: 62, peakHours: [[7, 9], [16, 19]], peakDb: 70, weekendOffsetDb: -3, note: "Illustrative tables facing Punt Road" },
         address: "57 Swan Street, Richmond VIC 3121",
         full_street_address: null,
         suburb: "Richmond",
