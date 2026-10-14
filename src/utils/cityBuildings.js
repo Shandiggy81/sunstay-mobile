@@ -39,7 +39,16 @@ function validGeometry(geometry) {
 }
 
 /**
- * Returns { source_ref, geom_geojson, height_m, base_m } or null when the
+ * Groups the components of one building (podium, tower, plant room...) so a
+ * building never shades itself. Null when the source gives no structure id.
+ */
+export function structureRef(structureId) {
+    const id = structureId === null || structureId === undefined ? '' : String(structureId).trim();
+    return id ? `${CITY_BUILDINGS_SOURCE}:s${id}` : null;
+}
+
+/**
+ * Returns { source_ref, structure_ref, geom_geojson, height_m, base_m } or null when the
  * feature should be skipped (not a building, bad geometry or bad heights).
  */
 export function cityBuildingRow(feature) {
@@ -57,6 +66,7 @@ export function cityBuildingRow(feature) {
     if (id === null || String(id).trim() === '') return null;
     return {
         source_ref: `${CITY_BUILDINGS_SOURCE}:${String(id).trim()}`,
+        structure_ref: structureRef(p.structure_id),
         geom_geojson: JSON.stringify(feature.geometry),
         height_m: Math.round(height * 10) / 10,
         base_m: Math.round(base * 10) / 10,
@@ -83,4 +93,16 @@ export function chunk(rows, size) {
     const batches = [];
     for (let i = 0; i < rows.length; i += size) batches.push(rows.slice(i, i + size));
     return batches;
+}
+
+/** Compact [objectid, structureId] pairs for backfilling structure_ref on rows already loaded. */
+export function structurePairs(collection) {
+    const pairs = [], seen = new Set();
+    for (const feature of collection?.features ?? []) {
+        const row = cityBuildingRow(feature);
+        if (!row || !row.structure_ref || seen.has(row.source_ref)) continue;
+        seen.add(row.source_ref);
+        pairs.push([row.source_ref.slice(CITY_BUILDINGS_SOURCE.length + 1), row.structure_ref.slice(CITY_BUILDINGS_SOURCE.length + 2)]);
+    }
+    return pairs;
 }

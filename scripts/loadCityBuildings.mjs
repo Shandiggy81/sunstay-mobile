@@ -12,6 +12,8 @@
  *   2. Dry run:  node scripts/loadCityBuildings.mjs path/to/2023-building-footprints.geojson
  *   3. Load:     SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
  *                node scripts/loadCityBuildings.mjs path/to/file.geojson --apply
+ *   4. Rows loaded before structure_ref existed (migration 20261014140000):
+ *                add --apply --backfill-structures to set only structure_ref, no geometry.
  *
  * The service role key is a secret: pass it in the environment for this one
  * command only. Never put it in a VITE_* variable, .env, or the repository.
@@ -20,11 +22,12 @@
  */
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
-import { chunk, cityBuildingRows } from '../src/utils/cityBuildings.js';
+import { chunk, cityBuildingRows, structurePairs } from '../src/utils/cityBuildings.js';
 
 const BATCH = 500;
 const args = process.argv.slice(2);
 const apply = args.includes('--apply');
+const backfillStructures = args.includes('--backfill-structures');
 const file = args.find(arg => !arg.startsWith('--'));
 
 if (!file) {
@@ -56,6 +59,18 @@ if (!url || !key) {
 }
 
 const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+
+if (backfillStructures) {
+    const pairs = structurePairs(collection);
+    let updated = 0;
+    for (const batch of chunk(pairs, 10000)) {
+        const { data, error } = await supabase.rpc('set_city_structure_refs', { p_pairs: batch });
+        if (error) { console.error(`Structure backfill failed: ${error.message}. Re-running is safe.`); process.exit(1); }
+        updated += data ?? 0;
+    }
+    console.log(`Building grouping set on ${updated} parts (${pairs.length} pairs sent).`);
+    process.exit(0);
+}
 const batches = chunk(rows, BATCH);
 let loaded = 0;
 for (const [index, batch] of batches.entries()) {

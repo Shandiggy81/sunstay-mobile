@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chunk, cityBuildingRow, cityBuildingRows, CITY_BUILDINGS_ATTRIBUTION } from './cityBuildings.js';
+import { chunk, cityBuildingRow, cityBuildingRows, CITY_BUILDINGS_ATTRIBUTION, structurePairs, structureRef } from './cityBuildings.js';
 
 const square = { type: 'Polygon', coordinates: [[[144.96, -37.81], [144.9601, -37.81], [144.9601, -37.8101], [144.96, -37.8101], [144.96, -37.81]]] };
 const feature = (props, geometry = square) => ({
     type: 'Feature', geometry,
-    properties: { objectid: '1', footprint_type: 'Structure', structure_min_elevation: 27.5,
+    properties: { objectid: '1', structure_id: '815949', footprint_type: 'Structure', structure_min_elevation: 27.5,
         footprint_min_elevation: 91.5, footprint_max_elevation: 97.5, footprint_extrusion: 6, ...props },
 });
 
@@ -63,4 +63,26 @@ test('chunk splits into batches and rejects bad sizes', () => {
 test('attribution names the licence', () => {
     assert.match(CITY_BUILDINGS_ATTRIBUTION, /City of Melbourne/);
     assert.match(CITY_BUILDINGS_ATTRIBUTION, /CC BY 4\.0/);
+});
+
+test('parts of one building share a structure_ref', () => {
+    const podium = cityBuildingRow(feature({ objectid: '10', footprint_min_elevation: 27.5, footprint_max_elevation: 40 }));
+    const tower = cityBuildingRow(feature({ objectid: '11' }));
+    assert.equal(podium.structure_ref, 'com2023:s815949');
+    assert.equal(tower.structure_ref, podium.structure_ref);
+    assert.notEqual(tower.source_ref, podium.source_ref);
+});
+
+test('structureRef handles missing and numeric ids', () => {
+    assert.equal(structureRef(815949), 'com2023:s815949');
+    assert.equal(structureRef(' 12 '), 'com2023:s12');
+    assert.equal(structureRef(''), null);
+    assert.equal(structureRef(null), null);
+    assert.equal(cityBuildingRow(feature({ structure_id: null })).structure_ref, null);
+});
+
+test('structurePairs lists each loadable part once with its building id', () => {
+    const pairs = structurePairs({ features: [feature({ objectid: '1' }), feature({ objectid: '1' }),
+        feature({ objectid: '2', structure_id: '7' }), feature({ objectid: '3', footprint_type: 'Bridge' }), feature({ objectid: '4', structure_id: null })] });
+    assert.deepEqual(pairs, [['1', '815949'], ['2', '7']]);
 });
