@@ -1,0 +1,151 @@
+.ss-sun-report {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #f8fafc;
+  color: #0f172a;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ss-sun-report h1, .ss-sun-report h2, .ss-sun-report h3, .ss-sun-report p { margin: 0; }
+.ss-sun-report ul, .ss-sun-report ol { margin: 0; padding: 0; list-style: none; }
+.ss-sun-report button, .ss-sun-report input { font: inherit; }
+
+.ss-sun-report__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: max(8px, env(safe-area-inset-top)) 16px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+.ss-sun-report__toolbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 920px; margin: auto; }
+.ss-sun-report__actions { display: flex; gap: 8px; }
+.ss-sun-report__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.ss-sun-report__button--primary { border-color: #fbbf24; background: #fbbf24; }
+.ss-sun-report__button:hover { background: #f1f5f9; }
+.ss-sun-report__button--primary:hover { background: #f59e0b; }
+.ss-sun-report__button:disabled { color: #475569; background: #e2e8f0; cursor: wait; }
+.ss-sun-report__button:focus-visible, .ss-sun-report input:focus-visible { outline: 3px solid #92400e; outline-offset: 3px; }
+
+.ss-sun-report__document { max-width: 960px; margin: 0 auto; padding: 26px 18px max(36px, env(safe-area-inset-bottom)); }
+.ss-sun-report__header { position: relative; padding-right: 82px; }
+.ss-sun-report__hero-icon { position: absolute; top: -6px; right: -6px; }
+.ss-sun-report__eyebrow { color: #92400e; font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.ss-sun-report h1 { margin-top: 8px; font-size: clamp(26px, 5vw, 38px); font-weight: 800; line-height: 1.15; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.ss-sun-report__address { margin-top: 9px !important; color: #475569; font-size: 13px; font-weight: 600; line-height: 1.6; }
+.ss-sun-report__subtitle { margin-top: 12px !important; color: #475569; font-size: 12px; font-weight: 600; line-height: 1.7; }
+.ss-sun-report__date { display: inline-block; margin-top: 16px !important; border-radius: 999px; background: #fef3c7; padding: 7px 12px; color: #78350f; font-size: 12px; font-weight: 800; }
+.ss-sun-report__share-feedback:has(> p:empty):not(:has(input)) { display: none; }
+.ss-sun-report__share-feedback { margin-top: 16px; font-size: 13px; font-weight: 600; color: #334155; }
+.ss-sun-report__share-feedback label { display: grid; gap: 6px; margin-top: 10px; }
+.ss-sun-report__share-feedback input { min-height: 44px; min-width: 0; width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 12px; background: white; color: #0f172a; font-size: 12px; }
+.ss-sun-report__explanation { margin-top: 20px !important; color: #475569; font-size: 12px; line-height: 1.8; }
+.ss-sun-report__notice { display: flex; align-items: center; gap: 12px; margin-top: 24px !important; border: 1px solid #cbd5e1; border-radius: 20px; padding: 20px; background: #fff; color: #334155; font-size: 14px; line-height: 1.7; }
+.ss-sun-report__rooms { display: grid; gap: 20px; margin-top: 22px; }
+.ss-sun-report__room { min-width: 0; border: 1px solid #e2e8f0; border-radius: 24px; padding: 16px; background: #fff; box-shadow: 0 7px 24px rgb(15 23 42 / 4%); }
+.ss-sun-report__room-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.ss-sun-report__room-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 16px; background: #fffbeb; }
+.ss-sun-report h2 { font-size: 18px; font-weight: 800; line-height: 1.4; letter-spacing: -.02em; }
+.ss-sun-report h3 { font-size: 13px; font-weight: 800; line-height: 1.5; }
+.ss-sun-report__total { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #e2e8f0; border-radius: 24px; padding: 14px 16px; background: #f1f5f9; }
+.ss-sun-report__total--sunny { border-color: #fde68a; background: linear-gradient(120deg, #fffbeb, #fff); }
+.ss-sun-report__total p { color: #475569; font-size: 12px; font-weight: 600; line-height: 1.6; }
+.ss-sun-report__total .ss-sun-report__duration { color: #0f172a; font-size: 30px; font-weight: 800; line-height: 1.25; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.ss-sun-report__chart { margin: 22px 0 0; }
+.ss-sun-report__chart figcaption > p { margin-top: 3px; color: #475569; font-size: 10px; line-height: 1.6; }
+.ss-sun-report .ss-sun-report__months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-top: 14px; }
+.ss-sun-report__months li { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 7px; }
+.ss-sun-report__month-hours { color: #334155; font-size: 10px; font-weight: 700; line-height: 1.5; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ss-sun-report__bar-track { display: flex; align-items: flex-end; width: 100%; height: 78px; border-bottom: 1px solid #cbd5e1; border-radius: 5px 5px 0 0; background: #f8fafc; }
+.ss-sun-report__bar { display: block; width: 100%; min-height: 2px; border-radius: 5px 5px 0 0; background: #cbd5e1; }
+.ss-sun-report__bar--sunny { background: linear-gradient(90deg, #f59e0b, #fbbf24); box-shadow: inset -2px 0 2px rgb(146 64 14 / 10%); }
+.ss-sun-report__month-label { color: #475569; font-size: 10px; font-weight: 700; line-height: 1.5; }
+.ss-sun-report__sunniest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; font-size: 12px; }
+.ss-sun-report__sunniest > span { display: inline-flex; align-items: center; gap: 5px; color: #475569; font-weight: 700; }
+.ss-sun-report__sunniest ul { display: flex; flex-wrap: wrap; gap: 5px; }
+.ss-sun-report__sunniest li { border: 1px solid #fde68a; border-radius: 999px; padding: 4px 9px; background: #fffbeb; color: #78350f; font-weight: 800; }
+.ss-sun-report__sunniest p { color: #475569; }
+.ss-sun-report__seasons { display: grid; gap: 18px; margin-top: 22px; }
+.ss-sun-report__season h3 { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin-bottom: 9px; }
+.ss-sun-report__season h3 span { color: #475569; font-size: 10px; font-weight: 600; }
+.ss-sun-report .ss-sun-report__moments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ss-sun-report__moment { display: flex; align-items: center; gap: 6px; min-width: 0; border: 1px solid #e2e8f0; border-radius: 16px; padding: 9px 7px; background: #f1f5f9; }
+.ss-sun-report__moment--sunny { border-color: #fde68a; background: #fffbeb; }
+.ss-sun-report__moment strong { display: block; color: #0f172a; font-size: 12px; font-weight: 800; line-height: 1.5; }
+.ss-sun-report__moment small { display: block; margin-top: 2px; color: #475569; font-size: 10px; font-weight: 600; line-height: 1.5; }
+.ss-sun-report__moment--sunny small { color: #78350f; }
+.ss-sun-report__summary { margin-top: 24px; border: 1px solid #fde68a; border-radius: 24px; padding: 20px 16px; background: #fffbeb; }
+.ss-sun-report__summary > p { margin-top: 5px; color: #78350f; font-size: 12px; line-height: 1.6; }
+.ss-sun-report__summary ul { display: grid; gap: 12px; margin-top: 18px; }
+.ss-sun-report__summary li { display: flex; align-items: center; gap: 12px; }
+.ss-sun-report__summary li > span { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.ss-sun-report__summary strong { color: #78350f; font-size: 12px; font-weight: 700; line-height: 1.6; }
+.ss-sun-report__summary li > span > span { color: #0f172a; font-size: 13px; font-weight: 800; line-height: 1.5; }
+.ss-sun-report__footer { margin-top: 22px; color: #475569; font-size: 11px; line-height: 1.8; }
+
+@media (min-width: 640px) {
+  .ss-sun-report__document { padding: 36px 28px 48px; }
+  .ss-sun-report__room { padding: 24px; }
+  .ss-sun-report__header { padding-right: 108px; }
+  .ss-sun-report__hero-icon img { width: 100px !important; height: 100px !important; }
+  .ss-sun-report__seasons { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .ss-sun-report__moment { padding: 10px; }
+  .ss-sun-report__moment strong { font-size: 12px; }
+  .ss-sun-report__moment small { font-size: 10px; }
+  .ss-sun-report__month-hours, .ss-sun-report__month-label { font-size: 12px; }
+  .ss-sun-report__bar-track { height: 100px; }
+  .ss-sun-report__summary ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  html:has(.ss-sun-report), body:has(.ss-sun-report) { height: auto !important; width: auto !important; overflow: visible !important; background: #fff !important; }
+  body:has(.ss-sun-report) > :not(.ss-sun-report) { display: none !important; }
+  .ss-sun-report { position: static !important; width: auto !important; height: auto !important; overflow: visible !important; background: #fff; color: #0f172a; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .ss-sun-report__screen-only { display: none !important; }
+  .ss-sun-report__document { width: auto; max-width: none; padding: 0; }
+  .ss-sun-report__header { break-inside: avoid; padding-right: 92px; }
+  .ss-sun-report h1 { font-size: 25px; }
+  .ss-sun-report__address { font-size: 10px; }
+  .ss-sun-report__subtitle { font-size: 10px; }
+  .ss-sun-report__date { margin-top: 8px !important; padding: 4px 9px; font-size: 10px; }
+  .ss-sun-report__explanation { margin-top: 12px !important; font-size: 10px; line-height: 1.6; }
+  .ss-sun-report__rooms { display: block; margin-top: 14px; }
+  .ss-sun-report__room { break-inside: avoid-page; margin: 0 0 16px; padding: 16px; border-color: #94a3b8; box-shadow: none; }
+  .ss-sun-report__room-heading { margin-bottom: 10px; }
+  .ss-sun-report__total { padding: 8px 12px; }
+  .ss-sun-report__total .ss-sun-report__duration { font-size: 25px; }
+  .ss-sun-report__total > img { width: 50px !important; height: 50px !important; }
+  .ss-sun-report__chart { break-inside: avoid; margin-top: 14px; }
+  .ss-sun-report__bar-track { height: 65px; }
+  .ss-sun-report__month-hours, .ss-sun-report__month-label { font-size: 10px; }
+  .ss-sun-report__sunniest { margin-top: 12px; }
+  .ss-sun-report__seasons { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+  .ss-sun-report__moment { padding: 7px; }
+  .ss-sun-report__moment strong { font-size: 10px; }
+  .ss-sun-report__moment small { font-size: 9px; }
+  .ss-sun-report__summary { break-inside: avoid; margin-top: 16px; padding: 14px 16px; border-color: #94a3b8; }
+  .ss-sun-report__summary ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+  .ss-sun-report__summary strong { font-size: 10px; }
+  .ss-sun-report__summary li > span > span { font-size: 11px; }
+  .ss-sun-report__footer { margin-top: 14px; font-size: 9px; }
+}

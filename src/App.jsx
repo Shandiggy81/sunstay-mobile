@@ -24,6 +24,7 @@ import {
     Wind, Cloud, X, Locate
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
+import { findHotelSunReportVenue, hotelSunReportUrl, readHotelSunReportId } from './utils/hotelSunReportRoute.js';
 import { MAX_BOUNDS } from './config/mapConfig';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
@@ -60,6 +61,7 @@ import { areaCountLabel, venueInBounds } from './utils/searchArea';
 
 const FilterSheet = lazy(() => import('./components/FilterSheet'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
+const HotelSunReport = lazy(() => import('./components/HotelSunReport.jsx'));
 
 // ── Filter ID constants (single source of truth) ──────────────────────
 export const FILTER_COZY  = 'cozy-mode';
@@ -462,9 +464,32 @@ VenueChip.displayName = 'VenueChip';
 
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
-    const [splashDone, setSplashDone] = useState(hasSeenSplash);
+    const [splashDone, setSplashDone] = useState(() => readHotelSunReportId(window.location.search) !== null || hasSeenSplash());
     const { weather, loading: weatherLoading, calculateSunScore, previewMinutes } = useWeather();
-    const { venues, refetch, isRefreshing } = useVenues();
+    const { venues, refetch, isRefreshing, isLoading: venuesLoading } = useVenues();
+    // Let useVenues start its live lookup before declaring a shared ID missing.
+    const [venueLookupStarted, setVenueLookupStarted] = useState(false);
+    useEffect(() => { setVenueLookupStarted(true); }, []);
+    const [reportId, setReportId] = useState(() => readHotelSunReportId(window.location.search));
+    const reportVenue = useMemo(() => findHotelSunReportVenue(venues, reportId), [venues, reportId]);
+    useEffect(() => {
+        const syncReport = () => setReportId(readHotelSunReportId(window.location.search));
+        window.addEventListener('popstate', syncReport);
+        return () => window.removeEventListener('popstate', syncReport);
+    }, []);
+    const openSunReport = useCallback((venue) => {
+        const id = String(venue.id);
+        window.history.pushState({ ...window.history.state, hotelSunReportEntry: true }, '', hotelSunReportUrl(window.location.href, id));
+        setReportId(id);
+    }, []);
+    const closeSunReport = useCallback(() => {
+        if (window.history.state?.hotelSunReportEntry) {
+            window.history.back();
+            return;
+        }
+        window.history.replaceState(window.history.state, '', hotelSunReportUrl(window.location.href, null));
+        setReportId(null);
+    }, []);
     const pullRefreshRef = useRef(null);
     const [refreshStatus, setRefreshStatus] = useState('');
     const requestRefresh = useCallback(async () => {
@@ -1188,6 +1213,7 @@ const AppContent = () => {
                             weather={weather}
                             liveVenueFeatures={selectedVenueLiveFeatures}
                             onClose={handleCloseCard}
+                            onOpenSunReport={openSunReport}
                             onCenter={handleCenterOnMap}
                             cozyWeatherActive={cozyWeatherActive}
                             setShowOwnerDashboard={setShowOwnerDashboard}
@@ -1358,6 +1384,11 @@ const AppContent = () => {
                     Sales Demo · {venues.length} Partner Venues
                 </motion.div>
             </div>
+            {reportId !== null && (
+                <Suspense fallback={null}>
+                    <HotelSunReport key={reportId} venue={reportVenue} loading={!reportVenue && (!venueLookupStarted || venuesLoading)} onClose={closeSunReport} />
+                </Suspense>
+            )}
         </>
     );
 };

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { RefreshCw, WifiOff } from 'lucide-react';
 import bruceyOffline from '../../assets/mascots/brucey-offline-v2.png';
@@ -140,7 +141,7 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
         onRetry?.();
     }, [checking, onRetry]);
 
-    return (
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <motion.div
@@ -250,7 +251,7 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>, document.body,
     );
 };
 

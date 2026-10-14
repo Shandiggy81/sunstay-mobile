@@ -41,6 +41,7 @@ import { errorBoundaryRemountKey, resetVenueDetailScroller, venueOverlayPresence
 import { feelsLikeIconName, venueIconName, weatherIconName } from '../utils/clayIcons';
 import { venueStatTiles } from '../utils/venueStatTiles.js';
 import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
+import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { venueOfferings } from '../utils/venueOfferings';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
@@ -353,7 +354,7 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
 }
 
 // ── Main VenueCard ────────────────────────────────────────────
-function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture, stayMatch }) {
+function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture, stayMatch }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const compactRef = useRef(false);
@@ -678,6 +679,16 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
                   {sunSection === 'stay' ? (
                     <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
                       <h3 id="stay-heading" className={SECTION_TITLE}>{venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay'}</h3>
+                      {onOpenSunReport && canShowHotelSunReport(venue) ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenSunReport(venue)}
+                          className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-[14px] font-bold text-amber-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
+                        >
+                          <ClayIcon name="hotel-views" size={32} />
+                          See the sun report
+                        </button>
+                      ) : null}
                       <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
                       {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />)}
                     </section>
