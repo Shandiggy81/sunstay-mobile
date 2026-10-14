@@ -271,8 +271,11 @@ export const demoVenues = [
         address: "101 Flinders Lane, Melbourne VIC 3000",
         full_street_address: "101 Flinders Lane, Melbourne VIC 3000",
         suburb: "CBD",
-        lat: -37.8138,
-        lng: 144.9702,
+        // Apple Maps listing for 101 Flinders Lane (15 Oct 2026); inside the
+        // City of Melbourne footprint com2023:s809638. Was ~200 m north, in
+        // the Collins Street towers, so its sun read as almost none.
+        lat: -37.8153433,
+        lng: 144.9710353,
         emoji: "🌳",
         vibe: "Multi-Level Bar",
         typeCategory: "Bar",
