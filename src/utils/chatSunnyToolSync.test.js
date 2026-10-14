@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SUNNY_TOOL_NAMES, validateToolCall } from './sunnyTools.js';
+import { SUN_MOMENTS } from './sunMoments.js';
+import { SUN_MOMENT_FILTERS } from './sunMomentFilters.js';
 
 // chat-sunny is Deno TypeScript, so read its source rather than importing it.
 const source = readFileSync(
@@ -48,5 +50,13 @@ describe('chat-sunny tools match the app', () => {
         assert.match(prompt, /1–2 short sentences/);
         assert.match(prompt, /forecastToday/);
         assert.match(prompt, /sunWindow/);
+    });
+
+    it('the prompt explains sunMoments with the titles and chip ids the app sends', () => {
+        assert.match(prompt, /sunMoments/);
+        for (const { title } of SUN_MOMENTS) assert.ok(prompt.includes(`"${title}"`), `"${title}" in SYSTEM_PROMPT`);
+        for (const { id } of SUN_MOMENT_FILTERS) assert.ok(prompt.includes(id), `${id} in SYSTEM_PROMPT`);
+        assert.match(prompt, /shadows/);
+        assert.match(prompt, /Never name a venue that isn't in visibleVenues or activeVenue/);
     });
 });
