@@ -1301,8 +1301,9 @@ export const demoVenues = [
         address: "173 Chapel Street, Windsor VIC 3181",
         full_street_address: null,
         suburb: "Windsor",
-        lat: -37.8552,
-        lng: 144.9926,
+        // OpenStreetMap address point for 173 Chapel St (node 12418989551).
+        lat: -37.85212,
+        lng: 144.99313,
         emoji: "🥟",
         vibe: "Polish Bar & Restaurant",
         typeCategory: "Bar",

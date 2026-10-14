@@ -1,7 +1,6 @@
 import React, { memo, useState, useMemo, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { X, Wind, ExternalLink, Navigation, Share2, ChevronDown, Crosshair } from 'lucide-react';
-import { venues } from '../data/venues';
 import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
@@ -512,18 +511,10 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
     !liveFeaturesForVenue?.fireplaceOn && liveFeaturesForVenue?.heatersOn ? 'Outdoor heaters on now' : null,
   ].filter(Boolean);
 
-  // The old catalogue (src/data/venues.js) carries room details for some
-  // stays. It is never used for happy hours: those must be the venue's own,
-  // confirmed ones.
-  const fullVenueData = useMemo(() => {
-    const lookupName = String(displayName || '').toLowerCase();
-    if (!lookupName) return null;
-    return venues.find((v) => {
-      const c = String(v.name || v.venueName || '').toLowerCase();
-      return c && (lookupName.includes(c) || c.includes(lookupName));
-    }) ?? null;
-  }, [displayName]);
-  const roomIntelligence = venue?.roomIntelligence || fullVenueData?.roomIntelligence;
+  // Room details come from the venue itself. The old catalogue
+  // (src/data/venues.js) is not looked up by name: its ids never match ours,
+  // and a name match can attach another venue's rooms.
+  const roomIntelligence = venue?.roomIntelligence;
   const roomTypes = Array.isArray(venue?.roomTypes) ? venue.roomTypes : [];
   const showStay = isHotelOrStay && (roomIntelligence || roomTypes.length > 0);
   // Bars, cafes and other outdoor venues: today's sun from the buildings
