@@ -574,8 +574,9 @@ export const demoVenues = [
         address: "51 Little Bourke Street, Melbourne VIC 3000",
         full_street_address: "51 Little Bourke Street, Melbourne VIC 3000",
         suburb: "CBD",
-        lat: -37.8131,
-        lng: 144.9634,
+        // Coordinates: Google Maps place listing for the official address (checked 14 Oct 2026; pin verified inside a building footprint).
+        lat: -37.8109105,
+        lng: 144.9709808,
         emoji: "🏛️",
         vibe: "Boutique Hotel",
         typeCategory: "Hotel",
@@ -930,8 +931,9 @@ export const demoVenues = [
         address: "123 Collins Street, Melbourne VIC 3000",
         full_street_address: null,
         suburb: "CBD",
-        lat: -37.8148,
-        lng: 144.97,
+        // Coordinates: Google Maps place listing for the official address (checked 14 Oct 2026; pin verified inside a building footprint).
+        lat: -37.8152075,
+        lng: 144.9698275,
         emoji: "🏨",
         vibe: "Luxury Hotel",
         typeCategory: "Hotel",
@@ -954,8 +956,9 @@ export const demoVenues = [
         venueName: "Pullman Melbourne On the Park",
         address: "192 Wellington Parade, East Melbourne VIC 3002",
         suburb: "East Melbourne",
-        lat: -37.8146,
-        lng: 144.9812,
+        // Coordinates: Google Maps place listing for the official address (checked 14 Oct 2026; pin verified inside a building footprint).
+        lat: -37.8157469,
+        lng: 144.9832559,
         emoji: "🏢",
         vibe: "Premium Corporate Hotel",
         typeCategory: "Hotel",
@@ -1018,8 +1021,9 @@ export const demoVenues = [
         venueName: "Sheraton Melbourne Hotel",
         address: "27 Little Collins Street, Melbourne VIC 3000",
         suburb: "CBD",
-        lat: -37.8128,
-        lng: 144.9723,
+        // Coordinates: Google Maps place listing for the official address (checked 14 Oct 2026; pin verified inside a building footprint).
+        lat: -37.8126918,
+        lng: 144.9726204,
         emoji: "✨",
         vibe: "Luxury Boutique Hotel",
         typeCategory: "Hotel",
@@ -1515,11 +1519,12 @@ export const demoVenues = [
     {
         id: 'dv-melb-stay-01', venueName: 'Pullman Melbourne City Centre',
         address: '265 Little Bourke Street, Melbourne VIC 3000', suburb: 'CBD',
-        lat: -37.812876, lng: 144.96526, timeZone: 'Australia/Melbourne',
+        // Coordinates: Google Maps place listing for the official address (checked 14 Oct 2026; pin verified inside a building footprint).
+        lat: -37.81282, lng: 144.9647544, timeZone: 'Australia/Melbourne',
         typeCategory: 'Hotel', typeLabel: 'Hotel', vibe: 'Hotel', emoji: '🏨', tags: ['Hotel'],
         official_website_url: 'https://all.accor.com/hotel/3028/index.en.shtml',
         // Little Bourke Street / Hoddle grid; illustrative Level 12.
-        roomTypes: illustrativeFacadeRooms(-37.812876, 144.96526, 65, 12),
+        roomTypes: illustrativeFacadeRooms(-37.81282, 144.9647544, 65, 12),
         venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
         image: null,
     },
@@ -1559,11 +1564,12 @@ export const demoVenues = [
     {
         id: 'dv-melb-stay-05', venueName: 'The Sebel Melbourne Docklands',
         address: '18 Aquitania Way, Docklands VIC 3008', suburb: 'Docklands',
-        lat: -37.813809, lng: 144.942245, timeZone: 'Australia/Melbourne',
+        // Coordinates: Google Maps place listing for the official address (checked 14 Oct 2026; pin verified inside a building footprint).
+        lat: -37.8138756, lng: 144.9427873, timeZone: 'Australia/Melbourne',
         typeCategory: 'Serviced apartment', typeLabel: 'Serviced apartment', vibe: 'Serviced apartment', emoji: '🏢', tags: ['Serviced apartment'],
         official_website_url: 'https://all.accor.com/hotel/9380/index.en.shtml',
         // Aquitania Way / waterfront grid; illustrative Level 5.
-        roomTypes: illustrativeFacadeRooms(-37.813809, 144.942245, 90, 5),
+        roomTypes: illustrativeFacadeRooms(-37.8138756, 144.9427873, 90, 5),
         venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
         image: null,
     },
@@ -1582,11 +1588,12 @@ export const demoVenues = [
         id: 'dv-melb-stay-07', venueName: 'Cosmopolitan Hotel',
         address: '6 Carlisle Street, St Kilda VIC 3182', suburb: 'St Kilda',
         // Coordinates from the map on the hotel's official contact page.
-        lat: -37.866759, lng: 144.979171, timeZone: 'Australia/Melbourne',
+        // Coordinates: Google Maps place listing for the official address (checked 14 Oct 2026; pin verified inside a building footprint).
+        lat: -37.86679, lng: 144.9795917, timeZone: 'Australia/Melbourne',
         typeCategory: 'Hotel', typeLabel: 'Hotel', vibe: 'Hotel', emoji: '🏨', tags: ['Hotel'],
         official_website_url: 'https://www.cosmopolitanhotel.com.au/contact/',
         // Carlisle Street alignment; illustrative Level 1.
-        roomTypes: illustrativeFacadeRooms(-37.866759, 144.979171, 85, 1),
+        roomTypes: illustrativeFacadeRooms(-37.86679, 144.9795917, 85, 1),
         venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
         image: null,
     },
