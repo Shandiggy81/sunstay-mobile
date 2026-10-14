@@ -28,3 +28,40 @@ describe('interpretVenueResponse', () => {
         assert.equal(empty.error, null);
     });
 });
+
+describe('verified hours from a Supabase row', () => {
+    // Shape PostgREST returns after 20261014120000_venues_verified_hours.sql:
+    // date columns as YYYY-MM-DD, "happyHour" as jsonb or a JSON string.
+    const row = (extra) => ({
+        id: 'dv-26',
+        venueName: 'Pause Bar',
+        lat: -37.8686,
+        lng: 145.0007,
+        opening_hours: 'Daily from 4pm.',
+        hoursVerifiedAt: '2026-10-14',
+        hoursSourceUrl: 'https://pausebar.com.au/',
+        happyHourVerifiedAt: '2026-10-14',
+        happyHourSourceUrl: 'https://pausebar.com.au/',
+        ...extra,
+    });
+    const HH = { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], start: '16:00', end: '19:00', deal: '$13 pints, $7.50 pots' };
+
+    it('reaches the card as verified hours and happy hour', async () => {
+        const { venueHoursView, verifiedHappyHour } = await import('../utils/venueHours.js');
+        for (const happyHour of [HH, JSON.stringify(HH)]) {
+            const venue = interpretVenueResponse({ data: [row({ happyHour })], error: null }).rows[0];
+            assert.deepEqual(venueHoursView(venue), { verified: true, text: 'Daily from 4pm.', sourceUrl: 'https://pausebar.com.au/' });
+            assert.deepEqual(verifiedHappyHour(venue), HH);
+        }
+    });
+
+    it('stays unverified when the columns are null', async () => {
+        const { venueHoursView, verifiedHappyHour } = await import('../utils/venueHours.js');
+        const venue = interpretVenueResponse({
+            data: [row({ hoursVerifiedAt: null, hoursSourceUrl: null, happyHour: HH, happyHourVerifiedAt: null, happyHourSourceUrl: null })],
+            error: null,
+        }).rows[0];
+        assert.equal(venueHoursView(venue).verified, false);
+        assert.equal(verifiedHappyHour(venue), null);
+    });
+});
