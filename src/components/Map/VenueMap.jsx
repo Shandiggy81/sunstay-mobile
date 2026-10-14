@@ -244,7 +244,7 @@ function paintMomentBadge(bubble, badge) {
         img.setAttribute('aria-hidden', 'true');
         img.decoding = 'async';
         img.draggable = false;
-        img.style.cssText = 'position:absolute;top:-8px;right:-8px;width:20px;height:20px;object-fit:contain;box-sizing:content-box;border:2px solid #fff;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,0.2);pointer-events:none';
+        img.style.cssText = 'position:absolute;top:-18px;right:-8px;width:20px;height:20px;object-fit:contain;box-sizing:content-box;border:2px solid #fff;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,0.2);pointer-events:none';
         bubble.append(img);
     }
     if (img.getAttribute('src') !== url) img.src = url;
