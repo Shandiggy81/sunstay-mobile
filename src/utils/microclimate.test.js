@@ -19,6 +19,7 @@ import {
     formatSunHours,
     sunCurveTotals,
     lookupMicroclimateEntry,
+    mergeMicroclimateRows,
 } from './microclimate.js';
 
 // 24 slots indexed by Australia/Melbourne wall-clock hour. Dawn at 06:00,
@@ -212,6 +213,42 @@ describe('resolveComfortHint', () => {
         assert.equal(resolveComfortHint(entry({ comfort_hint: null })), null);
         assert.equal(resolveComfortHint(entry({ comfort_hint: 42 })), null);
         assert.equal(resolveComfortHint(null), null);
+    });
+
+    it('turns the server codes into plain words', () => {
+        assert.equal(resolveComfortHint(entry({ comfort_hint: 'shaded_calm' })), 'Shaded and calm');
+        assert.equal(resolveComfortHint(entry({ comfort_hint: 'sunny_breezy' })), 'Sunny but breezy');
+        assert.equal(resolveComfortHint(entry({ comfort_hint: 'SUNNY_CALM' })), 'Sunny and calm');
+        assert.equal(resolveComfortHint(entry({ comfort_hint: 'shaded_breezy' })), 'Shaded and breezy');
+        assert.equal(resolveComfortHint(entry({ comfort_hint: 'warm_and_still' })), 'Warm and still');
+    });
+});
+
+describe('mergeMicroclimateRows', () => {
+    it('keeps rows from earlier viewports and replaces rows that come back', () => {
+        const first = mergeMicroclimateRows({}, [{ id: 'a', effective_sun: 0.13 }, { id: 'b', effective_sun: 0.5 }]);
+        const second = mergeMicroclimateRows(first, [{ id: 'b', effective_sun: 0.6 }, { id: 'c', effective_sun: 0.9 }]);
+        assert.equal(second.a.effective_sun, 0.13, 'venue outside the new viewport keeps its row');
+        assert.equal(second.b.effective_sun, 0.6);
+        assert.equal(second.c.effective_sun, 0.9);
+        assert.notEqual(second, first, 'returns a new object so React re-renders');
+        assert.equal(first.b.effective_sun, 0.5, 'does not mutate the previous map');
+    });
+
+    it('returns the previous map for an empty or invalid response', () => {
+        const prev = { a: { id: 'a' } };
+        assert.equal(mergeMicroclimateRows(prev, []), prev);
+        assert.equal(mergeMicroclimateRows(prev, null), prev);
+        assert.equal(mergeMicroclimateRows(prev, [{ name: 'no id' }]), prev);
+        assert.deepEqual({ ...mergeMicroclimateRows(null, [{ id: 7 }]) }, { 7: { id: 7 } });
+    });
+
+    it('scores a venue the same way after the viewport moves away from it', () => {
+        const row = { id: 'v1', effective_sun: 0.13 };
+        const zoomedOut = mergeMicroclimateRows({}, [row]);
+        const zoomedIn = mergeMicroclimateRows(zoomedOut, [{ id: 'other', effective_sun: 0.8 }]);
+        const score = (byId) => markerScoreFromMicroclimate(readMicroclimate(lookupMicroclimateEntry(byId, 'v1'), null));
+        assert.equal(score(zoomedIn), score(zoomedOut));
     });
 });
 

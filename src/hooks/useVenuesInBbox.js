@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { mergeMicroclimateRows } from '../utils/microclimate';
 
 /**
  * Microclimate for every venue inside the current map viewport, via the
- * `venues_in_bbox` RPC.
+ * `venues_in_bbox` RPC. Rows from earlier viewports are kept, so a venue's
+ * score does not change when the map moves away from it.
  *
  * This deliberately does not replace `useVenues`. The RPC returns a narrow
  * projection (id, name, coordinates and microclimate) while the venue sheet
@@ -17,7 +19,7 @@ import { supabase } from '../lib/supabase';
  * `canyon_aspect_hw`, `geometry_confidence`, `weather_computed_at`,
  * `comfort_hint`. The time-of-day slider is a local array lookup. No refetch.
  *
- * Failure is always soft: any error leaves `byId` empty and the UI falls back
+ * Failure is always soft: any error keeps the rows already held, and the UI falls back
  * to its existing client-side estimates only for venues with no profile.
  *
  * @module hooks/useVenuesInBbox
@@ -105,14 +107,11 @@ export function useVenuesInBbox(bbox, { limit = 500, enabled = true } = {}) {
                         return;
                     }
 
-                    const next = Object.create(null);
-                    for (const row of Array.isArray(data) ? data : []) {
-                        if (row?.id == null) continue;
-                        // Pass the RPC row through unchanged so Mapbox styling
-                        // can read the cached microclimate columns directly.
-                        next[row.id] = row;
-                    }
-                    setById(next);
+                    // Rows pass through unchanged so Mapbox styling can read
+                    // the cached microclimate columns directly. Merged, not
+                    // replaced: venues outside this viewport keep their rows,
+                    // so the list scores them the same way as the pins.
+                    setById((prev) => mergeMicroclimateRows(prev, data));
                     setError(null);
                     setIsLoading(false);
                 })

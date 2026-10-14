@@ -59,7 +59,7 @@ export default function HourlyForecastStrip({
   fetchReady = true,
   venueId = '',
   onViewState,
-  // From SunForecastPanel's shared forecast, so this badge matches the
+  // From a caller's shared sun forecast, so this badge matches the
   // timeline headline. The strip's own count is a fallback.
   sunMinutesToday = null,
 }) {
