@@ -4,6 +4,7 @@ import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, use
 import { boundsOfVenues, lookupMicroclimateEntry, markerScoreFromMicroclimate, readMicroclimate } from './utils/microclimate';
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
+import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
 import { filterChoiceKey } from './utils/filterRefit';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
@@ -199,12 +200,11 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather }) => {
         [sunstayScore]
     );
 
-    const isStay = venue.typeCategory === 'ShortStay';
-    const isHotel = venue.typeCategory === 'Hotel';
+    const isStay = isStayVenue(venue);
 
     // `typeLabel` and `vibe` are both nullable in the venues table, so the
     // subtitle is joined from present parts only — never " · Fitzroy".
-    const descriptor = String((isStay || isHotel ? venue.typeLabel : venue.vibe) ?? '').trim();
+    const descriptor = String((isPropertyVenue(venue) ? venue.typeLabel ?? venue.typeCategory : venue.vibe) ?? '').trim();
     const suburbText = String(venue.suburb ?? '').trim();
     const subtitle = [descriptor, suburbText].filter(Boolean).join(' · ');
 
@@ -368,6 +368,17 @@ const VenueSearchInput = memo(({ id, value, onChange }) => (
     </div>
 ));
 VenueSearchInput.displayName = 'VenueSearchInput';
+
+const PropertyFilterPills = ({ activeFilters, onToggle }) => (
+    <div className="flex gap-2" role="group" aria-label="Property types">
+        {PROPERTY_FILTERS.map(filter => <button key={filter.id} type="button"
+            onClick={() => onToggle(filter.id)} aria-pressed={activeFilters.includes(filter.id)}
+            className={`flex-1 min-h-[44px] min-w-[44px] rounded-full border px-3 text-[12px] font-semibold ${activeFilters.includes(filter.id)
+                ? 'border-amber-300 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-slate-700'}`}>
+            <span aria-hidden="true">{filter.icon}</span> {filter.label}
+        </button>)}
+    </div>
+);
 
 // ── VenueChip ──────────────────────────────────────────────────────────
 const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
@@ -539,14 +550,7 @@ const AppContent = () => {
         const query = settledSearchQuery.trim().toLowerCase();
 
         return venues.filter(venue => {
-            const vType = venue.typeCategory || 'Bar';
-            const hasTypeMatch = typeFilters.length === 0 || typeFilters.some(f => {
-                if (f === 'all-bars'   && vType === 'Bar')       return true;
-                if (f === 'all-hotels' && vType === 'Hotel')     return true;
-                if (f === 'all-stays'  && vType === 'ShortStay') return true;
-                return false;
-            });
-            if (!hasTypeMatch) return false;
+            if (!matchesPropertyTypeFilters(venue, typeFilters)) return false;
 
             if (intentFilters.length > 0) {
                 const rooms = venue.roomTypes || [];
@@ -686,7 +690,7 @@ const AppContent = () => {
             actionLabel="Show all venues"
         />
     ) : listVenues.length === 0 ? (
-        <EmptyVenueState announce onClearFilters={handleClearFilters} />
+        <EmptyVenueState announce onClearFilters={() => handleClearFilters()} />
     ) : null;
     const stableFilteredIds = filteredVenueIds;
     // The map refits to the results only when this changes (see utils/filterRefit).
@@ -937,7 +941,8 @@ const AppContent = () => {
                             />
                         </div>
 
-                        {/* Quick-filter pills: Cozy + Sunny (now toggle into activeFilters) */}
+                        <div className="px-3 pt-2"><PropertyFilterPills activeFilters={activeFilters} onToggle={handleFilterToggle} /></div>
+                        {/* Quick-filter pills share the unified filter state. */}
                         <div className="ss-quick-filter-row flex flex-shrink-0 gap-2 px-3 py-2">
                             <button
                                 onClick={() => handleFilterToggle(FILTER_COZY)}
@@ -1191,6 +1196,7 @@ const AppContent = () => {
                                         value={searchQuery}
                                         onChange={setSearchQuery}
                                     />
+                                    <PropertyFilterPills activeFilters={activeFilters} onToggle={handleFilterToggle} />
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => handleFilterToggle(FILTER_COZY)}

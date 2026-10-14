@@ -1,3 +1,6 @@
+import { PROPERTY_FILTERS } from '../utils/propertyTypes.js';
+import { calculateFacadeSun, estimateRoomTypesFromFacades } from '../utils/facadeSun.js';
+
 /**
  * DemoVenue Layer
  * ───────────────
@@ -14,6 +17,7 @@
 
 // ── Filter Categories (used by FilterSheet) ───────────────────────
 export const FILTER_CATEGORIES = [
+  ...PROPERTY_FILTERS,
   { id: 'Sunny',              icon: '☀️',  label: 'Sunny Patio' },
   { id: 'Rooftop',            icon: '🏙️',  label: 'Rooftop' },
   { id: 'Beer Garden',        icon: '🍺',  label: 'Beer Garden' },
@@ -38,9 +42,26 @@ export const FILTER_CATEGORIES = [
   { id: 'Afternoon Sun',      icon: '🌤️',  label: 'Afternoon Sun' },
   { id: 'Morning Sun',        icon: '🌄',  label: 'Morning Sun' },
   { id: 'Hotel',              icon: '🏨',  label: 'Hotel' },
+  { id: 'Serviced apartment', icon: '🏢',  label: 'Serviced apartment' },
   { id: 'Short Stay',         icon: '🛌',  label: 'Short Stay' },
   { id: 'Balcony',            icon: '🏡',  label: 'Balcony' },
 ];
+
+// Illustrative street-aligned rectangles, NOT surveyed building footprints.
+// Dimensions, representative levels, room inventory and nearby shading all
+// need venue verification. No balcony, amenity, price or partner status claims.
+function illustrativeFacadeRooms(lat, lng, wallBearing, floorLevel) {
+    const radians = Math.PI / 180, metresPerDegree = 6371008.8 * radians;
+    const angle = wallBearing * radians;
+    const corners = [[-20, -12], [20, -12], [20, 12], [-20, 12], [-20, -12]];
+    const footprint = { type: 'Polygon', coordinates: [corners.map(([along, across]) => {
+        const east = along * Math.sin(angle) + across * Math.cos(angle);
+        const north = along * Math.cos(angle) - across * Math.sin(angle);
+        return [lng + east / (metresPerDegree * Math.cos(lat * radians)), lat + north / metresPerDegree];
+    })] };
+    const facades = calculateFacadeSun(footprint, [], floorLevel * 3);
+    return estimateRoomTypesFromFacades(facades.sort((a, b) => b.length - a.length).slice(0, 3), floorLevel);
+}
 
 // ── Target Companies (from Airtable / outreach list) ──────────────
 export const targetCompanies = [
@@ -192,6 +213,7 @@ export const demoVenues = [
         lng: 144.94228,
         emoji: "🍻",
         vibe: "Brewery & Beer Garden",
+        typeCategory: "Bar",
         tags: ["Pet Friendly", "Large Groups", "Beer Garden", "Pram Friendly", "Wheelchair Accessible"],
         heating: "heated outdoor",
         hasCozy: true,
@@ -252,6 +274,7 @@ export const demoVenues = [
         lng: 144.9702,
         emoji: "🌳",
         vibe: "Multi-Level Bar",
+        typeCategory: "Bar",
         tags: ["Rooftop", "Beer Garden", "Large Groups", "Wheelchair Accessible", "Shaded"],
         heating: "heated outdoor",
         hasCozy: true,
@@ -279,6 +302,7 @@ export const demoVenues = [
         lng: 144.99977,
         emoji: "🚚",
         vibe: "Food Truck Park",
+        typeCategory: "Bar",
         tags: ["Pram Friendly", "Beer Garden", "Pet Friendly", "Wheelchair Accessible", "Craft Beer", "Vegan", "Live Music"],
         heating: "heated outdoor",
         hasCozy: true,
@@ -305,6 +329,7 @@ export const demoVenues = [
         lng: 144.95439,
         emoji: "🍺",
         vibe: "Classic Pub",
+        typeCategory: "Bar",
         tags: ["Beer Garden", "Smoking Area", "Wheelchair Accessible"],
         heating: "fireplace",
         hasCozy: true,
@@ -330,6 +355,7 @@ export const demoVenues = [
         lng: 144.9626,
         emoji: "🔥",
         vibe: "Rooftop Courtyard",
+        typeCategory: "Bar",
         tags: ["Cozy", "After Work", "Rooftop", "Wheelchair Accessible", "Fireplace"],
         heating: "fireplace",
         notes: "Real Pacific Concepts venue.",
@@ -384,6 +410,7 @@ export const demoVenues = [
         lng: 144.9712,
         emoji: "🍹",
         vibe: "Palm Springs Style",
+        typeCategory: "Bar",
         tags: ["Cocktails", "Sunny", "Rooftop", "Smoking Area", "Specialty Coffee", "Live Music"],
         heating: "heated outdoor",
         hasCozy: true,
@@ -409,6 +436,7 @@ export const demoVenues = [
         lng: 144.9924,
         emoji: "🍺",
         vibe: "Pub · Restaurant",
+        typeCategory: "Bar",
         tags: ["24h License", "Deck", "Beer Garden", "Smoking Area", "Wheelchair Accessible"],
         heating: "fireplace",
         hasCozy: true,
@@ -713,6 +741,7 @@ export const demoVenues = [
         lng: 144.9772,
         emoji: "🌿",
         vibe: "Maze Garden",
+        typeCategory: "Bar",
         tags: ["Hidden", "Vines", "Beer Garden", "Pet Friendly", "Heaters"],
         heating: "heated outdoor",
         notes: "Real Sand Hill Road venue.",
@@ -734,6 +763,7 @@ export const demoVenues = [
         lng: 144.9928,
         emoji: "🍸",
         vibe: "Bar & Restaurant",
+        typeCategory: "Bar",
         tags: ["Covered", "Shaded", "Cocktails", "Bar", "☀️ Sunny Now"],
         heating: "electric-fireplace",
         price: "$$",
@@ -760,6 +790,7 @@ export const demoVenues = [
         lng: 144.9954,
         emoji: "🧘",
         vibe: "Neighbourhood Bar",
+        typeCategory: "Bar",
         tags: ["Cozy", "Covered", "Shaded", "Calm", "Local", "Indoor Warmth"],
         heating: "indoor only",
         price: "$",
@@ -1477,5 +1508,99 @@ export const demoVenues = [
         contact_phone: "(03) 9650 3884",
         notes: "Historic pub at Flinders & Swanston.",
         image: null,
-    }
+    },
+    // Public name/address/location/website only. Room shapes and levels below
+    // are illustrative estimates pending venue verification, not bookable inventory.
+    // Accor entries use the GPS coordinates published on their official pages.
+    {
+        id: 'dv-melb-stay-01', venueName: 'Pullman Melbourne City Centre',
+        address: '265 Little Bourke Street, Melbourne VIC 3000', suburb: 'CBD',
+        lat: -37.812876, lng: 144.96526, timeZone: 'Australia/Melbourne',
+        typeCategory: 'Hotel', typeLabel: 'Hotel', vibe: 'Hotel', emoji: '🏨', tags: ['Hotel'],
+        official_website_url: 'https://all.accor.com/hotel/3028/index.en.shtml',
+        // Little Bourke Street / Hoddle grid; illustrative Level 12.
+        roomTypes: illustrativeFacadeRooms(-37.812876, 144.96526, 65, 12),
+        venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
+        image: null,
+    },
+    {
+        id: 'dv-melb-stay-02', venueName: 'Mantra on Little Bourke Melbourne',
+        address: '471 Little Bourke Street, Melbourne VIC 3000', suburb: 'CBD',
+        lat: -37.814487, lng: 144.959042, timeZone: 'Australia/Melbourne',
+        typeCategory: 'Serviced apartment', typeLabel: 'Serviced apartment', vibe: 'Serviced apartment', emoji: '🏢', tags: ['Serviced apartment'],
+        official_website_url: 'https://all.accor.com/hotel/B3N9/index.en.shtml',
+        // Little Bourke Street / Hoddle grid; illustrative Level 4.
+        roomTypes: illustrativeFacadeRooms(-37.814487, 144.959042, 65, 4),
+        venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
+        image: null,
+    },
+    {
+        id: 'dv-melb-stay-03', venueName: 'Mercure Melbourne Southbank',
+        address: '9 Riverside Quay, Southbank VIC 3006', suburb: 'Southbank',
+        lat: -37.82122, lng: 144.96537, timeZone: 'Australia/Melbourne',
+        typeCategory: 'Hotel', typeLabel: 'Hotel', vibe: 'Hotel', emoji: '🏨', tags: ['Hotel'],
+        official_website_url: 'https://all.accor.com/hotel/B983/index.en.shtml',
+        // Riverside Quay street alignment; illustrative Level 8.
+        roomTypes: illustrativeFacadeRooms(-37.82122, 144.96537, 65, 8),
+        venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
+        image: null,
+    },
+    {
+        id: 'dv-melb-stay-04', venueName: 'Mantra Southbank Melbourne',
+        address: '31 City Road, Southbank VIC 3006', suburb: 'Southbank',
+        lat: -37.821624, lng: 144.966902, timeZone: 'Australia/Melbourne',
+        typeCategory: 'Serviced apartment', typeLabel: 'Serviced apartment', vibe: 'Serviced apartment', emoji: '🏢', tags: ['Serviced apartment'],
+        official_website_url: 'https://all.accor.com/hotel/B3Q9/index.en.shtml',
+        // City Road street alignment; illustrative Level 6.
+        roomTypes: illustrativeFacadeRooms(-37.821624, 144.966902, 60, 6),
+        venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
+        image: null,
+    },
+    {
+        id: 'dv-melb-stay-05', venueName: 'The Sebel Melbourne Docklands',
+        address: '18 Aquitania Way, Docklands VIC 3008', suburb: 'Docklands',
+        lat: -37.813809, lng: 144.942245, timeZone: 'Australia/Melbourne',
+        typeCategory: 'Serviced apartment', typeLabel: 'Serviced apartment', vibe: 'Serviced apartment', emoji: '🏢', tags: ['Serviced apartment'],
+        official_website_url: 'https://all.accor.com/hotel/9380/index.en.shtml',
+        // Aquitania Way / waterfront grid; illustrative Level 5.
+        roomTypes: illustrativeFacadeRooms(-37.813809, 144.942245, 90, 5),
+        venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
+        image: null,
+    },
+    {
+        id: 'dv-melb-stay-06', venueName: 'Peppers Southern Cross Melbourne',
+        address: '679 La Trobe Street, Docklands VIC 3008', suburb: 'Docklands',
+        lat: -37.814838, lng: 144.947307, timeZone: 'Australia/Melbourne',
+        typeCategory: 'Hotel', typeLabel: 'Hotel', vibe: 'Hotel', emoji: '🏨', tags: ['Hotel'],
+        official_website_url: 'https://all.accor.com/hotel/B3T4/index.en.shtml',
+        // La Trobe Street alignment; illustrative Level 3.
+        roomTypes: illustrativeFacadeRooms(-37.814838, 144.947307, 65, 3),
+        venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
+        image: null,
+    },
+    {
+        id: 'dv-melb-stay-07', venueName: 'Cosmopolitan Hotel',
+        address: '6 Carlisle Street, St Kilda VIC 3182', suburb: 'St Kilda',
+        // Coordinates from the map on the hotel's official contact page.
+        lat: -37.866759, lng: 144.979171, timeZone: 'Australia/Melbourne',
+        typeCategory: 'Hotel', typeLabel: 'Hotel', vibe: 'Hotel', emoji: '🏨', tags: ['Hotel'],
+        official_website_url: 'https://www.cosmopolitanhotel.com.au/contact/',
+        // Carlisle Street alignment; illustrative Level 1.
+        roomTypes: illustrativeFacadeRooms(-37.866759, 144.979171, 85, 1),
+        venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
+        image: null,
+    },
+    {
+        id: 'dv-melb-stay-08', venueName: 'Quest St Kilda Bayside',
+        address: '1 Eildon Road, St Kilda VIC 3182', suburb: 'St Kilda',
+        // Coordinates from the property owner's public map:
+        // https://www.capitaland.com/en/find-a-property/global-property-listing/lodging/quest-st-kilda-bayside.html
+        lat: -37.86318, lng: 144.975477, timeZone: 'Australia/Melbourne',
+        typeCategory: 'Serviced apartment', typeLabel: 'Serviced apartment', vibe: 'Serviced apartment', emoji: '🏢', tags: ['Serviced apartment'],
+        official_website_url: 'https://www.questapartments.com.au/properties/vic/st-kilda/quest-st-kilda-bayside',
+        // Eildon Road local street alignment; illustrative Level 2.
+        roomTypes: illustrativeFacadeRooms(-37.86318, 144.975477, 55, 2),
+        venue_description: 'Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.',
+        image: null,
+    },
 ];

@@ -680,7 +680,7 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
 
                   {showStay ? (
                     <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
-                      <h3 id="stay-heading" className={SECTION_TITLE}>Your stay</h3>
+                      <h3 id="stay-heading" className={SECTION_TITLE}>{venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay'}</h3>
                       <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
                       {roomTypes.map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} />)}
                     </section>
