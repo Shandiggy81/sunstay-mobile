@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Coffee, Sun, Wine } from 'lucide-react';
+import SunDayTimeline from './SunDayTimeline.jsx';
 import {
   calculateBalconySunDay, calculateMonthlySunSummary, DEFAULT_TIME_ZONE,
-  formatGuestDate, formatGuestWindows, venueLocalDate,
+  formatGuestDate, venueLocalDate,
 } from '../utils/balconySunEngine.js';
+import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
 
 export default function RoomSunCard({ room, venue }) {
   const [now, setNow] = useState(() => new Date());
@@ -73,9 +76,7 @@ export default function RoomSunCard({ room, venue }) {
   const bestMonths = months?.filter(month => month.totalMinutes > 0)
     .sort((a, b) => b.totalMinutes - a.totalMinutes || a.month - b.month).slice(0, 3)
     .sort((a, b) => a.month - b.month).map(month =>
-      new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone }).format(new Date(`${month.date}T12:00:00Z`))).join(', ');
-  const verdict = value => value.available === null ? 'Unavailable · no sunset today'
-    : value.available ? `Yes · ${formatGuestWindows(value.windows, timeZone)}` : 'No';
+      new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone }).format(new Date(`${month.date}T12:00:00Z`)));
 
   const { bg, border, text, fill } = pct >= 75
     ? { bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.28)', text: '#065F46', fill: '#10B981' }
@@ -104,16 +105,22 @@ export default function RoomSunCard({ room, venue }) {
       </div>
 
       {daily ? (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-slate-700">
-          <p className="text-[11px] font-black uppercase tracking-widest text-amber-900">Today’s balcony sun · {formatGuestDate(daily.dayStart, timeZone)}</p>
-          <p className="mt-1 text-[14px] font-bold">{Math.floor(daily.totalMinutes / 60)}h {daily.totalMinutes % 60}m total direct sun</p>
-          <p className="mt-1 text-[13px] font-semibold break-words">
-            {daily.windows.length ? formatGuestWindows(daily.windows, timeZone) : 'No direct sun on this balcony today'}
-          </p>
-          <p className="mt-2 text-[12px]"><span className="font-bold">☕ Morning coffee:</span> {verdict(daily.morningCoffee)}</p>
-          <p className="mt-1 text-[12px]"><span className="font-bold">🥂 Sunset drinks:</span> {verdict(daily.sunsetDrinks)}</p>
-          <p className="mt-2 text-[11px] text-slate-600">Best months: {months === undefined ? 'Calculating…' : months === null ? 'Unavailable' : bestMonths || 'No modelled direct sun'} · 15th-of-month estimates</p>
-          <p className="mt-1 text-[11px] text-slate-600">Estimated from the sun&apos;s path, not a weather forecast.</p>
+        <div className="border-t border-slate-100 pt-3 text-slate-700">
+          <p className="text-[28px] font-extrabold leading-tight text-slate-800">{Math.floor(daily.totalMinutes / 60)}h {daily.totalMinutes % 60}m</p>
+          <p className="mt-1 text-[12px] text-slate-500">balcony sun · {formatGuestDate(daily.dayStart, timeZone)}</p>
+          <SunDayTimeline daily={daily} timeZone={timeZone} now={now} />
+          <div className="space-y-2 text-[14px]">
+            {(daily.windows.length ? daily.windows : [null]).map((window, index) => <p key={index} className="flex items-start gap-2 font-medium"><Sun size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-amber-700" /><span>{window ? `Sun ${formatCompactGuestWindows([window], timeZone)}` : 'No direct balcony sun today'}</span></p>)}
+            <p className={`flex items-start gap-2 ${daily.morningCoffee.available ? 'text-emerald-700' : 'text-slate-500'}`}><Coffee size={16} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{daily.morningCoffee.available ? `✓ Morning coffee · ${formatCompactGuestWindows(daily.morningCoffee.windows, timeZone)}` : 'No morning sun'}</span></p>
+            <p className={`flex items-start gap-2 ${daily.sunsetDrinks.available ? 'text-emerald-700' : 'text-slate-500'}`}><Wine size={16} aria-hidden="true" className="mt-0.5 shrink-0" /><span>{daily.sunsetDrinks.available ? `✓ Sunset drinks · ${formatCompactGuestWindows(daily.sunsetDrinks.windows, timeZone)}` : daily.sunsetDrinks.available === null ? 'No sunset today' : 'No sunset sun'}</span></p>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]" aria-label="Best months, representative 15th-of-month estimates">
+            <span className="mr-1 text-slate-500">Best months</span>
+            {months === undefined ? <span role="status" className="h-5 w-12 rounded-full bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating best months</span></span>
+              : bestMonths?.length ? bestMonths.map(month => <span key={month} className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-900">{month}</span>)
+              : <span className="text-slate-500">{months === null ? 'Unavailable' : 'No modelled direct sun'}</span>}
+          </div>
+          <p className="mt-3 text-[11px] text-slate-500">Estimated from the sun&apos;s path, not a weather forecast.</p>
         </div>
       ) : missingGeometry ? (
       <div className="flex items-center gap-3 mt-1" style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '8px 12px' }}>
