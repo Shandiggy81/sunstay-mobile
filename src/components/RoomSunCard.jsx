@@ -7,6 +7,7 @@ import {
   formatGuestDate, venueLocalDate,
 } from '../utils/balconySunEngine.js';
 import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
+import { roomSourceLabel } from '../utils/roomProfiles.js';
 
 export default function RoomSunCard({ room, venue, date, highlighted = false }) {
   const [now, setNow] = useState(() => new Date());
@@ -106,8 +107,8 @@ export default function RoomSunCard({ room, venue, date, highlighted = false }) 
           <span className="text-slate-500 text-[10px] block">/ night</span>
         </div>}
       </div>
-      {room.source === 'estimated' ? <p className="text-[11px] text-slate-500">Estimated from building shape</p>
-        : room.source === 'venue-verified' ? <p className="text-[11px] font-semibold text-emerald-700">Verified by venue</p> : null}
+      {room.source === 'venue-verified' ? <p className="text-[11px] font-semibold text-emerald-700">Verified by venue</p>
+        : roomSourceLabel(room) ? <p className="text-[11px] text-slate-500">{roomSourceLabel(room)}</p> : null}
 
       {daily ? (
         <div className="border-t border-slate-100 pt-3 text-slate-700">
