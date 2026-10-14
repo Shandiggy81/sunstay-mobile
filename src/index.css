@@ -7033,9 +7033,13 @@ body,
 .ss-stay-comparison { position: relative; z-index: var(--z-sheet); box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12); overscroll-behavior: contain; width: 100%; max-width: 800px; max-height: 85dvh; overflow: auto; background: #fff; border-radius: 24px 24px 0 0; padding: 16px 16px calc(20px + env(safe-area-inset-bottom)); color: #334155; }
 .ss-stay-comparison header { display: flex; align-items: center; justify-content: space-between; font-weight: 800; }
 .ss-stay-comparison header button { min-height: 44px; min-width: 44px; }
-.ss-stay-table { overflow-x: auto; overscroll-behavior: contain; margin-top: 12px; }
-.ss-stay-table table { border-collapse: collapse; font-size: 12px; width: 100%; }
-.ss-stay-table th, .ss-stay-table td { min-width: 130px; padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+.ss-stay-table { margin-top: 12px; width: 100%; }
+.ss-stay-table table { border-collapse: collapse; font-size: 11px; table-layout: fixed; width: 100%; }
+.ss-stay-table th, .ss-stay-table td { min-width: 0; padding: 10px 4px; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; text-align: left; vertical-align: top; }
+.ss-stay-table th:first-child { width: 76px; }
+.ss-stay-row-label { display: flex; flex-direction: column; gap: 3px; font-weight: 700; }
+.ss-stay-venue-name { display: block; font-weight: 800; line-height: 1.25; }
+.ss-stay-best-badge { align-items: center; color: #b45309; display: flex; font-size: 9px; gap: 2px; line-height: 1; margin: -5px 0 4px; white-space: nowrap; }
 .ss-stay-table small { display: block; font-weight: 400; margin-top: 6px; }
 .ss-stay-comparison > p { font-size: 11px; margin-top: 12px; color: #64748b; }
 .ss-venue-list-card--sun-moment { flex-wrap: wrap; gap: 6px 10px; }
