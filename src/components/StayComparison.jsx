@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { calculateMonthlySunSummary, formatGuestWindows } from '../utils/balconySunEngine.js';
+import { calculateMonthlySunSummary, formatGuestDate, formatGuestWindows } from '../utils/balconySunEngine.js';
 import { roomSunOptions, SUN_MOMENTS } from '../utils/stayRanking.js';
 import { isEstimatedRoom } from '../utils/roomProfiles.js';
 export default function StayComparison({ venues, moment, onClose, returnFocusRef }) {
@@ -50,7 +50,7 @@ export default function StayComparison({ venues, moment, onClose, returnFocusRef
   return createPortal(<motion.div className="ss-stay-overlay" initial={{opacity:0}} animate={{opacity:1}} onClick={onClose}>
     <motion.section ref={sheet} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="stay-compare-title" className="ss-stay-comparison" initial={{y:80}} animate={{y:0}} onClick={e => e.stopPropagation()}>
       <header><h2 id="stay-compare-title">Compare · {SUN_MOMENTS[moment]}</h2><button aria-label="Close comparison" onClick={onClose}>✕</button></header>
-      <div className="ss-stay-table" tabIndex={0} role="region" aria-label="Room comparison, scroll horizontally to see all stays"><table><thead><tr><th scope="col">Best room</th>{venues.map(v => <th scope="col" key={v.id}>{v.venueName}<small>{v.bestRoom?.name || 'No matching room'}{isEstimatedRoom(v.bestRoom) ? ' · Estimated' : ''}<br />{v.daily?.date}</small></th>)}</tr></thead>
+      <div className="ss-stay-table" tabIndex={0} role="region" aria-label="Room comparison, scroll horizontally to see all stays"><table><thead><tr><th scope="col">Best room</th>{venues.map(v => <th scope="col" key={v.id}>{v.venueName}<small>{v.bestRoom?.name || 'No matching room'}{isEstimatedRoom(v.bestRoom) ? ' · Estimated' : ''}<br />{v.daily?.date ? formatGuestDate(`${v.daily.date}T12:00:00Z`, 'UTC') : ''}</small></th>)}</tr></thead>
         <tbody>{rows.map(([label, value]) => <tr key={label}><th scope="row">{label}</th>{venues.map((v, i) => <td key={v.id}>{value(v, i)}</td>)}</tr>)}</tbody></table></div>
       <p>Estimated from the sun’s path, not a weather forecast. Best months use representative days.</p>
     </motion.section>

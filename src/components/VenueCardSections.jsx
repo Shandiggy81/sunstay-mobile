@@ -140,30 +140,25 @@ export function VenueInfoHeader({ iconName, name, subtitle, websiteUrl, address,
 }
 
 // ── 3. Stat row ─────────────────────────────────────────────
-function StatCell({ icon, value, label, valueClass = 'text-slate-900', small = false }) {
+export function VenueStatRow({ tiles, sunny }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center gap-1 px-2 py-3.5 text-center">
-      <ClayIcon name={icon} size={36} />
-      <span className={`mt-0.5 font-extrabold leading-tight tracking-[-0.01em] tabular-nums ${small ? 'text-[15px]' : 'text-[22px]'} ${valueClass}`}>
-        {value}
-      </span>
-      <span className="text-[12px] font-medium text-slate-600">{label}</span>
-    </div>
-  );
-}
-
-export function VenueStatRow({ score, scoreLoading, weatherIcon, sunText, feelsLike, feelsLikeIcon }) {
-  return (
-    <div className="flex items-stretch divide-x divide-slate-900/[0.08] rounded-3xl border border-slate-900/[0.08] bg-white">
-      <StatCell
-        icon={weatherIcon}
-        value={scoreLoading ? '…' : formatScore(score)}
-        valueClass={scoreTone(score)}
-        label="Sun score"
-      />
-      <StatCell icon="sun" value={sunText} label="Today" small />
-      <StatCell icon={feelsLikeIcon} value={Number.isFinite(feelsLike) ? `${Math.round(feelsLike)}°` : '–'} label="Feels like" />
-    </div>
+    <dl className="grid grid-cols-2 gap-2.5" aria-label="Current venue conditions">
+      {tiles.map((tile) => (
+        <div
+          key={tile.label}
+          className={`flex min-h-[132px] min-w-0 flex-col items-start gap-1.5 rounded-3xl border p-3.5 ${sunny
+            ? 'border-amber-200 bg-amber-50 shadow-[0_4px_14px_rgba(245,158,11,0.10),inset_0_2px_0_rgba(255,255,255,0.8)]'
+            : 'border-slate-200 bg-slate-50 shadow-[0_4px_14px_rgba(15,23,42,0.06),inset_0_2px_0_rgba(255,255,255,0.8)]'}`}
+        >
+          <ClayIcon name={tile.icon} size={44} className="drop-shadow-sm" />
+          <dt className="text-[12px] font-semibold text-slate-600">{tile.label}</dt>
+          <dd className="text-[17px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900 tabular-nums">
+            {tile.value}
+            {tile.note ? <span className="mt-1 block text-[12px] font-medium text-slate-600">{tile.note}</span> : null}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
