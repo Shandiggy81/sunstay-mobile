@@ -41,7 +41,8 @@ import { canUsePointerTilt } from '../utils/canUsePointerTilt';
 import { resolveOverviewScore } from '../utils/resolveOverviewScore';
 import { errorBoundaryRemountKey, resetVenueDetailScroller, venueOverlayPresenceKey } from '../utils/venueDetailTabs';
 import { feelsLikeIconName, venueIconName, weatherIconName } from '../utils/clayIcons';
-import { hourlyStrip, sunSentence, sunStatText, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
+import { venueStatTiles } from '../utils/venueStatTiles.js';
+import { hourlyStrip, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { venueOfferings } from '../utils/venueOfferings';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
 
@@ -471,7 +472,6 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
     [lat, lng, venue?.obstacle_height, venue?.obstacle_distance, liveWeather, now],
   );
   const hours = useMemo(() => hourlyStrip(liveWeather, { now, forecast }), [liveWeather, now, forecast]);
-  const sunText = sunStatText(forecast);
   const sentence = sunSentence(forecast);
   const nowIcon = hours[0]?.icon ?? weatherIconName(null, { isNight: !forecast.isSunUp });
 
@@ -666,12 +666,8 @@ function VenueCard({ venue, weather, onClose, onCenter, setShowOwnerDashboard, s
                       </button>
                     ) : null}
                     <VenueStatRow
-                      score={score}
-                      scoreLoading={overviewScore.loading}
-                      weatherIcon={nowIcon}
-                      sunText={sunText}
-                      feelsLike={feelsLike}
-                      feelsLikeIcon={feelsLikeIconName(feelsLike)}
+                      tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike })}
+                      sunny={forecast.now?.kind === 'sun'}
                     />
                     {weatherUnavailable && !weatherLoading ? (
                       <p className="-mt-2 text-[13px] font-medium text-slate-600" role="status">
