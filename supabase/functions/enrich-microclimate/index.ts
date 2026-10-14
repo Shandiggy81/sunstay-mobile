@@ -16,6 +16,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { scoringCloudCover } from "./sky.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -33,7 +34,9 @@ type ProfileRow = {
 };
 
 type LatLng = { lat: number; lng: number };
-type Weather = { windSpeed: number; windDir: number; cloud: number };
+// cloud: Open-Meteo's reported cloud_cover (stored as-is).
+// sunCloud: cloud as the sun experiences it (sky.ts), used for effective_sun.
+type Weather = { windSpeed: number; windDir: number; cloud: number; sunCloud?: number };
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -85,7 +88,7 @@ async function fetchOpenMeteo(points: LatLng[]): Promise<Map<string, Weather>> {
     const lngs = slice.map((p) => p.lng).join(",");
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}` +
-      `&current=wind_speed_10m,wind_direction_10m,cloud_cover` +
+      `&current=wind_speed_10m,wind_direction_10m,cloud_cover,shortwave_radiation` +
       `&wind_speed_unit=ms&timezone=UTC`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Open-Meteo ${res.status}: ${await res.text()}`);
@@ -95,10 +98,13 @@ async function fetchOpenMeteo(points: LatLng[]): Promise<Map<string, Weather>> {
       const lat = Array.isArray(row.latitude) ? row.latitude[0] : row.latitude;
       const lng = Array.isArray(row.longitude) ? row.longitude[0] : row.longitude;
       const cur = row.current ?? {};
+      const cloud = Number(cur.cloud_cover ?? 0);
+      const radiation = cur.shortwave_radiation == null ? null : Number(cur.shortwave_radiation);
       out.set(cellKey(lat, lng), {
         windSpeed: Number(cur.wind_speed_10m ?? 0),
         windDir: Number(cur.wind_direction_10m ?? 0),
-        cloud: Number(cur.cloud_cover ?? 0),
+        cloud,
+        sunCloud: scoringCloudCover(cloud, radiation, lat, lng),
       });
     }
   }
@@ -124,7 +130,7 @@ export function scoreVenue(
     profile.sun_hour_fraction?.[hourLocal] ??
     profile.sun_score_annual ??
     0.5;
-  const cloudFactor = 1 - Math.min(Math.max(weather.cloud, 0), 100) / 100;
+  const cloudFactor = 1 - Math.min(Math.max(weather.sunCloud ?? weather.cloud, 0), 100) / 100;
   const effective_sun = Math.min(1, Math.max(0, hourFrac * cloudFactor));
   const sector = windSector(weather.windDir);
   const mult =
