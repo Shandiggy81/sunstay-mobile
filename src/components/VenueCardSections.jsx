@@ -285,6 +285,21 @@ export function AboutAndHours({ description, hours }) {
   );
 }
 
+// Imported listings credit their source (CC BY) and say they aren't verified.
+export function VenueSourceNote({ note }) {
+  if (!note) return null;
+  return (
+    <section aria-label="Listing source" className="flex flex-col gap-1">
+      {note.seats ? <p className="text-[14px] font-semibold text-slate-700">{note.seats}</p> : null}
+      <p className="text-[12px] font-medium leading-snug text-slate-600">{note.credit}</p>
+      <a href={note.url} target="_blank" rel="noopener noreferrer"
+        className="-mt-2 inline-flex min-h-[44px] items-center self-start text-[12px] font-semibold text-slate-700 underline underline-offset-2">
+        {note.linkLabel}
+      </a>
+    </section>
+  );
+}
+
 export function HappyHourSection({ happyHour }) {
   if (!happyHour) return null;
   return (
