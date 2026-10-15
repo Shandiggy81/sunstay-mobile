@@ -1,3 +1,4 @@
+import { venueSourceNote } from '../utils/venueSource';
 import React, { memo, useState, useMemo, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { X, Wind, ExternalLink, Navigation, Share2, ChevronDown, Crosshair } from 'lucide-react';
@@ -12,6 +13,7 @@ import { DEFAULT_TIME_ZONE, venueLocalDate } from '../utils/balconySunEngine.js'
 import ClayIcon from './common/ClayIcon';
 import {
   AboutAndHours,
+  VenueSourceNote,
   ConditionsGrid,
   HappyHourSection,
   HourByHour,
@@ -724,6 +726,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                   <VenueOfferingsList key={venue?.id} offerings={offerings} liveNotes={liveNotes} />
 
                   <AboutAndHours description={description} hours={hoursView} />
+                  <VenueSourceNote note={venueSourceNote(venue)} />
                   <HappyHourSection happyHour={happyHour} />
                   <VibeSection onManage={handleManage} />
                 </div>
