@@ -6,6 +6,7 @@
 create schema if not exists extensions;
 create extension if not exists postgis schema extensions;
 do $$ begin
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role; end if;
   if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon; end if;
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated; end if;
 end $$;
@@ -34,11 +35,14 @@ insert into public.buildings (geom, height_m) values
   (pg_temp.box(40, -30, 60, -10), 9),    -- C (corner: street to the north, lane to the east)
   (pg_temp.box(65, -30, 100, -10), 9),   -- across the lane
   (pg_temp.box(-20, 10, 100, 40), 30);   -- A (across the street)
-\ir ../../supabase/proposed/venue_import_candidates.sql
+\ir ../../supabase/migrations/20261015223519_venue_import_candidates.sql
+\ir ../../supabase/migrations/20261015223950_place_venue_candidate_true_corners.sql
+\ir ../../supabase/migrations/20261015224652_place_venue_candidate_check_tiers.sql
+\ir ../../supabase/migrations/20261015224954_place_venue_candidate_large_property.sql
 
 insert into public.venue_import_candidates (id, name, kind, clue_lat, clue_lng, street, street_bearing, street_lat, street_lng, floor_level, rooftop) values
   ('mid', 'Mid-terrace cafe', 'cafe_restaurant', pg_temp.lat(-20), pg_temp.lon(10), 'Test Street', 90, pg_temp.lat(0), pg_temp.lon(0), 0, false),
-  ('corner', 'Corner bar', 'bar', pg_temp.lat(-20), pg_temp.lon(50), 'Test Street', 90, pg_temp.lat(0), pg_temp.lon(0), 0, false),
+  ('corner', 'Corner bar', 'bar', pg_temp.lat(-20), pg_temp.lon(57), 'Test Street', 90, pg_temp.lat(0), pg_temp.lon(0), 0, false),
   ('nostreet', 'Unknown street', 'cafe_restaurant', pg_temp.lat(-20), pg_temp.lon(10), null, null, null, null, 0, false),
   ('upstairs', 'Level 2 bar', 'bar', pg_temp.lat(-20), pg_temp.lon(10), 'Test Street', 90, pg_temp.lat(0), pg_temp.lon(0), 2, false),
   ('roof', 'Rooftop bar', 'bar', pg_temp.lat(-20), pg_temp.lon(10), 'Test Street', 90, pg_temp.lat(0), pg_temp.lon(0), 0, true),
@@ -60,6 +64,7 @@ begin
   assert r.sun_horizon_deg[1] > 30, 'tall block across the street shades the north';
   select * into r from public.venue_import_candidates where id = 'corner';
   assert 'corner_or_laneway' = any(r.pin_check_reasons), 'corner flagged: ' || array_to_string(r.pin_check_reasons, ',');
+  assert not r.needs_pin_check, 'a corner on its own street is information only';
   select * into r from public.venue_import_candidates where id = 'nostreet';
   assert 'street_side_unconfirmed' = any(r.pin_check_reasons) and r.needs_pin_check, 'unknown street flagged';
   select * into r from public.venue_import_candidates where id = 'upstairs';
@@ -67,7 +72,7 @@ begin
   select * into r from public.venue_import_candidates where id = 'roof';
   assert r.observer_height_m = 13.5 and r.needs_pin_check and r.sun_horizon_deg[19] < 10, 'rooftop above its building, south open';
   select * into r from public.venue_import_candidates where id = 'outside';
-  assert 'no_building_at_point' = any(r.pin_check_reasons) and r.needs_pin_check, 'no building flagged';
+  assert 'no_building_at_point' = any(r.pin_check_reasons) and not r.needs_pin_check, 'open space is information, not a check';
   assert (select count(*) from public.venue_import_candidates where status <> 'placed') = 0, 'all placed';
   assert not has_table_privilege('anon', 'public.venue_import_candidates', 'select'), 'anon cannot read';
   assert not has_function_privilege('anon', 'public.place_venue_candidate(text)', 'execute'), 'anon cannot place';

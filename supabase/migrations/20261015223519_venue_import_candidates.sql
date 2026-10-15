@@ -1,5 +1,4 @@
 -- ============================================================
--- PROPOSED, not applied. To apply after approval, move to supabase/migrations/ with a timestamped name (see supabase/proposed/README.md).
 -- Staging for imported venues (City of Melbourne CLUE outdoor seating).
 --
 -- Candidates land here, never in public.venues. place_venue_candidate()
@@ -200,6 +199,8 @@ end;
 $function$;
 
 revoke all on function public.place_venue_candidate(text) from public, anon, authenticated;
+grant execute on function public.place_venue_candidate(text) to service_role;
+grant select, insert, update, delete on table public.venue_import_candidates to service_role;
 
 comment on function public.place_venue_candidate(text) is
   'Service role only. Moves an import candidate to the footpath facing its address street, flags pins to check, and stores its building horizon.';

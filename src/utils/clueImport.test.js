@@ -80,3 +80,11 @@ test('streetAxes recovers a street direction from venue points along it', () => 
     assert.equal(streetAxes(pts.slice(0, 2)).size, 0, 'too few points');
     assert.equal(streetAxes([{ street: null, lat: 0, lng: 0 }]).size, 0);
 });
+
+test('streetAxes ignores short or blobby runs of points', () => {
+    const at = (dx, dy) => ({ street: 'Russell Street', lat: -37.813 + dy / 111320, lng: 144.96 + dx / (111320 * Math.cos(-37.813 * Math.PI / 180)) });
+    // four points over ~30 m on one block, not a line
+    assert.equal(streetAxes([at(0, 0), at(20, 5), at(5, 20), at(25, 25)]).size, 0);
+    // a clear 120 m line is kept
+    assert.equal(streetAxes([at(0, 0), at(40, 2), at(80, -1), at(120, 1)]).size, 1);
+});
