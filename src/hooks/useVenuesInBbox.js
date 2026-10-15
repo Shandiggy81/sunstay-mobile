@@ -61,7 +61,12 @@ function normalizeBbox(bbox) {
  * @param {{ limit?: number, enabled?: boolean }} [options]
  * @returns {{ byId: Record<string, object>, isLoading: boolean, error: any, source: 'rpc'|'none', count: number }}
  */
-export function useVenuesInBbox(bbox, { limit = 500, enabled = true } = {}) {
+// venues_in_bbox returns at most p_limit rows (server default 500, capped at
+// 2,000) in id order, not by what's on screen. With ~1,000 venues in the CBD a
+// zoomed-out view would leave half the pins without their sun reading, so ask
+// for the server's maximum (~480 bytes a row).
+export const BBOX_ROW_LIMIT = 2000;
+export function useVenuesInBbox(bbox, { limit = BBOX_ROW_LIMIT, enabled = true } = {}) {
     const normalized = useMemo(() => normalizeBbox(bbox), [bbox]);
     // A primitive dependency, so re-running is driven by the numbers rather
     // than by a fresh object identity on every map event.

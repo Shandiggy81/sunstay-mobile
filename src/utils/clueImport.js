@@ -133,10 +133,12 @@ export function matchExisting(candidate, existing) {
 /**
  * Bearing of each street from the venue points that share its name: the
  * principal axis of those points in local metres (0–180°, clockwise from
- * north). Needs at least `minPoints` points spread over 30 m.
+ * north). Needs at least `minPoints` points along a clear line (see below).
  *
  * @returns {Map<string, { bearing: number, lat: number, lng: number, points: number }>}
  */
+export const MIN_AXIS_SPREAD_M = 40;
+export const MIN_AXIS_LINEARITY = 10;
 export function streetAxes(candidates, { minPoints = 3 } = {}) {
     const groups = new Map();
     for (const c of Array.isArray(candidates) ? candidates : []) {
@@ -157,8 +159,13 @@ export function streetAxes(candidates, { minPoints = 3 } = {}) {
             const x = (p.lng - lng0) * kx, y = (p.lat - lat0) * ky;
             sxx += x * x; syy += y * y; sxy += x * y;
         }
-        const spread = Math.sqrt((sxx + syy) / unique.length);
-        if (spread < 15) continue;
+        // Trust a direction only when the points run along a line: the long
+        // axis spreads 40 m+ and is at least 10x the short one (eigenvalues of
+        // the point covariance). Short runs on one block point the wrong way.
+        const a = sxx / unique.length, c = syy / unique.length, b = sxy / unique.length;
+        const mid = (a + c) / 2, half = Math.sqrt(((a - c) / 2) ** 2 + b * b);
+        const long = mid + half, short = Math.max(mid - half, 0.01);
+        if (Math.sqrt(long) < MIN_AXIS_SPREAD_M || long / short < MIN_AXIS_LINEARITY) continue;
         const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);
         const bearing = ((90 - theta / RAD) % 180 + 180) % 180;
         out.set(street.toLowerCase(), { bearing: Number(bearing.toFixed(1)), lat: lat0, lng: lng0, points: unique.length });
