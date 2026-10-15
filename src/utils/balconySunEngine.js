@@ -10,7 +10,10 @@ const MINUTE = 60000, HOUR = 60 * MINUTE, DAY = 24 * HOUR, RAD = Math.PI / 180;
 const normalise = n => ((n % 360) + 360) % 360;
 // Bounded LRU shared across room mounts. Treat returned cached results as read-only.
 const resultCache = new Map();
-const CACHE_LIMIT = 128;
+// Sized for every venue on the map (about 1,000 in the City of Melbourne) plus
+// room views, so re-filtering on the same day reuses each venue's day.
+export const SUN_DAY_CACHE_LIMIT = 2048;
+const CACHE_LIMIT = SUN_DAY_CACHE_LIMIT;
 function cacheKey(kind, room, timeZone, period) {
   return JSON.stringify([kind, room.lat, room.lng, room.facing, timeZone, room.horizon,
     room.overhang ? [room.overhang.depth, room.overhang.height] : null, room.halfFov, room.minAltitude, period]);
@@ -46,11 +49,19 @@ export function facingLabel(value) {
     angularDifference(bearing, DIRECTION_MAP[label]) < angularDifference(bearing, DIRECTION_MAP[best]) ? label : best, 'N');
 }
 
+// Intl formatters are expensive to build and were the main cost of a day
+// calculation, so keep one per time zone.
+const formatters = new Map();
 function dateFormatter(timeZone) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone, calendar: 'gregory', numberingSystem: 'latn', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-  });
+  let formatter = formatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone, calendar: 'gregory', numberingSystem: 'latn', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+    });
+    formatters.set(timeZone, formatter);
+  }
+  return formatter;
 }
 
 function localParts(instant, formatter) {
@@ -90,12 +101,26 @@ function localBoundary(date, formatter) {
   return hi;
 }
 
+// Day bounds depend only on the date and zone; every venue on the map shares them.
+const boundsCache = new Map();
+const BOUNDS_CACHE_LIMIT = 64;
 export function venueDayBounds(date, timeZone = DEFAULT_TIME_ZONE) {
-  const localDate = calendarDate(date, timeZone), formatter = dateFormatter(timeZone);
+  const localDate = calendarDate(date, timeZone), key = `${timeZone}|${localDate}`;
+  let bounds = boundsCache.get(key);
+  if (!bounds) {
+    bounds = computeDayBounds(localDate, timeZone);
+    boundsCache.set(key, bounds);
+    if (boundsCache.size > BOUNDS_CACHE_LIMIT) boundsCache.delete(boundsCache.keys().next().value);
+  }
+  return { date: bounds.date, start: new Date(bounds.start), end: new Date(bounds.end) };
+}
+
+function computeDayBounds(localDate, timeZone) {
+  const formatter = dateFormatter(timeZone);
   const nextDate = new Date(Date.parse(`${localDate}T00:00:00Z`) + DAY).toISOString().slice(0, 10);
   const start = localBoundary(localDate, formatter), end = localBoundary(nextDate, formatter);
   if (end <= start || localParts(start, formatter).date !== localDate) throw new RangeError('This date does not exist in the venue timezone.');
-  return { date: localDate, start: new Date(start), end: new Date(end) };
+  return { date: localDate, start, end };
 }
 
 function geometry(options) {
@@ -200,8 +225,14 @@ export function calculateBalconySunDay(options) {
   const start = bounds.start.getTime(), end = bounds.end.getTime(), formatter = dateFormatter(timeZone);
   const windows = sampleWindows(start, end, t => directPosition(SunCalc.getPosition(new Date(t), room.lat, room.lng), room));
   const events = solarEvents(room, start, end);
+  // On a day with no clock change, local minutes are simply minutes since the
+  // day began; only daylight-saving changeover days need the formatter.
+  const steadyDay = end - start === DAY;
+  const localMinutes = steadyDay
+    ? t => Math.floor((t - start) / MINUTE)
+    : t => { const local = localParts(t, formatter); return local.hour * 60 + local.minute; };
   const coffee = windows.flatMap(([a, b]) => sampleWindows(a, b, t => {
-    const local = localParts(t, formatter), minutes = local.hour * 60 + local.minute;
+    const minutes = localMinutes(t);
     return minutes >= 360 && minutes < 600;
   }));
   const sunset = events.sunset?.getTime();

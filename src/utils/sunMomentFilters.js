@@ -99,6 +99,47 @@ export function horizonIdsToFetch(ids, cache) {
 }
 
 /**
+ * True when two sets of sun-moment inputs would give the same result: the same
+ * venue list, horizon map and weather objects (by identity) on the same
+ * venue-local day. Lets a caller reuse its last sunMomentsByVenue() result.
+ */
+export function sameSunMomentInputs(a, b) {
+    return Boolean(a && b)
+        && a.venues === b.venues
+        && a.horizons === b.horizons
+        && a.weather === b.weather
+        && a.day === b.day;
+}
+
+/**
+ * Horizons a venue list already carries (sun_horizon_deg on the venue record),
+ * as venue id → parsed horizon or null. Venues without the field are left out
+ * so they are looked up as usual.
+ */
+export function inlineSunHorizons(venues) {
+    const out = new Map();
+    for (const venue of Array.isArray(venues) ? venues : []) {
+        if (venue?.id == null || !Object.prototype.hasOwnProperty.call(venue, 'sun_horizon_deg')) continue;
+        out.set(String(venue.id), parseSunHorizon(venue.sun_horizon_deg));
+    }
+    return out;
+}
+
+/**
+ * Split venue ids into request-sized batches. A PostgREST `in` filter puts
+ * every id in the URL, and a few hundred ids overflow the gateway's URL limit,
+ * so large venue lists are fetched in several requests.
+ */
+export const HORIZON_BATCH_SIZE = 150;
+export function chunkIds(ids, size = HORIZON_BATCH_SIZE) {
+    const list = Array.isArray(ids) ? ids : [];
+    const step = Number.isInteger(size) && size > 0 ? size : HORIZON_BATCH_SIZE;
+    const out = [];
+    for (let i = 0; i < list.length; i += step) out.push(list.slice(i, i + step));
+    return out;
+}
+
+/**
  * Store microclimate_profiles rows in the cache. Every requested id is
  * cached, as null when it has no row or no usable horizon, so it isn't
  * asked for again this session.

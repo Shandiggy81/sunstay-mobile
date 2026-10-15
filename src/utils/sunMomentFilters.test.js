@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    activeSunMoments, cacheHorizonRows, horizonIdsToFetch, isSunMomentFilter, momentInSun,
+    activeSunMoments, cacheHorizonRows, chunkIds, HORIZON_BATCH_SIZE, horizonIdsToFetch, inlineSunHorizons, sameSunMomentInputs, isSunMomentFilter, momentInSun,
     SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments, venueSunMomentKeys,
 } from './sunMomentFilters.js';
 
@@ -84,4 +84,44 @@ test('fetched rows fill the cache, and missing ids are cached as null', () => {
     assert.equal(cache.get('b'), null);
     assert.ok(cache.has('c'));
     assert.equal(cache.get('c'), null);
+});
+
+test('chunkIds splits large id lists into request-sized batches', () => {
+    const ids = Array.from({ length: 1001 }, (_, i) => `v${i}`);
+    const batches = chunkIds(ids);
+    assert.equal(batches.length, Math.ceil(1001 / HORIZON_BATCH_SIZE));
+    assert.ok(batches.every((b) => b.length <= HORIZON_BATCH_SIZE));
+    assert.deepEqual(batches.flat(), ids);
+    assert.deepEqual(chunkIds(['a', 'b', 'c'], 2), [['a', 'b'], ['c']]);
+    assert.deepEqual(chunkIds([], 2), []);
+    assert.deepEqual(chunkIds(null), []);
+    assert.deepEqual(chunkIds(['a', 'b'], 0), [['a', 'b']]);
+});
+
+test('inlineSunHorizons keeps venues that carry a horizon, even a null one', () => {
+    const h = Array.from({ length: 36 }, (_, i) => i);
+    const map = inlineSunHorizons([
+        { id: 'a', sun_horizon_deg: h },
+        { id: 2, sun_horizon_deg: null },
+        { id: 'c', sun_horizon_deg: [1, 2] },
+        { id: 'd' },
+        null,
+    ]);
+    assert.deepEqual([...map.keys()], ['a', '2', 'c']);
+    assert.deepEqual(map.get('a'), h);
+    assert.equal(map.get('2'), null);
+    assert.equal(map.get('c'), null);
+    assert.equal(inlineSunHorizons(null).size, 0);
+});
+
+test('sameSunMomentInputs reuses a result only for identical inputs on the same day', () => {
+    const venues = [], horizons = new Map(), weather = {};
+    const base = { venues, horizons, weather, day: '2026-10-15' };
+    assert.equal(sameSunMomentInputs(base, { ...base }), true);
+    assert.equal(sameSunMomentInputs(base, { ...base, day: '2026-10-16' }), false);
+    assert.equal(sameSunMomentInputs(base, { ...base, venues: [] }), false);
+    assert.equal(sameSunMomentInputs(base, { ...base, horizons: new Map() }), false);
+    assert.equal(sameSunMomentInputs(base, { ...base, weather: {} }), false);
+    assert.equal(sameSunMomentInputs(null, base), false);
+    assert.equal(sameSunMomentInputs(base, undefined), false);
 });
