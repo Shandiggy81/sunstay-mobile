@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { demoVenues } from '../data/demoVenues';
 import { interpretVenueResponse } from './interpretVenueResponse';
+import { fetchAllRows } from '../utils/fetchAllRows';
 import { venueRefreshBusy } from '../utils/pullRefreshStatus';
 import {
     VENUE_REFRESH_TIMEOUT_MS,
@@ -85,7 +86,10 @@ export function useVenues() {
             if (!supabase) {
                 return { ok: true, skipped: true, empty: false, rows: null, error: null };
             }
-            const response = await supabase.from('venues').select('*').abortSignal(signal);
+            // Paged with a stable order: one select returns at most 1,000 rows.
+            const response = await fetchAllRows((from, to) => supabase
+                .from('venues').select('*').order('id', { ascending: true })
+                .range(from, to).abortSignal(signal));
             if (!mountedRef.current || !isCurrent()) {
                 return { ok: false, stale: true, ignored: true, rows: null, error: null };
             }

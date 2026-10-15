@@ -11,6 +11,7 @@
  * @module api/venues
  */
 
+import { fetchAllRows } from '../utils/fetchAllRows';
 import { demoVenues } from '../data/demoVenues';
 import { supabase } from '../lib/supabase';
 
@@ -70,9 +71,11 @@ const calculateSunshineScore = (venue) => {
 export const fetchVenuesBrief = async () => {
     if (supabase) {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await fetchAllRows((from, to) => supabase
                 .from('venues')
-                .select('id, lat, lng, tags, roomTypes');
+                .select('id, lat, lng, tags, roomTypes')
+                .order('id', { ascending: true })
+                .range(from, to));
             if (!error && Array.isArray(data) && data.length > 0) {
                 return data.map(venue => ({
                     id: venue.id,
