@@ -1,20 +1,19 @@
 /**
- * Map pin as a label: the venue's own icon plus its sun score, coloured by
- * how much sun it gets (EatClub-style label pins, SunStay data).
+ * Map pins show the venue's own icon, coloured by how much sun it gets.
+ * Keep the numeric sun score in the accessible label, not the visual label.
  *
  * Pure, so the look of every pin state is testable without a map.
  */
 
 export const SUN_PIN_TIERS = Object.freeze({
-    full:     { bg: '#fbbf24', border: '#d97706', text: '#0f172a', glyph: '☀' },
-    part:     { bg: '#ffffff', border: '#f59e0b', text: '#0f172a', glyph: '⛅' },
-    low:      { bg: '#f1f5f9', border: '#cbd5e1', text: '#64748b', glyph: '☁' },
-    unknown:  { bg: '#ffffff', border: '#cbd5e1', text: '#475569', glyph: '' },
-    selected: { bg: '#0f172a', border: '#0f172a', text: '#fbbf24', glyph: '☀' },
+    full:     { bg: '#fbbf24', border: '#d97706', text: '#0f172a' },
+    part:     { bg: '#ffffff', border: '#f59e0b', text: '#0f172a' },
+    low:      { bg: '#e2e8f0', border: '#94a3b8', text: '#475569' },
+    unknown:  { bg: '#ffffff', border: '#cbd5e1', text: '#475569' },
+    selected: { bg: '#0f172a', border: '#0f172a', text: '#fbbf24' },
 });
 
-// Weather states that matter more than the sun reading itself. They keep the
-// tier colour from the score but swap the glyph so the reason is visible.
+// Conditions keep their glyph alongside the venue icon, without a number.
 const CONDITION_GLYPHS = Object.freeze({
     heater: '🔥',
     cozy: '🛋️',
@@ -39,11 +38,8 @@ export function sunPinView({ pinKey = 'default', score = null, emoji = null, ico
     const n = Number.isFinite(score) ? Math.round(score) : null;
     const tier = selected ? 'selected' : sunTier(n);
     const style = SUN_PIN_TIERS[tier];
-    const condition = CONDITION_GLYPHS[pinKey] ?? null;
-    let glyph = condition ?? style.glyph;
-    if (selected && !condition) glyph = SUN_PIN_TIERS[sunTier(n)].glyph || '☀';
     const icon = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : '📍';
-    const scoreText = n == null ? '' : `${glyph ? `${glyph} ` : ''}${n}`;
+    const scoreText = n == null ? '' : CONDITION_GLYPHS[pinKey] ?? '';
     return {
         tier,
         icon,
