@@ -227,7 +227,7 @@ const CLAY_PIN_URLS = clayPinUrls(import.meta.glob('../../assets/clay/pins/*.web
 const PIN_ICON_PX = 20;
 const MOMENT_BADGE_URLS = { coffee: coffeeBadgeUrl, dining: lunchBadgeUrl, cocktail: sunsetBadgeUrl };
 
-function paintMomentBadge(bubble, badge) {
+function paintMomentBadge(bubble, badge, topOffset = -18) {
     const url = badge && MOMENT_BADGE_URLS[badge.icon];
     let img = bubble.querySelector('.ss-pin-moment-badge');
     if (!url) {
@@ -250,6 +250,7 @@ function paintMomentBadge(bubble, badge) {
         img.style.cssText = 'position:absolute;top:-18px;right:-8px;width:20px;height:20px;object-fit:contain;box-sizing:content-box;border:2px solid #fff;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,0.2);pointer-events:none';
         bubble.append(img);
     }
+    img.style.top = `${topOffset}px`;
     if (img.getAttribute('src') !== url) img.src = url;
 }
 
@@ -360,7 +361,7 @@ function updateClusterMarkerEl(el, count, { badge = null, matchCount = 0 } = {})
     inner.style.height = `${size}px`;
     if (inner.firstChild?.nodeType === Node.TEXT_NODE) inner.firstChild.nodeValue = String(count);
     else inner.prepend(document.createTextNode(String(count)));
-    paintMomentBadge(inner, badge);
+    paintMomentBadge(inner, badge, -20);
     el.setAttribute('aria-label', badge ? `${count} venues, ${matchCount} with ${badge.label}` : `${count} venues`);
 }
 
