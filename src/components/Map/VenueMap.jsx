@@ -8,6 +8,9 @@ import { Layers, Check, Search } from 'lucide-react';
 import { clusterSize, sunPinView } from '../../utils/sunPin';
 import { clayPinUrlFor, clayPinUrls } from '../../utils/clayVenuePins';
 import { mapMomentBadge } from '../../utils/mapMomentBadge.js';
+import {
+    CLUSTER_MOMENT_PROPERTIES, pointMomentMatches, clusterMomentBadge, clusterMomentFeatureSignature,
+} from '../../utils/clusterMomentBadge.js';
 import coffeeBadgeUrl from '../../assets/clay/coffee.webp';
 import lunchBadgeUrl from '../../assets/clay/dining.webp';
 import sunsetBadgeUrl from '../../assets/clay/cocktail.webp';
@@ -331,7 +334,7 @@ function createMarkerEl(view) {
     return el;
 }
 
-function createClusterMarkerEl(count) {
+function createClusterMarkerEl(count, momentView) {
     const el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;';
     const inner = document.createElement('div');
@@ -345,18 +348,20 @@ function createClusterMarkerEl(count) {
     el.appendChild(inner);
     el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.08)'; });
     el.addEventListener('mouseleave', () => { inner.style.transform = ''; });
-    updateClusterMarkerEl(el, count);
+    updateClusterMarkerEl(el, count, momentView);
     return el;
 }
 
-function updateClusterMarkerEl(el, count) {
+function updateClusterMarkerEl(el, count, { badge = null, matchCount = 0 } = {}) {
     const inner = el.querySelector('.ss-cluster-inner');
     if (!inner) return;
     const size = clusterSize(count);
     inner.style.width = `${size}px`;
     inner.style.height = `${size}px`;
-    inner.textContent = String(count);
-    el.setAttribute('aria-label', `${count} venues`);
+    if (inner.firstChild?.nodeType === Node.TEXT_NODE) inner.firstChild.nodeValue = String(count);
+    else inner.prepend(document.createTextNode(String(count)));
+    paintMomentBadge(inner, badge);
+    el.setAttribute('aria-label', badge ? `${count} venues, ${matchCount} with ${badge.label}` : `${count} venues`);
 }
 
 // HTML markers sit on the map plane so they do not parallax when the 3D
@@ -1472,7 +1477,7 @@ const VenueMap = forwardRef(({
             return {
                 type: 'Feature',
                 geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
-                properties: { id: venue.id, score: weight },
+                properties: { id: venue.id, score: weight, ...pointMomentMatches(venue.id, sunMomentsById) },
             };
         });
 
@@ -1483,6 +1488,7 @@ const VenueMap = forwardRef(({
                 type: 'geojson',
                 data: geojsonData,
                 cluster: true,
+                clusterProperties: CLUSTER_MOMENT_PROPERTIES,
                 clusterMaxZoom: 14,
                 clusterRadius: 50
             });
@@ -1532,7 +1538,7 @@ const VenueMap = forwardRef(({
         } else if (map.current.getLayer(HEATMAP_LAYER_ID)) {
             map.current.setLayoutProperty(HEATMAP_LAYER_ID, 'visibility', 'none');
         }
-    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore, microById, clusterTodMinutes]);
+    }, [mapLoaded, safeVenues, filteredIdSet, comfortMapOn, weather, calculateSunstayScore, microById, clusterTodMinutes, sunMomentsById]);
 
     // ── fitBounds once ──────────────────────────────────────────────
     useEffect(() => {
@@ -1659,7 +1665,7 @@ const VenueMap = forwardRef(({
                 }
 
                 const features = featuresForMarkerSync(instance, CLUSTER_SOURCE_ID);
-                const signature = markerFeatureSignature(features);
+                const signature = `${markerFeatureSignature(features)}|${clusterMomentFeatureSignature(features, activeSunMoment)}`;
                 const gate = requiredMarkerGate({
                     sourceLoaded: true,
                     featureCount: features.length,
@@ -1683,6 +1689,7 @@ const VenueMap = forwardRef(({
                     if (isCluster) {
                         const markerId = `cluster-${feature.properties.cluster_id}`;
                         const count = feature.properties.point_count;
+                        const momentView = clusterMomentBadge(feature.properties, activeSunMoment);
                         const clusterPlan = markerCoordinatePlan({
                             id: markerId,
                             lng: coords?.[0],
@@ -1694,14 +1701,20 @@ const VenueMap = forwardRef(({
                         specs.push({
                             id: markerId,
                             update(existing) {
+                                const countChanged = existing.count !== count;
                                 syncExistingClusterMarker(existing, clusterPlan.coordinates, count, {
                                     updateCount(record, nextCount) {
-                                        updateClusterMarkerEl(record.el, nextCount);
+                                        updateClusterMarkerEl(record.el, nextCount, momentView);
                                     },
                                 });
+                                if (!countChanged && (existing.momentBadge !== momentView.badge || existing.matchCount !== momentView.matchCount)) {
+                                    updateClusterMarkerEl(existing.el, count, momentView);
+                                }
+                                existing.momentBadge = momentView.badge;
+                                existing.matchCount = momentView.matchCount;
                             },
                             create() {
-                                const el = createClusterMarkerEl(count);
+                                const el = createClusterMarkerEl(count, momentView);
                                 el.addEventListener('click', (e) => {
                                     e.stopPropagation();
                                     e.preventDefault();
@@ -1711,7 +1724,7 @@ const VenueMap = forwardRef(({
                                 const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                     .setLngLat(clusterPlan.coordinates)
                                     .addTo(instance);
-                                return { marker, el, count, isCluster: true, generation };
+                                return { marker, el, count, momentBadge: momentView.badge, matchCount: momentView.matchCount, isCluster: true, generation };
                             },
                         });
                         return;

@@ -8,6 +8,11 @@ const badges = new Map(SUN_MOMENT_FILTERS.map(({ moment, icon }) => [moment, Obj
     label: `sun for ${titles.get(moment)}`,
 })]));
 
+/** Shared clay icon and accessible description for a supported quick-filter moment. */
+export function momentBadgeDescriptor(activeMoment) {
+    return badges.get(activeMoment) ?? null;
+}
+
 /**
  * Badge for a venue with direct sun in the active quick-filter moment.
  * Consumes the existing venue-id → moment-key map; never calculates or fetches sun data.
@@ -18,7 +23,7 @@ const badges = new Map(SUN_MOMENT_FILTERS.map(({ moment, icon }) => [moment, Obj
  * @returns {{ moment: string, icon: string, label: string }|null}
  */
 export function mapMomentBadge(venueId, activeMoment, sunMomentsById) {
-    const badge = badges.get(activeMoment);
+    const badge = momentBadgeDescriptor(activeMoment);
     if (!badge || venueId == null || !(sunMomentsById instanceof Map)) return null;
     const moments = sunMomentsById.get(String(venueId));
     return Array.isArray(moments) && moments.includes(activeMoment) ? badge : null;
