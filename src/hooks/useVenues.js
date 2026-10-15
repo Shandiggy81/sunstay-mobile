@@ -127,6 +127,21 @@ export function useVenues() {
     }, [fetchLiveVenues, getRefreshRequest]);
 
     useEffect(() => {
+        // Dev-only load test: ?stress=1000 swaps in synthetic venues. Vite
+        // replaces import.meta.env.DEV with false in production builds, so this
+        // branch and the stressVenues module are dropped from the bundle.
+        if (import.meta.env.DEV) {
+            const search = typeof window !== 'undefined' ? window.location.search : '';
+            if (/[?&]stress=\d/.test(search)) {
+                import('../utils/stressVenues.js').then(({ stressCount, stressVenues }) => {
+                    if (!mountedRef.current) return;
+                    const count = stressCount(search);
+                    console.info(`[useVenues] Stress mode: ${count} synthetic venues.`);
+                    setVenues(stressVenues(count));
+                });
+                return;
+            }
+        }
         fetchLiveVenues();
     }, [fetchLiveVenues]);
 

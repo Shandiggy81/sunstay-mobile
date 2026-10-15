@@ -6,7 +6,8 @@ import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
 import { filterChoiceKey } from './utils/filterRefit';
-import { activeSunMoments, isSunMomentFilter, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
+import { venueLocalDate } from './utils/balconySunEngine';
+import { activeSunMoments, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
 import { useSunHorizons } from './hooks/useSunHorizons';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
@@ -624,11 +625,19 @@ const AppContent = () => {
     const sunHorizons = useSunHorizons(venues);
     const wantedSunMoments = useMemo(() => activeSunMoments(activeFilters), [activeFilters]);
     const needSunMoments = wantedSunMoments.length > 0 || isChatOpen;
+    // Turning the last chip off drops the result; keep it so switching a chip
+    // back on the same day, with the same venues and weather, is instant.
+    const sunMomentsMemoRef = useRef(null);
     const sunMomentsById = useMemo(() => {
         if (!needSunMoments) return null;
+        const inputs = { venues, horizons: sunHorizons, weather, day: venueLocalDate(new Date()) };
+        const previous = sunMomentsMemoRef.current;
+        if (previous && sameSunMomentInputs(previous.inputs, inputs)) return previous.value;
         const liveWeather = weather && weather.source !== 'demo' ? weather : null;
         const forecast = liveWeather ? venueSunForecast({ venue: { lat: -37.8136, lng: 144.9631 }, weather: liveWeather }) : null;
-        return sunMomentsByVenue(venues, sunHorizons, { forecast });
+        const value = sunMomentsByVenue(venues, sunHorizons, { forecast });
+        sunMomentsMemoRef.current = { inputs, value };
+        return value;
     }, [needSunMoments, venues, sunHorizons, weather]);
 
     // ── Unified venue filtering ────────────────────────────────────────

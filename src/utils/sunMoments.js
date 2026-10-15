@@ -43,10 +43,14 @@ function overlap(windows, from, to) {
 }
 
 /** Local wall-clock hour (decimal) of an instant in a time zone. */
+const hourFormatters = new Map();
 function localHour(instant, timeZone) {
-    const parts = new Intl.DateTimeFormat('en-AU', {
-        timeZone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
-    }).formatToParts(instant);
+    let formatter = hourFormatters.get(timeZone);
+    if (!formatter) {
+        formatter = new Intl.DateTimeFormat('en-AU', { timeZone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
+        hourFormatters.set(timeZone, formatter);
+    }
+    const parts = formatter.formatToParts(instant);
     const get = (type) => Number(parts.find((p) => p.type === type)?.value ?? NaN);
     return get('hour') + get('minute') / 60;
 }

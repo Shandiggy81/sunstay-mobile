@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import SunCalc from 'suncalc';
 import {
   calculateBalconySunDay, calculateMonthlySunSummary, formatSunTime, formatSunWindows,
-  isDirectSun, parseFacing, venueDayBounds, venueLocalDate,
+  isDirectSun, parseFacing, SUN_DAY_CACHE_LIMIT, venueDayBounds, venueLocalDate,
   formatGuestDate, formatGuestTime, formatGuestWindows,
 } from './balconySunEngine.js';
 import { calculateBalconySun } from './calculateBalconySun.js';
@@ -83,7 +83,7 @@ describe('balcony calculation cache', () => {
   it('bounds memory by evicting the oldest calculation results', () => {
     const options = { ...MELBOURNE, lat: -37.7, date: '2028-01-01' };
     const first = calculateBalconySunDay(options);
-    for (let i = 1; i <= 128; i++) calculateBalconySunDay({ ...options, date: new Date(Date.UTC(2028, 0, 1 + i)) });
+    for (let i = 1; i <= SUN_DAY_CACHE_LIMIT; i++) calculateBalconySunDay({ ...options, date: new Date(Date.UTC(2028, 0, 1 + i)) });
     assert.notStrictEqual(calculateBalconySunDay(options), first);
     assert.deepEqual(calculateBalconySunDay(options), first);
   });
@@ -257,5 +257,49 @@ describe('summary, validation and legacy compatibility', () => {
     assert.equal(calculateBalconySun(NaN, 0).peakWindow, null);
     assert.ok(calculateBalconySun(MELBOURNE.lat, MELBOURNE.lng, '2027-06-21').totalSunHours > 0);
     assert.ok(calculateBalconySun(MELBOURNE.lat, MELBOURNE.lng, '2027-06-21', 'N', 90, 5).totalSunHours < result.totalSunHours);
+  });
+});
+
+describe('shared per-day work (caching for large venue lists)', () => {
+  it('returns fresh Date objects, so a caller mutating them cannot corrupt the cached bounds', () => {
+    const first = venueDayBounds('2026-10-15', 'Australia/Melbourne');
+    const expected = first.start.getTime();
+    first.start.setTime(0);
+    first.end.setTime(0);
+    const again = venueDayBounds('2026-10-15', 'Australia/Melbourne');
+    assert.equal(again.start.getTime(), expected);
+    assert.notStrictEqual(again.start, first.start);
+    assert.equal(again.end.getTime() - again.start.getTime(), 24 * 3600000);
+  });
+
+  it('keeps a clock-change day at its real length (23 h and 25 h in Melbourne)', () => {
+    const springForward = venueDayBounds('2026-10-04', 'Australia/Melbourne');
+    const fallBack = venueDayBounds('2026-04-05', 'Australia/Melbourne');
+    assert.equal(springForward.end - springForward.start, 23 * 3600000);
+    assert.equal(fallBack.end - fallBack.start, 25 * 3600000);
+  });
+
+  it('still rejects a date that does not exist, every time it is asked', () => {
+    assert.throws(() => venueDayBounds('2011-12-30', 'Pacific/Apia'), /does not exist/);
+    assert.throws(() => venueDayBounds('2011-12-30', 'Pacific/Apia'), /does not exist/);
+  });
+
+  it('morning-coffee windows stay on local 6–10 am on normal and clock-change days', () => {
+    for (const date of ['2026-10-15', '2026-10-04', '2026-04-05']) {
+      const day = calculateBalconySunDay({ ...MELBOURNE, facing: null, date });
+      for (const w of day.morningCoffee.windows) {
+        const from = localMinutes(w.start, 'Australia/Melbourne');
+        const to = localMinutes(w.end, 'Australia/Melbourne');
+        assert.ok(from >= 360 - 0.02 && to <= 600 + 0.02, `${date}: ${from}–${to}`);
+      }
+      assert.equal(day.morningCoffee.available, day.morningCoffee.windows.length > 0);
+    }
+  });
+
+  it('gives the same day twice in a row from the cache, identical in content', () => {
+    const options = { ...MELBOURNE, date: '2026-12-21' };
+    const a = calculateBalconySunDay(options);
+    const b = calculateBalconySunDay(options);
+    assert.deepEqual(b, a);
   });
 });
