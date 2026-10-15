@@ -7,6 +7,10 @@ import mapboxgl from 'mapbox-gl';
 import { Layers, Check, Search } from 'lucide-react';
 import { clusterSize, sunPinView } from '../../utils/sunPin';
 import { clayPinUrlFor, clayPinUrls } from '../../utils/clayVenuePins';
+import { mapMomentBadge } from '../../utils/mapMomentBadge.js';
+import coffeeBadgeUrl from '../../assets/clay/coffee.webp';
+import lunchBadgeUrl from '../../assets/clay/dining.webp';
+import sunsetBadgeUrl from '../../assets/clay/cocktail.webp';
 import { areaPromptNeeded } from '../../utils/searchArea';
 import { filterRefitNeeded } from '../../utils/filterRefit';
 import { parseXweatherCredentials } from '../../utils/xweatherKey';
@@ -218,6 +222,33 @@ const PIN_TAIL_SVG = (fill, stroke) =>
 // 96px clay pin icons (utils/clayVenuePins), hashed or inlined by Vite.
 const CLAY_PIN_URLS = clayPinUrls(import.meta.glob('../../assets/clay/pins/*.webp', { eager: true, import: 'default' }));
 const PIN_ICON_PX = 20;
+const MOMENT_BADGE_URLS = { coffee: coffeeBadgeUrl, dining: lunchBadgeUrl, cocktail: sunsetBadgeUrl };
+
+function paintMomentBadge(bubble, badge) {
+    const url = badge && MOMENT_BADGE_URLS[badge.icon];
+    let img = bubble.querySelector('.ss-pin-moment-badge');
+    if (!url) {
+        img?.remove();
+        bubble.style.removeProperty('position');
+        return;
+    }
+    // Absolute decoration inside the bubble leaves the marker's dimensions
+    // and Mapbox positioning untouched.
+    bubble.style.position = 'relative';
+    if (!img) {
+        img = document.createElement('img');
+        img.className = 'ss-pin-moment-badge';
+        img.width = 20;
+        img.height = 20;
+        img.alt = '';
+        img.setAttribute('aria-hidden', 'true');
+        img.decoding = 'async';
+        img.draggable = false;
+        img.style.cssText = 'position:absolute;top:-18px;right:-8px;width:20px;height:20px;object-fit:contain;box-sizing:content-box;border:2px solid #fff;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(15,23,42,0.2);pointer-events:none';
+        bubble.append(img);
+    }
+    if (img.getAttribute('src') !== url) img.src = url;
+}
 
 // One <img> per pin, reused across repaints. A failed URL is remembered on the
 // element so later repaints keep the emoji instead of retrying it.
@@ -256,10 +287,13 @@ function paintMarkerEl(el, view) {
     bubble.style.borderColor = view.border;
     bubble.style.color = view.text;
     paintPinIcon(icon, view);
+    paintMomentBadge(bubble, view.momentBadge);
     score.textContent = view.scoreText;
     score.style.display = view.scoreText ? '' : 'none';
     tail.innerHTML = PIN_TAIL_SVG(view.bg, view.border);
-    el.setAttribute('aria-label', view.label);
+    el.setAttribute('aria-label', view.momentBadge
+        ? `${view.venueName}, ${view.momentBadge.label}, ${view.label}`
+        : view.label);
     el.dataset.sunTier = view.tier;
     el.style.zIndex = view.tier === 'selected' ? '3' : view.tier === 'full' ? '2' : '1';
 }
@@ -769,6 +803,8 @@ const VenueMap = forwardRef(({
     venues = [],
     selectedVenue,
     filteredVenueIds,
+    activeSunMoment = null,
+    sunMomentsById = null,
     filterKey,
     onVenueSelect,
     liveVenueFeatures = {},
@@ -853,7 +889,11 @@ const VenueMap = forwardRef(({
             const selected = id != null && record.venueId === String(id);
             if (record.selected === selected) continue;
             record.selected = selected;
-            paintMarkerEl(record.el, sunPinView({ pinKey: record.pinKey, score: record.score, emoji: record.emoji, iconUrl: record.iconUrl, selected }));
+            paintMarkerEl(record.el, {
+                ...sunPinView({ pinKey: record.pinKey, score: record.score, emoji: record.emoji, iconUrl: record.iconUrl, selected }),
+                momentBadge: record.momentBadge,
+                venueName: record.venueName,
+            });
         }
     }, [selectedVenue?.id]);
 
@@ -1700,22 +1740,31 @@ const VenueMap = forwardRef(({
                     const emoji = venue.emoji ?? null;
                     const iconUrl = clayPinUrlFor(venue, CLAY_PIN_URLS);
                     const selected = String(selectedVenueIdRef.current ?? '') === String(venueId);
+                    const momentBadge = mapMomentBadge(venueId, activeSunMoment, sunMomentsById);
+                    const venueName = String(venue.venueName || venue.name || venue.title || 'Venue');
+                    const view = {
+                        ...sunPinView({ pinKey, score, emoji, iconUrl, selected }),
+                        momentBadge, venueName,
+                    };
                     specs.push({
                         id: `venue-${venueId}`,
                         update(existing) {
                             if (existing.pinKey !== pinKey || existing.score !== score
                                 || existing.emoji !== emoji || existing.iconUrl !== iconUrl
+                                || existing.momentBadge !== momentBadge || existing.venueName !== venueName
                                 || existing.selected !== selected) {
-                                paintMarkerEl(existing.el, sunPinView({ pinKey, score, emoji, iconUrl, selected }));
+                                paintMarkerEl(existing.el, view);
                                 existing.pinKey = pinKey;
                                 existing.score = score;
                                 existing.emoji = emoji;
                                 existing.iconUrl = iconUrl;
                                 existing.selected = selected;
+                                existing.momentBadge = momentBadge;
+                                existing.venueName = venueName;
                             }
                         },
                         create() {
-                            const el = createMarkerEl(sunPinView({ pinKey, score, emoji, iconUrl, selected }));
+                            const el = createMarkerEl(view);
                             el.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
@@ -1725,7 +1774,7 @@ const VenueMap = forwardRef(({
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(instance);
-                            return { marker, el, pinKey, score, emoji, iconUrl, selected, venueId: String(venueId), isCluster: false, generation };
+                            return { marker, el, pinKey, score, emoji, iconUrl, selected, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
                         },
                     });
                 });
@@ -1787,7 +1836,7 @@ const VenueMap = forwardRef(({
                 markersRef.current = {};
             }
         };
-    }, [mapLoaded, recovery.generation, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunScore, microById, clusterTodMinutes]);
+    }, [mapLoaded, recovery.generation, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunScore, microById, clusterTodMinutes, activeSunMoment, sunMomentsById]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces

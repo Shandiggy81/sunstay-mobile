@@ -1132,6 +1132,8 @@ const AppContent = () => {
                                         onVenueSelect={handleVenueSelect}
                                         selectedVenue={selectedVenue}
                                         filteredVenueIds={stableFilteredIds}
+                                        activeSunMoment={wantedSunMoments[0] ?? null}
+                                        sunMomentsById={sunMomentsById}
                                         filterKey={mapFilterKey}
                                         liveVenueFeatures={liveVenueFeatures}
                                         weatherColorFn={getMarkerWeatherColor}
