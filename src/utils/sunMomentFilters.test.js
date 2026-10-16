@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    activeSunMoments, cacheHorizonRows, chunkIds, HORIZON_BATCH_SIZE, horizonIdsToFetch, inlineSunHorizons, sameSunMomentInputs, isSunMomentFilter, momentInSun,
+    activeSunMoments, cacheHorizonRows, createSunMomentsJob, chunkIds, HORIZON_BATCH_SIZE, horizonIdsToFetch, inlineSunHorizons, sameSunMomentInputs, isSunMomentFilter, momentInSun,
     SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments, venueSunMomentKeys,
 } from './sunMomentFilters.js';
 
@@ -60,6 +60,22 @@ test('sunMomentsByVenue maps only venues with sun in some moment', () => {
     assert.ok(!out.get('2').includes('sunset'));
     assert.equal(sunMomentsByVenue(null, horizons).size, 0);
     assert.equal(sunMomentsByVenue([venue(1)], null).size, 0);
+});
+
+test('the sliced job gives exactly the sunMomentsByVenue result', () => {
+    const horizons = new Map([['1', open], ['2', westWall], ['3', null], ['5', open]]);
+    const list = [venue(1), null, venue('2'), venue('3'), venue('4'), venue('5'), { lat: LAT }];
+    const whole = sunMomentsByVenue(list, horizons, { now: NOW });
+    const job = createSunMomentsJob(list, horizons, { now: NOW });
+    let slices = 0;
+    assert.equal(job.done, false);
+    while (!job.run(() => true)) slices++;   // yield after every venue
+    assert.equal(job.done, true);
+    assert.equal(slices, list.length - 1, 'each slice handles one venue');
+    assert.deepEqual([...job.result], [...whole]);
+    assert.equal(job.run(() => true), true, 'running a finished job is a no-op');
+    assert.equal(createSunMomentsJob(null, horizons).done, true);
+    assert.equal(createSunMomentsJob(list, null).done, true);
 });
 
 test('a venue must have sun in every chosen moment', () => {

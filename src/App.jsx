@@ -7,7 +7,8 @@ import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/v
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
 import { filterChoiceKey } from './utils/filterRefit';
 import { venueLocalDate } from './utils/balconySunEngine';
-import { activeSunMoments, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
+import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
+import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
@@ -75,6 +76,13 @@ const HEATING_FILTER_MATCHERS = {
     Heaters: (heating) => heating.includes('heat') && !heating.includes('no heat'),
     'Indoor Warmth': (heating) => heating.includes('indoor'),
 };
+
+// Today's Melbourne CBD sky for the sun-moment chips (null for demo weather).
+const sunMomentForecast = (weather) => (
+    weather && weather.source !== 'demo'
+        ? venueSunForecast({ venue: { lat: -37.8136, lng: 144.9631 }, weather })
+        : null
+);
 
 const venueMatchesWeatherTag = (venue, filterId) => {
     // Venue tags use the same string values as FILTER_CATEGORIES[].id
@@ -633,11 +641,26 @@ const AppContent = () => {
         const inputs = { venues, horizons: sunHorizons, weather, day: venueLocalDate(new Date()) };
         const previous = sunMomentsMemoRef.current;
         if (previous && sameSunMomentInputs(previous.inputs, inputs)) return previous.value;
-        const liveWeather = weather && weather.source !== 'demo' ? weather : null;
-        const forecast = liveWeather ? venueSunForecast({ venue: { lat: -37.8136, lng: 144.9631 }, weather: liveWeather }) : null;
-        const value = sunMomentsByVenue(venues, sunHorizons, { forecast });
+        const value = sunMomentsByVenue(venues, sunHorizons, { forecast: sunMomentForecast(weather) });
         sunMomentsMemoRef.current = { inputs, value };
         return value;
+    }, [needSunMoments, venues, sunHorizons, weather]);
+
+    // Work the chips' answer out ahead of time, in small slices while the
+    // phone is idle, so the first chip tap reads a ready result instead of
+    // calculating sun for every venue at once. Restarts when the venues,
+    // horizons or weather change; stops while a chip or the chat needs the
+    // answer now (the memo above then calculates it directly).
+    useEffect(() => {
+        if (needSunMoments || !Array.isArray(venues) || venues.length === 0 || sunHorizons.size === 0) return undefined;
+        const inputs = { venues, horizons: sunHorizons, weather, day: venueLocalDate(new Date()) };
+        if (sameSunMomentInputs(sunMomentsMemoRef.current?.inputs, inputs)) return undefined;
+        const job = createSunMomentsJob(venues, sunHorizons, { forecast: sunMomentForecast(weather) });
+        return runWhenIdle(job, {
+            onDone: (value) => {
+                if (!sameSunMomentInputs(sunMomentsMemoRef.current?.inputs, inputs)) sunMomentsMemoRef.current = { inputs, value };
+            },
+        });
     }, [needSunMoments, venues, sunHorizons, weather]);
 
     // ── Unified venue filtering ────────────────────────────────────────
