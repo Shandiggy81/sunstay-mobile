@@ -83,6 +83,14 @@ describe('clay venue pins', () => {
         assert.equal(pinIconName({ emoji: '🥨', tags: ['Specialty Coffee', 'Craft Beer', 'Fireplace'] }), null);
     });
 
+    it('keeps the emoji for bakery and dessert labels instead of the coffee cup', () => {
+        assert.equal(pinIconName({ typeLabel: 'Bakery cafe', emoji: '🥐' }), null);
+        assert.equal(pinIconName({ typeLabel: 'Gelato & dessert', emoji: '🍨' }), null);
+        assert.equal(pinIconName({ typeLabel: 'Patisserie & Cafe', emoji: '☕' }), null);
+        assert.equal(pinIconName({ typeLabel: 'Cafe', emoji: '🥐' }), 'coffee');
+        assert.ok(!CLAY_PIN_ICON_NAMES.includes(null));
+    });
+
     it('returns null for no match, unknown keys and prototype names', () => {
         assert.equal(pinIconName({ emoji: '🧘', tags: ['Sunny'] }), null);
         assert.equal(pinIconName({ emoji: 'toString', tags: ['constructor', '__proto__', 'hasOwnProperty'] }), null);

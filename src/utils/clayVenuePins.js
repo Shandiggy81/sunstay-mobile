@@ -8,7 +8,8 @@
  * match keep their emoji.
  *
  * Matching runs typeLabel first (the most specific description), then the
- * venue's emoji, then its tags, all case-insensitive.
+ * venue's emoji, then its tags, all case-insensitive. A typeLabel rule with a
+ * null icon stops the search, so that venue keeps its emoji.
  */
 
 import { clayIconUrls } from './clayFilterIcons.js';
@@ -16,6 +17,9 @@ import { clayIconUrls } from './clayFilterIcons.js';
 // Order matters: the first match wins, so specific places beat generic ones
 // ("Waterfront Pub" is waterfront, "Pub & Beer Garden" is a beer garden).
 const TYPE_LABEL_RULES = Object.freeze([
+    // No clay icon for these yet: keep the venue's own emoji (🥐, 🍨) rather
+    // than letting "Bakery cafe" fall through to the coffee cup.
+    [/bak(e|ery|ehouse)\b|patisserie|pastry|gelat|dessert/, null],
     [/rooftop.*terrace|terrace.*rooftop/, 'rooftop-terrace'],
     [/rooftop/, 'rooftop-bar'],
     [/beer garden/, 'garden-table'],
@@ -76,7 +80,7 @@ const TAG_ICONS = Object.freeze({
 });
 
 export const CLAY_PIN_ICON_NAMES = Object.freeze([...new Set([
-    ...TYPE_LABEL_RULES.map(([, name]) => name),
+    ...TYPE_LABEL_RULES.map(([, name]) => name).filter(Boolean),
     ...Object.values(EMOJI_ICONS),
     ...Object.values(TAG_ICONS),
 ])]);

@@ -54,3 +54,14 @@ export function feelsLikeIconName(feelsLikeC) {
 export function venueIconName(venue) {
     return pinIconName(venue) ?? 'map-pin';
 }
+
+/**
+ * What a venue's list row or card shows, matching its map pin: its clay icon
+ * ({ name }), else its own emoji ({ emoji }, e.g. 🥡 🍨 🥐), else a clay map pin.
+ */
+export function venueIcon(venue) {
+    const name = pinIconName(venue);
+    if (name) return { name };
+    const emoji = typeof venue?.emoji === 'string' ? venue.emoji.trim() : '';
+    return emoji ? { emoji } : { name: 'map-pin' };
+}
