@@ -154,7 +154,6 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - No component tests, lint script or typecheck script.
 - `VenueCard.jsx` imports `src/data/venues.js` and `src/data/seedVenues.js` alongside the app's
   venue list; venue data lives in several files.
-- `src/main.jsx` writes the boot error's `toString()` into `innerHTML` on a startup failure.
 
 ### Requires production configuration or dashboard verification
 - Whether Gemini quota or rate limits protect `chat-sunny`. (Production verified 2026-10-11: the
