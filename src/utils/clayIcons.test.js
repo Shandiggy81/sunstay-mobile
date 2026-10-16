@@ -119,12 +119,39 @@ describe('venueOfferings', () => {
     });
 
     it('keeps unknown tags with no icon, after the known ones', () => {
-        const rows = venueOfferings({ tags: ['People Watching', 'Beer Garden', 'live-music', 'indoor-only'] });
+        const rows = venueOfferings({ tags: ['Rooftop Yoga', 'Beer Garden', 'live-music', 'Karaoke'] });
         assert.deepEqual(rows.map((r) => [r.label, r.icon]), [
             ['Beer garden', 'garden-table'],
             ['Live music', 'live-music'],
-            ['People watching', null],
-            ['Indoor only', null],
+            ['Rooftop yoga', null],
+            ['Karaoke', null],
+        ]);
+    });
+
+    it('gives every live venue tag with existing art its clay icon', () => {
+        // Every tag on production venues (2026-10-17), minus the live-condition ones.
+        const live = ['Outdoor Seating', 'Large Groups', 'Wheelchair Accessible', 'Beer Garden', 'Pet Friendly',
+            'Smoking Area', 'Vegan', 'Live Music', 'Pram Friendly', 'Rooftop', 'Views', 'Craft Beer', 'Hotel',
+            'Afternoon Sun', 'Cocktails', 'Shaded', 'Premium', 'Indoor Warmth', 'River', 'Cozy', 'Serviced apartment',
+            'Specialty Coffee', 'Pub', 'Fireplace', 'Heaters', 'All-weather', 'Historic', 'Covered', 'Garden',
+            'Sunset', 'Morning Sun', 'indoor-only', 'Vines', 'food-available', 'Umbrellas', 'live-music', 'Deck',
+            'After Work', 'Pub Grub', 'Boutique', 'Bar', 'Beach', '24h License', 'dog-friendly', 'Sunrise',
+            'Business Friendly', 'Gluten Free', 'Arts', 'Hidden', 'Party', 'Conference', 'Local', 'People Watching'];
+        for (const tag of live) {
+            const [row] = venueOfferings({ tags: [tag] });
+            assert.ok(row?.icon && hasIcon(row.icon), `${tag} → ${row?.icon}`);
+        }
+    });
+
+    it('labels the newly mapped tags', () => {
+        const rows = venueOfferings({ tags: ['Sunset', 'Sunrise', 'Hotel', 'Premium', 'Cozy', 'Serviced apartment'] });
+        assert.deepEqual(rows.map((r) => [r.label, r.icon]), [
+            ['Cosy', 'indoor-warmth'],
+            ['Sunrise spot', 'morning-sun'],
+            ['Sunset spot', 'sunset'],
+            ['Hotel', 'hotel-views'],
+            ['Serviced apartment', 'house'],
+            ['Premium', 'sparkles'],
         ]);
     });
 
