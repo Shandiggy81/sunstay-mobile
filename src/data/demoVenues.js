@@ -1,4 +1,5 @@
 import { PROPERTY_FILTERS } from '../utils/propertyTypes.js';
+import { FOOD_TYPE_FILTERS } from '../utils/venueFoodType.js';
 import { calculateFacadeSun, estimateRoomTypesFromFacades } from '../utils/facadeSun.js';
 import ROOM_PROFILES from './roomProfiles.generated.js';
 
@@ -18,6 +19,7 @@ import ROOM_PROFILES from './roomProfiles.generated.js';
 
 // ── Filter Categories (used by FilterSheet) ───────────────────────
 export const FILTER_CATEGORIES = [
+  ...FOOD_TYPE_FILTERS,
   ...PROPERTY_FILTERS,
   { id: 'Sunny',              icon: '☀️',  label: 'Sunny Patio' },
   { id: 'Rooftop',            icon: '🏙️',  label: 'Rooftop' },

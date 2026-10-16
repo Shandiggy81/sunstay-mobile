@@ -5,6 +5,7 @@ import { boundsOfVenues, lookupMicroclimateEntry, markerScoreFromMicroclimate, r
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
+import { FOOD_TYPE_FILTERS, isFoodTypeFilter, matchesFoodTypeFilters } from './utils/venueFoodType';
 import { venueTypeLabel } from './utils/venueTypeLabel';
 import { filterChoiceKey } from './utils/filterRefit';
 import { venueLocalDate } from './utils/balconySunEngine';
@@ -49,6 +50,7 @@ import { venueDisplayScore } from './utils/venueDisplayScore';
 import { listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
 import { venueConditionChips } from './utils/venueConditionChips';
 import { feelsLikeIconName, venueIcon } from './utils/clayIcons';
+import { clayIconName } from './utils/clayFilterIcons';
 import ClayIcon from './components/common/ClayIcon';
 import VenueIcon from './components/common/VenueIcon';
 import { SEARCH_DEBOUNCE_MS } from './utils/debounce';
@@ -411,18 +413,34 @@ VenueSearchInput.displayName = 'VenueSearchInput';
 // 3D icons for the quick filters (src/assets/clay/*.webp).
 const QUICK_FILTER_ICONS = Object.freeze({ 'all-stays': 'hotel-views', 'all-homes': 'house' });
 
+const SelectedFoodTypeChips = ({ activeFilters, onToggle }) => (
+    <>
+        {FOOD_TYPE_FILTERS.filter(filter => activeFilters.includes(filter.id)).map(filter => {
+            const clayName = clayIconName(filter.id);
+            return (
+                <button key={filter.id} type="button" onClick={() => onToggle(filter.id)} aria-pressed={true}
+                    className="ss-quick-chip ss-quick-chip--active">
+                    <VenueIcon icon={clayName ? { name: clayName } : { emoji: filter.icon }} size={26} />
+                    <span>{filter.label}</span>
+                </button>
+            );
+        })}
+    </>
+);
+
 const PropertyFilterPills = ({ activeFilters, onToggle }) => (
-    <div className="flex gap-2" role="group" aria-label="Property types">
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Venue types">
         {PROPERTY_FILTERS.map(filter => <button key={filter.id} type="button"
             onClick={() => onToggle(filter.id)} aria-pressed={activeFilters.includes(filter.id)}
-            className={`flex-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold ${activeFilters.includes(filter.id)
+            className={`flex-1 min-h-[44px] min-w-max inline-flex items-center justify-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold ${activeFilters.includes(filter.id)
                 ? 'border-amber-300 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-slate-700'}`}>
             <ClayIcon name={QUICK_FILTER_ICONS[filter.id]} size={24} /> {filter.label}
         </button>)}
+        <SelectedFoodTypeChips activeFilters={activeFilters} onToggle={onToggle} />
     </div>
 );
 
-// One swipeable row of quick filters for the phone sheet: Stays, Homes,
+// One swipeable row of selected food types and quick filters: Stays, Homes,
 // Sunny, Cozy, the sun moments (coffee, lunch, sunset) and Clear when
 // anything is on. Each chip keeps a 44px touch target.
 const QuickFilterChips = ({ activeFilters, onToggle, onClear, showClear }) => {
@@ -434,6 +452,7 @@ const QuickFilterChips = ({ activeFilters, onToggle, onClear, showClear }) => {
     ];
     return (
         <div className="ss-quick-chips" role="group" aria-label="Quick filters">
+            <SelectedFoodTypeChips activeFilters={activeFilters} onToggle={onToggle} />
             {items.map(item => {
                 const active = activeFilters.includes(item.id);
                 return (
@@ -669,7 +688,8 @@ const AppContent = () => {
     // One pass feeds the map pins, sidebar list, mobile sheet, and counts.
     const filteredVenues = useMemo(() => {
         const filters = activeFilters || [];
-        const typeFilters = filters.filter(f => f.startsWith('all-'));
+        const typeFilters = filters.filter(f => f.startsWith('all-') && !isFoodTypeFilter(f));
+        const foodFilters = filters.filter(isFoodTypeFilter);
         const intentFilters = filters.filter(f => f.startsWith('sun-'));
         const tagFilters = filters.filter(f =>
             !f.startsWith('all-') &&
@@ -682,6 +702,7 @@ const AppContent = () => {
 
         return venues.filter(venue => {
             if (!matchesPropertyTypeFilters(venue, typeFilters)) return false;
+            if (!matchesFoodTypeFilters(venue, foodFilters)) return false;
 
             if (intentFilters.length > 0) {
                 const rooms = venue.roomTypes || [];

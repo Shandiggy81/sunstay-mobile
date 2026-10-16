@@ -5,11 +5,17 @@ import { X, Check } from 'lucide-react';
 import { FILTER_CATEGORIES } from '../data/demoVenues';
 import { clayIconFor, clayIconUrls } from '../utils/clayFilterIcons';
 import { SHOW_CUSTOM_FILTERS } from '../utils/demoDeadEnds';
+import { isFoodTypeFilter } from '../utils/venueFoodType';
 
 // Hashed /assets/<name>-<hash>.webp URLs, so new artwork is never cached stale.
 const CLAY_ICON_URLS = clayIconUrls(
     import.meta.glob('../assets/clay/*.webp', { eager: true, import: 'default' })
 );
+
+const FILTER_GROUPS = [
+    { id: 'food-types', label: 'Food & drink', filters: FILTER_CATEGORIES.filter(filter => isFoodTypeFilter(filter.id)) },
+    { id: 'more-filters', label: 'More filters', filters: FILTER_CATEGORIES.filter(filter => !isFoodTypeFilter(filter.id)) },
+];
 
 const FilterSheet = ({
     isOpen,
@@ -55,8 +61,11 @@ const FilterSheet = ({
                             </button>
                         </div>
                         
-                        <div className="ss-filter-chip-grid">
-                            {FILTER_CATEGORIES.map(filter => {
+                        {FILTER_GROUPS.map(group => (
+                        <section key={group.id} aria-labelledby={`${group.id}-heading`}>
+                            <h4 id={`${group.id}-heading`} className="mb-3 text-sm font-bold text-slate-700">{group.label}</h4>
+                            <div className="ss-filter-chip-grid">
+                            {group.filters.map(filter => {
                                 const isActive = safeActiveFilters.includes(filter.id);
                                 const clayIcon = clayIconFor(filter.id, CLAY_ICON_URLS);
                                 return (
@@ -90,7 +99,9 @@ const FilterSheet = ({
                                     </button>
                                 );
                             })}
-                        </div>
+                            </div>
+                        </section>
+                        ))}
                         
                         {SHOW_CUSTOM_FILTERS && (
                         <div className="custom-filter-section">
