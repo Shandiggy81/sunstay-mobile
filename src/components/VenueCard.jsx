@@ -46,6 +46,7 @@ import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { venueOfferings } from '../utils/venueOfferings';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
+import { venueTypeLabel } from '../utils/venueTypeLabel';
 
 const MICRO_LABEL = 'text-[12px] font-semibold text-slate-600';
 
@@ -440,7 +441,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const displayName = venue?.venueName ?? venue?.name ?? venue?.title ?? 'Unnamed venue';
   const subtitle = useMemo(() => {
     const vibeText = Array.isArray(vibe) ? vibe.filter(Boolean).join(', ') : vibe;
-    const type = String(safeVenue.typeLabel || vibeText || '').trim();
+    const type = venueTypeLabel(safeVenue.typeLabel || vibeText);
     return [type, String(suburb ?? '').trim()].filter(Boolean).join(' · ');
   }, [safeVenue.typeLabel, vibe, suburb]);
   const iconName = venueIconName(venue);

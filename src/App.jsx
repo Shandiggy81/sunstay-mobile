@@ -5,6 +5,7 @@ import { boundsOfVenues, lookupMicroclimateEntry, markerScoreFromMicroclimate, r
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
+import { venueTypeLabel } from './utils/venueTypeLabel';
 import { filterChoiceKey } from './utils/filterRefit';
 import { venueLocalDate } from './utils/balconySunEngine';
 import { activeSunMoments, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
@@ -92,7 +93,7 @@ const venueMatchesSearchQuery = (venue, query) => {
     if (!query) return true;
     const name = (venue.name || venue.venueName || '').toLowerCase();
     const suburb = (venue.suburb || '').toLowerCase();
-    const vibe = (venue.vibe || '').toLowerCase();
+    const vibe = `${venue.vibe || ''} ${venueTypeLabel(venue.vibe)}`.toLowerCase();
     return name.includes(query) || suburb.includes(query) || vibe.includes(query);
 };
 
@@ -219,7 +220,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
 
     // `typeLabel` and `vibe` are both nullable in the venues table, so the
     // subtitle is joined from present parts only — never " · Fitzroy".
-    const descriptor = String((isPropertyVenue(venue) ? venue.typeLabel ?? venue.typeCategory : venue.vibe) ?? '').trim();
+    const descriptor = venueTypeLabel(isPropertyVenue(venue) ? venue.typeLabel ?? venue.typeCategory : venue.vibe);
     const suburbText = String(venue.suburb ?? '').trim();
     const subtitle = [descriptor, suburbText].filter(Boolean).join(' · ');
 
