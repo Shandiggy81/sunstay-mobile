@@ -156,7 +156,6 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - No component tests, lint script or typecheck script.
 - `VenueCard.jsx` imports `src/data/venues.js` and `src/data/seedVenues.js` alongside the app's
   venue list; venue data lives in several files.
-- `src/main.jsx` writes the boot error's `toString()` into `innerHTML` on a startup failure.
 - The Xweather `Account` matches the installed SDK (@xweather/mapsgl 1.9.4,
   `constructor(id: string, secret: string, serverOverrides?)`): VenueMap calls
   `new Account(id, secret)` with the pair from `parseXweatherCredentials`, and passes it to
