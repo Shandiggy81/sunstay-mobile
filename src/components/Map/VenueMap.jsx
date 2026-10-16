@@ -1476,11 +1476,17 @@ const VenueMap = forwardRef(({
             ? safeVenues.filter(v => filteredIdSet.has(String(v.id)))
             : safeVenues;
 
-        // The heatmap weight ('score') is only read by the comfort heatmap, so
-        // it's only worked out while that layer is on. Pins compute their own.
-        const geojsonFeatures = visibleVenues.map(venue => {
-            const properties = { id: venue.id, ...pointMomentMatches(venue.id, sunMomentsById) };
-            if (comfortMapOn) {
+        // Clustering only needs id, position and moment flags. The heatmap
+        // weight ('score') goes to the heatmap's own source, so switching the
+        // heatmap or a microclimate refresh never re-clusters every venue.
+        const geojsonFeatures = visibleVenues.map(venue => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
+            properties: { id: venue.id, ...pointMomentMatches(venue.id, sunMomentsById) },
+        }));
+        const heatmapData = () => ({
+            type: 'FeatureCollection',
+            features: visibleVenues.map(venue => {
                 const reading = readingForVenue(microById, venue.id, clusterTodMinutes);
                 const profileScore = markerScoreFromMicroclimate(reading);
                 const rawScore = profileScore ?? (
@@ -1488,13 +1494,12 @@ const VenueMap = forwardRef(({
                         ? calculateSunstayScore(venue)
                         : 75
                 );
-                properties.score = Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75;
-            }
-            return {
-                type: 'Feature',
-                geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
-                properties,
-            };
+                return {
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
+                    properties: { id: venue.id, score: Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75 },
+                };
+            }),
         });
 
         const geojsonData = { type: 'FeatureCollection', features: geojsonFeatures };
@@ -1535,7 +1540,7 @@ const VenueMap = forwardRef(({
 
         if (comfortMapOn) {
             if (!map.current.getSource(HEATMAP_SOURCE_ID)) {
-                map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: geojsonData });
+                map.current.addSource(HEATMAP_SOURCE_ID, { type: 'geojson', data: heatmapData() });
 
                 const insertBefore = map.current.getLayer(LAYER_INSERT_BEFORE) ? LAYER_INSERT_BEFORE : undefined;
                 map.current.addLayer({
@@ -1544,7 +1549,7 @@ const VenueMap = forwardRef(({
                     source:  HEATMAP_SOURCE_ID,
                     maxzoom: 15,
                     paint: {
-                        'heatmap-weight':     ['get', 'score'],
+                        'heatmap-weight':     ['coalesce', ['get', 'score'], 0.75],
                         'heatmap-intensity':  ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
                         'heatmap-color': [
                             'interpolate', ['linear'], ['heatmap-density'],
@@ -1559,7 +1564,7 @@ const VenueMap = forwardRef(({
                     },
                 }, insertBefore);
             } else {
-                map.current.getSource(HEATMAP_SOURCE_ID).setData(geojsonData);
+                map.current.getSource(HEATMAP_SOURCE_ID).setData(heatmapData());
             }
             if (map.current.getLayer(HEATMAP_LAYER_ID)) {
                 map.current.setLayoutProperty(HEATMAP_LAYER_ID, 'visibility', 'visible');
