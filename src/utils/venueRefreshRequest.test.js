@@ -73,7 +73,7 @@ describe('venue refresh request', () => {
         assert.equal(clock.pending(), 0);
     });
 
-    it('aborts a hanging refresh at 5s, ignores the late result, and clears the timeout', async () => {
+    it('aborts a hanging refresh at the timeout, ignores the late result, and clears the timeout', async () => {
         const clock = createClock();
         const aborts = [];
         class RecordingAbortController {
@@ -92,7 +92,7 @@ describe('venue refresh request', () => {
         }), { userInitiated: true });
         await Promise.resolve();
         assert.equal(request.isUserRefresh(), true);
-        clock.fire(4999);
+        clock.fire(VENUE_REFRESH_TIMEOUT_MS - 1);
         assert.equal(request.isUserRefresh(), true);
         assert.equal(aborts[0].signal.aborted, false);
         clock.fire(1);
@@ -175,5 +175,27 @@ describe('venue refresh request', () => {
         assert.equal(outcome.rows, null);
         assert.equal(request.isUserRefresh(), false);
         assert.ok(Date.now() - started < 1000);
+    });
+});
+
+
+describe('venue load timeout and retry', () => {
+    it('timeout leaves room for ~900 venues on a slow phone', async () => {
+        const { VENUE_REFRESH_TIMEOUT_MS: ms } = await import('./venueRefreshRequest.js');
+        assert.ok(ms >= 10000, `timeout ${ms} ms is too short for the full venue list`);
+    });
+
+    it('the first load retries once after a timeout or a failed request only', async () => {
+        const { shouldRetryInitialLoad: retry } = await import('./venueRefreshRequest.js');
+        const timedOut = { ok: false, rows: null, error: new Error('t'), timedOut: true };
+        const failed = { ok: false, rows: null, error: new Error('network') };
+        assert.equal(retry(timedOut, 0), true);
+        assert.equal(retry(failed, 0), true);
+        assert.equal(retry(timedOut, 1), false, 'only one retry');
+        assert.equal(retry({ ok: true, rows: [{}] }, 0), false, 'success');
+        assert.equal(retry({ ok: false, stale: true, ignored: true, error: null }, 0), false, 'superseded request');
+        assert.equal(retry({ ok: true, skipped: true }, 0), false, 'no Supabase client');
+        assert.equal(retry({ ok: false, empty: true, error: null }, 0), false, 'empty table');
+        assert.equal(retry(null, 0), false);
     });
 });

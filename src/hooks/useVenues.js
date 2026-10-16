@@ -5,9 +5,11 @@ import { interpretVenueResponse } from './interpretVenueResponse';
 import { fetchAllRows } from '../utils/fetchAllRows';
 import { venueRefreshBusy } from '../utils/pullRefreshStatus';
 import {
+    VENUE_INITIAL_RETRY_DELAY_MS,
     VENUE_REFRESH_TIMEOUT_MS,
     createVenueRefreshRequest,
     shouldCommitVenueResult,
+    shouldRetryInitialLoad,
 } from '../utils/venueRefreshRequest';
 
 /**
@@ -17,7 +19,8 @@ import {
  *
  * Resilience:
  * - Starts with demoVenues so the initial UI renders instantly with zero layout shift.
- * - Races a 5-second timeout against the in-flight request and aborts it.
+ * - Races a timeout (VENUE_REFRESH_TIMEOUT_MS) against the in-flight request and aborts it;
+ *   the first load tries once more after a timeout or failure.
  * - A stale request cannot clear the newer timeout or the user-refresh flag.
  * - Results that arrive after timeout, abort, or a newer request are ignored.
  * - If Supabase fails, is offline, or returns 0 rows, gracefully retains the static data.
@@ -146,7 +149,15 @@ export function useVenues() {
                 return;
             }
         }
-        fetchLiveVenues();
+        let retryTimer = null;
+        fetchLiveVenues().then((outcome) => {
+            if (!mountedRef.current || !shouldRetryInitialLoad(outcome, 0)) return;
+            console.info('[useVenues] First venue load failed; trying once more.');
+            retryTimer = setTimeout(() => {
+                if (mountedRef.current) fetchLiveVenues();
+            }, VENUE_INITIAL_RETRY_DELAY_MS);
+        });
+        return () => { if (retryTimer) clearTimeout(retryTimer); };
     }, [fetchLiveVenues]);
 
     return {
