@@ -27,6 +27,7 @@ create function public.seed_venue_morphology(p_id text) returns void language sq
 \ir ../../supabase/migrations/20261015223519_venue_import_candidates.sql
 \ir ../../supabase/migrations/20261016000000_promote_venue_candidates.sql
 \ir ../../supabase/migrations/20261016030000_clue_venue_labels_osm.sql
+\ir ../../supabase/migrations/20261016050000_clue_osm_features.sql
 
 -- 1. The label rule. Cases from the 16 Oct pilot review.
 do $$
@@ -97,7 +98,7 @@ values
 create temp table t_osm as select jsonb_build_array(
   -- Seven Seeds: a contained-name restaurant nearer, the exact-name cafe 10 m away. Exact wins.
   jsonb_build_object('type', 'node', 'id', 1, 'lat', -37.80001, 'lon', 144.96001, 'tags', jsonb_build_object('name', 'Seven Seeds Roastery Restaurant', 'amenity', 'restaurant')),
-  jsonb_build_object('type', 'node', 'id', 2, 'lat', -37.80009, 'lon', 144.96000, 'tags', jsonb_build_object('name', 'Seven Seeds', 'amenity', 'cafe')),
+  jsonb_build_object('type', 'node', 'id', 2, 'lat', -37.80009, 'lon', 144.96000, 'tags', jsonb_build_object('name', 'Seven Seeds', 'amenity', 'cafe', 'wheelchair', 'yes', 'diet:vegan', 'yes', 'smoking', 'outside')),
   -- Far Away Diner: a contained name 150 m away is too far; the same name 300 m away matches.
   jsonb_build_object('type', 'way',  'id', 3, 'center', jsonb_build_object('lat', -37.82135, 'lon', 144.9700), 'tags', jsonb_build_object('name', 'Far Away Diner Bar', 'amenity', 'bar')),
   jsonb_build_object('type', 'node', 'id', 6, 'lat', -37.82270, 'lon', 144.9700, 'tags', jsonb_build_object('name', 'Far Away Diner', 'amenity', 'restaurant')),
@@ -108,7 +109,7 @@ create temp table t_osm as select jsonb_build_array(
   jsonb_build_object('type', 'node', 'id', 8,  'lat', -37.84135, 'lon', 144.9800, 'tags', jsonb_build_object('name', 'Subway', 'amenity', 'fast_food')),
   jsonb_build_object('type', 'node', 'id', 9,  'lat', -37.85180, 'lon', 144.9850, 'tags', jsonb_build_object('name', 'Starbucks', 'amenity', 'cafe')),
   jsonb_build_object('type', 'node', 'id', 10, 'lat', -37.84730, 'lon', 144.9850, 'tags', jsonb_build_object('name', 'Starbucks', 'amenity', 'cafe')),
-  jsonb_build_object('type', 'node', 'id', 11, 'lat', -37.86027, 'lon', 144.9900, 'tags', jsonb_build_object('name', 'Starbucks', 'amenity', 'cafe')),
+  jsonb_build_object('type', 'node', 'id', 11, 'lat', -37.86027, 'lon', 144.9900, 'tags', jsonb_build_object('name', 'Starbucks', 'amenity', 'cafe', 'wheelchair', 'limited')),
   -- No name -> ignored.
   jsonb_build_object('type', 'node', 'id', 5, 'lat', -37.8100, 'lon', 144.9650, 'tags', jsonb_build_object('amenity', 'bar'))
 ) as e;
@@ -147,6 +148,9 @@ begin
   n := public.promote_venue_candidates(array['c-seeds', 'c-far']);
   assert n = 2, 'two promoted, got ' || n;
   assert (select "typeLabel" || emoji from public.venues where id = 'c-seeds') = 'Cafe☕', 'Seven Seeds promoted as Cafe';
+  assert (select tags from public.venues where id = 'c-seeds') = '["Outdoor Seating", "Wheelchair Accessible", "Vegan", "Smoking Area"]'::jsonb,
+    'Seven Seeds promoted with its OSM badges, got ' || (select tags::text from public.venues where id = 'c-seeds');
+  assert (select tags from public.venues where id = 'c-far') = '["Outdoor Seating"]'::jsonb, 'no OSM badges -> outdoor seating only';
   assert (select "typeLabel" from public.venues where id = 'c-far') = 'Restaurant', 'Far Away Diner labelled from OSM';
 
   n := public.relabel_clue_venues();
@@ -155,8 +159,36 @@ begin
   assert (select "typeLabel" from public.venues where id = 'curated-1') = 'Cafe', 'curated venues untouched';
   assert public.relabel_clue_venues() = 0, 'relabel is idempotent';
 
-  assert not has_function_privilege('anon', 'public.match_venue_candidates_osm(jsonb)', 'execute'), 'anon cannot match';
+  assert not has_function_privilege('anon', 'public.match_venue_candidates_osm(jsonb, text[])', 'execute'), 'anon cannot match';
   assert not has_function_privilege('anon', 'public.relabel_clue_venues()', 'execute'), 'anon cannot relabel';
   assert not has_function_privilege('authenticated', 'public.promote_venue_candidates(text[], int)', 'execute'), 'authenticated cannot promote';
   raise notice 'ALL LABEL ASSERTIONS PASSED';
+end $$;
+
+-- 4. OSM badges: mapping, scoped matching, topping up live venues.
+do $$
+declare n int;
+begin
+  assert public.clue_osm_features('{"wheelchair":"designated","diet:vegan":"only","smoking":"isolated"}') = array['Wheelchair Accessible','Vegan','Smoking Area'];
+  assert public.clue_osm_features('{"wheelchair":"limited","diet:vegan":"no","smoking":"yes"}') = '{}'::text[], 'limited / no / indoor smoking add nothing';
+  assert public.clue_osm_features('{"wheelchair":"YES"}') = array['Wheelchair Accessible'], 'case-insensitive';
+  assert public.clue_osm_features('{}') = '{}'::text[] and public.clue_osm_features(null) = '{}'::text[];
+  assert public.clue_venue_tags(25, array['Vegan']) = '["Outdoor Seating", "Large Groups", "Vegan"]'::jsonb;
+  assert public.clue_venue_tags(null, null) = '["Outdoor Seating"]'::jsonb;
+
+  -- A scoped run touches only its ids: c-far loses its match, Seven Seeds keeps everything.
+  n := public.match_venue_candidates_osm('[]'::jsonb, array['c-far']);
+  assert n = 0, 'nothing matched in scope';
+  assert (select osm_match from public.venue_import_candidates where id = 'c-far') is null, 'scoped id cleared';
+  assert (select osm_features from public.venue_import_candidates where id = 'c-seeds') = array['Wheelchair Accessible','Vegan','Smoking Area'], 'out of scope untouched';
+  assert (select osm_features from public.venue_import_candidates where id = 'c-star2') is null, 'limited wheelchair gives no badge';
+
+  -- Topping up: a live venue promoted before badges existed gets only what's missing.
+  update public.venues set tags = '["Outdoor Seating", "Vegan"]' where id = 'c-seeds';
+  assert public.apply_clue_venue_features() = 1, 'one venue topped up';
+  assert (select tags from public.venues where id = 'c-seeds') = '["Outdoor Seating", "Vegan", "Wheelchair Accessible", "Smoking Area"]'::jsonb, 'adds, never duplicates';
+  assert public.apply_clue_venue_features() = 0, 'idempotent';
+  assert (select tags from public.venues where id = 'curated-1') is null, 'curated venues untouched';
+  assert not has_function_privilege('anon', 'public.apply_clue_venue_features()', 'execute'), 'anon cannot apply';
+  raise notice 'ALL BADGE ASSERTIONS PASSED';
 end $$;
