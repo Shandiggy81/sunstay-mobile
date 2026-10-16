@@ -24,6 +24,16 @@ describe('clay filter icons', () => {
         assert.equal(clayIconName('toString'), null);
     });
 
+    it('uses food clay icons and preserves the bakery, dessert and takeaway emoji', () => {
+        assert.equal(clayIconName('all-cafes'), 'coffee');
+        assert.equal(clayIconName('all-restaurants'), 'dining');
+        assert.equal(clayIconName('all-pubs'), 'pint');
+        assert.equal(clayIconName('all-cocktail-bars'), 'cocktail');
+        for (const id of ['all-bakeries', 'all-desserts', 'all-takeaways']) {
+            assert.equal(clayIconName(id), null);
+        }
+    });
+
     it('builds a name → url table from a Vite glob result', () => {
         const urls = clayIconUrls({
             '../assets/clay/sun.webp': '/assets/sun-abc.webp',

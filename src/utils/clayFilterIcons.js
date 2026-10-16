@@ -4,6 +4,10 @@
  * no clay icon yet keep their emoji.
  */
 export const CLAY_ICON_FOR_FILTER = Object.freeze({
+    'all-cafes': 'coffee',
+    'all-restaurants': 'dining',
+    'all-pubs': 'pint',
+    'all-cocktail-bars': 'cocktail',
     'Sunny': 'sun',
     'Rooftop': 'rooftop-terrace',
     'Beer Garden': 'garden-table',
