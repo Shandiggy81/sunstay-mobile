@@ -105,7 +105,9 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - `VITE_MAPBOX_TOKEN` — Mapbox (required for the map)
 - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — optional; demo data is used without them
 - `VITE_SENTRY_DSN` — optional
-- `VITE_XWEATHER_KEY` — Xweather radar via `@xweather/mapsgl`, loaded with dynamic `import()` in VenueMap
+- `VITE_XWEATHER_KEY` — Xweather radar via `@xweather/mapsgl`, loaded with dynamic `import()` in VenueMap.
+  Holds `CLIENTID_CLIENTSECRET` (or `ID:SECRET`); `VITE_XWEATHER_ID` + `VITE_XWEATHER_SECRET` may be set
+  instead. Parsed by `src/utils/xweatherKey.js`; the radar is skipped when no id/secret pair is found.
 - `VITE_OPENWEATHER_KEY` — OpenWeatherMap cloud tile layer on the map
 - `VITE_OPENAQ_API_KEY`, `VITE_OPENUV_API_KEY`, `VITE_TOMORROW_API_KEY` — optional detail-card data
 - Keyless: Open-Meteo forecast and air quality.
@@ -154,6 +156,10 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - No component tests, lint script or typecheck script.
 - `VenueCard.jsx` imports `src/data/venues.js` and `src/data/seedVenues.js` alongside the app's
   venue list; venue data lives in several files.
+- The Xweather `Account` matches the installed SDK (@xweather/mapsgl 1.9.4,
+  `constructor(id: string, secret: string, serverOverrides?)`): VenueMap calls
+  `new Account(id, secret)` with the pair from `parseXweatherCredentials`, and passes it to
+  `new MapboxMapController(map, { account })`.
 
 ### Requires production configuration or dashboard verification
 - Whether Gemini quota or rate limits protect `chat-sunny`. (Production verified 2026-10-11: the
@@ -161,11 +167,11 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
   deployed `chat-sunny` has `verify_jwt = true`.)
 - Whether the Mapbox token is URL-restricted and whether keys from Git history have been rotated.
 - Whether `VITE_SENTRY_DSN` is set in Netlify so Sentry events are actually sent.
+- Whether Netlify's Xweather value is in `ID_SECRET` form (or the ID/SECRET pair is set) and the
+  rain radar actually draws with the real key.
 
 ### Not currently verified in the repository
 - Stripe, Airtable integration, and Supabase Auth in the main app.
-- Whether the Xweather `Account` is constructed with the arguments the installed SDK expects
-  (VenueMap passes a single key).
 
 ### Physical iPhone / iOS Safari validation (cannot be replaced by unit tests)
 - WebGL context loss and the "Resume map" flow under real memory pressure.
