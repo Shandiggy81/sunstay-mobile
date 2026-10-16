@@ -74,8 +74,16 @@ delete from public.venue_import_candidates where source = 'clue' and census_year
 insert into public.venue_import_candidates
   (id, name, address, kind, area, property_id, census_year, clue_lat, clue_lng, outdoor_seats,
    street, street_bearing, street_lat, street_lng, on_laneway, floor_level, rooftop, existing_venue_id, status)
-values
+select v.* from (values
 ${lines.join(',\n')}
+) as v(id, name, address, kind, area, property_id, census_year, clue_lat, clue_lng, outdoor_seats,
+       street, street_bearing, street_lat, street_lng, on_laneway, floor_level, rooftop, existing_venue_id, status)
+-- Ids come from row order, so match an already-staged venue by property and
+-- name instead: a re-run never re-adds a venue that's placed or promoted.
+where not exists (
+  select 1 from public.venue_import_candidates c
+  where c.source = 'clue' and c.property_id is not distinct from v.property_id
+    and regexp_replace(lower(c.name), '[^a-z0-9]', '', 'g') = regexp_replace(lower(v.name), '[^a-z0-9]', '', 'g'))
 on conflict (id) do nothing;
 commit;
 `;
