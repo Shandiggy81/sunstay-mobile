@@ -82,6 +82,20 @@ describe('melbourneHourNow', () => {
         assert.equal(melbourneHourNow(AEST_DAY), 10);
         assert.equal(melbourneHourNow(AEDT_NOON), 12);
     });
+
+    it('gives the same answers when called repeatedly (reused formatter), and handles bad dates', () => {
+        const hours = [];
+        for (let i = 0; i < 1000; i++) hours.push(melbourneHourNow(i % 2 ? AEST_DAY : AEDT_NOON));
+        assert.deepEqual([...new Set(hours)].sort((a, b) => a - b), [10, 12]);
+        const h = melbourneHourNow(new Date('not a date'));
+        assert.ok(Number.isInteger(h) && h >= 0 && h <= 23, 'invalid date falls back to now');
+    });
+
+    it('stays fast enough to call once per venue on every list sort', () => {
+        const t0 = performance.now();
+        for (let i = 0; i < 900; i++) melbourneHourNow(AEST_DAY);
+        assert.ok(performance.now() - t0 < 100, '900 calls should take well under 100 ms');
+    });
 });
 
 describe('resolveSunFraction', () => {
