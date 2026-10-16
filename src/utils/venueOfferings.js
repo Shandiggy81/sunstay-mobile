@@ -9,6 +9,7 @@ const OFFERINGS = Object.freeze([
     { keys: ['beer garden'], label: 'Beer garden', icon: 'garden-table' },
     { keys: ['deck'], label: 'Deck', icon: 'deck' },
     { keys: ['rooftop'], label: 'Rooftop', icon: 'rooftop-bar' },
+    { keys: ['outdoor seating', 'outdoor tables'], label: 'Outdoor seating', icon: 'garden-table' },
     { keys: ['fireplace'], label: 'Fireplace', icon: 'fireplace' },
     { keys: ['live music'], label: 'Live music', icon: 'live-music' },
     { keys: ['pet friendly', 'dog friendly'], label: 'Dog friendly', icon: 'brucey' },

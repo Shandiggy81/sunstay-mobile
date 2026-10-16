@@ -111,6 +111,18 @@ describe('venueOfferings', () => {
         assert.deepEqual(rows.map((r) => r.label), ['Fireplace', 'Dog friendly']);
     });
 
+    it('gives imported venues their outdoor seating, access and diet icons', () => {
+        // City of Melbourne venues carry 'Outdoor Seating'; OpenStreetMap adds the rest.
+        const rows = venueOfferings({ tags: ['Outdoor Seating', 'Large Groups', 'Wheelchair Accessible', 'Vegan', 'Smoking Area'] });
+        assert.deepEqual(rows.map((r) => [r.label, r.icon]), [
+            ['Outdoor seating', 'garden-table'],
+            ['Wheelchair accessible', 'wheelchair'],
+            ['Smoking area', 'smoking-area'],
+            ['Vegan options', 'vegan'],
+            ['Good for groups', 'large-groups'],
+        ]);
+    });
+
     it('adds outdoor heaters from the heating field and ignores bad input', () => {
         assert.deepEqual(venueOfferings({ tags: [], heating: 'heated outdoor' }).map((r) => r.label), ['Outdoor heaters']);
         assert.deepEqual(venueOfferings(null), []);
