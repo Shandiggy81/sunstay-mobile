@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { feelsLikeIconName, forecastKindIconName, venueIconName, weatherIconName } from './clayIcons.js';
+import { feelsLikeIconName, forecastKindIconName, venueIcon, venueIconName, weatherIconName } from './clayIcons.js';
 import { venueOfferings } from './venueOfferings.js';
 import { demoVenues } from '../data/demoVenues.js';
 
@@ -73,6 +73,28 @@ describe('venueIconName', () => {
         assert.equal(venueIconName({ emoji: '🧘' }), 'map-pin');
         assert.equal(venueIconName(null), 'map-pin');
         for (const venue of demoVenues) assert.ok(hasIcon(venueIconName(venue)), venue.venueName);
+    });
+});
+
+describe('venueIcon', () => {
+    it('shows the clay icon, else the venue emoji like its map pin, else a clay map pin', () => {
+        assert.deepEqual(venueIcon({ typeLabel: 'Cafe', emoji: '☕' }), { name: 'coffee' });
+        assert.deepEqual(venueIcon({ typeLabel: 'Restaurant', emoji: '🍽️' }), { name: 'dining' });
+        assert.deepEqual(venueIcon({ typeLabel: 'Takeaway', emoji: '🥡' }), { emoji: '🥡' });
+        assert.deepEqual(venueIcon({ typeLabel: 'Gelato & dessert', emoji: '🍨' }), { emoji: '🍨' });
+        assert.deepEqual(venueIcon({ typeLabel: 'Bakery cafe', emoji: '🥐' }), { emoji: '🥐' });
+        assert.deepEqual(venueIcon({ typeLabel: 'Takeaway', emoji: '  ' }), { name: 'map-pin' });
+        assert.deepEqual(venueIcon({}), { name: 'map-pin' });
+        assert.deepEqual(venueIcon(null), { name: 'map-pin' });
+    });
+
+    it('agrees with the map pin for every imported label', () => {
+        const labels = [['Cafe', '☕'], ['Restaurant', '🍽️'], ['Eatery', '🍽️'], ['Takeaway', '🥡'], ['Pub & bar', '🍺'],
+            ['Cocktail & wine bar', '🍸'], ['Bar', '🍸'], ['Bakery cafe', '🥐'], ['Gelato & dessert', '🍨'], ['Hotel dining', '🏨']];
+        for (const [typeLabel, emoji] of labels) {
+            const icon = venueIcon({ typeLabel, emoji });
+            assert.ok(icon.name ? hasIcon(icon.name) : icon.emoji === emoji, typeLabel);
+        }
     });
 });
 

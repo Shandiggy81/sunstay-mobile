@@ -5,9 +5,11 @@ import { boundsOfVenues, lookupMicroclimateEntry, markerScoreFromMicroclimate, r
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
+import { venueTypeLabel } from './utils/venueTypeLabel';
 import { filterChoiceKey } from './utils/filterRefit';
 import { venueLocalDate } from './utils/balconySunEngine';
-import { activeSunMoments, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
+import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
+import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
@@ -46,8 +48,9 @@ import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import { venueDisplayScore } from './utils/venueDisplayScore';
 import { listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
 import { venueConditionChips } from './utils/venueConditionChips';
-import { feelsLikeIconName, venueIconName } from './utils/clayIcons';
+import { feelsLikeIconName, venueIcon } from './utils/clayIcons';
 import ClayIcon from './components/common/ClayIcon';
+import VenueIcon from './components/common/VenueIcon';
 import { SEARCH_DEBOUNCE_MS } from './utils/debounce';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { Virtuoso } from 'react-virtuoso';
@@ -76,6 +79,13 @@ const HEATING_FILTER_MATCHERS = {
     'Indoor Warmth': (heating) => heating.includes('indoor'),
 };
 
+// Today's Melbourne CBD sky for the sun-moment chips (null for demo weather).
+const sunMomentForecast = (weather) => (
+    weather && weather.source !== 'demo'
+        ? venueSunForecast({ venue: { lat: -37.8136, lng: 144.9631 }, weather })
+        : null
+);
+
 const venueMatchesWeatherTag = (venue, filterId) => {
     // Venue tags use the same string values as FILTER_CATEGORIES[].id
     // (e.g. 'Rooftop', 'Pet Friendly'). Match the id directly instead of
@@ -92,7 +102,7 @@ const venueMatchesSearchQuery = (venue, query) => {
     if (!query) return true;
     const name = (venue.name || venue.venueName || '').toLowerCase();
     const suburb = (venue.suburb || '').toLowerCase();
-    const vibe = (venue.vibe || '').toLowerCase();
+    const vibe = `${venue.vibe || ''} ${venueTypeLabel(venue.vibe)}`.toLowerCase();
     return name.includes(query) || suburb.includes(query) || vibe.includes(query);
 };
 
@@ -219,7 +229,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
 
     // `typeLabel` and `vibe` are both nullable in the venues table, so the
     // subtitle is joined from present parts only — never " · Fitzroy".
-    const descriptor = String((isPropertyVenue(venue) ? venue.typeLabel ?? venue.typeCategory : venue.vibe) ?? '').trim();
+    const descriptor = venueTypeLabel(isPropertyVenue(venue) ? venue.typeLabel ?? venue.typeCategory : venue.vibe);
     const suburbText = String(venue.suburb ?? '').trim();
     const subtitle = [descriptor, suburbText].filter(Boolean).join(' · ');
 
@@ -239,7 +249,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             id={`venue-list-${venue.id}`}
         >
             <div className="ss-vlc-icon" aria-hidden="true">
-                <ClayIcon name={venueIconName(venue)} size={36} />
+                <VenueIcon icon={venueIcon(venue)} size={36} />
             </div>
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
@@ -633,11 +643,26 @@ const AppContent = () => {
         const inputs = { venues, horizons: sunHorizons, weather, day: venueLocalDate(new Date()) };
         const previous = sunMomentsMemoRef.current;
         if (previous && sameSunMomentInputs(previous.inputs, inputs)) return previous.value;
-        const liveWeather = weather && weather.source !== 'demo' ? weather : null;
-        const forecast = liveWeather ? venueSunForecast({ venue: { lat: -37.8136, lng: 144.9631 }, weather: liveWeather }) : null;
-        const value = sunMomentsByVenue(venues, sunHorizons, { forecast });
+        const value = sunMomentsByVenue(venues, sunHorizons, { forecast: sunMomentForecast(weather) });
         sunMomentsMemoRef.current = { inputs, value };
         return value;
+    }, [needSunMoments, venues, sunHorizons, weather]);
+
+    // Work the chips' answer out ahead of time, in small slices while the
+    // phone is idle, so the first chip tap reads a ready result instead of
+    // calculating sun for every venue at once. Restarts when the venues,
+    // horizons or weather change; stops while a chip or the chat needs the
+    // answer now (the memo above then calculates it directly).
+    useEffect(() => {
+        if (needSunMoments || !Array.isArray(venues) || venues.length === 0 || sunHorizons.size === 0) return undefined;
+        const inputs = { venues, horizons: sunHorizons, weather, day: venueLocalDate(new Date()) };
+        if (sameSunMomentInputs(sunMomentsMemoRef.current?.inputs, inputs)) return undefined;
+        const job = createSunMomentsJob(venues, sunHorizons, { forecast: sunMomentForecast(weather) });
+        return runWhenIdle(job, {
+            onDone: (value) => {
+                if (!sameSunMomentInputs(sunMomentsMemoRef.current?.inputs, inputs)) sunMomentsMemoRef.current = { inputs, value };
+            },
+        });
     }, [needSunMoments, venues, sunHorizons, weather]);
 
     // ── Unified venue filtering ────────────────────────────────────────

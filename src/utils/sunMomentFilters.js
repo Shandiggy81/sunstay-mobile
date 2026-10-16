@@ -64,17 +64,41 @@ export function venueSunMomentKeys({ venue, horizon, forecast = null, now = new 
  * @returns {Map<string, string[]>}
  */
 export function sunMomentsByVenue(venues, horizons, { forecast = null, now = new Date() } = {}) {
-    const out = new Map();
-    if (!Array.isArray(venues) || !(horizons instanceof Map)) return out;
-    for (const venue of venues) {
-        if (venue?.id == null) continue;
-        const id = String(venue.id);
-        const horizon = horizons.get(id);
-        if (!horizon) continue;
-        const keys = venueSunMomentKeys({ venue, horizon, forecast, now });
-        if (keys.length) out.set(id, keys);
-    }
-    return out;
+    const job = createSunMomentsJob(venues, horizons, { forecast, now });
+    job.run(() => false);
+    return job.result;
+}
+
+/**
+ * sunMomentsByVenue() split into resumable steps, so the work can run in
+ * small slices while the page is idle. `run(shouldYield)` works through
+ * venues until it is done or `shouldYield()` returns true, and returns
+ * whether it is done. `result` is the same Map sunMomentsByVenue() returns,
+ * complete once `done` is true.
+ */
+export function createSunMomentsJob(venues, horizons, { forecast = null, now = new Date() } = {}) {
+    const list = Array.isArray(venues) && horizons instanceof Map ? venues : [];
+    const result = new Map();
+    let index = 0;
+    return {
+        result,
+        get done() { return index >= list.length; },
+        run(shouldYield) {
+            while (index < list.length) {
+                const venue = list[index++];
+                if (venue?.id != null) {
+                    const id = String(venue.id);
+                    const horizon = horizons.get(id);
+                    if (horizon) {
+                        const keys = venueSunMomentKeys({ venue, horizon, forecast, now });
+                        if (keys.length) result.set(id, keys);
+                    }
+                }
+                if (index < list.length && shouldYield()) return false;
+            }
+            return true;
+        },
+    };
 }
 
 /** True when the venue gets sun in every one of the wanted moments. */

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Share2, Heart, ChevronRight } from 'lucide-react';
 import ClayIcon from './common/ClayIcon';
+import VenueIcon from './common/VenueIcon';
 import LiveSunTimeline from './LiveSunTimeline';
 import { OFFERINGS_PREVIEW } from '../utils/venueOfferings';
 import { PHOTO_COMING_SOON_MESSAGE } from '../utils/demoDeadEnds';
@@ -27,7 +28,7 @@ const roundButton =
 
 // ── 1. Hero ─────────────────────────────────────────────────
 export function VenueHero({
-  name, imageUrl, iconName, onClose, onShare, shareLabel, canShare, saved, onToggleSave, onDragStart,
+  name, imageUrl, icon, onClose, onShare, shareLabel, canShare, saved, onToggleSave, onDragStart,
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -53,7 +54,7 @@ export function VenueHero({
       ) : (
         <div className="absolute inset-0 flex items-center justify-center pb-8" aria-hidden="true">
           <div className="absolute h-56 w-56 rounded-full bg-white/50" />
-          <ClayIcon name={iconName} size={150} className="relative drop-shadow-[0_12px_18px_rgba(146,64,14,0.18)]" />
+          <VenueIcon icon={icon} size={150} className="relative drop-shadow-[0_12px_18px_rgba(146,64,14,0.18)]" />
         </div>
       )}
 
@@ -100,12 +101,12 @@ export function VenueHero({
 const pillClass =
   'inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-slate-900/[0.08] bg-slate-50 py-1.5 pl-1.5 pr-3.5 text-[14px] font-semibold text-slate-800 transition-colors active:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
 
-export function VenueInfoHeader({ iconName, name, subtitle, websiteUrl, address, mapsUrl }) {
+export function VenueInfoHeader({ icon, name, subtitle, websiteUrl, address, mapsUrl }) {
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex items-center gap-3.5">
         <div className="flex h-[64px] w-[64px] shrink-0 items-center justify-center rounded-[20px] bg-amber-50">
-          <ClayIcon name={iconName} size={56} />
+          <VenueIcon icon={icon} size={56} />
         </div>
         <div className="min-w-0">
           <h2 className="text-[26px] font-extrabold leading-[1.1] tracking-[-0.02em] text-slate-900">{name}</h2>

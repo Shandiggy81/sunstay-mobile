@@ -13,13 +13,14 @@ import {
 } from '../utils/sunnyTools';
 import thunderBuddy from '../assets/mascots/thunder-buddy.png';
 import ClayIcon, { clayIconUrl } from './common/ClayIcon';
+import VenueIcon from './common/VenueIcon';
 import { resolveChatAvatarKind } from '../utils/resolveChatAvatar';
 import { chatWindLabel } from '../utils/windUnits';
 import { chatTempText, chatUvText, readChatWeather } from '../utils/chatWeather';
 import { useWeather } from '../context/WeatherContext';
 import { melbourneHourNow } from '../utils/microclimate';
 import { venueDisplayScore } from '../utils/venueDisplayScore';
-import { venueIconName } from '../utils/clayIcons';
+import { venueIcon } from '../utils/clayIcons';
 import { listSunStatus, venueSunForecast } from '../utils/venueSun';
 import {
   BRUCEY_LINE,
@@ -145,7 +146,7 @@ const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
             aria-label={`Open ${name}. ${status.text}`}
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50">
-              <ClayIcon name={venueIconName(venue)} size={36} />
+              <VenueIcon icon={venueIcon(venue)} size={36} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[14px] font-bold text-slate-900">{name}</span>

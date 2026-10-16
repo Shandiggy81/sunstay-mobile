@@ -39,13 +39,14 @@ import { formatHour } from '../utils/sunForecastState';
 import { canUsePointerTilt } from '../utils/canUsePointerTilt';
 import { resolveOverviewScore } from '../utils/resolveOverviewScore';
 import { errorBoundaryRemountKey, resetVenueDetailScroller, venueOverlayPresenceKey } from '../utils/venueDetailTabs';
-import { feelsLikeIconName, venueIconName, weatherIconName } from '../utils/clayIcons';
+import { feelsLikeIconName, venueIcon, weatherIconName } from '../utils/clayIcons';
 import { venueStatTiles } from '../utils/venueStatTiles.js';
 import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
 import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { venueOfferings } from '../utils/venueOfferings';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
+import { venueTypeLabel } from '../utils/venueTypeLabel';
 
 const MICRO_LABEL = 'text-[12px] font-semibold text-slate-600';
 
@@ -440,10 +441,10 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const displayName = venue?.venueName ?? venue?.name ?? venue?.title ?? 'Unnamed venue';
   const subtitle = useMemo(() => {
     const vibeText = Array.isArray(vibe) ? vibe.filter(Boolean).join(', ') : vibe;
-    const type = String(safeVenue.typeLabel || vibeText || '').trim();
+    const type = venueTypeLabel(safeVenue.typeLabel || vibeText);
     return [type, String(suburb ?? '').trim()].filter(Boolean).join(' · ');
   }, [safeVenue.typeLabel, vibe, suburb]);
-  const iconName = venueIconName(venue);
+  const icon = venueIcon(venue);
   const venueImage = venue?.image_url ?? venue?.imageUrl ?? venue?.image ?? venue?.hero_image ?? venue?.photoUrl ?? venue?.photo ?? null;
   const address = String(venue?.address ?? venue?.full_street_address ?? '').trim() || null;
   const mapsUrl = address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : null;
@@ -617,7 +618,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             <VenueHero
               name={displayName}
               imageUrl={venueImage}
-              iconName={iconName}
+              icon={icon}
               onClose={onClose}
               onShare={share.share}
               shareLabel={share.shareLabel}
@@ -636,7 +637,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                 <div className="flex flex-col gap-8">
                   <div className="flex flex-col gap-5">
                     <VenueInfoHeader
-                      iconName={iconName}
+                      icon={icon}
                       name={displayName}
                       subtitle={subtitle}
                       websiteUrl={share.websiteUrl}
