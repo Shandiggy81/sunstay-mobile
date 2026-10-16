@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CLUE_DATASET_URL, venueSourceNote } from './venueSource.js';
+import { CLUE_DATASET_URL, OSM_COPYRIGHT_URL, venueSourceNote } from './venueSource.js';
 
 test('curated venues show no source note', () => {
     for (const venue of [null, undefined, {}, { data_source: null }, { data_source: 'other' }]) {
@@ -13,8 +13,10 @@ test('City of Melbourne venues credit the council and show their seat count', ()
     assert.equal(note.seats, '54 outdoor seats (council count)');
     assert.match(note.credit, /City of Melbourne/);
     assert.match(note.credit, /CC BY 4\.0/);
+    assert.match(note.credit, /OpenStreetMap/);
     assert.match(note.credit, /Not yet verified/);
-    assert.equal(note.url, CLUE_DATASET_URL);
+    assert.deepEqual(note.links.map((l) => l.url), [CLUE_DATASET_URL, OSM_COPYRIGHT_URL]);
+    assert.match(note.links[1].label, /OpenStreetMap/);
 });
 
 test('seat count is singular for one and hidden when missing', () => {

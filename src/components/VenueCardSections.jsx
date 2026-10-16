@@ -292,10 +292,14 @@ export function VenueSourceNote({ note }) {
     <section aria-label="Listing source" className="flex flex-col gap-1">
       {note.seats ? <p className="text-[14px] font-semibold text-slate-700">{note.seats}</p> : null}
       <p className="text-[12px] font-medium leading-snug text-slate-600">{note.credit}</p>
-      <a href={note.url} target="_blank" rel="noopener noreferrer"
-        className="-mt-2 inline-flex min-h-[44px] items-center self-start text-[12px] font-semibold text-slate-700 underline underline-offset-2">
-        {note.linkLabel}
-      </a>
+      <div className="-mt-2 flex flex-wrap gap-x-4">
+        {note.links.map((link) => (
+          <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex min-h-[44px] items-center text-[12px] font-semibold text-slate-700 underline underline-offset-2">
+            {link.label}
+          </a>
+        ))}
+      </div>
     </section>
   );
 }

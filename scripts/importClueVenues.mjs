@@ -19,7 +19,7 @@
  * Data © City of Melbourne (CLUE), CC BY 4.0.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
-import { CLUE_ATTRIBUTION, dedupeClueRows, isLaneway, matchExisting, streetAxes } from '../src/utils/clueImport.js';
+import { CLUE_ATTRIBUTION, clueCandidateId, dedupeClueRows, duplicateIds, isLaneway, matchExisting, streetAxes } from '../src/utils/clueImport.js';
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) => {
     if (a.startsWith('--')) acc.push([a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true]);
@@ -46,13 +46,15 @@ rows = rows.filter((r) => Number(r.census_year) === year && /^Seats - Outdoor/i.
 const existing = JSON.parse(readFileSync(args.existing, 'utf8'));
 const { candidates, skipped } = dedupeClueRows(rows);
 const axes = streetAxes(candidates);
+const clashes = duplicateIds(candidates.map(clueCandidateId));
+if (clashes.length) throw new Error(`Candidate id clash: ${clashes.join(', ')}`);
 
 const q = (v) => (v == null ? 'null' : `'${String(v).replace(/'/g, "''")}'`);
 const num = (v) => (Number.isFinite(v) ? String(v) : 'null');
 const lines = [];
 const report = { year, records: rows.length, candidates: candidates.length, skipped, duplicates: [], laneways: 0, no_street_axis: 0, upper_floor: 0, rooftop: 0 };
 
-candidates.forEach((c, i) => {
+candidates.forEach((c) => {
     const dup = matchExisting(c, existing);
     if (dup) report.duplicates.push({ name: c.name, existing_id: dup.id, metres: dup.metres });
     const axis = c.street ? axes.get(c.street.toLowerCase()) : null;
@@ -61,7 +63,7 @@ candidates.forEach((c, i) => {
     if (lane) report.laneways++;
     if (c.floor > 0) report.upper_floor++;
     if (c.rooftop) report.rooftop++;
-    const id = `clue-${year}-${c.property_id ?? 'x'}-${i}`;
+    const id = clueCandidateId(c);
     lines.push(`(${[q(id), q(c.name), q(c.address), q(c.kind), q(c.area), q(c.property_id), num(c.census_year), num(c.lat), num(c.lng),
         num(c.outdoor_seats), q(c.street), num(axis?.bearing), num(axis?.lat), num(axis?.lng), lane, num(c.floor), c.rooftop,
         q(dup?.id ?? null), q(dup ? 'duplicate' : 'new')].join(', ')})`);
@@ -78,8 +80,9 @@ select v.* from (values
 ${lines.join(',\n')}
 ) as v(id, name, address, kind, area, property_id, census_year, clue_lat, clue_lng, outdoor_seats,
        street, street_bearing, street_lat, street_lng, on_laneway, floor_level, rooftop, existing_venue_id, status)
--- Ids come from row order, so match an already-staged venue by property and
--- name instead: a re-run never re-adds a venue that's placed or promoted.
+-- Venues staged before 16 Oct 2026 have row-order ids (clue-2024-<property>-<n>),
+-- so also match an already-staged venue by property and name: a re-run never
+-- re-adds a venue that's placed or promoted.
 where not exists (
   select 1 from public.venue_import_candidates c
   where c.source = 'clue' and c.property_id is not distinct from v.property_id
