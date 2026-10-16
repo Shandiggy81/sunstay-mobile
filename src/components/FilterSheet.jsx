@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check } from 'lucide-react';
 import { FILTER_CATEGORIES } from '../data/demoVenues';
@@ -25,7 +26,8 @@ const FilterSheet = ({
     const safeActiveFilters = Array.isArray(activeFilters) ? activeFilters : [];
     const safeCustomFilters = Array.isArray(customFilters) ? customFilters : [];
 
-    return (
+    // Let the overlay's z-index apply above the venue list, outside .ss-main.
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <>
@@ -125,7 +127,8 @@ const FilterSheet = ({
                     </motion.div>
                 </>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
     );
 };
 
