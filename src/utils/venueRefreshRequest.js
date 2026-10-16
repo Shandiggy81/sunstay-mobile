@@ -34,6 +34,36 @@ export function shouldCommitVenueResult(outcome) {
 }
 
 /**
+ * The first load's single delayed retry. Any newer request (a pull-to-refresh,
+ * an unmount) calls cancel() before it starts, so the retry can never fire
+ * later and abort the newer request.
+ */
+export function createInitialRetry({
+    setTimer = (fn, ms) => setTimeout(fn, ms),
+    clearTimer = (id) => clearTimeout(id),
+} = {}) {
+    let timer = null;
+    return {
+        schedule(fn, ms = VENUE_INITIAL_RETRY_DELAY_MS) {
+            if (timer != null) clearTimer(timer);
+            timer = setTimer(() => {
+                timer = null;
+                fn();
+            }, ms);
+        },
+        cancel() {
+            if (timer != null) {
+                clearTimer(timer);
+                timer = null;
+            }
+        },
+        pending() {
+            return timer != null;
+        },
+    };
+}
+
+/**
  * Wait until `ms` elapses or `signal` aborts. Abort rejects so a raced
  * timeout can settle without leaving this timer running.
  */

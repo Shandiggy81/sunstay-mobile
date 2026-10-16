@@ -5,8 +5,8 @@ import { interpretVenueResponse } from './interpretVenueResponse';
 import { fetchAllRows } from '../utils/fetchAllRows';
 import { venueRefreshBusy } from '../utils/pullRefreshStatus';
 import {
-    VENUE_INITIAL_RETRY_DELAY_MS,
     VENUE_REFRESH_TIMEOUT_MS,
+    createInitialRetry,
     createVenueRefreshRequest,
     shouldCommitVenueResult,
     shouldRetryInitialLoad,
@@ -44,6 +44,8 @@ export function useVenues() {
 
     const mountedRef = useRef(true);
     const refreshRequestRef = useRef(null);
+    const initialRetryRef = useRef(null);
+    if (!initialRetryRef.current) initialRetryRef.current = createInitialRetry();
 
     const getRefreshRequest = useCallback(() => {
         if (!refreshRequestRef.current) {
@@ -68,6 +70,9 @@ export function useVenues() {
     }, [getRefreshRequest]);
 
     const fetchLiveVenues = useCallback(async ({ userInitiated = false } = {}) => {
+        // A newer request supersedes the first load's pending retry, so the
+        // retry can't fire later and abort this one.
+        initialRetryRef.current.cancel();
         const request = getRefreshRequest();
         if (!supabase) {
             console.info('[useVenues] Supabase client not initialized, running on static demoVenues.');
@@ -149,15 +154,15 @@ export function useVenues() {
                 return;
             }
         }
-        let retryTimer = null;
+        const retry = initialRetryRef.current;
         fetchLiveVenues().then((outcome) => {
             if (!mountedRef.current || !shouldRetryInitialLoad(outcome, 0)) return;
             console.info('[useVenues] First venue load failed; trying once more.');
-            retryTimer = setTimeout(() => {
+            retry.schedule(() => {
                 if (mountedRef.current) fetchLiveVenues();
-            }, VENUE_INITIAL_RETRY_DELAY_MS);
+            });
         });
-        return () => { if (retryTimer) clearTimeout(retryTimer); };
+        return () => retry.cancel();
     }, [fetchLiveVenues]);
 
     return {
