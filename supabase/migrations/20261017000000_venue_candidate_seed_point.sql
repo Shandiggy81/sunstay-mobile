@@ -14,17 +14,28 @@
 -- storable sources go here (OpenStreetMap, ODbL, credited in the app, or a
 -- point set by hand); Google Maps is used to check, never stored.
 --
--- The function body is the production definition (as patched by
--- 20261015223950, 20261015224652, 20261015224954 and 20261016020000) with
--- one change: v_pt starts from the seed when there is one.
+-- The function body is the definition running in production on 17 Oct
+-- (pg_proc.prosrc, md5 76c9e0c034b6d634f619d6b36ca01482) with one change:
+-- v_pt starts from the seed when there is one. Production's body differs from
+-- a rebuild of the migration chain (20261015223950, 20261015224652,
+-- 20261015224954, 20261016020000) only in comments, which the earlier
+-- textual patches dropped; the executable code is the same.
 --
 -- This migration changes no data. After approval, as the service role:
 --   update public.venue_import_candidates
 --      set seed_lat = <osm lat>, seed_lng = <osm lng>, seed_source = 'osm:node/<id>'
 --    where id = '<candidate id>' and status = 'placed';
 --   select public.place_venue_candidate('<candidate id>');
--- then review moved_m / pin_check_reasons and promote with
--- promote_venue_candidates(array[...]).
+-- Then promote only ids that pass ALL of these (promote_venue_candidates with
+-- explicit ids skips needs_pin_check, so the gate must be checked here):
+--   * moved_m <= 25 (the pin stayed at the seeded shop);
+--   * pin_check_reasons has none of: no_open_footpath, street_side_unconfirmed,
+--     rooftop_height_estimated, large_property, moved_far;
+--   * no_building_at_point / covered_or_unmapped are acceptable only because
+--     the seed is confirmed by two sources (OSM + Google within 30 m), e.g. a
+--     stall under the Queen Victoria Market sheds; corner_or_laneway and
+--     upper_floor are informational.
+-- Anything else stays 'placed' for a person to check in Pin Review.
 -- OSM data © OpenStreetMap contributors, ODbL.
 -- ============================================================
 
