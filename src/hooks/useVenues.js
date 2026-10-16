@@ -6,8 +6,10 @@ import { fetchAllRows } from '../utils/fetchAllRows';
 import { venueRefreshBusy } from '../utils/pullRefreshStatus';
 import {
     VENUE_REFRESH_TIMEOUT_MS,
+    createInitialRetry,
     createVenueRefreshRequest,
     shouldCommitVenueResult,
+    shouldRetryInitialLoad,
 } from '../utils/venueRefreshRequest';
 
 /**
@@ -17,7 +19,8 @@ import {
  *
  * Resilience:
  * - Starts with demoVenues so the initial UI renders instantly with zero layout shift.
- * - Races a 5-second timeout against the in-flight request and aborts it.
+ * - Races a timeout (VENUE_REFRESH_TIMEOUT_MS) against the in-flight request and aborts it;
+ *   the first load tries once more after a timeout or failure.
  * - A stale request cannot clear the newer timeout or the user-refresh flag.
  * - Results that arrive after timeout, abort, or a newer request are ignored.
  * - If Supabase fails, is offline, or returns 0 rows, gracefully retains the static data.
@@ -41,6 +44,8 @@ export function useVenues() {
 
     const mountedRef = useRef(true);
     const refreshRequestRef = useRef(null);
+    const initialRetryRef = useRef(null);
+    if (!initialRetryRef.current) initialRetryRef.current = createInitialRetry();
 
     const getRefreshRequest = useCallback(() => {
         if (!refreshRequestRef.current) {
@@ -65,6 +70,9 @@ export function useVenues() {
     }, [getRefreshRequest]);
 
     const fetchLiveVenues = useCallback(async ({ userInitiated = false } = {}) => {
+        // A newer request supersedes the first load's pending retry, so the
+        // retry can't fire later and abort this one.
+        initialRetryRef.current.cancel();
         const request = getRefreshRequest();
         if (!supabase) {
             console.info('[useVenues] Supabase client not initialized, running on static demoVenues.');
@@ -146,7 +154,15 @@ export function useVenues() {
                 return;
             }
         }
-        fetchLiveVenues();
+        const retry = initialRetryRef.current;
+        fetchLiveVenues().then((outcome) => {
+            if (!mountedRef.current || !shouldRetryInitialLoad(outcome, 0)) return;
+            console.info('[useVenues] First venue load failed; trying once more.');
+            retry.schedule(() => {
+                if (mountedRef.current) fetchLiveVenues();
+            });
+        });
+        return () => retry.cancel();
     }, [fetchLiveVenues]);
 
     return {

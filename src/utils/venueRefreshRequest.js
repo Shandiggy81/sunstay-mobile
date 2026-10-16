@@ -1,4 +1,18 @@
-export const VENUE_REFRESH_TIMEOUT_MS = 5000;
+// 902 venues are ~1.2 MB of JSON (~90 KB gzipped). 5 s was set for ~100 venues;
+// on a throttled phone the response landed right at 5 s and the app quietly
+// stayed on the 56 demo venues.
+export const VENUE_REFRESH_TIMEOUT_MS = 15000;
+export const VENUE_INITIAL_RETRY_DELAY_MS = 2000;
+
+/**
+ * Whether the first venue load should try once more: only after a timeout or
+ * a failed request, never after a stale/ignored result or an empty table.
+ */
+export function shouldRetryInitialLoad(outcome, attempt) {
+    if (attempt !== 0 || !outcome) return false;
+    if (outcome.stale || outcome.ignored || outcome.skipped || outcome.empty) return false;
+    return outcome.ok === false && (Boolean(outcome.timedOut) || outcome.error != null);
+}
 
 export function venueRefreshTimeoutError(timeoutMs = VENUE_REFRESH_TIMEOUT_MS) {
     const error = new Error(`Venue refresh timed out after ${timeoutMs}ms`);
@@ -17,6 +31,36 @@ export function shouldCommitVenueResult(outcome) {
         && !outcome.ignored
         && !outcome.timedOut
     );
+}
+
+/**
+ * The first load's single delayed retry. Any newer request (a pull-to-refresh,
+ * an unmount) calls cancel() before it starts, so the retry can never fire
+ * later and abort the newer request.
+ */
+export function createInitialRetry({
+    setTimer = (fn, ms) => setTimeout(fn, ms),
+    clearTimer = (id) => clearTimeout(id),
+} = {}) {
+    let timer = null;
+    return {
+        schedule(fn, ms = VENUE_INITIAL_RETRY_DELAY_MS) {
+            if (timer != null) clearTimer(timer);
+            timer = setTimer(() => {
+                timer = null;
+                fn();
+            }, ms);
+        },
+        cancel() {
+            if (timer != null) {
+                clearTimer(timer);
+                timer = null;
+            }
+        },
+        pending() {
+            return timer != null;
+        },
+    };
 }
 
 /**
@@ -55,7 +99,7 @@ function guardSettled(promise) {
 }
 
 /**
- * One in-flight venue refresh. A 5s timeout aborts that request's
+ * One in-flight venue refresh. A timeout (VENUE_REFRESH_TIMEOUT_MS) aborts that request's
  * AbortController. A newer request or unmount bumps the generation so a
  * stale `finally` cannot clear the live timer or the busy flag, and a
  * resolution that arrives after timeout or abort is ignored.
