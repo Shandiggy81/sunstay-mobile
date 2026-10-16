@@ -50,12 +50,20 @@ export function localHourForMinutes(minutes, _now = new Date()) {
  * @param {Date} [now]
  * @returns {number|null}
  */
+// Building an Intl.DateTimeFormat is far slower than using one, and the venue
+// list sort calls this once per venue (902 venues: ~215 ms on a laptop per
+// chip tap), so build it once.
+let melbourneHourFormat = null;
+
 export function melbourneHourNow(now = new Date()) {
-    const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: MELBOURNE_TZ,
-        hour: 'numeric',
-        hourCycle: 'h23',
-    }).formatToParts(now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date());
+    if (!melbourneHourFormat) {
+        melbourneHourFormat = new Intl.DateTimeFormat('en-GB', {
+            timeZone: MELBOURNE_TZ,
+            hour: 'numeric',
+            hourCycle: 'h23',
+        });
+    }
+    const parts = melbourneHourFormat.formatToParts(now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date());
     const hour = Number(parts.find((part) => part.type === 'hour')?.value);
     return Number.isFinite(hour) ? hour : null;
 }
