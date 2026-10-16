@@ -85,9 +85,16 @@ values
   ('c-seeds', 'Seven Seeds',      '114 Berkeley St', 'cafe_restaurant', -37.8000, 144.9600, 2024, 'placed', -37.8000, 144.9600, false, 0, false),
   ('c-asian', 'Asian Beer Cafe',  '211 La Trobe St', 'cafe_restaurant', -37.8100, 144.9650, 2024, 'placed', -37.8100, 144.9650, false, 0, false),
   ('c-far',   'Far Away Diner',   '1 Somewhere St',  'cafe_restaurant', -37.8200, 144.9700, 2024, 'placed', -37.8200, 144.9700, false, 0, false),
-  ('c-abc',   'ABC',              '2 Short St',      'cafe_restaurant', -37.8300, 144.9750, 2024, 'placed', -37.8300, 144.9750, false, 0, false);
+  ('c-abc',   'ABC',              '2 Short St',      'cafe_restaurant', -37.8300, 144.9750, 2024, 'placed', -37.8300, 144.9750, false, 0, false),
+  -- Two Subway candidates 300 m apart, one OSM Subway 150 m from the first: ambiguous.
+  ('c-sub1',  'Subway',           '1 Chain St',      'takeaway',        -37.8400, 144.9800, 2024, 'placed', -37.8400, 144.9800, false, 0, false),
+  ('c-sub2',  'Subway',           '9 Chain St',      'takeaway',        -37.8427, 144.9800, 2024, 'placed', -37.8427, 144.9800, false, 0, false),
+  -- One Starbucks candidate, two OSM Starbucks 200 m and 300 m away: ambiguous.
+  ('c-star',  'Starbucks',        '5 Bean St',       'cafe_restaurant', -37.8500, 144.9850, 2024, 'placed', -37.8500, 144.9850, false, 0, false),
+  -- An OSM Starbucks 30 m away: a near match is used even for a chain.
+  ('c-star2', 'Starbucks',        '7 Bean St',       'cafe_restaurant', -37.8600, 144.9900, 2024, 'placed', -37.8600, 144.9900, false, 0, false);
 
-create temp table t_match as select public.match_venue_candidates_osm(jsonb_build_array(
+create temp table t_osm as select jsonb_build_array(
   -- Seven Seeds: a contained-name restaurant nearer, the exact-name cafe 10 m away. Exact wins.
   jsonb_build_object('type', 'node', 'id', 1, 'lat', -37.80001, 'lon', 144.96001, 'tags', jsonb_build_object('name', 'Seven Seeds Roastery Restaurant', 'amenity', 'restaurant')),
   jsonb_build_object('type', 'node', 'id', 2, 'lat', -37.80009, 'lon', 144.96000, 'tags', jsonb_build_object('name', 'Seven Seeds', 'amenity', 'cafe')),
@@ -98,19 +105,33 @@ create temp table t_match as select public.match_venue_candidates_osm(jsonb_buil
   jsonb_build_object('type', 'node', 'id', 7, 'lat', -37.81540, 'lon', 144.9650, 'tags', jsonb_build_object('name', 'Asian Beer Cafe', 'amenity', 'cafe')),
   -- ABC: under 4 characters -> never matched.
   jsonb_build_object('type', 'node', 'id', 4, 'lat', -37.8300, 'lon', 144.9750, 'tags', jsonb_build_object('name', 'ABC', 'amenity', 'bar')),
+  jsonb_build_object('type', 'node', 'id', 8,  'lat', -37.84135, 'lon', 144.9800, 'tags', jsonb_build_object('name', 'Subway', 'amenity', 'fast_food')),
+  jsonb_build_object('type', 'node', 'id', 9,  'lat', -37.85180, 'lon', 144.9850, 'tags', jsonb_build_object('name', 'Starbucks', 'amenity', 'cafe')),
+  jsonb_build_object('type', 'node', 'id', 10, 'lat', -37.84730, 'lon', 144.9850, 'tags', jsonb_build_object('name', 'Starbucks', 'amenity', 'cafe')),
+  jsonb_build_object('type', 'node', 'id', 11, 'lat', -37.86027, 'lon', 144.9900, 'tags', jsonb_build_object('name', 'Starbucks', 'amenity', 'cafe')),
   -- No name -> ignored.
   jsonb_build_object('type', 'node', 'id', 5, 'lat', -37.8100, 'lon', 144.9650, 'tags', jsonb_build_object('amenity', 'bar'))
-)) as n;
+) as e;
+create temp table t_match as select public.match_venue_candidates_osm(e) as n from t_osm;
 
 do $$
 declare r record;
 begin
-  assert (select n from t_match) = 2, 'two candidates matched, got ' || (select n from t_match);
+  assert (select n from t_match) = 3, 'three candidates matched, got ' || (select n from t_match);
+  assert (select osm_match from public.venue_import_candidates where id = 'c-seeds') = 'near', 'Seven Seeds is near';
+  assert (select osm_match from public.venue_import_candidates where id = 'c-far') = 'far', 'Far Away Diner is a unique far match';
+  assert (select count(*) from public.venue_import_candidates where id in ('c-sub1', 'c-sub2', 'c-star') and osm_match = 'ambiguous' and osm_amenity is null and osm_ref is null) = 3,
+    'chains with another same-name candidate or several OSM branches are ambiguous';
+  assert (select osm_match || osm_ref from public.venue_import_candidates where id = 'c-star2') = 'nearnode/11', 'a near chain branch is used';
   select * into r from public.venue_import_candidates where id = 'c-seeds';
   assert r.osm_amenity = 'cafe' and r.osm_ref = 'node/2' and r.osm_name = 'Seven Seeds', 'Seven Seeds matched the exact-name cafe';
   assert (select osm_ref from public.venue_import_candidates where id = 'c-far') = 'node/6', 'same name within 500 m matches; contained name at 150 m does not';
   assert (select osm_amenity from public.venue_import_candidates where id = 'c-asian') is null, 'same name over 500 m is not a match';
   assert (select osm_amenity from public.venue_import_candidates where id = 'c-abc') is null, 'short names are not matched';
+  -- Re-running replaces, rather than adds to, the earlier matches.
+  perform public.match_venue_candidates_osm('[]'::jsonb);
+  assert (select count(*) from public.venue_import_candidates where osm_match is not null or osm_amenity is not null) = 0, 're-run clears';
+  assert public.match_venue_candidates_osm((select e from t_osm)) = 3, 're-run gives the same matches';
   raise notice 'OSM match: pass';
 end $$;
 

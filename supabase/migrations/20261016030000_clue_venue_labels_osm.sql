@@ -15,6 +15,7 @@
 --          params := jsonb_build_object('data', '[out:json][timeout:90];(nwr["amenity"~"^(cafe|restaurant|bar|pub|fast_food|ice_cream|biergarten|food_court)$"]["name"](-37.86,144.89,-37.77,145.0);nwr["shop"~"^(bakery|pastry|coffee)$"]["name"](-37.86,144.89,-37.77,145.0););out tags center;'),
 --          timeout_milliseconds := 120000);
 --   2. select public.match_venue_candidates_osm((select content::jsonb -> 'elements' from net._http_response where id = <id>));
+--      Review chains it couldn't place: select name, address from public.venue_import_candidates where osm_match = 'ambiguous';
 --   3. Optional hand fixes for venues OSM doesn't know, e.g.
 --        update public.venue_import_candidates set label_override = 'Cafe' where name = 'Brother Baba Budan';
 --   4. select public.relabel_clue_venues();   -- already-promoted venues
@@ -26,10 +27,13 @@ alter table public.venue_import_candidates
   add column if not exists osm_amenity text,
   add column if not exists osm_ref     text,
   add column if not exists osm_name    text,
+  add column if not exists osm_match   text check (osm_match in ('near', 'far', 'ambiguous')),
   add column if not exists label_override text;
 
 comment on column public.venue_import_candidates.label_override is
   'A label set by hand after review (e.g. ''Cafe''); beats every rule in clue_venue_label().';
+comment on column public.venue_import_candidates.osm_match is
+  'How the OSM venue was matched: near (80 m), far (unique same name within 500 m) or ambiguous (not used; review).';
 comment on column public.venue_import_candidates.osm_amenity is
   'amenity (or shop:<value>) of the matching OpenStreetMap venue, used for the label. Null = no match.';
 
@@ -81,10 +85,16 @@ $function$;
 
 -- Store the matching OSM venue on each candidate. p_elements is the Overpass
 -- "elements" array (out tags center). Names are normalised (lower case, letters
--- and digits, 4+ characters). The same name within 500 m of the council point
--- (property centroids can sit far inside big sites such as the Botanic
--- Gardens), or one name containing the other within 80 m. An exact name beats
--- a contained one, then the nearer wins. Returns the number matched.
+-- and digits, 4+ characters).
+--   near:      within 80 m, the same name or one containing the other; an exact
+--              name beats a contained one, then the nearer wins.
+--   far:       nothing near, but exactly one OSM venue with the same name within
+--              500 m (council points sit at property centroids, which can be far
+--              inside big sites such as the Botanic Gardens) and no other
+--              candidate with that name within 500 m.
+--   ambiguous: nothing near, and the far match isn't unique (chains such as
+--              Subway or Market Lane). No amenity is stored; listed for review.
+-- Re-running replaces earlier matches. Returns the number with an amenity.
 create or replace function public.match_venue_candidates_osm(p_elements jsonb)
 returns int
 language plpgsql
@@ -97,6 +107,10 @@ begin
   if p_elements is null or jsonb_typeof(p_elements) <> 'array' then
     raise exception 'match_venue_candidates_osm: expected the Overpass elements array';
   end if;
+
+  update public.venue_import_candidates
+     set osm_amenity = null, osm_ref = null, osm_name = null, osm_match = null
+   where osm_match is not null or osm_amenity is not null;
 
   with osm as (
     select e->>'type' || '/' || (e->>'id') as ref,
@@ -113,18 +127,37 @@ begin
            regexp_replace(lower(name), '[^a-z0-9]', '', 'g') as n
     from public.venue_import_candidates
     where clue_lat is not null and clue_lng is not null),
-  best as (
-    select distinct on (c.id) c.id, o.ref, o.name, o.amenity
+  pairs as (
+    select c.id, o.ref, o.name, o.amenity, (o.n = c.n) as exact, st_distance(c.g, o.g) as d
     from cand c
     join osm o on length(o.n) >= 4 and length(c.n) >= 4
               and ((o.n = c.n and st_dwithin(c.g, o.g, 500))
-                   or ((position(o.n in c.n) > 0 or position(c.n in o.n) > 0) and st_dwithin(c.g, o.g, 80)))
-    order by c.id, (o.n = c.n) desc, st_distance(c.g, o.g))
+                   or ((position(o.n in c.n) > 0 or position(c.n in o.n) > 0) and st_dwithin(c.g, o.g, 80)))),
+  near as (
+    select distinct on (id) id, ref, name, amenity
+    from pairs where d <= 80
+    order by id, exact desc, d),
+  far as (
+    select p.id, min(p.ref) as ref, min(p.name) as name, min(p.amenity) as amenity, count(*) as k
+    from pairs p
+    where p.exact and p.d > 80 and not exists (select 1 from near where near.id = p.id)
+    group by p.id),
+  shared as (
+    select c.id from cand c
+    where exists (select 1 from cand c2 where c2.id <> c.id and c2.n = c.n and st_dwithin(c.g, c2.g, 500))),
+  result as (
+    select id, ref, name, amenity, 'near' as m from near
+    union all
+    select f.id,
+           case when f.ok then f.ref end, case when f.ok then f.name end, case when f.ok then f.amenity end,
+           case when f.ok then 'far' else 'ambiguous' end
+    from (select far.*, (far.k = 1 and far.id not in (select id from shared)) as ok from far) f)
   update public.venue_import_candidates v
-     set osm_amenity = b.amenity, osm_ref = b.ref, osm_name = b.name
-    from best b
-   where v.id = b.id;
-  get diagnostics n = row_count;
+     set osm_amenity = r.amenity, osm_ref = r.ref, osm_name = r.name, osm_match = r.m
+    from result r
+   where v.id = r.id;
+
+  select count(*) into n from public.venue_import_candidates where osm_amenity is not null;
   return n;
 end;
 $function$;
@@ -219,6 +252,6 @@ grant execute on function public.promote_venue_candidates(text[], int) to servic
 comment on function public.clue_venue_label(text, text, text, text) is
   'Label and emoji for an imported CLUE venue: hand override, then OSM amenity, then name, then CLUE industry; "Eatery" when unknown.';
 comment on function public.match_venue_candidates_osm(jsonb) is
-  'Service role only. Stores the matching OpenStreetMap venue (name match within 80 m) on each import candidate. Returns the number matched.';
+  'Service role only. Stores the matching OpenStreetMap venue on each import candidate (near, unique far, or ambiguous for review). Returns the number with an amenity.';
 comment on function public.relabel_clue_venues() is
   'Service role only. Re-applies clue_venue_label() to promoted CLUE venues whose label changed. Returns the number updated.';
