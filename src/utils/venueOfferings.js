@@ -46,6 +46,14 @@ const OFFERINGS = Object.freeze([
     { keys: ['premium'], label: 'Premium', icon: 'sparkles' },
     { keys: ['boutique'], label: 'Boutique', icon: 'sparkles' },
     { keys: ['after work'], label: 'After work', icon: 'clock' },
+    { keys: ['business friendly'], label: 'Business friendly', icon: 'business' },
+    { keys: ['conference'], label: 'Conference space', icon: 'conference' },
+    { keys: ['party'], label: 'Party venue', icon: 'party' },
+    { keys: ['gluten free'], label: 'Gluten-free options', icon: 'gluten-free' },
+    { keys: ['arts'], label: 'Arts', icon: 'arts' },
+    { keys: ['hidden'], label: 'Hidden gem', icon: 'hidden' },
+    { keys: ['local'], label: 'Local favourite', icon: 'local' },
+    { keys: ['people watching'], label: 'People watching', icon: 'people-watching' },
 ]);
 
 const BY_KEY = new Map(OFFERINGS.flatMap((o, order) => o.keys.map((k) => [k, { ...o, order }])));

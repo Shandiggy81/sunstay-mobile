@@ -119,12 +119,12 @@ describe('venueOfferings', () => {
     });
 
     it('keeps unknown tags with no icon, after the known ones', () => {
-        const rows = venueOfferings({ tags: ['People Watching', 'Beer Garden', 'live-music', 'Hidden'] });
+        const rows = venueOfferings({ tags: ['Rooftop Yoga', 'Beer Garden', 'live-music', 'Karaoke'] });
         assert.deepEqual(rows.map((r) => [r.label, r.icon]), [
             ['Beer garden', 'garden-table'],
             ['Live music', 'live-music'],
-            ['People watching', null],
-            ['Hidden', null],
+            ['Rooftop yoga', null],
+            ['Karaoke', null],
         ]);
     });
 
@@ -135,14 +135,12 @@ describe('venueOfferings', () => {
             'Afternoon Sun', 'Cocktails', 'Shaded', 'Premium', 'Indoor Warmth', 'River', 'Cozy', 'Serviced apartment',
             'Specialty Coffee', 'Pub', 'Fireplace', 'Heaters', 'All-weather', 'Historic', 'Covered', 'Garden',
             'Sunset', 'Morning Sun', 'indoor-only', 'Vines', 'food-available', 'Umbrellas', 'live-music', 'Deck',
-            'After Work', 'Pub Grub', 'Boutique', 'Bar', 'Beach', '24h License', 'dog-friendly', 'Sunrise'];
+            'After Work', 'Pub Grub', 'Boutique', 'Bar', 'Beach', '24h License', 'dog-friendly', 'Sunrise',
+            'Business Friendly', 'Gluten Free', 'Arts', 'Hidden', 'Party', 'Conference', 'Local', 'People Watching'];
         for (const tag of live) {
             const [row] = venueOfferings({ tags: [tag] });
             assert.ok(row?.icon && hasIcon(row.icon), `${tag} → ${row?.icon}`);
         }
-        // No clay art yet: these still show the neutral dot until icons are made.
-        const noArt = ['Business Friendly', 'Gluten Free', 'Arts', 'Hidden', 'Party', 'Conference', 'Local', 'People Watching'];
-        for (const tag of noArt) assert.equal(venueOfferings({ tags: [tag] })[0].icon, null, tag);
     });
 
     it('labels the newly mapped tags', () => {
