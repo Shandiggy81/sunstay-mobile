@@ -47,8 +47,9 @@ import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import { venueDisplayScore } from './utils/venueDisplayScore';
 import { listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
 import { venueConditionChips } from './utils/venueConditionChips';
-import { feelsLikeIconName, venueIconName } from './utils/clayIcons';
+import { feelsLikeIconName, venueIcon } from './utils/clayIcons';
 import ClayIcon from './components/common/ClayIcon';
+import VenueIcon from './components/common/VenueIcon';
 import { SEARCH_DEBOUNCE_MS } from './utils/debounce';
 import { useDebouncedValue } from './hooks/useDebouncedValue';
 import { Virtuoso } from 'react-virtuoso';
@@ -240,7 +241,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             id={`venue-list-${venue.id}`}
         >
             <div className="ss-vlc-icon" aria-hidden="true">
-                <ClayIcon name={venueIconName(venue)} size={36} />
+                <VenueIcon icon={venueIcon(venue)} size={36} />
             </div>
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
