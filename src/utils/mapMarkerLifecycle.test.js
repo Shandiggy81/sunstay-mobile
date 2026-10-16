@@ -23,6 +23,8 @@ import {
     requiredMarkerGate,
     resumeMayGoLive,
     syncMarkerLayer,
+    dedupeSourceFeatures,
+    geojsonPayloadKey,
 } from './mapMarkerLifecycle.js';
 
 function fakeMarker() {
@@ -340,5 +342,42 @@ describe('marker coordinates', () => {
         const reopened = syncMarkerLayer(resumed.markers, 2, [spec('venue-1', 'sun')]);
         assert.deepEqual(reopened.created, []);
         assert.deepEqual(reopened.reused, ['venue-1']);
+    });
+});
+
+describe('dedupeSourceFeatures', () => {
+    const v = (id, x = 0) => ({ properties: { id }, geometry: { coordinates: [x, 0] } });
+    const c = (cluster_id) => ({ properties: { cluster: true, cluster_id, point_count: 3 }, geometry: { coordinates: [0, 0] } });
+    it('keeps the first copy of each venue and cluster that several tiles return', () => {
+        const out = dedupeSourceFeatures([v('a', 1), c(7), v('a', 2), v('b'), c(7), v(5), v('5')]);
+        assert.deepEqual(out.map((f) => f.properties.id ?? `c${f.properties.cluster_id}`), ['a', 'c7', 'b', 5]);
+        assert.equal(out[0].geometry.coordinates[0], 1);
+    });
+    it('keeps features without an id and handles bad input', () => {
+        assert.equal(dedupeSourceFeatures([{ properties: {} }, { properties: {} }]).length, 2);
+        assert.deepEqual(dedupeSourceFeatures(null), []);
+    });
+});
+
+describe('geojsonPayloadKey', () => {
+    const f = (id, props = {}) => ({ geometry: { coordinates: [144.96, -37.81] }, properties: { id, ...props } });
+    it('matches for equivalent payloads, whatever the property order', () => {
+        assert.equal(geojsonPayloadKey([f('a', { x: 1, y: 2 })]), geojsonPayloadKey([f('a', { y: 2, x: 1 })]));
+    });
+    it('changes when a venue, position or property changes', () => {
+        const base = geojsonPayloadKey([f('a', { sunCoffeeMatch: 0 })]);
+        assert.notEqual(base, geojsonPayloadKey([f('b', { sunCoffeeMatch: 0 })]));
+        assert.notEqual(base, geojsonPayloadKey([f('a', { sunCoffeeMatch: 1 })]));
+        assert.notEqual(base, geojsonPayloadKey([{ ...f('a', { sunCoffeeMatch: 0 }), geometry: { coordinates: [144.97, -37.81] } }]));
+        assert.notEqual(base, geojsonPayloadKey([f('a', { sunCoffeeMatch: 0 }), f('b')]));
+    });
+    it('is empty for bad input', () => {
+        assert.equal(geojsonPayloadKey(null), '');
+    });
+});
+
+describe('markerSyncTriggerPlan selection', () => {
+    it('syncs when the selected venue changes, so a clustered venue gets its pin', () => {
+        assert.deepEqual(markerSyncTriggerPlan('selection'), { sync: true, reason: 'selection-changed' });
     });
 });
