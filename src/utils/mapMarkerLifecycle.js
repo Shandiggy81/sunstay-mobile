@@ -154,6 +154,7 @@ export function markerSyncTriggerPlan(type) {
     if (type === 'moveend') return { sync: true, reason: 'camera-settled' };
     if (type === 'sourcedata') return { sync: true, reason: 'source-features' };
     if (type === 'effect') return { sync: true, reason: 'inputs-changed' };
+    if (type === 'selection') return { sync: true, reason: 'selection-changed' };
     if (type === 'idle') return { sync: false, reason: 'idle-duplicates-moveend' };
     return { sync: false, reason: 'ignored' };
 }
@@ -329,10 +330,52 @@ export function completeMarkerSync(scheduler, {
 export function featuresForMarkerSync(map, sourceId) {
     if (!map || typeof map.querySourceFeatures !== 'function') return [];
     try {
-        return map.querySourceFeatures(sourceId) || [];
+        return dedupeSourceFeatures(map.querySourceFeatures(sourceId) || []);
     } catch {
         return [];
     }
+}
+
+/**
+ * querySourceFeatures returns a feature once per loaded tile it touches, so
+ * the same venue or cluster can come back several times. Keep the first copy
+ * of each, in order: clusters by cluster_id, venues by id. Features with
+ * neither are kept as they are.
+ */
+export function dedupeSourceFeatures(features) {
+    if (!Array.isArray(features)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const feature of features) {
+        const props = feature?.properties || {};
+        const key = props.cluster ? `c${props.cluster_id}` : props.id != null ? `v${props.id}` : null;
+        if (key != null) {
+            if (seen.has(key)) continue;
+            seen.add(key);
+        }
+        out.push(feature);
+    }
+    return out;
+}
+
+/**
+ * Stable key for a cluster-source payload, so an identical payload doesn't
+ * call setData (which makes Mapbox re-cluster and reload every tile).
+ * Covers each feature's id, coordinates and properties, in order.
+ */
+export function geojsonPayloadKey(features) {
+    if (!Array.isArray(features)) return '';
+    let out = '';
+    for (const f of features) {
+        const c = f?.geometry?.coordinates || [];
+        const props = f?.properties || {};
+        out += `${props.id}@${c[0]},${c[1]}`;
+        for (const k of Object.keys(props).sort()) {
+            if (k !== 'id') out += `|${k}=${props[k]}`;
+        }
+        out += ';';
+    }
+    return out;
 }
 
 /**

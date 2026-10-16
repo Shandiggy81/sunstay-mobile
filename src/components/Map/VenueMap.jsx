@@ -48,6 +48,7 @@ import {
     completeMarkerSync,
     createSyncScheduler,
     featuresForMarkerSync,
+    geojsonPayloadKey,
     markerFeatureSignature,
     markerSyncDecision,
     markerSyncTriggerPlan,
@@ -225,6 +226,8 @@ const PIN_TAIL_SVG = (fill, stroke) =>
 // 96px clay pin icons (utils/clayVenuePins), hashed or inlined by Vite.
 const CLAY_PIN_URLS = clayPinUrls(import.meta.glob('../../assets/clay/pins/*.webp', { eager: true, import: 'default' }));
 const PIN_ICON_PX = 20;
+// Clusters hold through this zoom; individual pins appear one level above.
+const MAP_CLUSTER_MAX_ZOOM = 16;
 const MOMENT_BADGE_URLS = { coffee: coffeeBadgeUrl, dining: lunchBadgeUrl, cocktail: sunsetBadgeUrl };
 
 function paintMomentBadge(bubble, badge, topOffset = -18) {
@@ -872,6 +875,11 @@ const VenueMap = forwardRef(({
         [venues]
     );
     const venuesMapRef = useRef(new Map());
+    // Venue ids in the cluster source, and the last payload given to it.
+    const clusterVenueIdsRef = useRef(new Set());
+    const clusterPayloadRef = useRef(null);
+    // The current marker sync, so a selection change can ask for one.
+    const syncMarkersRef = useRef(null);
     useEffect(() => {
         venuesMapRef.current = new Map(safeVenues.map(v => [String(v.id), v]));
     }, [safeVenues]);
@@ -884,8 +892,8 @@ const VenueMap = forwardRef(({
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
 
-    // Selected pin: ink bubble + amber score. Repaint only the pins whose
-    // selection changed instead of re-running the whole marker sync.
+    // Paint selection changes immediately. The marker sync below also keeps
+    // the selected venue visible when the card's fly-to puts it in a cluster.
     const selectedVenueIdRef = useRef(selectedVenue?.id ?? null);
     useEffect(() => {
         const id = selectedVenue?.id ?? null;
@@ -901,6 +909,8 @@ const VenueMap = forwardRef(({
                 venueName: record.venueName,
             });
         }
+        // Add (or drop) the separate pin for a selected venue inside a cluster.
+        syncMarkersRef.current?.('selection');
     }, [selectedVenue?.id]);
 
     const liveVenueFeaturesRef = useRef(liveVenueFeatures);
@@ -1466,23 +1476,33 @@ const VenueMap = forwardRef(({
             ? safeVenues.filter(v => filteredIdSet.has(String(v.id)))
             : safeVenues;
 
+        // The heatmap weight ('score') is only read by the comfort heatmap, so
+        // it's only worked out while that layer is on. Pins compute their own.
         const geojsonFeatures = visibleVenues.map(venue => {
-            const reading = readingForVenue(microById, venue.id, clusterTodMinutes);
-            const profileScore = markerScoreFromMicroclimate(reading);
-            const rawScore = profileScore ?? (
-                typeof calculateSunstayScore === 'function'
-                    ? calculateSunstayScore(venue)
-                    : 75
-            );
-            const weight = Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75;
+            const properties = { id: venue.id, ...pointMomentMatches(venue.id, sunMomentsById) };
+            if (comfortMapOn) {
+                const reading = readingForVenue(microById, venue.id, clusterTodMinutes);
+                const profileScore = markerScoreFromMicroclimate(reading);
+                const rawScore = profileScore ?? (
+                    typeof calculateSunstayScore === 'function'
+                        ? calculateSunstayScore(venue)
+                        : 75
+                );
+                properties.score = Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75;
+            }
             return {
                 type: 'Feature',
                 geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
-                properties: { id: venue.id, score: weight, ...pointMomentMatches(venue.id, sunMomentsById) },
+                properties,
             };
         });
 
         const geojsonData = { type: 'FeatureCollection', features: geojsonFeatures };
+        // setData makes Mapbox re-cluster and reload every tile, so skip it when
+        // the payload is unchanged. Keyed to this source instance: a source
+        // re-created after a map restart always gets its data.
+        const payloadKey = geojsonPayloadKey(geojsonFeatures);
+        clusterVenueIdsRef.current = new Set(visibleVenues.map((v) => String(v.id)));
 
         if (!map.current.getSource(CLUSTER_SOURCE_ID)) {
             map.current.addSource(CLUSTER_SOURCE_ID, {
@@ -1490,7 +1510,9 @@ const VenueMap = forwardRef(({
                 data: geojsonData,
                 cluster: true,
                 clusterProperties: CLUSTER_MOMENT_PROPERTIES,
-                clusterMaxZoom: 14,
+                // Dense CBD streets stay clustered through zoom 16; pins split at 17.
+                // At 14, zooming out or flying to a venue briefly made ~800 DOM pins.
+                clusterMaxZoom: MAP_CLUSTER_MAX_ZOOM,
                 clusterRadius: 50
             });
             
@@ -1501,8 +1523,14 @@ const VenueMap = forwardRef(({
                 source: CLUSTER_SOURCE_ID,
                 paint: { 'circle-radius': 0, 'circle-opacity': 0 }
             });
+            clusterPayloadRef.current = { source: map.current.getSource(CLUSTER_SOURCE_ID), key: payloadKey };
         } else {
-            map.current.getSource(CLUSTER_SOURCE_ID).setData(geojsonData);
+            const source = map.current.getSource(CLUSTER_SOURCE_ID);
+            const previous = clusterPayloadRef.current;
+            if (!previous || previous.source !== source || previous.key !== payloadKey) {
+                source.setData(geojsonData);
+                clusterPayloadRef.current = { source, key: payloadKey };
+            }
         }
 
         if (comfortMapOn) {
@@ -1666,7 +1694,8 @@ const VenueMap = forwardRef(({
                 }
 
                 const features = featuresForMarkerSync(instance, CLUSTER_SOURCE_ID);
-                const signature = `${markerFeatureSignature(features)}|${clusterMomentFeatureSignature(features, activeSunMoment)}`;
+                const selectedId = selectedVenueIdRef.current != null ? String(selectedVenueIdRef.current) : null;
+                const signature = `${markerFeatureSignature(features)}|${clusterMomentFeatureSignature(features, activeSunMoment)}|sel:${selectedId ?? ''}`;
                 const gate = requiredMarkerGate({
                     sourceLoaded: true,
                     featureCount: features.length,
@@ -1731,7 +1760,17 @@ const VenueMap = forwardRef(({
                         return;
                     }
 
-                    const venueId = feature.properties.id;
+                    pushVenueSpec(feature.properties.id);
+                });
+
+                // A selected venue inside a cluster (the card's fly-to lands at
+                // zoom 15) still gets its own highlighted pin.
+                if (selectedId && clusterVenueIdsRef.current.has(selectedId)
+                    && !specs.some((spec) => spec.id === `venue-${selectedId}`)) {
+                    pushVenueSpec(selectedId);
+                }
+
+                function pushVenueSpec(venueId) {
                     const venue = venuesMapRef.current.get(String(venueId));
                     if (!venue) return;
                     const venuePlan = markerCoordinatePlan(venue);
@@ -1791,7 +1830,7 @@ const VenueMap = forwardRef(({
                             return { marker, el, pinKey, score, emoji, iconUrl, selected, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
                         },
                     });
-                });
+                }
 
                 const synced = syncMarkerLayer(markersRef.current, generation, specs);
                 markersRef.current = synced.markers;
@@ -1836,8 +1875,10 @@ const VenueMap = forwardRef(({
             MARKER_SYNC_CAMERA_EVENTS,
         );
         syncMarkers('effect');
+        syncMarkersRef.current = syncMarkers;
 
         return () => {
+            if (syncMarkersRef.current === syncMarkers) syncMarkersRef.current = null;
             instance.off('sourcedata', onSourceData);
             unbind();
             if (rafRef.current) {
