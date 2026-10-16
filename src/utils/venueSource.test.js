@@ -13,6 +13,7 @@ test('City of Melbourne venues credit the council and show their seat count', ()
     assert.equal(note.seats, '54 outdoor seats (council count)');
     assert.match(note.credit, /City of Melbourne/);
     assert.match(note.credit, /CC BY 4\.0/);
+    assert.match(note.credit, /OpenStreetMap/);
     assert.match(note.credit, /Not yet verified/);
     assert.equal(note.url, CLUE_DATASET_URL);
 });

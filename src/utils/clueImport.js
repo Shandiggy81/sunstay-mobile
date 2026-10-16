@@ -14,6 +14,23 @@ const KINDS = new Map([
     ['Bakery Product Manufacturing (Non-factory based)', 'bakery'],
 ]);
 
+/**
+ * Stable id for a staged CLUE venue: census year, property and name, so the
+ * same venue gets the same id on every run whatever the row order. Two
+ * candidates only share an id if dedupeClueRows would have merged them.
+ */
+export function clueCandidateId(c) {
+    const slug = nameTokens(c?.name).join('-') || 'venue';
+    return `clue-${c?.census_year ?? 'x'}-${c?.property_id ?? 'x'}-${slug}`;
+}
+
+/** Ids that appear more than once (should always be empty). */
+export function duplicateIds(ids) {
+    const seen = new Set(), dup = new Set();
+    for (const id of ids) (seen.has(id) ? dup : seen).add(id);
+    return [...dup];
+}
+
 /** SunStay kind for a CLUE industry description, or null to skip the record. */
 export function clueKind(industry) {
     return KINDS.get(String(industry ?? '').trim()) ?? null;

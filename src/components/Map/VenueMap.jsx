@@ -64,6 +64,7 @@ import {
     syncMarkerLayer,
     canvasOutOfSync,
 } from '../../utils/mapMarkerLifecycle';
+import { clusterSourceFeatures, heatmapSourceData } from '../../utils/mapVenueSources';
 import { webglRecoveryView } from '../../utils/webglRecoveryView';
 import {
     mapRecoveryControl,
@@ -1479,27 +1480,12 @@ const VenueMap = forwardRef(({
         // Clustering only needs id, position and moment flags. The heatmap
         // weight ('score') goes to the heatmap's own source, so switching the
         // heatmap or a microclimate refresh never re-clusters every venue.
-        const geojsonFeatures = visibleVenues.map(venue => ({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
-            properties: { id: venue.id, ...pointMomentMatches(venue.id, sunMomentsById) },
-        }));
-        const heatmapData = () => ({
-            type: 'FeatureCollection',
-            features: visibleVenues.map(venue => {
-                const reading = readingForVenue(microById, venue.id, clusterTodMinutes);
-                const profileScore = markerScoreFromMicroclimate(reading);
-                const rawScore = profileScore ?? (
-                    typeof calculateSunstayScore === 'function'
-                        ? calculateSunstayScore(venue)
-                        : 75
-                );
-                return {
-                    type: 'Feature',
-                    geometry: { type: 'Point', coordinates: [Number(venue.lng), Number(venue.lat)] },
-                    properties: { id: venue.id, score: Number.isFinite(rawScore) ? Math.min(Math.max(rawScore / 100, 0), 1) : 0.75 },
-                };
-            }),
+        const geojsonFeatures = clusterSourceFeatures(visibleVenues, (id) => pointMomentMatches(id, sunMomentsById));
+        const heatmapData = () => heatmapSourceData(visibleVenues, (venue) => {
+            const reading = readingForVenue(microById, venue.id, clusterTodMinutes);
+            return markerScoreFromMicroclimate(reading) ?? (
+                typeof calculateSunstayScore === 'function' ? calculateSunstayScore(venue) : 75
+            );
         });
 
         const geojsonData = { type: 'FeatureCollection', features: geojsonFeatures };

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { fetchAllRows } from '../utils/fetchAllRows';
+import { fetchVenuesInBbox } from '../utils/venuesInBboxQuery';
 import { mergeMicroclimateRows } from '../utils/microclimate';
 
 /**
@@ -92,18 +92,7 @@ export function useVenuesInBbox(bbox, { limit = BBOX_ROW_LIMIT, enabled = true }
             const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
             setIsLoading(true);
 
-            // The API returns at most 1,000 rows per response, functions
-            // included, so a zoomed-out view over ~1,100 venues is paged.
-            fetchAllRows((from, to) => supabase
-                .rpc('venues_in_bbox', {
-                    min_lng: normalized.minLng,
-                    min_lat: normalized.minLat,
-                    max_lng: normalized.maxLng,
-                    max_lat: normalized.maxLat,
-                    p_limit: limit,
-                })
-                .range(from, to)
-                .abortSignal(controller.signal))
+            fetchVenuesInBbox(supabase, normalized, { limit, signal: controller.signal })
                 .then(({ data, error: rpcError }) => {
                     clearTimeout(timeoutId);
                     // Drop responses from a viewport the user has already left.

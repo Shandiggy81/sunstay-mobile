@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    addressStreet, clueKind, dedupeClueRows, isLaneway, matchExisting, nameSimilarity, parseFloor, streetAxes,
+    addressStreet, clueCandidateId, clueKind, dedupeClueRows, duplicateIds, isLaneway, matchExisting, nameSimilarity, parseFloor, streetAxes,
 } from './clueImport.js';
 
 test('clueKind keeps food and drink industries only', () => {
@@ -87,4 +87,31 @@ test('streetAxes ignores short or blobby runs of points', () => {
     assert.equal(streetAxes([at(0, 0), at(20, 5), at(5, 20), at(25, 25)]).size, 0);
     // a clear 120 m line is kept
     assert.equal(streetAxes([at(0, 0), at(40, 2), at(80, -1), at(120, 1)]).size, 1);
+});
+
+test('candidate ids are stable across row order and never collide', () => {
+    const row = (name, property_id, seats = 10) => ({
+        trading_name: name, property_id, census_year: '2024', industry_anzsic4_description: 'Cafes and Restaurants',
+        latitude: -37.81, longitude: 144.96, number_of_seats: seats, business_address: '1 Collins Street MELBOURNE VIC 3000',
+    });
+    const rows = [
+        row('Seven Seeds', 101061), row('Seven Seeds', 101061, 4),     // two seating rows, one venue
+        row('Brunetti', 102083), row('Brunetti Classico', 102083),     // same property, different venues
+        row('Brunetti', 106193),                                       // same name, other property
+        row('The Cafe', 5), row('Café', 6),                            // names that are all filler words
+        row('Pho Thin', 105706), row('PHO  THIN!', 105707),
+    ];
+    const ids = (input) => dedupeClueRows(input).candidates.map(clueCandidateId);
+    const forward = ids(rows);
+    assert.equal(forward.length, 8);
+    assert.deepEqual(duplicateIds(forward), []);
+    assert.deepEqual([...ids([...rows].reverse())].sort(), [...forward].sort(), 'same ids in any order');
+    assert.ok(forward.includes('clue-2024-101061-seven-seeds'));
+    assert.ok(forward.includes('clue-2024-5-venue') && forward.includes('clue-2024-6-venue'));
+});
+
+test('clueCandidateId tolerates missing fields; duplicateIds reports clashes once', () => {
+    assert.equal(clueCandidateId({ name: 'Tipo 00' }), 'clue-x-x-tipo-00');
+    assert.equal(clueCandidateId(null), 'clue-x-x-venue');
+    assert.deepEqual(duplicateIds(['a', 'b', 'a', 'a', 'c', 'b']), ['a', 'b']);
 });
