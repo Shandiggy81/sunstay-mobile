@@ -240,6 +240,9 @@ function slimVenue(row) {
  *   weather?: object|null,    WeatherContext weather (hourly temperature / rain)
  *   venues?: object[],        full venue rows, for tags (bbox rows carry none)
  *   sunMomentsById?: Map<string, string[]>|null,  sunMomentsByVenue() result
+ *   place?: { label: string|null, venues: object[] }|null,  placeVenuesInText() for the
+ *       latest message: those venues go first, so "sunny near 3141?" works
+ *       wherever the map is
  *   now?: Date,
  * }} input
  */
@@ -251,14 +254,24 @@ export function buildSunnyContext({
     weather = null,
     venues = null,
     sunMomentsById = null,
+    place = null,
     now = new Date(),
 } = {}) {
     const momentsFor = (id) => (sunMomentsById instanceof Map ? sunMomentsById.get(String(id)) : null);
     const allRows = Array.isArray(visibleById) ? visibleById : Object.values(visibleById || {});
-    // Venues with a sun moment first, so the cap below never drops them.
+    const rowById = new Map(allRows.filter((r) => r?.id != null).map((r) => [String(r.id), r]));
+    // Venues in a place the user named come first (with the map's sun data
+    // when that venue has it), then venues with a sun moment, so the cap below
+    // never drops them.
+    const placeRows = (Array.isArray(place?.venues) ? place.venues : [])
+        .filter((v) => v?.id != null)
+        .map((v) => ({ ...v, ...(rowById.get(String(v.id)) ?? {}) }));
+    const placeIds = new Set(placeRows.map((r) => String(r.id)));
+    const rest = allRows.filter((r) => !(r?.id != null && placeIds.has(String(r.id))));
     const rows = [
-        ...allRows.filter((r) => r?.id != null && momentsFor(r.id)?.length),
-        ...allRows.filter((r) => !(r?.id != null && momentsFor(r.id)?.length)),
+        ...placeRows,
+        ...rest.filter((r) => r?.id != null && momentsFor(r.id)?.length),
+        ...rest.filter((r) => !(r?.id != null && momentsFor(r.id)?.length)),
     ];
     const fullById = new Map(
         (Array.isArray(venues) ? venues : []).filter((v) => v?.id != null).map((v) => [String(v.id), v]),
@@ -266,8 +279,11 @@ export function buildSunnyContext({
     const enrich = (row, slim) => {
         const window = venueSunWindowToday(row.sun_hour_fraction, forecast);
         if (window) slim.sunWindow = window;
-        const tags = topTags(fullById.get(slim.id) ?? row);
+        const full = fullById.get(slim.id) ?? row;
+        const tags = topTags(full);
         if (tags.length) slim.tags = tags;
+        const suburb = String(full?.suburb ?? row?.suburb ?? '').trim();
+        if (suburb) slim.suburb = suburb;
         const moments = (momentsFor(slim.id) ?? []).map((key) => MOMENT_TITLES.get(key)).filter(Boolean);
         if (moments.length) slim.sunMoments = moments;
         return slim;
@@ -292,6 +308,7 @@ export function buildSunnyContext({
         activeVenue: slimActive,
         visibleVenues,
     };
+    if (place?.label && placeRows.length) context.placeAsked = String(place.label);
     const today = forecastSummary(forecast, weather, { now });
     if (today) context.forecastToday = today;
     return context;
