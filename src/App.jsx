@@ -50,6 +50,7 @@ import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import { venueDisplayScore } from './utils/venueDisplayScore';
 import { listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
 import { venueConditionChips } from './utils/venueConditionChips';
+import { keyAmenities } from './utils/venueAmenities';
 import { feelsLikeIconName, venueIcon } from './utils/clayIcons';
 import { clayIconName } from './utils/clayFilterIcons';
 import ClayIcon from './components/common/ClayIcon';
@@ -204,6 +205,8 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
         () => venueConditionChips({ venue, forecast: sunForecast, weather: liveWeather }),
         [venue, sunForecast, liveWeather],
     );
+    // Wheelchair, pram, dog and hidden-gem icons after the chips (utils/venueAmenities).
+    const amenities = useMemo(() => keyAmenities(venue), [venue]);
 
     // Per-venue Sunstay Score — same RPC microclimate score as the map pin
     // and the detail sheet, so scrubbing TOD cannot show 84 on the card and
@@ -239,7 +242,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             role="button"
             tabIndex={0}
             onKeyDown={e => { if (e.target === e.currentTarget && ['Enter', ' '].includes(e.key)) { e.preventDefault(); onVenueSelect(venue); } }}
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : (chips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || sunStatus.text)}.${sunstayScore != null ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null ? ` Feels like ${feelsLike} degrees.` : ''}`}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : (chips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || sunStatus.text)}.${sunstayScore != null ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
             className={`ss-venue-list-card ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
@@ -249,6 +252,16 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
                 {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
+                {amenities.length > 0 && (
+                    <ul className="ss-vlc-amenities" aria-hidden="true">
+                        {amenities.map(a => (
+                            <li key={a.key} title={a.label}>
+                                <ClayIcon name={a.icon} size={18} />
+                                <span>{a.short}</span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </div>
             <div className="ss-vlc-right">
                 {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}

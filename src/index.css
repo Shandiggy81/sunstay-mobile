@@ -3064,6 +3064,24 @@ body,
 .ss-vlc-chip--windy { background: #dbeafe; color: #1e3a8a; }
 .ss-vlc-chip--outdoor { background: #ecfdf5; color: #065f46; }
 
+/* Key amenities (utils/venueAmenities.js) under the subtitle. */
+.ss-vlc-amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-vlc-amenities li {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #9a3412;
+}
+
 .ss-vlc-temp {
   display: flex;
   align-items: center;

@@ -101,7 +101,7 @@ export function VenueHero({
 const pillClass =
   'inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-slate-900/[0.08] bg-slate-50 py-1.5 pl-1.5 pr-3.5 text-[14px] font-semibold text-slate-800 transition-colors active:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
 
-export function VenueInfoHeader({ icon, name, subtitle, websiteUrl, address, mapsUrl }) {
+export function VenueInfoHeader({ icon, name, subtitle, websiteUrl, address, mapsUrl, amenities = [] }) {
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex items-center gap-3.5">
@@ -113,6 +113,19 @@ export function VenueInfoHeader({ icon, name, subtitle, websiteUrl, address, map
           {subtitle ? <p className="mt-1 truncate text-[15px] font-medium text-slate-600">{subtitle}</p> : null}
         </div>
       </div>
+      {amenities.length ? (
+        <ul className="flex flex-wrap gap-2" aria-label="Good to know">
+          {amenities.map((a) => (
+            <li
+              key={a.key}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 py-1 pl-1 pr-3 text-[14px] font-semibold text-amber-900"
+            >
+              <ClayIcon name={a.icon} size={26} />
+              <span>{a.label}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {(websiteUrl || address) ? (
         <div className="flex flex-wrap gap-2">
           {websiteUrl ? (
