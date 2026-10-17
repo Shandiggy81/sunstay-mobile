@@ -6,8 +6,21 @@
 
 import { normaliseTag } from './venueOfferings.js';
 import { formatHour } from './sunForecastState.js';
+import { keyAmenities } from './venueAmenities.js';
 
 export const MAX_SUGGESTIONS = 3;
+
+/** Card metadata; keep the venue and sun status first in its accessible name. */
+export function suggestionCardDetails(venue, sunText) {
+    const name = venue?.venueName ?? venue?.name ?? 'Venue';
+    const amenities = keyAmenities(venue);
+    const amenityText = amenities.map((amenity) => amenity.label).join(', ');
+    return {
+        name,
+        amenities,
+        accessibleName: `Open ${name}. ${sunText}${amenityText ? `. ${amenityText}` : ''}`,
+    };
+}
 
 // Tag aliases, so "Pet Friendly" also finds venues tagged "dog-friendly".
 const TAG_ALIASES = Object.freeze({
