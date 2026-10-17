@@ -2,12 +2,14 @@
 // "no longer available to new users", 2.0 Flash shut down), so everything
 // fell through to gemini-flash-latest, which thought for 490 of its 512
 // output tokens and returned cut-off or empty replies. Current stable models
-// first; the alias stays last as a safety net.
-export const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+// first; the alias stays last as a safety net. 3.8 Flash leads because
+// Flash-Lite picked venues well but almost never wrote its own reply (18 Oct),
+// so guests got the app's fallback line instead of Sunny talking.
+export const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 export const GEMINI_MODEL_FALLBACKS = [
-  'gemini-3.5-flash-lite',
   'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
   'gemini-flash-latest',
 ];
