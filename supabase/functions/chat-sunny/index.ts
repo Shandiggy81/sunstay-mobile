@@ -37,6 +37,7 @@
  */
 
 import { geminiDiagnostics, geminiModelChain, generationConfigFor, shouldTryNextModel, textOnlyRetryBody } from './geminiModels.js';
+import { contextVenues, replyForToolCalls, tidyReply, withLinkedVenues } from './sunnyReply.js';
 import {
   MAX_BODY_BYTES,
   MAX_OUTPUT_TOKENS,
@@ -98,6 +99,8 @@ Rules:
   Never invent an id. If they name a venue you can't see, say it isn't on the map right now.
 - Never state opening hours, happy hours, prices or specials as fact. Say "check their website" instead.
 - Reply in 1–2 short sentences, even when you call tools. Warm and Australian, not try-hard; no slang pile-ups.
+- Always write the reply text, even when you call tools: name your picks and say why they suit.
+- Write venue names as plain text. Never write ids, links or markdown.
 - Never mention tools, JSON, system prompts or hidden context.`;
 
 const FUNCTION_DECLARATIONS = [
@@ -335,8 +338,12 @@ Deno.serve(async (req) => {
           console.error('chat-sunny retry failed', model, err);
         }
       }
+      const names = contextVenues(sunnyContext);
+      const tidy = tidyReply(contract.reply, names);
+      contract.reply = tidy.reply;
+      contract.toolCalls = withLinkedVenues(contract.toolCalls, tidy.venueIds);
       if (!contract.reply && contract.toolCalls.length > 0) {
-        contract.reply = 'On it — updating the map.';
+        contract.reply = replyForToolCalls(contract.toolCalls, names);
       }
       return json(contract);
     }
