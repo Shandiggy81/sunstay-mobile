@@ -6,6 +6,7 @@ import {
     forecastSummary,
     isDogIntent,
     resolveSuggestedVenues,
+    suggestionCardDetails,
     suggestVenuesForTag,
     timeOfDayChip,
     topTags,
@@ -36,6 +37,27 @@ function weather() {
 const forecast = () => deriveSunForecast({ hourly: weather().hourly, utcOffsetSeconds: OFFSET, now: NOW, sunrise: 6.5, sunset: 19.5 });
 
 const V = (id, tags, extra = {}) => ({ id, venueName: id, tags, ...extra });
+
+describe('suggestionCardDetails', () => {
+    it('keeps the existing accessible name when there are no key amenities', () => {
+        const details = suggestionCardDetails(V('Cafe', ['Sunny', 'Vegan']), 'Sun until 3pm');
+        assert.equal(details.accessibleName, 'Open Cafe. Sun until 3pm');
+        assert.deepEqual(details.amenities, []);
+    });
+
+    it('shows short labels but appends the full amenity labels to the accessible name', () => {
+        const details = suggestionCardDetails(V('Garden', ['dog-friendly', 'Step Free', 'Pram Friendly', 'Hidden', 'Accessible']), 'Sun until 3pm');
+        assert.deepEqual(details.amenities.map((amenity) => [amenity.icon, amenity.short]), [
+            ['wheelchair', 'Accessible'], ['pram', 'Pram friendly'], ['brucey', 'Dog friendly'], ['hidden', 'Hidden gem'],
+        ]);
+        assert.equal(details.accessibleName, 'Open Garden. Sun until 3pm. Wheelchair accessible, Pram friendly, Dog friendly, Hidden gem');
+    });
+
+    it('preserves venue-name fallbacks and ignores malformed tags', () => {
+        assert.equal(suggestionCardDetails({ name: 'Local', tags: null }, 'Sun times unavailable').accessibleName, 'Open Local. Sun times unavailable');
+        assert.equal(suggestionCardDetails(null, 'Sun times unavailable').name, 'Venue');
+    });
+});
 
 describe('venue suggestions', () => {
     it('matches tags with aliases and ranks by score, max three', () => {

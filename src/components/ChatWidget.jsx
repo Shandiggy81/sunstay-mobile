@@ -27,6 +27,7 @@ import {
   BRUCEY_LINE,
   isDogIntent,
   resolveSuggestedVenues,
+  suggestionCardDetails,
   suggestVenuesForTag,
   timeOfDayChip,
 } from '../utils/sunnySuggestions';
@@ -137,23 +138,31 @@ const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
   <ul className="mt-2 flex w-full max-w-[88%] flex-col gap-2" aria-label="Suggested venues">
     {venues.map((venue) => {
       const status = statusFor(venue);
-      const name = venue.venueName ?? venue.name ?? 'Venue';
+      const { name, amenities, accessibleName } = suggestionCardDetails(venue, status.text);
       return (
         <li key={venue.id}>
           <button
             type="button"
             onClick={() => onOpen(venue)}
             className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-sm transition-colors hover:border-amber-400 active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-            aria-label={`Open ${name}. ${status.text}`}
+            aria-label={accessibleName}
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50">
               <VenueIcon icon={venueIcon(venue)} size={36} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[14px] font-bold text-slate-900">{name}</span>
-              <span className="mt-0.5 flex items-center gap-1 text-[12px] font-medium text-slate-600">
-                <ClayIcon name={status.icon} size={16} />
-                <span className="truncate">{status.text}</span>
+              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-slate-600">
+                <span className="inline-flex items-center gap-1">
+                  <ClayIcon name={status.icon} size={16} />
+                  <span>{status.text}</span>
+                </span>
+                {amenities.map((amenity) => (
+                  <span key={amenity.key} className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <ClayIcon name={amenity.icon} size={18} />
+                    <span>{amenity.short}</span>
+                  </span>
+                ))}
               </span>
             </span>
           </button>
