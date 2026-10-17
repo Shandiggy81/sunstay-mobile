@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { amenityWants, isBarVenue, keyAmenities, sunnyFocusVenues } from './venueAmenities.js';
+import { amenityForFilter, amenityWants, isBarVenue, keyAmenities, sunnyFocusVenues, venueMatchesAmenityFilter } from './venueAmenities.js';
 
 const v = (id, extra) => ({ id, lat: -37.8, lng: 144.96, ...extra });
 const elwoodCafe = v('ec', { venueName: 'Pram Cafe', suburb: 'Elwood', vibe: 'Cafe', tags: ['Outdoor seating', 'Pram Friendly', 'Wheelchair Accessible'] });
@@ -69,5 +69,24 @@ describe('sunnyFocusVenues', () => {
     it('caps the list', () => {
         const many = Array.from({ length: 30 }, (_, i) => v(`p${i}`, { suburb: 'CBD', tags: ['Pram friendly'] }));
         assert.equal(sunnyFocusVenues('pram in the cbd', many, 15).venues.length, 15);
+    });
+});
+
+describe('amenity filters', () => {
+    it('reads a filter by any of the amenity names Sunny or the app uses', () => {
+        for (const id of ['Dog friendly', 'Pet Friendly', 'dog-friendly']) assert.equal(amenityForFilter(id)?.key, 'pet', id);
+        for (const id of ['Hidden gem', 'Hidden']) assert.equal(amenityForFilter(id)?.key, 'hidden', id);
+        assert.equal(amenityForFilter('Pram friendly')?.key, 'pram');
+        assert.equal(amenityForFilter('Wheelchair Accessible')?.key, 'wheelchair');
+        assert.equal(amenityForFilter('Rooftop'), null);
+        assert.equal(amenityForFilter(''), null);
+    });
+    it('matches venues whatever the tag spelling, and leaves other filters alone', () => {
+        assert.equal(venueMatchesAmenityFilter(elwoodPub, 'Dog friendly'), true);
+        assert.equal(venueMatchesAmenityFilter(elwoodPub, 'Pet Friendly'), true);
+        assert.equal(venueMatchesAmenityFilter(cbdBar, 'Hidden gem'), true);
+        assert.equal(venueMatchesAmenityFilter(cbdCafe, 'Hidden gem'), false);
+        assert.equal(venueMatchesAmenityFilter(elwoodCafe, 'Pram friendly'), true);
+        assert.equal(venueMatchesAmenityFilter(elwoodCafe, 'Rooftop'), null);
     });
 });
