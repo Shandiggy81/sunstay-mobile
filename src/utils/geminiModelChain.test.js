@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
     DEFAULT_MODEL,
     GEMINI_MODEL_FALLBACKS,
+    followUpAfterToolsBody,
     generationConfigFor,
     geminiDiagnostics,
     geminiModelChain,
@@ -155,5 +156,47 @@ describe('empty-reply handling', () => {
         const src = readFileSync(join(root, 'supabase/functions/chat-sunny/index.ts'), 'utf8');
         assert.match(src, /chat-sunny empty reply/);
         assert.match(src, /textOnlyRetryBody\(requestBody\)/);
+    });
+});
+
+describe('follow-up after tool calls', () => {
+    const body = {
+        system_instruction: { parts: [{ text: 'prompt' }] },
+        contents: [{ role: 'user', parts: [{ text: 'hidden bars?' }] }],
+        tools: [{ function_declarations: [] }],
+        tool_config: { function_calling_config: { mode: 'AUTO' } },
+        generation_config: { max_output_tokens: 2048 },
+    };
+    const modelContent = {
+        role: 'model',
+        parts: [
+            { functionCall: { name: 'setFilters', args: { tags: ['Hidden gem'] } }, thoughtSignature: 'sig-1' },
+            { functionCall: { name: 'panToVenue', args: { venueId: 'v1' }, id: 'call-2' } },
+            { functionCall: { name: 'panToVenue', args: { venueId: 'gone' } } },
+        ],
+    };
+    const names = new Map([['v1', 'Berlin Bar']]);
+    it('returns the model turn verbatim, answers every call in order, and turns tools off', () => {
+        const f = followUpAfterToolsBody(body, modelContent, (id) => names.get(id));
+        assert.equal(f.contents.length, 3);
+        assert.deepEqual(f.contents[1], { role: 'model', parts: modelContent.parts }, 'thought signatures kept');
+        assert.deepEqual(f.contents[2].parts.map((p) => p.functionResponse), [
+            { name: 'setFilters', response: { ok: true } },
+            { name: 'panToVenue', response: { shown: true, venue: 'Berlin Bar' }, id: 'call-2' },
+            { name: 'panToVenue', response: { shown: false } },
+        ]);
+        assert.equal(f.tool_config.function_calling_config.mode, 'NONE');
+        assert.match(f.system_instruction.parts.at(-1).text, /name the venues you picked/);
+        assert.deepEqual(f.generation_config, body.generation_config);
+        assert.equal(body.contents.length, 1, 'original untouched');
+    });
+    it('returns null when there were no calls', () => {
+        assert.equal(followUpAfterToolsBody(body, { parts: [{ text: 'hi' }] }), null);
+        assert.equal(followUpAfterToolsBody(body, null), null);
+    });
+    it('chat-sunny asks for the reply after tool-only answers', () => {
+        const src = readFileSync(join(root, 'supabase/functions/chat-sunny/index.ts'), 'utf8');
+        assert.match(src, /followUpAfterToolsBody\(/);
+        assert.match(src, /chat-sunny follow-up empty/);
     });
 });

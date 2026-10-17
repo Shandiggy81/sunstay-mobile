@@ -36,7 +36,7 @@
  * No npm SDK — Gemini generateContent is called with fetch.
  */
 
-import { geminiDiagnostics, geminiModelChain, generationConfigFor, shouldTryNextModel, textOnlyRetryBody } from './geminiModels.js';
+import { followUpAfterToolsBody, geminiDiagnostics, geminiModelChain, generationConfigFor, shouldTryNextModel, textOnlyRetryBody } from './geminiModels.js';
 import { contextVenues, replyForToolCalls, tidyReply, withLinkedVenues } from './sunnyReply.js';
 import {
   MAX_BODY_BYTES,
@@ -349,6 +349,30 @@ Deno.serve(async (req) => {
         }
       }
       const names = contextVenues(sunnyContext);
+      if (!contract.reply && contract.toolCalls.length > 0) {
+        // Gemini 3 sends tool calls without words: hand the results back and
+        // ask for the reply (Google's function-calling flow), once.
+        const followBody = followUpAfterToolsBody(
+          requestBody,
+          (data as { candidates?: Array<{ content?: unknown }> })?.candidates?.[0]?.content,
+          (id: string) => names.get(id),
+        );
+        if (followBody) {
+          try {
+            const follow = await fetch(GEMINI_GENERATE_URL(model), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+              body: JSON.stringify(followBody),
+            });
+            const followData = await follow.json().catch(() => null);
+            const text = follow.ok ? contractFromGemini(followData).reply : '';
+            if (text) contract.reply = text;
+            else console.warn('chat-sunny follow-up empty', model, follow.status, JSON.stringify(geminiDiagnostics(followData)));
+          } catch (err) {
+            console.error('chat-sunny follow-up failed', model, err);
+          }
+        }
+      }
       const tidy = tidyReply(contract.reply, names);
       contract.reply = tidy.reply;
       contract.toolCalls = withLinkedVenues(contract.toolCalls, tidy.venueIds);
