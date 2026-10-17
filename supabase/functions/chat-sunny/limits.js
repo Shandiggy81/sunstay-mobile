@@ -13,7 +13,9 @@ export const MAX_TURNS = 12;
 // buildSunnyContext sends at most 40 slim venues (~10 KB).
 export const MAX_CONTEXT_CHARS = 24000;
 export const MAX_BODY_BYTES = 64 * 1024;
-export const MAX_OUTPUT_TOKENS = 512;
+// Room for a short reply plus any thinking the model still does. Replies stay
+// short because the prompt asks for that, not because of this cap.
+export const MAX_OUTPUT_TOKENS = 2048;
 
 export const RATE_LIMITS = Object.freeze({
   perClientPerMinute: 10,
