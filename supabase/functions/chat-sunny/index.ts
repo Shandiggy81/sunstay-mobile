@@ -36,7 +36,7 @@
  * No npm SDK — Gemini generateContent is called with fetch.
  */
 
-import { geminiModelChain, generationConfigFor, shouldTryNextModel } from './geminiModels.js';
+import { geminiDiagnostics, geminiModelChain, generationConfigFor, shouldTryNextModel, textOnlyRetryBody } from './geminiModels.js';
 import {
   MAX_BODY_BYTES,
   MAX_OUTPUT_TOKENS,
@@ -292,6 +292,10 @@ Deno.serve(async (req) => {
   let lastStatus = 0;
   let lastData: unknown = null;
   for (const model of models) {
+    const requestBody = {
+      ...payload,
+      generation_config: generationConfigFor(model, { temperature: 0.4, maxOutputTokens: MAX_OUTPUT_TOKENS }),
+    };
     let upstream: Response;
     try {
       upstream = await fetch(GEMINI_GENERATE_URL(model), {
@@ -300,10 +304,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
         },
-        body: JSON.stringify({
-          ...payload,
-          generation_config: generationConfigFor(model, { temperature: 0.4, maxOutputTokens: MAX_OUTPUT_TOKENS }),
-        }),
+        body: JSON.stringify(requestBody),
       });
     } catch (err) {
       console.error('chat-sunny gemini fetch failed', model, err);
@@ -314,7 +315,26 @@ Deno.serve(async (req) => {
 
     const data = await upstream.json().catch(() => null);
     if (upstream.ok) {
-      const contract = contractFromGemini(data);
+      let contract = contractFromGemini(data);
+      if (!contract.reply && contract.toolCalls.length === 0) {
+        // Gemini answered with nothing: log why, then try once without tools
+        // so the guest still gets a real answer.
+        console.warn('chat-sunny empty reply', model, JSON.stringify(geminiDiagnostics(data)));
+        try {
+          const retry = await fetch(GEMINI_GENERATE_URL(model), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify(textOnlyRetryBody(requestBody)),
+          });
+          const retryData = await retry.json().catch(() => null);
+          if (retry.ok) {
+            contract = contractFromGemini(retryData);
+            if (!contract.reply) console.warn('chat-sunny empty retry', model, JSON.stringify(geminiDiagnostics(retryData)));
+          }
+        } catch (err) {
+          console.error('chat-sunny retry failed', model, err);
+        }
+      }
       if (!contract.reply && contract.toolCalls.length > 0) {
         contract.reply = 'On it — updating the map.';
       }
