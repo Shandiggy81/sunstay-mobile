@@ -46,6 +46,7 @@ import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { venueOfferings } from '../utils/venueOfferings';
 import { keyAmenities } from '../utils/venueAmenities';
+import { venuePerfectFor } from '../utils/venuePerfectFor.js';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
 import { venueTypeLabel } from '../utils/venueTypeLabel';
 
@@ -646,6 +647,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       address={address}
                       mapsUrl={mapsUrl}
                       amenities={amenities}
+                      perfectFor={venuePerfectFor(outdoorMoments)}
                     />
                     {onCenter && hasValidCoordinates ? (
                       <button

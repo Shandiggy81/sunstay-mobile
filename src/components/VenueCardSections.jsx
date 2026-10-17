@@ -101,7 +101,7 @@ export function VenueHero({
 const pillClass =
   'inline-flex min-h-11 max-w-full items-center gap-2 rounded-full border border-slate-900/[0.08] bg-slate-50 py-1.5 pl-1.5 pr-3.5 text-[14px] font-semibold text-slate-800 transition-colors active:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
 
-export function VenueInfoHeader({ icon, name, subtitle, websiteUrl, address, mapsUrl, amenities = [] }) {
+export function VenueInfoHeader({ icon, name, subtitle, websiteUrl, address, mapsUrl, amenities = [], perfectFor }) {
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex items-center gap-3.5">
@@ -125,6 +125,11 @@ export function VenueInfoHeader({ icon, name, subtitle, websiteUrl, address, map
             </li>
           ))}
         </ul>
+      ) : null}
+      {perfectFor ? (
+        <p className="text-[13px] font-medium leading-relaxed text-slate-700">
+          <span className="font-semibold text-amber-900">Perfect for:</span> {perfectFor}
+        </p>
       ) : null}
       {(websiteUrl || address) ? (
         <div className="flex flex-wrap gap-2">
