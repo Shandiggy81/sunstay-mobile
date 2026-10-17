@@ -43,3 +43,35 @@ export function generationConfigFor(model, { temperature, maxOutputTokens }) {
     }
     return config;
 }
+
+/** Why Gemini returned what it did, for logs: finish reason, message, token use. */
+export function geminiDiagnostics(data) {
+    const c = data?.candidates?.[0];
+    return {
+        finishReason: c?.finishReason ?? c?.finish_reason ?? null,
+        finishMessage: typeof c?.finishMessage === 'string' ? c.finishMessage.slice(0, 200) : null,
+        blockReason: data?.promptFeedback?.blockReason ?? null,
+        usage: data?.usageMetadata ?? null,
+    };
+}
+
+/**
+ * The request body for a second, text-only try after Gemini returned neither
+ * text nor a tool call (17 Oct: "anything sunny near 3141?" with 15 venues
+ * came back empty every time, while one-tool questions worked; Gemini 2.5
+ * can fail a multi-call reply as MALFORMED_FUNCTION_CALL). Function calling
+ * is switched off and Sunny is asked to name its picks in the reply instead.
+ */
+export function textOnlyRetryBody(body) {
+    const parts = Array.isArray(body?.system_instruction?.parts) ? body.system_instruction.parts : [];
+    return {
+        ...body,
+        system_instruction: {
+            parts: [
+                ...parts,
+                { text: 'Tools are unavailable for this reply. Answer in 1–2 short sentences and name up to 3 venues from the context by name.' },
+            ],
+        },
+        tool_config: { function_calling_config: { mode: 'NONE' } },
+    };
+}

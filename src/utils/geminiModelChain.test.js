@@ -7,7 +7,9 @@ import {
     DEFAULT_MODEL,
     GEMINI_MODEL_FALLBACKS,
     generationConfigFor,
+    geminiDiagnostics,
     geminiModelChain,
+    textOnlyRetryBody,
     shouldTryNextModel,
 } from '../../supabase/functions/chat-sunny/geminiModels.js';
 
@@ -94,5 +96,36 @@ describe('chat-sunny sends the per-model generation config', () => {
         const src = readFileSync(join(root, 'supabase/functions/chat-sunny/index.ts'), 'utf8');
         assert.match(src, /generation_config: generationConfigFor\(model,/);
         assert.doesNotMatch(src, /generation_config: \{ temperature/);
+    });
+});
+
+describe('empty-reply handling', () => {
+    it('reads finish reason, block reason and usage for the log', () => {
+        const d = geminiDiagnostics({ candidates: [{ finishReason: 'MALFORMED_FUNCTION_CALL', finishMessage: 'x' }], usageMetadata: { totalTokenCount: 900 } });
+        assert.deepEqual(d, { finishReason: 'MALFORMED_FUNCTION_CALL', finishMessage: 'x', blockReason: null, usage: { totalTokenCount: 900 } });
+        assert.deepEqual(geminiDiagnostics(null), { finishReason: null, finishMessage: null, blockReason: null, usage: null });
+        assert.equal(geminiDiagnostics({ promptFeedback: { blockReason: 'SAFETY' } }).blockReason, 'SAFETY');
+    });
+    it('retries text-only: tools off, picks named in the reply, context and settings kept', () => {
+        const body = {
+            system_instruction: { parts: [{ text: 'prompt' }, { text: 'context' }] },
+            contents: [{ role: 'user', parts: [{ text: 'near 3141?' }] }],
+            tools: [{ function_declarations: [] }],
+            tool_config: { function_calling_config: { mode: 'AUTO' } },
+            generation_config: { temperature: 0.4, max_output_tokens: 512 },
+        };
+        const r = textOnlyRetryBody(body);
+        assert.equal(r.tool_config.function_calling_config.mode, 'NONE');
+        assert.equal(r.system_instruction.parts.length, 3);
+        assert.deepEqual(r.system_instruction.parts.slice(0, 2), body.system_instruction.parts);
+        assert.match(r.system_instruction.parts[2].text, /name up to 3 venues/);
+        assert.deepEqual(r.contents, body.contents);
+        assert.deepEqual(r.generation_config, body.generation_config);
+        assert.equal(body.tool_config.function_calling_config.mode, 'AUTO', 'original untouched');
+    });
+    it('chat-sunny retries once when Gemini returns nothing', () => {
+        const src = readFileSync(join(root, 'supabase/functions/chat-sunny/index.ts'), 'utf8');
+        assert.match(src, /chat-sunny empty reply/);
+        assert.match(src, /textOnlyRetryBody\(requestBody\)/);
     });
 });
