@@ -26,3 +26,20 @@ export function shouldTryNextModel(status, data) {
   if (typeof message !== 'string') return false;
   return /not found|no longer available|not supported|invalid model/i.test(message);
 }
+
+/**
+ * generation_config for one model. Gemini 2.5 Flash models "think" before
+ * answering, and those thinking tokens count against max_output_tokens: with
+ * a 512-token cap and a dozen venues to compare, the thinking used the whole
+ * budget and Gemini returned no text and no tool call (seen 17 Oct: the chat
+ * fell back to its canned reply). Sunny's answers are short picks from the
+ * venues it is sent, so thinking is switched off for those models. Other
+ * models get no thinking_config (older ones reject it).
+ */
+export function generationConfigFor(model, { temperature, maxOutputTokens }) {
+    const config = { temperature, max_output_tokens: maxOutputTokens };
+    if (/^gemini-2\.5-flash(-lite)?(-|$)/.test(String(model))) {
+        config.thinking_config = { thinking_budget: 0 };
+    }
+    return config;
+}

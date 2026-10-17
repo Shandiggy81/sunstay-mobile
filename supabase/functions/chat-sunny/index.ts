@@ -36,7 +36,7 @@
  * No npm SDK — Gemini generateContent is called with fetch.
  */
 
-import { geminiModelChain, shouldTryNextModel } from './geminiModels.js';
+import { geminiModelChain, generationConfigFor, shouldTryNextModel } from './geminiModels.js';
 import {
   MAX_BODY_BYTES,
   MAX_OUTPUT_TOKENS,
@@ -287,7 +287,6 @@ Deno.serve(async (req) => {
     tool_config: {
       function_calling_config: { mode: 'AUTO' },
     },
-    generation_config: { temperature: 0.4, max_output_tokens: MAX_OUTPUT_TOKENS },
   };
 
   let lastStatus = 0;
@@ -301,7 +300,10 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          generation_config: generationConfigFor(model, { temperature: 0.4, maxOutputTokens: MAX_OUTPUT_TOKENS }),
+        }),
       });
     } catch (err) {
       console.error('chat-sunny gemini fetch failed', model, err);

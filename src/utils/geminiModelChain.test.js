@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
     DEFAULT_MODEL,
     GEMINI_MODEL_FALLBACKS,
+    generationConfigFor,
     geminiModelChain,
     shouldTryNextModel,
 } from '../../supabase/functions/chat-sunny/geminiModels.js';
@@ -68,5 +69,30 @@ describe('chat-sunny Gemini contract', () => {
         assert.match(src, /venueId:/);
         assert.match(src, /body\?\.sunnyContext/);
         assert.match(src, /return json\(contract\)/);
+    });
+});
+
+describe('generationConfigFor', () => {
+    const opts = { temperature: 0.4, maxOutputTokens: 512 };
+    it('switches thinking off for 2.5 Flash, so thinking cannot eat the reply budget', () => {
+        for (const m of ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-flash-preview-09-2025']) {
+            assert.deepEqual(generationConfigFor(m, opts), { temperature: 0.4, max_output_tokens: 512, thinking_config: { thinking_budget: 0 } }, m);
+        }
+    });
+    it('sends no thinking_config to models that may not accept it', () => {
+        for (const m of ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest', 'gemini-2.5-pro', '', undefined]) {
+            assert.deepEqual(generationConfigFor(m, opts), { temperature: 0.4, max_output_tokens: 512 }, String(m));
+        }
+    });
+    it('covers every model in the fallback chain', () => {
+        for (const m of geminiModelChain()) assert.equal(generationConfigFor(m, opts).max_output_tokens, 512);
+    });
+});
+
+describe('chat-sunny sends the per-model generation config', () => {
+    it('builds generation_config with generationConfigFor inside the model loop', () => {
+        const src = readFileSync(join(root, 'supabase/functions/chat-sunny/index.ts'), 'utf8');
+        assert.match(src, /generation_config: generationConfigFor\(model,/);
+        assert.doesNotMatch(src, /generation_config: \{ temperature/);
     });
 });
