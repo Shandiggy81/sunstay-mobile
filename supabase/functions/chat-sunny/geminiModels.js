@@ -92,3 +92,43 @@ export function textOnlyRetryBody(body) {
         tool_config: { function_calling_config: { mode: 'NONE' } },
     };
 }
+
+/**
+ * The second request after Gemini answered with tool calls and no text.
+ * Gemini 3 (Flash-Lite and 3.8 Flash alike, 18 Oct) usually sends only the
+ * calls, so the guest saw a canned line. Following Google's function-calling
+ * flow, the model's turn goes back verbatim (its thought signatures must be
+ * returned as received), each call gets a functionResponse in the same order,
+ * and tools are switched off so the reply is words.
+ *
+ * @param {object} body the original request body
+ * @param {object} modelContent candidates[0].content from Gemini's answer
+ * @param {(venueId: string) => string|undefined} venueName id → name, for the responses
+ */
+export function followUpAfterToolsBody(body, modelContent, venueName = () => undefined) {
+    const parts = Array.isArray(modelContent?.parts) ? modelContent.parts : [];
+    const responses = [];
+    for (const part of parts) {
+        const fc = part?.functionCall ?? part?.function_call;
+        if (!fc?.name) continue;
+        const args = fc.args && typeof fc.args === 'object' ? fc.args : {};
+        let response = { ok: true };
+        if (fc.name === 'panToVenue') {
+            const name = venueName(String(args.venueId ?? ''));
+            response = name ? { shown: true, venue: name } : { shown: false };
+        }
+        const fr = { name: fc.name, response };
+        if (fc.id != null) fr.id = fc.id;
+        responses.push({ functionResponse: fr });
+    }
+    if (!responses.length) return null;
+    const system = Array.isArray(body?.system_instruction?.parts) ? body.system_instruction.parts : [];
+    return {
+        ...body,
+        system_instruction: {
+            parts: [...system, { text: 'The map has been updated. Now reply to the guest in 1–2 short sentences: name the venues you picked and say why they suit. No ids, links or markdown.' }],
+        },
+        contents: [...(Array.isArray(body?.contents) ? body.contents : []), { role: 'model', parts }, { role: 'user', parts: responses }],
+        tool_config: { function_calling_config: { mode: 'NONE' } },
+    };
+}
