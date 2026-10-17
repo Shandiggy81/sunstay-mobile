@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    needsPlaceLookup, NEARBY_RADII_M, parsePlaceResponse, parseSearchQuery, placeCountLabel,
+    needsPlaceLookup, NEARBY_RADII_M, parsePlaceResponse, parseSearchQuery, placeCountLabel, placeVenuesInText,
     placeLookupUrl, venueMatchesSearch, venuePostcode, venuesNearPlace,
 } from './locationSearch.js';
 
@@ -121,5 +121,31 @@ describe('placeCountLabel', () => {
         assert.equal(placeCountLabel(8, { name: 'Brighton' }, 3000), '8 venues near Brighton (within 3 km)');
         assert.equal(placeCountLabel(1, { name: 'Elsternwick' }, 1500), '1 venue near Elsternwick (within 1.5 km)');
         assert.equal(placeCountLabel(0, null, null), '0 venues nearby');
+    });
+});
+
+describe('placeVenuesInText', () => {
+    const north = v('nm', { venueName: 'Auction Rooms', suburb: 'North Melbourne', address: '103 Errol St North Melbourne VIC 3051' });
+    const all = [southYarra, cbd, southbank, curated, north, v('m', { suburb: 'Melbourne', address: '1 St Kilda Rd Melbourne VIC 3004' })];
+    const ids = (t) => placeVenuesInText(t, all).venues.map((x) => x.id);
+    it('finds venues for a postcode, suburb or the city', () => {
+        assert.deepEqual(ids('anything sunny near 3141?'), ['sy']);
+        assert.deepEqual(ids('Sunset drinks in South Yarra please'), ['sy']);
+        assert.deepEqual(ids('coffee in the CBD'), ['cbd']);
+        assert.equal(placeVenuesInText('3141', all).label, '3141');
+        assert.equal(placeVenuesInText('south yarra', all).label, 'South Yarra');
+    });
+    it('prefers the longer suburb and ignores plain "Melbourne"', () => {
+        assert.deepEqual(ids('lunch in north melbourne'), ['nm']);
+        assert.deepEqual(ids('somewhere sunny in melbourne'), []);
+    });
+    it('returns nothing for no place, an unknown postcode or no venues', () => {
+        assert.deepEqual(placeVenuesInText('where is sunny now?', all), { label: null, venues: [] });
+        assert.deepEqual(ids('near 3999'), []);
+        assert.deepEqual(placeVenuesInText('South Yarra', []), { label: null, venues: [] });
+    });
+    it('caps the list', () => {
+        const many = Array.from({ length: 30 }, (_, i) => v(`c${i}`, { suburb: 'CBD' }));
+        assert.equal(placeVenuesInText('cbd', many, 15).venues.length, 15);
     });
 });

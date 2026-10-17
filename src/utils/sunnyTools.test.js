@@ -204,6 +204,30 @@ describe('buildSunnyContext', () => {
     });
 });
 
+describe('buildSunnyContext with a named place', () => {
+    const near = { id: 'map-1', name: 'Map Cafe', lat: -37.81, lng: 144.96, sun_score_now: 80 };
+    const sy = { id: 'sy-1', venueName: 'Matilda 159', suburb: 'South Yarra', lat: -37.834, lng: 144.98, tags: ['Outdoor Seating'] };
+    const syOnMap = { id: 'sy-1', name: 'Matilda 159', lat: -37.834, lng: 144.98, sun_score_now: 65 };
+    it('puts the place venues first, with their suburb, and says which place was asked', () => {
+        const ctx = buildSunnyContext({ visibleById: [near], venues: [near, sy], place: { label: 'South Yarra', venues: [sy] } });
+        assert.deepEqual(ctx.visibleVenues.map((v) => v.id), ['sy-1', 'map-1']);
+        assert.equal(ctx.visibleVenues[0].suburb, 'South Yarra');
+        assert.equal(ctx.placeAsked, 'South Yarra');
+    });
+    it('uses the map row for sun data and never lists a venue twice', () => {
+        const ctx = buildSunnyContext({ visibleById: [near, syOnMap], venues: [near, sy], place: { label: '3141', venues: [sy] } });
+        assert.deepEqual(ctx.visibleVenues.map((v) => v.id), ['sy-1', 'map-1']);
+        assert.equal(ctx.visibleVenues[0].name, 'Matilda 159');
+    });
+    it('is unchanged without a place', () => {
+        const ctx = buildSunnyContext({ visibleById: [near], venues: [near] });
+        assert.deepEqual(ctx.visibleVenues.map((v) => v.id), ['map-1']);
+        assert.equal('placeAsked' in ctx, false);
+        const empty = buildSunnyContext({ visibleById: [near], venues: [near], place: { label: 'X', venues: [] } });
+        assert.equal('placeAsked' in empty, false);
+    });
+});
+
 describe('toLlmMessages', () => {
     it('maps chat bubbles to user/assistant turns and skips empty text', () => {
         const messages = toLlmMessages([

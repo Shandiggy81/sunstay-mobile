@@ -134,3 +134,41 @@ export function placeCountLabel(count, place, radiusM) {
     const within = radiusM ? ` (within ${radiusM >= 1000 ? `${+(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`})` : '';
     return `${count} venue${count === 1 ? '' : 's'}${where}${within}`;
 }
+
+/**
+ * Venues for a place named in free text, for Sunny's chat: postcodes
+ * ("3141"), city words ("CBD", "the city") and suburbs we have venues in
+ * ("South Yarra"). "Melbourne" alone is too broad to count. Longest suburb
+ * names win, so "North Melbourne" isn't read as "Melbourne".
+ *
+ * @returns {{ label: string|null, venues: object[] }} at most `max` venues
+ */
+export function placeVenuesInText(text, venues, max = 15) {
+    const lower = ` ${String(text ?? '').toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ')} `;
+    const list = Array.isArray(venues) ? venues : [];
+    const none = { label: null, venues: [] };
+    if (!lower.trim() || !list.length) return none;
+
+    const codes = lower.match(POSTCODE);
+    if (codes) {
+        const code = codes[codes.length - 1];
+        const hits = list.filter((v) => venuePostcode(v) === code);
+        if (hits.length) return { label: code, venues: hits.slice(0, max) };
+    }
+
+    const suburbs = [...new Set(list.map((v) => String(v?.suburb ?? '').trim()).filter(Boolean))]
+        .filter((s) => s.toLowerCase() !== 'melbourne' && s.length >= 4)
+        .sort((a, b) => b.length - a.length);
+    for (const suburb of suburbs) {
+        const key = suburb.toLowerCase();
+        if (key === 'cbd') continue;
+        if (lower.includes(` ${key} `)) {
+            return { label: suburb, venues: list.filter((v) => String(v?.suburb ?? '').toLowerCase() === key).slice(0, max) };
+        }
+    }
+
+    if (/ (cbd|the city|city centre|city center|melbourne cbd) /.test(lower)) {
+        return { label: 'CBD', venues: list.filter((v) => String(v?.suburb ?? '').toLowerCase() === 'cbd').slice(0, max) };
+    }
+    return none;
+}

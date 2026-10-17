@@ -21,6 +21,7 @@ import { useWeather } from '../context/WeatherContext';
 import { melbourneHourNow } from '../utils/microclimate';
 import { venueDisplayScore } from '../utils/venueDisplayScore';
 import { venueIcon } from '../utils/clayIcons';
+import { placeVenuesInText } from '../utils/locationSearch';
 import { listSunStatus, venueSunForecast } from '../utils/venueSun';
 import {
   BRUCEY_LINE,
@@ -376,6 +377,11 @@ const ChatWidget = ({
         weather: forecastWeather,
         venues,
         sunMomentsById,
+        // "Sunny near 3141?" / "…in South Yarra?": send that place's venues too.
+        place: placeVenuesInText(
+          [...history].reverse().find((m) => m?.type === 'user')?.text,
+          venues,
+        ),
       }),
     });
     if (!result.ok) {
