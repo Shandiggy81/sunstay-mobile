@@ -14,6 +14,8 @@ import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
 import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
+import MapVenuePreview from './components/MapVenuePreview';
+import { isPreviewMapDrag } from './utils/mapVenuePreview';
 import VenueCard from './components/VenueCard';
 import StaySunPicker from './components/StaySunPicker.jsx';
 import StayComparison from './components/StayComparison.jsx';
@@ -571,6 +573,8 @@ const AppContent = () => {
     }, [weather]);
 
     const [selectedVenue, setSelectedVenue]           = useState(null);
+    const [previewVenue, setPreviewVenue]             = useState(null);
+    const mapPreviewPointer = useRef(null);
     const [isChatOpen, setIsChatOpen]                 = useState(false);
     // "Centre on map" hides the venue card but keeps the venue selected, so
     // its pin stays highlighted; tapping the pin brings the card back.
@@ -649,7 +653,7 @@ const AppContent = () => {
     const sidebarVirtuosoRef = useRef(null);
     const mobileVirtuosoRef = useRef(null);
 
-    const openMobileFilters  = useCallback((e) => { e?.stopPropagation(); setMobileFilterOpen(true); }, []);
+    const openMobileFilters  = useCallback((e) => { e?.stopPropagation(); setPreviewVenue(null); setMobileFilterOpen(true); }, []);
     const closeMobileFilters = useCallback((e) => { e?.preventDefault(); e?.stopPropagation(); setMobileFilterOpen(false); }, []);
     const stopSheetPointer   = useCallback((e) => { e.stopPropagation(); }, []);
 
@@ -903,9 +907,35 @@ const AppContent = () => {
         [activeFilters, settledSearchQuery, placeForQuery]
     );
 
+    useEffect(() => { setPreviewVenue(null); }, [mapFilterKey]);
+
+    const handlePinSelect = useCallback((venue) => {
+        if (!venue) return;
+        pullRefreshRef.current?.reset?.();
+        setSelectedVenue(null);
+        setVenueCardLowered(false);
+        setPreviewVenue(venue);
+        setMobileSheetState('peek');
+    }, []);
+    const closePreview = useCallback(() => setPreviewVenue(null), []);
+    // Observe canvas gestures in the UI wrapper; Mapbox keeps all of its own
+    // pointer handling, marker sync, camera and recovery behavior unchanged.
+    const startPreviewMapGesture = useCallback((event) => {
+        if (!event.target.closest('.mapboxgl-canvas')) return;
+        mapPreviewPointer.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    }, []);
+    const movePreviewMapGesture = useCallback((event) => {
+        if (isPreviewMapDrag(mapPreviewPointer.current, { pointerId: event.pointerId, x: event.clientX, y: event.clientY })) {
+            setPreviewVenue(null);
+            mapPreviewPointer.current = null;
+        }
+    }, []);
+    const endPreviewMapGesture = useCallback(() => { mapPreviewPointer.current = null; }, []);
+
     const handleVenueSelect = useCallback((venue) => {
         if (!venue) return;
         pullRefreshRef.current?.reset?.();
+        setPreviewVenue(null);
         setSelectedVenue(venue);
         setVenueCardLowered(false);
         setMobileSheetState('peek');
@@ -925,7 +955,7 @@ const AppContent = () => {
         setVenueSheetDragging(false);
         if (Number.isFinite(lng) && Number.isFinite(lat)) mapRef.current?.resizeAndFly?.([lng, lat]);
     }, []);
-    const toggleChat       = useCallback(() => setIsChatOpen(p => !p), []);
+    const toggleChat       = useCallback(() => { setPreviewVenue(null); setIsChatOpen(p => !p); }, []);
     const closeChat        = useCallback(() => setIsChatOpen(false), []);
     const handleOwnerDashboardClose = useCallback(() => setShowOwnerDashboard(false), []);
     const handleSelectedVenueUpdate = useCallback((updated) => {
@@ -1219,14 +1249,20 @@ const AppContent = () => {
 
                     {/* RIGHT: Map */}
                     <section className={`ss-map-area relative flex min-h-0 flex-1 flex-col ${mobileMapExpanded ? 'ss-map-area--expanded' : ''}`}>
-                        <div className="ss-map-container relative min-h-0 flex-1">
+                        <div
+                            className="ss-map-container relative min-h-0 flex-1"
+                            onPointerDownCapture={previewVenue ? startPreviewMapGesture : undefined}
+                            onPointerMoveCapture={previewVenue ? movePreviewMapGesture : undefined}
+                            onPointerUpCapture={endPreviewMapGesture}
+                            onPointerCancelCapture={endPreviewMapGesture}
+                        >
                             <MapErrorBoundary>
                                 <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
                                     <VenueMap
                                         ref={mapRef}
                                         venues={venues}
-                                        onVenueSelect={handleVenueSelect}
-                                        selectedVenue={selectedVenue}
+                                        onVenueSelect={handlePinSelect}
+                                        selectedVenue={previewVenue ?? selectedVenue}
                                         filteredVenueIds={stableFilteredIds}
                                         activeSunMoment={wantedSunMoments[0] ?? null}
                                         sunMomentsById={sunMomentsById}
@@ -1265,7 +1301,7 @@ const AppContent = () => {
                         </AnimatePresence>
 
                         {/* Bottom-anchored map controls — clear of the collapsed venue sheet */}
-                        <div className="pointer-events-none absolute inset-x-0 z-50 bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]">
+                        <div className={`pointer-events-none absolute inset-x-0 z-50 ${previewVenue ? 'bottom-[calc(env(safe-area-inset-bottom)+310px)] lg:bottom-[230px]' : 'bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]'}`}>
                             {/* Right column: Locate Me + Recenter + Sunny — Filters+TOD live in VenueMap */}
                             <div className="pointer-events-auto absolute right-4 bottom-0 flex flex-col items-end gap-3">
                                 {locateHint && (
@@ -1301,6 +1337,18 @@ const AppContent = () => {
                                 )}
                             </div>
                         </div>
+                        <AnimatePresence mode="wait">
+                            {previewVenue ? (
+                                <MapVenuePreview
+                                    key={previewVenue.id}
+                                    venue={previewVenue}
+                                    weather={weather}
+                                    onOpen={handleVenueSelect}
+                                    onClose={closePreview}
+                                    mapExpanded={mobileMapExpanded}
+                                />
+                            ) : null}
+                        </AnimatePresence>
                     </section>
 
                     {selectedVenue && !venueCardLowered && (
@@ -1355,7 +1403,7 @@ const AppContent = () => {
                 {!mobileMapExpanded && !venueCardOpen && !mobileFilterOpen && (
                     <div
                         className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
-                        onClick={() => setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded')}
+                        onClick={() => { setPreviewVenue(null); setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded'); }}
                     >
                         <div className="ss-mobile-sheet-grab" />
                         <span className="inline-flex items-center gap-2">
