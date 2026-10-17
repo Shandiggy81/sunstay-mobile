@@ -29,7 +29,8 @@ import {
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
 import { findHotelSunReportVenue, hotelSunReportUrl, readHotelSunReportId } from './utils/hotelSunReportRoute.js';
-import { MAX_BOUNDS } from './config/mapConfig';
+import { MAPBOX_TOKEN, MAX_BOUNDS } from './config/mapConfig';
+import { needsPlaceLookup, parsePlaceResponse, parseSearchQuery, placeCountLabel, placeLookupUrl, venueMatchesSearch, venuesNearPlace } from './utils/locationSearch';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
 import {
@@ -98,14 +99,6 @@ const venueMatchesWeatherTag = (venue, filterId) => {
     if (tags.some(tag => String(tag).toLowerCase() === needle)) return true;
     const heatingMatcher = HEATING_FILTER_MATCHERS[filterId];
     return heatingMatcher ? heatingMatcher(String(venue.heating || '').toLowerCase()) : false;
-};
-
-const venueMatchesSearchQuery = (venue, query) => {
-    if (!query) return true;
-    const name = (venue.name || venue.venueName || '').toLowerCase();
-    const suburb = (venue.suburb || '').toLowerCase();
-    const vibe = `${venue.vibe || ''} ${venueTypeLabel(venue.vibe)}`.toLowerCase();
-    return name.includes(query) || suburb.includes(query) || vibe.includes(query);
 };
 
 const EMPTY_LIVE_FEATURES = Object.freeze({});
@@ -605,6 +598,34 @@ const AppContent = () => {
     const [searchQuery, setSearchQuery]             = useState('');
     // Immediate input; filter/score/GeoJSON/fitBounds wait until typing settles.
     const settledSearchQuery = useDebouncedValue(searchQuery, SEARCH_DEBOUNCE_MS);
+    // Search by name, type, suburb or postcode ("South Yarra", "3141", "CBD").
+    const parsedQuery = useMemo(() => parseSearchQuery(settledSearchQuery), [settledSearchQuery]);
+    const searchTextMatches = useMemo(
+        () => (parsedQuery.raw ? venues.filter(v => venueMatchesSearch(v, parsedQuery, venueTypeLabel)).length : 0),
+        [venues, parsedQuery]
+    );
+    // A place we have no venues in yet ("Brighton", "3186") is looked up with
+    // Mapbox and answered with the venues nearest to it.
+    const [searchPlace, setSearchPlace] = useState(null);
+    const placeForQuery = searchPlace && searchPlace.query === parsedQuery.raw ? searchPlace : null;
+    useEffect(() => {
+        if (placeForQuery || !needsPlaceLookup(parsedQuery, searchTextMatches)) return undefined;
+        if (!MAPBOX_TOKEN.startsWith('pk.')) return undefined;
+        const controller = new AbortController();
+        const query = parsedQuery.raw;
+        fetch(placeLookupUrl(query, MAPBOX_TOKEN), { signal: controller.signal })
+            .then(res => (res.ok ? res.json() : null))
+            .then(json => {
+                const place = parsePlaceResponse(json);
+                if (place) setSearchPlace({ ...place, query });
+            })
+            .catch(() => {});
+        return () => controller.abort();
+    }, [parsedQuery, searchTextMatches, placeForQuery]);
+    const nearPlace = useMemo(
+        () => (placeForQuery ? venuesNearPlace(venues, placeForQuery) : null),
+        [venues, placeForQuery]
+    );
     const [isLocating, setIsLocating]               = useState(false);
     const [locateHint, setLocateHint]               = useState(null);
 
@@ -698,8 +719,6 @@ const AppContent = () => {
             f !== FILTER_SUNNY &&
             !isSunMomentFilter(f)
         );
-        const query = settledSearchQuery.trim().toLowerCase();
-
         return venues.filter(venue => {
             if (!matchesPropertyTypeFilters(venue, typeFilters)) return false;
             if (!matchesFoodTypeFilters(venue, foodFilters)) return false;
@@ -741,11 +760,13 @@ const AppContent = () => {
             if (wantedSunMoments.length > 0
                 && !venueMatchesSunMoments(sunMomentsById?.get(String(venue.id)), wantedSunMoments)) return false;
 
-            if (!venueMatchesSearchQuery(venue, query)) return false;
+            if (nearPlace) {
+                if (!nearPlace.ids.has(String(venue.id))) return false;
+            } else if (!venueMatchesSearch(venue, parsedQuery, venueTypeLabel)) return false;
 
             return true;
         });
-    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, settledSearchQuery, microById, listTodMinutes, sunnyForecastKind, wantedSunMoments, sunMomentsById]);
+    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, parsedQuery, nearPlace, microById, listTodMinutes, sunnyForecastKind, wantedSunMoments, sunMomentsById]);
 
     // "Search this area" narrows only the list to the map area the user
     // searched. Pins, filter fitBounds and the microclimate fetch still use
@@ -860,7 +881,11 @@ const AppContent = () => {
     ) : null;
     const stableFilteredIds = filteredVenueIds;
     // The map refits to the results only when this changes (see utils/filterRefit).
-    const mapFilterKey = useMemo(() => filterChoiceKey(activeFilters, settledSearchQuery), [activeFilters, settledSearchQuery]);
+    // A looked-up place counts as a new search, so the map flies to it.
+    const mapFilterKey = useMemo(
+        () => filterChoiceKey(activeFilters, placeForQuery ? `${settledSearchQuery}@${placeForQuery.lat},${placeForQuery.lng}` : settledSearchQuery),
+        [activeFilters, settledSearchQuery, placeForQuery]
+    );
 
     const handleVenueSelect = useCallback((venue) => {
         if (!venue) return;
@@ -1128,7 +1153,7 @@ const AppContent = () => {
 
                         <div className="ss-sidebar-count">
                             <span className="inline-flex items-center gap-2">
-                                {areaBounds ? areaCountLabel(matchingCount) : `${matchingCount} venue${matchingCount !== 1 ? 's' : ''}`}
+                                {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} venue${matchingCount !== 1 ? 's' : ''}`}
                                 {areaBounds ? showAllChip('-my-3') : null}
                                 {ENABLE_MANUAL_VENUE_REFRESH ? (
                                     <VenueRefreshButton
@@ -1318,7 +1343,7 @@ const AppContent = () => {
                     >
                         <div className="ss-mobile-sheet-grab" />
                         <span className="inline-flex items-center gap-2">
-                            {areaBounds ? areaCountLabel(matchingCount) : `${matchingCount} venues nearby`}
+                            {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} venues nearby`}
                             {areaBounds ? showAllChip('-my-3') : null}
                             {ENABLE_MANUAL_VENUE_REFRESH ? (
                                 <VenueRefreshButton
@@ -1350,7 +1375,7 @@ const AppContent = () => {
                                     <div className="ss-mobile-sheet-grab" />
                                     <h3>Venues</h3>
                                     <p className="inline-flex items-center gap-2">
-                                        {areaBounds ? areaCountLabel(matchingCount) : `${matchingCount} results`}
+                                        {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} results`}
                                         {areaBounds ? showAllChip('-my-3') : null}
                                         {ENABLE_MANUAL_VENUE_REFRESH ? (
                                             <VenueRefreshButton
