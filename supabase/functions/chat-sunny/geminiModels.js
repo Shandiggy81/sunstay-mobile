@@ -2,14 +2,14 @@
 // "no longer available to new users", 2.0 Flash shut down), so everything
 // fell through to gemini-flash-latest, which thought for 490 of its 512
 // output tokens and returned cut-off or empty replies. Current stable models
-// first; the alias stays last as a safety net. 3.8 Flash leads because
-// Flash-Lite picked venues well but almost never wrote its own reply (18 Oct),
-// so guests got the app's fallback line instead of Sunny talking.
-export const DEFAULT_MODEL = 'gemini-3.8-flash';
+// first; the alias stays last as a safety net. Flash-Lite leads: it has the
+// most generous quota (the free tier allowed 3.8 Flash only 20 requests,
+// 18 Oct), and the follow-up call (followUpAfterToolsBody) now gives it words.
+export const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 
 export const GEMINI_MODEL_FALLBACKS = [
-  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
   'gemini-3.6-flash',
   'gemini-flash-latest',
 ];
@@ -29,8 +29,10 @@ export function geminiModelChain(preferred) {
 export function shouldTryNextModel(status, data) {
   if (status === 404) return true;
   // Overloaded ("This model is currently experiencing high demand"): another
-  // model usually answers. Quota/billing 429s are not retried.
-  if (status === 500 || status === 503 || status === 504) return true;
+  // model usually answers. Quota 429s too: Gemini quotas are per model
+  // ("Quota exceeded for metric … model: gemini-3.8-flash", 18 Oct), so the
+  // next model in the chain still has its own.
+  if (status === 429 || status === 500 || status === 503 || status === 504) return true;
   const message = data?.error?.message;
   if (typeof message !== 'string') return false;
   return /not found|no longer available|not supported|invalid model|high demand|overloaded/i.test(message);
