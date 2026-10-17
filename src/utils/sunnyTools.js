@@ -14,6 +14,9 @@
 
 import { forecastSummary, topTags, venueSunWindowToday } from './sunnySuggestions.js';
 import { SUN_MOMENTS } from './sunMoments.js';
+import { keyAmenities } from './venueAmenities.js';
+import { normaliseTag } from './venueOfferings.js';
+import { venueTypeLabel } from './venueTypeLabel.js';
 
 export const SUNNY_TOOL_NAMES = Object.freeze(['setTimeOfDay', 'setFilters', 'panToVenue']);
 
@@ -240,9 +243,10 @@ function slimVenue(row) {
  *   weather?: object|null,    WeatherContext weather (hourly temperature / rain)
  *   venues?: object[],        full venue rows, for tags (bbox rows carry none)
  *   sunMomentsById?: Map<string, string[]>|null,  sunMomentsByVenue() result
- *   place?: { label: string|null, venues: object[] }|null,  placeVenuesInText() for the
- *       latest message: those venues go first, so "sunny near 3141?" works
- *       wherever the map is
+ *   place?: { label: string|null, venues: object[], asked?: string[], amenityMatches?: number|null }|null,
+ *       sunnyFocusVenues() for the latest message: those venues go first, so
+ *       "sunny near 3141?" and "pram-friendly cafe in Elwood?" work wherever
+ *       the map is
  *   now?: Date,
  * }} input
  */
@@ -280,8 +284,21 @@ export function buildSunnyContext({
         const window = venueSunWindowToday(row.sun_hour_fraction, forecast);
         if (window) slim.sunWindow = window;
         const full = fullById.get(slim.id) ?? row;
-        const tags = topTags(full);
-        if (tags.length) slim.tags = tags;
+        // Key amenities (wheelchair, pram, dog, hidden gem) always make the
+        // list, so "pram-friendly cafe?" never misses a venue whose first
+        // tags are "Outdoor seating, Large groups".
+        const keyed = keyAmenities(full);
+        const tags = keyed.map((a) => a.label);
+        const seen = new Set(keyed.flatMap((a) => [normaliseTag(a.label), ...a.tags]));
+        for (const tag of topTags(full, 4)) {
+            const key = normaliseTag(tag);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            tags.push(tag);
+        }
+        if (tags.length) slim.tags = tags.slice(0, 6);
+        const type = venueTypeLabel(full?.typeLabel ?? full?.vibe ?? row?.vibe);
+        if (type) slim.type = type.slice(0, 32);
         const suburb = String(full?.suburb ?? row?.suburb ?? '').trim();
         if (suburb) slim.suburb = suburb;
         const moments = (momentsFor(slim.id) ?? []).map((key) => MOMENT_TITLES.get(key)).filter(Boolean);
@@ -309,6 +326,10 @@ export function buildSunnyContext({
         visibleVenues,
     };
     if (place?.label && placeRows.length) context.placeAsked = String(place.label);
+    if (Array.isArray(place?.asked) && place.asked.length) {
+        context.amenitiesAsked = place.asked.map(String).slice(0, 5);
+        if (Number.isFinite(place.amenityMatches)) context.amenityMatches = place.amenityMatches;
+    }
     const today = forecastSummary(forecast, weather, { now });
     if (today) context.forecastToday = today;
     return context;

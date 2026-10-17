@@ -45,6 +45,7 @@ import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
 import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { venueOfferings } from '../utils/venueOfferings';
+import { keyAmenities } from '../utils/venueAmenities';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
 import { venueTypeLabel } from '../utils/venueTypeLabel';
 
@@ -509,6 +510,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const { rainArrivalMins, rainArrivalLabel } = useTomorrowRain(lat, lng, { enabled: auxEnabled });
 
   const offerings = useMemo(() => venueOfferings(venue), [venue]);
+  const amenities = useMemo(() => keyAmenities(venue), [venue]);
   const liveFeaturesForVenue = venue?.id ? liveVenueFeatures?.[venue.id] : null;
   const liveNotes = [
     liveFeaturesForVenue?.fireplaceOn ? 'Fireplace on now' : null,
@@ -643,6 +645,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       websiteUrl={share.websiteUrl}
                       address={address}
                       mapsUrl={mapsUrl}
+                      amenities={amenities}
                     />
                     {onCenter && hasValidCoordinates ? (
                       <button

@@ -147,7 +147,12 @@ describe('buildSunnyContext with forecast and sun windows', () => {
         });
         assert.equal(ctx.forecastToday.now, 'cloud');
         assert.equal(ctx.visibleVenues[0].sunWindow, '10am–2pm');
-        assert.deepEqual(ctx.visibleVenues[0].tags, ['Pram Friendly', 'Beer Garden', 'Pet Friendly']);
+        // Key amenities lead, by their app labels; other tags follow without repeats.
+        const tags = ctx.visibleVenues[0].tags;
+        assert.deepEqual(tags.slice(0, 3), ['Wheelchair accessible', 'Pram friendly', 'Dog friendly']);
+        assert.ok(tags.includes('Beer Garden'));
+        assert.equal(tags.filter((t) => /pet|pram|wheelchair/i.test(t)).length, 2, 'no "Pet Friendly" next to "Dog friendly"');
+        assert.equal(ctx.visibleVenues[0].type, 'Food Truck Park');
         assert.equal(ctx.visibleVenues[0].sun_hour_fraction, undefined, 'the 24-slot curve is not posted');
         assert.equal(ctx.activeVenue.sunWindow, '10am–2pm');
     });
@@ -182,5 +187,25 @@ describe('buildSunnyContext with forecast and sun windows', () => {
         assert.ok(size < MAX_CONTEXT_CHARS, `${size} chars`);
         assert.ok(sunnyContext.forecastToday.hours.length <= 12);
         assert.equal(payloadLimitError({ messages: [{ role: 'user', content: 'sunny beer at 4pm?' }], sunnyContext }), null);
+    });
+});
+
+describe('buildSunnyContext with amenities asked', () => {
+    it('passes what was asked and how many venues matched', () => {
+        const venue = { id: 'p1', name: 'Pram Cafe', lat: -37.8, lng: 144.96, tags: ['Pram Friendly'], vibe: 'Cafe' };
+        const ctx = buildSunnyContext({
+            visibleById: {},
+            venues: [venue],
+            place: { label: 'Elwood', venues: [venue], asked: ['Pram friendly'], amenityMatches: 1 },
+            now: NOW,
+        });
+        assert.equal(ctx.placeAsked, 'Elwood');
+        assert.deepEqual(ctx.amenitiesAsked, ['Pram friendly']);
+        assert.equal(ctx.amenityMatches, 1);
+        assert.deepEqual(ctx.visibleVenues[0].tags, ['Pram friendly']);
+        assert.equal(ctx.visibleVenues[0].type, 'Cafe');
+        const none = buildSunnyContext({ visibleById: {}, place: { label: null, venues: [], asked: ['Dog friendly'], amenityMatches: 0 }, now: NOW });
+        assert.equal(none.amenityMatches, 0);
+        assert.equal(none.placeAsked, undefined);
     });
 });
