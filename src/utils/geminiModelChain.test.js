@@ -18,15 +18,15 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('geminiModelChain', () => {
     it('defaults to current Gemini 3 models, with the flash alias last', () => {
-        assert.equal(DEFAULT_MODEL, 'gemini-3.8-flash');
+        assert.equal(DEFAULT_MODEL, 'gemini-3.5-flash-lite');
         assert.deepEqual(GEMINI_MODEL_FALLBACKS, [
-            'gemini-3.8-flash',
             'gemini-3.5-flash-lite',
+            'gemini-3.8-flash',
             'gemini-3.6-flash',
             'gemini-flash-latest',
         ]);
         assert.deepEqual(geminiModelChain(), GEMINI_MODEL_FALLBACKS);
-        assert.deepEqual(geminiModelChain('gemini-3.8-flash'), GEMINI_MODEL_FALLBACKS);
+        assert.deepEqual(geminiModelChain('gemini-3.5-flash-lite'), GEMINI_MODEL_FALLBACKS);
     });
 
     it('no longer tries the retired 2.x and 1.5 models', () => {
@@ -42,7 +42,7 @@ describe('geminiModelChain', () => {
 });
 
 describe('shouldTryNextModel', () => {
-    it('moves on for retired ids and overload, not on 429 quota or bad requests', () => {
+    it('moves on for retired ids, overload and per-model quota, not on bad requests', () => {
         assert.equal(shouldTryNextModel(404, null), true);
         assert.equal(
             shouldTryNextModel(400, { error: { message: 'gemini-2.5-flash is no longer available to new users' } }),
@@ -52,8 +52,8 @@ describe('shouldTryNextModel', () => {
         assert.equal(shouldTryNextModel(503, null), true);
         assert.equal(shouldTryNextModel(500, null), true);
         assert.equal(
-            shouldTryNextModel(429, { error: { message: 'You exceeded your current quota' } }),
-            false,
+            shouldTryNextModel(429, { error: { message: 'Quota exceeded for metric: generate_content_free_tier_requests, limit: 20, model: gemini-3.8-flash' } }),
+            true,
         );
         assert.equal(shouldTryNextModel(400, { error: { message: 'Invalid JSON payload received.' } }), false);
         assert.equal(shouldTryNextModel(403, null), false);
