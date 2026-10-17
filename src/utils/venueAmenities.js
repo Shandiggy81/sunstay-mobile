@@ -89,3 +89,22 @@ export function sunnyFocusVenues(text, venues, max = 15) {
     }
     return { label, venues: place.label ? pool.slice(0, max) : [], asked, amenityMatches: 0 };
 }
+
+/** The key amenity a filter id names, by label or any of its tags ("Dog friendly", "Pet Friendly", "hidden"), or null. */
+export function amenityForFilter(filterId) {
+    const key = normaliseTag(filterId);
+    if (!key) return null;
+    return KEY_AMENITIES.find((a) => normaliseTag(a.label) === key || a.tags.includes(key)) ?? null;
+}
+
+/**
+ * Does the venue pass a filter that names a key amenity? true/false, or null
+ * when the filter isn't a key amenity (the caller then matches tags as usual).
+ * Sunny sets filters with the labels it sees ("Dog friendly", "Hidden gem"),
+ * while venues carry "Pet Friendly", "dog-friendly" or "Hidden".
+ */
+export function venueMatchesAmenityFilter(venue, filterId) {
+    const amenity = amenityForFilter(filterId);
+    if (!amenity) return null;
+    return keyAmenities(venue).some((a) => a.key === amenity.key);
+}

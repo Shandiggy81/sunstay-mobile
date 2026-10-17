@@ -50,7 +50,7 @@ import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import { venueDisplayScore } from './utils/venueDisplayScore';
 import { listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
 import { venueConditionChips } from './utils/venueConditionChips';
-import { keyAmenities } from './utils/venueAmenities';
+import { keyAmenities, venueMatchesAmenityFilter } from './utils/venueAmenities';
 import { feelsLikeIconName, venueIcon } from './utils/clayIcons';
 import { clayIconName } from './utils/clayFilterIcons';
 import ClayIcon from './components/common/ClayIcon';
@@ -95,6 +95,9 @@ const venueMatchesWeatherTag = (venue, filterId) => {
     // (e.g. 'Rooftop', 'Pet Friendly'). Match the id directly instead of
     // looking up a non-existent `filter.tag` property — that always returned
     // undefined, so every tag filter used to match zero venues.
+    // Key amenities match by any of their names ("Dog friendly" finds "Pet Friendly").
+    const amenityMatch = venueMatchesAmenityFilter(venue, filterId);
+    if (amenityMatch !== null) return amenityMatch;
     const needle = String(filterId).toLowerCase();
     const tags = venue.tags || [];
     if (tags.some(tag => String(tag).toLowerCase() === needle)) return true;
