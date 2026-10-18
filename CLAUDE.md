@@ -3,8 +3,9 @@
 # SunStay — Claude Code guide
 
 AGENTS.md (above) holds the shared commands, test recipes, browser-verification and Netlify
-deploy checks. It was written for a Cursor Cloud Linux VM; its tmux/xdotool/ffmpeg steps do not
-apply on Windows. This file adds repository facts and rules for Claude Code.
+deploy checks. Its Cursor Cloud VM steps (tmux, xdotool, X11 capture) live in
+`docs/agents/cursor-vm.md` and do not apply on Windows or in the Claude Code cloud container,
+where you run `npm run dev` directly. This file adds repository facts and rules for Claude Code.
 
 ## Purpose
 Mobile-first web app that helps people find Melbourne venues and stays by sun, weather and
@@ -31,7 +32,8 @@ JavaScript/JSX. npm with `package-lock.json`. Hosted on Netlify (`netlify.toml`,
 - Components are not unit-tested. Put logic in pure helpers under `src/utils/` and test those;
   verify components in a browser.
 - Single file: `node --test src/utils/mapRecovery.test.js`
-- At commit 927b215, npm ci completed successfully, npm test passed 351/351 tests in 86 suites, and npm run build completed successfully. The build emits existing large-chunk advisories for map, mapsgl, and index; these are warnings, not errors.
+- `npm test` and `npm run build` need `npm ci` first. The build's large-chunk advisories for
+  `map`, `mapsgl` and `index` are expected warnings, not errors.
 
 ## Entry points and data flow
 - `index.html` → `src/main.jsx`: Sentry init → `watchSessionCrashes` → `<App/>` in `StrictMode`.
@@ -81,7 +83,7 @@ The main SunStay app has no user authentication. The separate sunstay-admin app 
 - `src/lib/supabase.js` exports `null` when the URL or anon key is missing, and refuses keys that look
   like service-role or `sb_secret_` keys. Callers must guard `if (supabase)`.
 - Schema, RPCs and policies: `supabase/migrations/`. Seeds: `supabase/seeds/`.
-  `20260917_harden_venues_policies.sql` drops the public UPDATE policy on `venues`.
+  `20260917093834_harden_venues_policies.sql` drops the public UPDATE policy on `venues`.
 - `supabase/migrations/` matches production's recorded migration history (project
   `fksuqgvsazoxarocmaii`) version for version. Older local files are in
   `supabase/migrations_archive/`; never replay them. Before any `supabase db push`, run
@@ -94,11 +96,12 @@ The main SunStay app has no user authentication. The separate sunstay-admin app 
   policy on `venues` for anon or authenticated, so it makes no Supabase writes and says so.
 - Edge Function `supabase/functions/chat-sunny` calls Gemini with a server-side `GEMINI_API_KEY`
   secret. `supabase/config.toml` sets `verify_jwt = true`; the client sends the user token or the anon key.
+- Edge Function `supabase/functions/enrich-microclimate` runs every 20 minutes from pg_cron
+  (`20260918034428_schedule_enrich_microclimate_cron.sql`); changing either is a production change.
 - Do not apply migrations, deploy functions or change remote Supabase without explicit approval.
 - **Merging to `main` deploys to production.** The Supabase GitHub integration redeploys every
-  function in `supabase/functions/` from `main` (seen 2026-10-11: both functions redeployed 41 s
-  after PR #104 merged) and may also push pending migrations. Treat merging a PR that touches
-  `supabase/` as a production deploy.
+  function in `supabase/functions/` from `main` and may also push pending migrations. Treat
+  merging a PR that touches `supabase/` as a production deploy.
 
 ## Integrations and environment variables
 Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
@@ -136,7 +139,8 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - Never hard-code secrets or commit `.env` files, except approved example files.
 - Do not run destructive commands.
 - Do not force-push.
-- Do not merge or deploy to production without explicit approval.
+- Changes reach `main` only through a reviewed pull request. Do not merge a PR or deploy to
+  production without explicit approval.
 - Run `npm test` and `npm run build` after relevant code changes.
 - Separate automated validation from physical-device-only validation.
 - Do not run `npm run seed` without explicit approval.
@@ -154,8 +158,8 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - `src/index.css` still has 61 `backdrop-filter` rules; Xweather radar, cloud tiles and the comfort
   heatmap are optional map layers.
 - No component tests, lint script or typecheck script.
-- `VenueCard.jsx` imports `src/data/venues.js` and `src/data/seedVenues.js` alongside the app's
-  venue list; venue data lives in several files.
+- Venue data lives in several files: the app uses Supabase with `src/data/demoVenues.js` as the
+  fallback; `src/data/venues.js` and `src/data/seedVenues.js` are used only by `scripts/`.
 - The Xweather `Account` matches the installed SDK (@xweather/mapsgl 1.9.4,
   `constructor(id: string, secret: string, serverOverrides?)`): VenueMap calls
   `new Account(id, secret)` with the pair from `parseXweatherCredentials`, and passes it to
