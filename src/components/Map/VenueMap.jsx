@@ -81,6 +81,7 @@ import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
 import DataBadge from '../DataBadge';
+import { venueFeaturePinState } from '../../utils/venueFeaturePin.js';
 import {
     captureMapCamera,
     claimCameraRestore,
@@ -129,7 +130,8 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
     if (profilePin && PIN_STATES[profilePin]) return profilePin;
 
     // Missing, demo or failed weather must not colour pins as if it were real.
-    if (weatherUnavailable) return 'default';
+    // Heating is a venue feature, not weather, so it still shows.
+    if (weatherUnavailable) return venueFeaturePinState(venue, liveVenueFeatures?.[venue.id]) ?? 'default';
 
     // Soft fallback only when the venue has no microclimate profile.
     if (typeof weatherColorFn === 'function') {
@@ -142,7 +144,7 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
     const precipProb   = weather?.precipProbability ?? 0;
     const cloudCover   = weather?.cloudCoverPct ?? weather?.clouds?.all ?? 0;
     const condition    = (weather?.weather?.[0]?.main || '').toLowerCase();
-    const heatersOn    = !!live.heatersOn || !!live.fireplaceOn || !!venue.heatersOn || !!venue.fireplaceOn;
+    const heatersOn    = venueFeaturePinState(venue, live) === 'heater';
     const sunshineNow  = !!live.sunshineNow || !!venue.sunshineNow;
 
     if (sunshineNow) {
