@@ -8,12 +8,12 @@ if (import.meta.env.DEV) {
   const now = Date.now();
   const ago = minutes => new Date(now - minutes * 60_000).toISOString();
   const examples = [
-    { name: 'Fresh observation', kind: 'live', updatedAt: ago(3), source: 'Open-Meteo' },
-    { name: 'Weather forecast', kind: 'forecast', source: 'Open-Meteo' },
+    { name: 'Fresh current conditions', kind: 'live', updatedAt: ago(3), source: 'Open-Meteo' },
+    { name: 'Weather forecast', kind: 'forecast', updatedAt: ago(12), source: 'Open-Meteo' },
     { name: 'Calculated exposure', kind: 'calculated', source: 'Sun-path model' },
     { name: 'Estimated geometry', kind: 'estimated', source: 'Building geometry estimate' },
     { name: 'Illustrative example', kind: 'demo', source: 'Demo fixture' },
-    { name: 'Stale observation', kind: 'live', updatedAt: ago(20), source: 'Open-Meteo' },
+    { name: 'Stale current conditions', kind: 'live', updatedAt: ago(20), source: 'Open-Meteo' },
     { name: 'Missing timestamp', kind: 'live', source: 'Example provider' },
     { name: 'Invalid timestamp', kind: 'live', updatedAt: 'not-a-date', source: 'Example provider' },
     { name: 'Future timestamp', kind: 'live', updatedAt: ago(-5), source: 'Example provider' },
@@ -41,7 +41,7 @@ if (import.meta.env.DEV) {
           ))}
         </section>
       ))}
-      <p className="text-xs leading-relaxed text-slate-600">These are fabricated provenance examples. No weather or venue services are contacted. Only a fresh, valid observation timestamp permits Live.</p>
+      <p className="text-xs leading-relaxed text-slate-600">These are fabricated provenance examples. No weather or venue services are contacted. Open-Meteo current conditions are model data. Only a fresh, valid update timestamp permits Live.</p>
     </main>,
   );
 }

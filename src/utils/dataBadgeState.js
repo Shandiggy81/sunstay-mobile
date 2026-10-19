@@ -93,6 +93,17 @@ export function getBadgeState({ kind, updatedAt, now, maxAgeMinutes = 15 } = {})
     };
 }
 
+/** Keep known ages visible, with full minute wording for assistive technology. */
+export function getBadgeDisplayText({ label, sublabel }) {
+    const age = sublabel.startsWith('Updated ') ? sublabel.slice('Updated '.length) : '';
+    const spokenDetail = sublabel.replace(/^Updated (\d+) min ago$/, (_, minutes) =>
+        `Updated ${minutes} ${minutes === '1' ? 'minute' : 'minutes'} ago`);
+    return {
+        visibleLabel: age ? `${label} · ${age}` : label,
+        accessibleLabel: `${label}, ${spokenDetail}`,
+    };
+}
+
 /**
  * Milliseconds until the next displayed age or freshness change, or null when
  * time cannot affect the badge. Future timestamps become eligible at that instant.

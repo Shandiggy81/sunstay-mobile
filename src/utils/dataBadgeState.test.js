@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getBadgeRefreshDelay, getBadgeState } from './dataBadgeState.js';
+import { getBadgeDisplayText, getBadgeRefreshDelay, getBadgeState } from './dataBadgeState.js';
 
 const NOW = Date.parse('2026-10-19T12:00:00.000Z');
 const MINUTE_MS = 60_000;
@@ -147,6 +147,56 @@ describe('getBadgeState non-live provenance', () => {
             }
         });
     }
+});
+
+describe('getBadgeDisplayText', () => {
+    it('shows the age of Live readings without requiring a tooltip', () => {
+        assert.deepEqual(getBadgeDisplayText(state({ updatedAt: NOW - 3 * MINUTE_MS })), {
+            visibleLabel: 'Live · 3 min ago',
+            accessibleLabel: 'Live, Updated 3 minutes ago',
+        });
+    });
+
+    it('shows Cached ages with full accessible wording', () => {
+        assert.deepEqual(getBadgeDisplayText(state({ updatedAt: NOW - 20 * MINUTE_MS })), {
+            visibleLabel: 'Cached · 20 min ago',
+            accessibleLabel: 'Cached, Updated 20 minutes ago',
+        });
+    });
+
+    it('shows known ages for every non-live kind too', () => {
+        for (const kind of ['forecast', 'calculated', 'estimated', 'demo']) {
+            const badge = state({ kind, updatedAt: NOW - 12 * MINUTE_MS });
+            assert.deepEqual(getBadgeDisplayText(badge), {
+                visibleLabel: `${badge.label} · 12 min ago`,
+                accessibleLabel: `${badge.label}, Updated 12 minutes ago`,
+            });
+        }
+    });
+
+    it('handles singular minutes and sub-minute readings', () => {
+        assert.equal(getBadgeDisplayText(state({ updatedAt: NOW - MINUTE_MS })).accessibleLabel,
+            'Live, Updated 1 minute ago');
+        assert.deepEqual(getBadgeDisplayText(state()), {
+            visibleLabel: 'Live · just now', accessibleLabel: 'Live, Updated just now',
+        });
+    });
+
+    it('does not invent a visible age when the timestamp is absent', () => {
+        for (const kind of ['live', 'forecast', 'calculated', 'estimated', 'demo']) {
+            const badge = getBadgeState({ kind, now: NOW });
+            assert.equal(getBadgeDisplayText(badge).visibleLabel, badge.label);
+            assert.equal(getBadgeDisplayText(badge).accessibleLabel, `${badge.label}, ${badge.sublabel}`);
+        }
+    });
+
+    it('retains invalid and future timestamp explanations without claiming an age', () => {
+        for (const updatedAt of ['not-a-date', NOW + MINUTE_MS]) {
+            const badge = state({ updatedAt });
+            assert.equal(getBadgeDisplayText(badge).visibleLabel, 'Unavailable');
+            assert.equal(getBadgeDisplayText(badge).accessibleLabel, `Unavailable, ${badge.sublabel}`);
+        }
+    });
 });
 
 describe('getBadgeRefreshDelay', () => {

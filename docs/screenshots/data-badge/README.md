@@ -8,6 +8,10 @@ is absent from the production build; it will not appear in a Netlify preview.
 The fixtures cover Live, Forecast, Calculated, Estimated, Demo, Cached, and
 Unavailable (missing, invalid, or future update timestamp), in both sizes.
 All metadata is fabricated. No venue or weather services are called.
+The current-conditions fixtures describe model data, not station observations.
+Live, Cached and Forecast examples show known ages directly on the pill. The
+other kinds do too when supplied a timestamp; missing ages are never invented.
+Accessible names retain the full update sentence and optional source.
 
 `getBadgeState` requires an explicit `now`. Timestamps can be Date objects,
 epoch milliseconds, or timezone-qualified ISO strings. Ambiguous local/date-only
@@ -26,11 +30,18 @@ were blocked. These are development fixtures, not live observations.
 - [Dark surface](dark-390.png)
 
 Browser assertions passed for all 18 badges per surface, accessible names,
-no horizontal overflow, automatic Live expiry, and a suspended-tab clock jump.
-Computed badge text contrast was 17.06:1 on both surfaces. Reduced motion
+no horizontal overflow (including deliberately narrow pills), automatic Live
+expiry, and a suspended-tab clock jump. Ten consecutive renders with unchanged
+kind/timestamp did not re-register listeners; changing kind refreshed correctly.
+Computed badge text contrast was at least 7.24:1 on both surfaces. Reduced motion
 disabled animation; normal motion pulsed only Live dots. No page errors.
 The pill is informational and has no interactive target.
 
-Only existing surface, ink, accent and slate tokens are used; no colours or
-dependencies were added. No existing application components are wired to it.
+Live uses a filled amber dot, Cached a hollow amber ring, Forecast a sky cloud
+icon, Calculated a slate dot, Estimated a dotted border and ≈ marker, Demo a
+dashed border with slate fill and flask icon, and Unavailable muted text without
+a marker. Text is always present, so meaning does not rely on colour.
+
+Only existing surface, ink, accent, slate and sky palette tokens are used; no
+tokens or dependencies were added. No existing application components are wired to it.
 Physical iPhone/Safari and screen-reader checks remain manual.
