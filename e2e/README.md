@@ -3,13 +3,16 @@
 ```sh
 npm ci
 npx playwright install --with-deps chromium
-npm run build
 npm run test:smoke
 ```
 
-The four Chromium tests use a 390×844 touch viewport and serve the production
-build on `127.0.0.1:4173`. The port must be free; an existing server is never
-reused. Build again after changing source. No API credentials are required.
+The Chromium tests use a 390×844 touch viewport. Playwright builds its own copy
+of the app into `dist-e2e` (the production `dist` is untouched) and serves it on
+`127.0.0.1:4173`. The port must be free; an existing server is never reused. No
+API credentials are required: that build gets the fake Supabase URL and key in
+`fixtures/supabase.js`, which override any local `.env`, and every request to the
+fake host is intercepted, so tests can mock data such as venue sun horizons
+without reaching a real project.
 
 Each test has fresh browser storage, a fixed Melbourne date, and mocked raw
 Open-Meteo responses. All other external HTTP requests and WebSockets are blocked

@@ -9,6 +9,7 @@ import RoomSunCard from './RoomSunCard';
 import SunMomentsPanel from './SunMomentsPanel.jsx';
 import { useVenueSunHorizon } from '../hooks/useVenueSunHorizon';
 import { outdoorSunDay, roomsBySunToday, sunMomentsFromDay } from '../utils/sunMoments.js';
+import { outdoorSunSummary } from '../utils/outdoorSunSummary.js';
 import { DEFAULT_TIME_ZONE, venueLocalDate } from '../utils/balconySunEngine.js';
 import ClayIcon from './common/ClayIcon';
 import {
@@ -540,6 +541,11 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     [outdoorDay, forecast, venueTimeZone],
   );
   const sunSection = venueCardSunSection({ showStay, outdoorDay, outdoorMoments });
+  // With sun moments on screen, the stat row and sentence read the same
+  // building-shaded windows as the moments' total, not the open-sky forecast.
+  const outdoorSummary = sunSection === 'moments'
+    ? outdoorSunSummary({ daily: outdoorDay, forecast, now, timeZone: venueTimeZone })
+    : null;
   const happyHour = verifiedHappyHour(venue);
   const hoursView = venueHoursView(venue);
   const description = [venue?.venue_description, venue?.description, venue?.about]
@@ -661,11 +667,11 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     ) : null}
                     <div className="flex flex-col gap-2.5">
                       <VenueStatRow
-                        tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike })}
-                        sunny={forecast.now?.kind === 'sun'}
+                        tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary })}
+                        sunny={(outdoorSummary?.kind ?? forecast.now?.kind) === 'sun'}
                       />
                       {sunSection !== 'today' ? (
-                        <p className="text-[13px] font-medium leading-relaxed text-slate-600">{sentence}</p>
+                        <p className="text-[13px] font-medium leading-relaxed text-slate-600">{outdoorSummary?.sentence ?? sentence}</p>
                       ) : null}
                     </div>
                     {weatherUnavailable && !weatherLoading ? (
