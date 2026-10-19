@@ -1,6 +1,7 @@
 # Experience Finder, Phase 1
 
-Before screenshots use main at `777f2bb`. After screenshots use this branch.
+Before screenshots use main at `777f2bb`. After screenshots use the initial UX
+commit `9ede7db`. The branch now also includes the merged timezone fix (#192).
 Mobile pairs are 390 × 844 with touch emulation; the additional after views are
 768 × 1024 (tablet) and 1440 × 900 (desktop). Chromium uses reduced motion,
 Australia/Melbourne time and 19 October 2026, 11 am. Captures wait for the splash
@@ -14,6 +15,14 @@ to finish.
 | Room sunlight | [Room card](before-mobile-room.png) | [Dated potential-sun timeline](after-mobile-room.png) |
 
 Additional views: [tablet](after-tablet-home.png), [desktop](after-desktop-home.png).
+
+After integrating #192, another 390 × 844 check covered all four shortcuts,
+missing sun horizons, card close/list return, and a future date and comparison
+in a Europe/London browser. The selected date stayed Melbourne-local; future
+timelines had no current-time marker, and Close/Escape restored comparison focus.
+No page errors or horizontal overflow occurred. Integrated-build examples:
+[future room](checked-future-room-390.png),
+[comparison](checked-future-comparison-390.png).
 
 These are deterministic local fixtures, not screenshots of production. They use
 the unchanged demo venue fallback (56 listings) and mocked raw Open-Meteo weather.
@@ -47,17 +56,20 @@ These are design choices, not findings from the unavailable reference screens.
 
 ## Validation and remaining checks
 
-Node 22: `npm ci`, `npm test` (864 passed, zero skipped), `npm run build` and
-`npm run test:smoke` (15 passed, zero skipped). Local browser tests use the trusted
+Node 22: `npm ci`, `npm test` (869 passed, zero skipped), `npm run build` and
+`npm run test:smoke` (17 passed, zero skipped). Local browser tests use the trusted
 installed Chromium via `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`;
 CI uses Playwright's downloaded Chromium. Only the existing large-chunk build
 advisory and environment color/npm notices remain. No new dependency is added.
 
 Before release, check a real iPhone/Safari with live venue/weather data, map pin
 selection, sheet transitions and an overseas timezone. The separate timezone
-fix is PR #192; this branch does not duplicate its calculation changes. No
+fix was merged in PR #192 and is now included in this branch. No
 reliable forecast issuance/observation timestamp is exposed in the current UI
 weather object, so this work adds no invented freshness indicator.
+The deployed Netlify preview could not be reached from this workspace: the
+network allowlist returned CONNECT 403. The extra checks above use the local
+production build and deterministic fixtures, not the deployed site.
 
 Suggested next phase: validate the four discovery intents with users on real
 phones, then prioritise verified room geometry and source metadata before any
