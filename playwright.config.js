@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import { FAKE_SUPABASE_ANON_KEY, FAKE_SUPABASE_URL } from './e2e/fixtures/supabase.js';
 
 export default defineConfig({
   testDir: './e2e',
@@ -23,7 +24,11 @@ export default defineConfig({
       : {},
   },
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1 --port 4173 --strictPort',
+    // Its own build in dist-e2e with a fake Supabase client, so venue sun
+    // horizons can be mocked; the production dist build is left alone.
+    command: 'npx vite build --outDir dist-e2e --emptyOutDir --logLevel warn && npx vite preview --outDir dist-e2e --host 127.0.0.1 --port 4173 --strictPort',
+    env: { VITE_SUPABASE_URL: FAKE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY: FAKE_SUPABASE_ANON_KEY },
+    timeout: 180_000,
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
   },

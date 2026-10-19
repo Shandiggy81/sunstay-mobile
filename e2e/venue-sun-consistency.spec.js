@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { weather } from './fixtures/weather.js';
+import { FAKE_SUPABASE_URL } from './fixtures/supabase.js';
 
 // Melbourne daylight time on the fixture's day (UTC+11).
 const melbourne = (hour, minute = 0) => new Date(Date.UTC(2026, 9, 18, hour + 13, minute));
@@ -15,7 +16,7 @@ function minutes(text) {
 
 async function boot(page, baseURL, now, { horizon = null } = {}) {
   const errors = [];
-  const seen = { supabase: 0, horizon: 0 };
+  const seen = { supabase: 0, horizon: 0, realSupabase: 0 };
   page.on('pageerror', error => errors.push(error.message));
   await page.clock.setFixedTime(now);
   await page.context().routeWebSocket('**', socket => socket.close());
@@ -23,7 +24,8 @@ async function boot(page, baseURL, now, { horizon = null } = {}) {
     const url = new URL(route.request().url());
     if (url.origin === baseURL) return route.continue();
     if (url.origin === 'https://api.open-meteo.com' && url.pathname === '/v1/forecast') return route.fulfill({ json: weather });
-    if (url.hostname.endsWith('.supabase.co')) {
+    if (url.hostname.endsWith('.supabase.co')) seen.realSupabase += 1;
+    if (url.origin === FAKE_SUPABASE_URL) {
       seen.supabase += 1;
       if (horizon && url.pathname.endsWith('/microclimate_profiles')) {
         seen.horizon += 1;
@@ -77,9 +79,8 @@ for (const [label, now, sunNow] of [
 
 test('Sun moments card: remaining never exceeds the venue total at 390×844', async ({ page, baseURL }, testInfo) => {
   const { errors, seen } = await boot(page, baseURL, melbourne(11), { horizon: HORIZON });
+  await expect.poll(() => seen.supabase, { message: 'smoke build uses the fake Supabase client' }).toBeGreaterThan(0);
   const card = await openVenue(page);
-  await page.waitForLoadState('networkidle');
-  test.skip(seen.supabase === 0, 'Build has no Supabase URL, so venue sun horizons cannot load');
   const moments = card.locator('section', { has: page.getByRole('heading', { name: 'Sun moments today' }) });
   await expect(moments).toBeVisible();
   expect(seen.horizon).toBeGreaterThan(0);
@@ -110,5 +111,6 @@ test('Sun moments card: remaining never exceeds the venue total at 390×844', as
   const shot = testInfo.outputPath('venue-sun-moments-390.png');
   await page.screenshot({ path: shot });
   await testInfo.attach(`${VENUE} sun moments at 390×844`, { path: shot, contentType: 'image/png' });
+  expect(seen.realSupabase, 'no request to a real Supabase project').toBe(0);
   expect(errors, 'Unhandled browser errors').toEqual([]);
 });
