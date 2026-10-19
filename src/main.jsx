@@ -1,6 +1,13 @@
 import * as Sentry from '@sentry/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+// Latin normal faces; preserve browser matching for 900 and synthetic italics.
+import '@fontsource/plus-jakarta-sans/latin-300.css'
+import '@fontsource/plus-jakarta-sans/latin-400.css'
+import '@fontsource/plus-jakarta-sans/latin-500.css'
+import '@fontsource/plus-jakarta-sans/latin-600.css'
+import '@fontsource/plus-jakarta-sans/latin-700.css'
+import '@fontsource/plus-jakarta-sans/latin-800.css'
 import './index.css'
 import './styles/weather-bg.css'
 import './styles/quick-pills.css'
