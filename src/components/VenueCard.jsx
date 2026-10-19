@@ -666,6 +666,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       </button>
                     ) : null}
                     <div className="flex flex-col gap-2.5">
+                      <p className="text-[12px] font-semibold text-slate-600">Today · sun &amp; weather estimates · {venueTimeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>
                       <VenueStatRow
                         tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary })}
                         sunny={(outdoorSummary?.kind ?? forecast.now?.kind) === 'sun'}

@@ -4,9 +4,9 @@ import SunDayTimeline from './SunDayTimeline.jsx';
 import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
 
 const SKY = Object.freeze({
-  sun: { icon: 'sun', text: 'Clear', className: 'bg-amber-50 text-amber-900' },
-  cloud: { icon: 'cloud', text: 'Cloud likely', className: 'bg-slate-100 text-slate-700' },
-  rain: { icon: 'rain', text: 'Rain likely', className: 'bg-sky-50 text-sky-900' },
+  sun: { icon: 'sun', text: 'Some sun forecast', className: 'bg-amber-50 text-amber-900' },
+  cloud: { icon: 'cloud', text: 'Cloud forecast', className: 'bg-slate-100 text-slate-700' },
+  rain: { icon: 'rain', text: 'Rain forecast', className: 'bg-sky-50 text-sky-900' },
 });
 
 function formatDuration(minutes) {
@@ -31,7 +31,7 @@ function formatDuration(minutes) {
  * @param {Date} props.now
  * @param {string} props.label "sun on the balcony", "sun in the outdoor area", …
  */
-export default function SunMomentsPanel({ daily, summary, timeZone, now, label = 'direct sun' }) {
+export default function SunMomentsPanel({ daily, summary, timeZone, now, label = 'direct sun', dayLabel = 'today' }) {
   const total = summary?.totalMinutes ?? 0;
   return (
     <div className="flex flex-col gap-3">
@@ -41,7 +41,7 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
           {total > 0 ? formatDuration(total) : 'In the shade'}
         </p>
         <p className="mt-1.5 pr-20 text-[13px] font-semibold text-slate-600">
-          {total > 0 ? `of ${label} today` : `No direct ${label} today`}
+          {total > 0 ? `of ${label} ${dayLabel}` : `No ${label} ${dayLabel}`}
         </p>
         <SunDayTimeline daily={daily} timeZone={timeZone} now={now} label={label} />
       </div>

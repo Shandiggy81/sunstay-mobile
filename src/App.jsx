@@ -19,6 +19,9 @@ import { isPreviewMapDrag } from './utils/mapVenuePreview';
 import VenueCard from './components/VenueCard';
 import StaySunPicker from './components/StaySunPicker.jsx';
 import StayComparison from './components/StayComparison.jsx';
+import ExperienceFinder from './components/ExperienceFinder.jsx';
+import { clearExperience, discoveryContext, discoveryDataLabel, matchedMomentLabel, selectedExperience, selectExperience } from './utils/discoveryExperience.js';
+import { isEstimatedRoom } from './utils/roomProfiles.js';
 import { rankStays, stayMomentBadge, quickStayDate, compareStayRank } from './utils/stayRanking.js';
 import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
@@ -187,7 +190,7 @@ const getSunstayScoreVisual = (score) => {
 };
 
 // ── VenueListCard ──────────────────────────────────────────────────────
-const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull }) => {
+const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys }) => {
     // Read from context: the list never passed this prop, so venues without a
     // microclimate profile showed no badge.
     const { calculateSunScore, unavailable: weatherUnavailableFlag, error: weatherError } = useWeather();
@@ -211,7 +214,9 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
         [venue, sunForecast, liveWeather],
     );
     // Wheelchair, pram, dog and hidden-gem icons after the chips (utils/venueAmenities).
-    const amenities = useMemo(() => keyAmenities(venue), [venue]);
+    const amenities = useMemo(() => keyAmenities(venue).slice(0, 3), [venue]);
+    const momentMatch = matchedMomentLabel(momentKeys, activeFilters);
+    const visibleChips = momentMatch ? chips.filter(chip => chip.key !== 'sun') : chips;
 
     // Per-venue Sunstay Score — same RPC microclimate score as the map pin
     // and the detail sheet, so scrubbing TOD cannot show 84 on the card and
@@ -232,7 +237,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
 
     // `typeLabel` and `vibe` are both nullable in the venues table, so the
     // subtitle is joined from present parts only — never " · Fitzroy".
-    const descriptor = venueTypeLabel(isPropertyVenue(venue) ? venue.typeLabel ?? venue.typeCategory : venue.vibe);
+    const descriptor = venueTypeLabel(venue.typeLabel || (isPropertyVenue(venue) ? venue.typeCategory : venue.vibe));
     const suburbText = String(venue.suburb ?? '').trim();
     const subtitle = [descriptor, suburbText].filter(Boolean).join(' · ');
 
@@ -247,7 +252,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             role="button"
             tabIndex={0}
             onKeyDown={e => { if (e.target === e.currentTarget && ['Enter', ' '].includes(e.key)) { e.preventDefault(); onVenueSelect(venue); } }}
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : (chips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || sunStatus.text)}.${sunstayScore != null ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || sunStatus.text}`}.${sunstayScore != null && !(stayMoment && isStay) ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
             className={`ss-venue-list-card ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
             id={`venue-list-${venue.id}`}
         >
@@ -257,20 +262,10 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
                 {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
-                {amenities.length > 0 && (
-                    <ul className="ss-vlc-amenities" aria-hidden="true">
-                        {amenities.map(a => (
-                            <li key={a.key} title={a.label}>
-                                <ClayIcon name={a.icon} size={18} />
-                                <span>{a.short}</span>
-                            </li>
-                        ))}
-                    </ul>
-                )}
             </div>
             <div className="ss-vlc-right">
                 {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
-                {scoreVisual && (
+                {scoreVisual && !(stayMoment && isStay) && (
                     <div
                         className="ss-vlc-badge"
                         style={{ background: scoreVisual.color + '1f', color: scoreVisual.text }}
@@ -284,24 +279,28 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                     <div className="ss-vlc-temp !bg-emerald-50 !text-emerald-700 !border-emerald-100 px-2 rounded-lg">
                         <span className="text-[9px] font-black uppercase tracking-tighter">Stay</span>
                     </div>
-                ) : feelsLike != null && (
+                ) : feelsLike != null && !(stayMoment && isStay) && (
                     <div className="ss-vlc-temp" title="Feels like">
                         <ClayIcon name={feelsLikeIconName(feelsLike)} size={16} />
                         <span>{feelsLike}°</span>
                     </div>
                 )}
             </div>
-            {!(stayMoment && isStay) && chips.length > 0 && (
+            {momentMatch && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={momentMatch.icon} size={22} />{momentMatch.text}</p>}
+            {!(stayMoment && isStay) && visibleChips.length > 0 && (
                 <ul className="ss-vlc-chips" aria-hidden="true">
-                    {chips.map(chip => (
+                    {visibleChips.map(chip => (
                         <li key={chip.key} className={`ss-vlc-chip ss-vlc-chip--${chip.tone ?? chip.key}`}>
                             <ClayIcon name={chip.icon} size={18} />
-                            <span>{chip.text}</span>
+                            <span>{chip.key === 'sun' || chip.key === 'wind' ? 'Now: ' : ''}{chip.text}</span>
                         </li>
                     ))}
                 </ul>
             )}
-            {stayMoment && isStay && <div className="ss-stay-badge-row"><p className={`ss-stay-badge ${venue.minutes ? '' : 'ss-stay-badge--empty'}`} title={stayMomentBadge(venue, stayMoment)}>{stayMomentBadge(venue, stayMoment).replace(' · Estimated', '')}</p>{venue.bestRoom?.source === 'estimated' && <span>Estimated</span>}</div>}
+            {stayMoment && isStay && <div className="ss-stay-badge-row"><p className={`ss-stay-badge ${venue.minutes ? '' : 'ss-stay-badge--empty'}`} title={stayMomentBadge(venue, stayMoment)}>{stayMomentBadge(venue, stayMoment).replace(' · Estimated', '')}</p>{isEstimatedRoom(venue.bestRoom) && <span>Estimated</span>}</div>}
+            {amenities.length > 0 && <ul className="ss-vlc-amenities ss-vlc-amenities--row" aria-hidden="true">
+                {amenities.map(a => <li key={a.key} title={a.label}><ClayIcon name={a.icon} size={18} /><span>{a.short}</span></li>)}
+            </ul>}
         </motion.div>
     );
 });
@@ -342,6 +341,7 @@ const LiveVenueList = memo(function LiveVenueList({
     showLoadMore = false,
     onLoadMore,
     stayMoment, comparedIds = [], onCompare,
+    activeFilters, sunMomentsById,
 }) {
     if (venues.length === 0) {
         return (
@@ -382,6 +382,8 @@ const LiveVenueList = memo(function LiveVenueList({
                             compared={comparedIds.includes(venue.id)}
                             compareFull={comparedIds.length >= 3}
                             onCompare={onCompare}
+                            activeFilters={activeFilters}
+                            momentKeys={sunMomentsById?.get(String(venue.id))}
                         />
                     </div>
                 )}
@@ -507,7 +509,7 @@ VenueChip.displayName = 'VenueChip';
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(() => readHotelSunReportId(window.location.search) !== null || hasSeenSplash());
     const { weather, loading: weatherLoading, calculateSunScore, previewMinutes } = useWeather();
-    const { venues, refetch, isRefreshing, isLoading: venuesLoading } = useVenues();
+    const { venues, refetch, isRefreshing, isLoading: venuesLoading, source: venueSource, error: venueError } = useVenues();
     // Let useVenues start its live lookup before declaring a shared ID missing.
     const [venueLookupStarted, setVenueLookupStarted] = useState(false);
     useEffect(() => { setVenueLookupStarted(true); }, []);
@@ -973,6 +975,18 @@ const AppContent = () => {
         setAreaBounds(null);
     }, []);
 
+    const handleExperienceSelect = (id) => {
+        const next = selectExperience(activeFilters, id);
+        setActiveFilters(next.filters);
+        if (next.moment) setStayMoment(next.moment);
+        setPreviewVenue(null);
+        setSelectedVenue(null);
+        if (isMobile) setMobileSheetState('expanded');
+        requestAnimationFrame(() => document.getElementById(isMobile ? 'mobile-discovery-results' : 'desktop-discovery-results')?.focus({ preventScroll: true }));
+    };
+    const experienceContext = discoveryContext({ filters: activeFilters, moment: stayMoment, date: stayDate, todMinutes: listTodMinutes });
+    const dataLabel = discoveryDataLabel({ source: venueSource, loading: venuesLoading, error: venueError, weather, weatherLoading });
+
     // The chat stays open: Sunny shows matching venues as cards to tap.
     const makeChatFilter = (filter) => () => {
         setActiveFilters([filter]);
@@ -1167,6 +1181,10 @@ const AppContent = () => {
                     comfort={comfort}
                 />
 
+                {!mobileMapExpanded && !venueCardOpen && <ExperienceFinder selected={selectedExperience(activeFilters, stayMoment)} onSelect={handleExperienceSelect}
+                    onClear={() => setActiveFilters(clearExperience(activeFilters))} canClear={clearExperience(activeFilters).length !== activeFilters.length}
+                    context={experienceContext} dataLabel={dataLabel} />}
+
                 <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
                     {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
                     <aside className="ss-sidebar hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96">
@@ -1197,7 +1215,7 @@ const AppContent = () => {
                             </button>
                         </div>
 
-                        <div className="ss-sidebar-count">
+                        <div className="ss-sidebar-count" id="desktop-discovery-results" tabIndex={-1}>
                             <span className="inline-flex items-center gap-2">
                                 {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} venue${matchingCount !== 1 ? 's' : ''}`}
                                 {areaBounds ? showAllChip('-my-3') : null}
@@ -1241,6 +1259,8 @@ const AppContent = () => {
                                         selectedVenue={selectedVenue}
                                         onVenueSelect={handleVenueSelect}
                                         weather={weather}
+                                        activeFilters={activeFilters}
+                                        sunMomentsById={sunMomentsById}
                                         empty={listEmptyState}
                                     />
                                 </MascotPullRefresh>
@@ -1437,7 +1457,7 @@ const AppContent = () => {
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
-                                    <h3>Venues</h3>
+                                    <h3 id="mobile-discovery-results" tabIndex={-1}>Venues</h3>
                                     <p className="inline-flex items-center gap-2">
                                         {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} results`}
                                         {areaBounds ? showAllChip('-my-3') : null}
@@ -1465,6 +1485,8 @@ const AppContent = () => {
                                         onClear={handleClearFilters}
                                         showClear={activeFilters.length > 0 || Boolean(searchQuery.trim())}
                                     />
+                                    <p className="ss-discovery-context">{experienceContext}</p>
+                                    <p className="ss-discovery-source">{dataLabel}</p>
                                 </div>
                                 {stayPicker}
                                     <MascotPullRefresh
@@ -1489,6 +1511,8 @@ const AppContent = () => {
                                             selectedVenue={selectedVenue}
                                             onVenueSelect={handleVenueSelect}
                                             weather={weather}
+                                            activeFilters={activeFilters}
+                                            sunMomentsById={sunMomentsById}
                                             empty={listEmptyState}
                                         />
                                     </MascotPullRefresh>
@@ -1527,7 +1551,7 @@ const AppContent = () => {
                     className={`ss-footer-badge ${venueCardOpen ? 'hidden' : ''}`}
                 >
                     <img src={fireIconImg} alt="" className="ss-footer-badge-icon" />
-                    Sales Demo · {venues.length} Partner Venues
+                    SunStay preview · {venues.length} listings
                 </motion.div>
             </div>
             {reportId !== null && (

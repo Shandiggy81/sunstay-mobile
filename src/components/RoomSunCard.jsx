@@ -111,6 +111,7 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
             <p className="mt-0.5 text-[12px] font-semibold text-slate-500">
               Level {floorLevel} · {typeof orientation === 'number' ? `faces ${directionWord(orientation)} (${Math.round(orientation)}°)` : `${orientation} facing`}
             </p>
+            {today && <p className="mt-1 text-[12px] font-medium text-slate-600">{formatGuestDate(`${today}T12:00:00Z`, 'UTC')} · {timeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>}
           </div>
         </div>
         {baseNightlyRateDemo != null && baseNightlyRateDemo !== '' && <div className="text-right shrink-0">
@@ -123,14 +124,14 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
 
       {daily ? (
         <div className="flex flex-col gap-3">
-          <SunMomentsPanel daily={daily} summary={sunMomentsFromDay({ daily, forecast, timeZone })} timeZone={timeZone} now={now} label={exposureLabel} />
+          <SunMomentsPanel daily={daily} summary={sunMomentsFromDay({ daily, forecast, timeZone })} timeZone={timeZone} now={now} label={`potential ${exposureLabel}`} dayLabel={daily.date === venueLocalDate(now, timeZone) ? 'today' : `on ${formatGuestDate(`${daily.date}T12:00:00Z`, 'UTC')}`} />
           <div className="flex flex-wrap items-center gap-1.5 text-[12px]" aria-label="Sunniest months, representative 15th-of-month estimates">
             <span className="mr-1 inline-flex items-center gap-1 font-semibold text-slate-600"><ClayIcon name="sun-cloud" size={20} />Sunniest months</span>
             {months === undefined ? <span role="status" className="h-6 w-12 rounded-full bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating sunniest months</span></span>
               : bestMonths?.length ? bestMonths.map(month => <span key={month} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-bold text-amber-900">{month}</span>)
               : <span className="text-slate-500">{months === null ? 'Unavailable' : 'No modelled direct sun'}</span>}
           </div>
-          <p className="text-[11px] text-slate-500">Estimated from the sun&apos;s path and nearby buildings. Sky badges use today&apos;s forecast.</p>
+          <p className="text-[12px] leading-relaxed text-slate-600">Sun-path and geometry estimates. {forecast ? 'Sky badges show forecasts.' : 'No weather forecast is shown here.'} Clouds, curtains and unrecorded shading can change the sun you experience.</p>
         </div>
       ) : missingGeometry ? (
       <div className="flex items-center gap-3 mt-1" style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '8px 12px' }}>
