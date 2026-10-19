@@ -10,6 +10,7 @@ import { finiteOrNull } from '../utils/finiteOrNull.js';
 import { calculateWindExposure } from '../utils/windExposure.js';
 import { normalizeHourlyForecast } from '../utils/normalizeHourlyForecast.js';
 import { getCurrentHourlyIndex, openMeteoLocalTimeToDate } from '../utils/weatherService.js';
+import { venueHour } from '../utils/venueTime.js';
 
 // ── Wind Exposure Profiles ────────────────────────────────────────
 // Each venue gets a wind exposure profile based on its type, location,
@@ -332,10 +333,10 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
     const profile = getWindProfile(venue);
     const now = options.now ?? new Date();
     const profiled = Boolean(venue?.windProfile || venue?.noiseProfile);
-    let clock;
-    try { clock = new Intl.DateTimeFormat('en-GB', { timeZone: venue?.timeZone ?? venue?.timezone ?? 'Australia/Melbourne', hour: '2-digit', hourCycle: 'h23' }); }
-    catch { clock = new Intl.DateTimeFormat('en-GB', { timeZone: 'Australia/Melbourne', hour: '2-digit', hourCycle: 'h23' }); }
-    const currentHour = profiled ? Number(clock.format(now)) : now.getHours();
+    let timeZone = venue?.timeZone ?? venue?.timezone ?? 'Australia/Melbourne';
+    let currentHour;
+    try { currentHour = Math.floor(venueHour(now, timeZone)); }
+    catch { timeZone = 'Australia/Melbourne'; currentHour = Math.floor(venueHour(now, timeZone)); }
     const index = getCurrentHourlyIndex(options.hourly, options.utcOffsetSeconds, now);
     const firstTime = openMeteoLocalTimeToDate(options.hourly?.time?.[index], options.utcOffsetSeconds) ?? now;
     const actualRows = profiled ? normalizeHourlyForecast({ hourly: options.hourly, utc_offset_seconds: options.utcOffsetSeconds }, { now: firstTime, limit: 24 }) : [];
@@ -373,7 +374,7 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
         const time = new Date((profiled && options.hourly ? firstTime : now).getTime() + i * 3600000);
         // Match timestamps rather than array indices: omitted rows must not shift future weather into "Now".
         const actual = actualRows.find(row => row.time.getTime() === time.getTime());
-        const h = profiled ? Number(clock.format(time)) : (currentHour + i) % 24;
+        const h = Math.floor(venueHour(time, timeZone));
         const hourWind = actual?.windKmh != null ? actual.windKmh / 3.6 : baseWind * (windMultipliers[h] || 1);
         const hourTemp = actual?.temp ?? baseTemp + (tempOffsets[h] || 0);
         const hourDirection = options.hourly ? actual?.windDirection ?? null : direction;

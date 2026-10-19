@@ -114,3 +114,34 @@ test('Sun moments card: remaining never exceeds the venue total at 390×844', as
   expect(seen.realSupabase, 'no request to a real Supabase project').toBe(0);
   expect(errors, 'Unhandled browser errors').toEqual([]);
 });
+
+for (const timezoneId of ['Europe/London', 'America/Los_Angeles']) {
+  test.describe(`venue-local time from ${timezoneId}`, () => {
+    test.use({ timezoneId });
+    test('valid Melbourne sun times and forecast hours with and without a horizon', async ({ page, baseURL }, testInfo) => {
+      const { errors, seen } = await boot(page, baseURL, melbourne(11));
+      let card = await openVenue(page);
+      const sunTile = () => card.getByLabel('Current venue conditions').locator('div').filter({ hasText: 'Sun now' }).locator('dd');
+      await expect(sunTile()).toHaveText(/^Sun until 7:\d{2}pm$/);
+      await expect(card.getByText('Melbourne time', { exact: true })).toBeVisible();
+      const hours = card.locator('section', { has: page.getByRole('heading', { name: 'Hour by hour', exact: true }) }).getByRole('listitem');
+      await expect(hours.first()).toHaveAttribute('aria-label', /^Now: 23 degrees/);
+      await expect(hours.nth(1)).toHaveAttribute('aria-label', /^12pm: 23 degrees/);
+      await expect(card.getByText(/Sun times unavailable|Sun times aren't available/)).toHaveCount(0);
+
+      // Fresh navigation with a building horizon exercises Sun Moments and the
+      // new outdoor summary, rather than only the no-geometry fallback.
+      await page.unroute('**/*');
+      const second = await boot(page, baseURL, melbourne(11), { horizon: HORIZON });
+      card = await openVenue(page);
+      await expect(card.getByRole('heading', { name: 'Sun moments today', exact: true })).toBeVisible();
+      await expect(sunTile()).toHaveText(/^Sun from 1[12]:\d{2}(am|pm)$|^Sun until \d/);
+      const screenshot = testInfo.outputPath('melbourne-sun-from-overseas-390.png');
+      await page.screenshot({ path: screenshot });
+      await testInfo.attach(`Melbourne venue from ${timezoneId}`, { path: screenshot, contentType: 'image/png' });
+      expect(seen.realSupabase + second.seen.realSupabase).toBe(0);
+      expect([...errors, ...second.errors]).toEqual([]);
+      await expectFitsPhone(page);
+    });
+  });
+}
