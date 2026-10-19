@@ -50,6 +50,7 @@ const EmptyVenueState = ({
     onClearFilters,
     announce = false,
     className = '',
+    badgeLabel = 'No matches',
     title = 'A bit too specific!',
     message = 'Sally and Rayray couldn’t find any sunny spots matching exactly what you’re looking for.',
     actionLabel = 'Clear filters',
@@ -127,7 +128,7 @@ const EmptyVenueState = ({
                 >
                     <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
                         <SearchX size={13} strokeWidth={2.5} aria-hidden="true" />
-                        No matches
+                        {badgeLabel}
                     </span>
 
                     <h2 className="text-[22px] font-black leading-tight tracking-[-0.02em] text-slate-900 sm:text-2xl">

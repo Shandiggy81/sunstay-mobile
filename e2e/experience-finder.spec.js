@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { weather, NOW } from './fixtures/weather.js';
 import { FAKE_SUPABASE_URL } from './fixtures/supabase.js';
 
-async function boot(page, baseURL, { unavailable = false, delayedVenues = false } = {}) {
+async function boot(page, baseURL, { unavailable = false, delayedVenues = false, venues = null } = {}) {
     const errors = [];
     let venueRequest;
     page.on('pageerror', error => errors.push(error.message));
@@ -18,6 +18,7 @@ async function boot(page, baseURL, { unavailable = false, delayedVenues = false 
             venueRequest = route;
             return;
         }
+        if (url.origin === FAKE_SUPABASE_URL && venues && url.pathname.endsWith('/venues')) return route.fulfill({ json: venues });
         return route.abort('blockedbyclient');
     });
     await page.goto('/');
@@ -28,6 +29,61 @@ async function boot(page, baseURL, { unavailable = false, delayedVenues = false 
 
 const list = page => page.locator('.ss-mobile-sheet');
 const rows = page => list(page).getByRole('button', { name: /^Venue: / });
+const PROPERTY_FIXTURES = [
+    { id: 'fixture-home', venueName: 'Fixture Home', typeCategory: 'Residential', typeLabel: 'Residential', lat: -37.81, lng: 144.96, tags: [] },
+    { id: 'fixture-hotel', venueName: 'Fixture Hotel', typeCategory: 'Hotel', typeLabel: 'Hotel', lat: -37.81, lng: 144.96, tags: [] },
+];
+
+test('Homes explains missing inventory and lets the user browse again', async ({ page, baseURL }, testInfo) => {
+    const { errors } = await boot(page, baseURL, { venues: [PROPERTY_FIXTURES[1]] });
+    await expect(page.locator('.ss-experience-finder .ss-discovery-source')).toContainText('Venue listings');
+    await page.getByText(/^\d+ venues nearby$/).click();
+    await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
+    await expect(list(page).getByRole('heading', { name: 'No homes in these listings', exact: true })).toBeVisible();
+    await expect(list(page).getByRole('heading', { name: 'A bit too specific!', exact: true })).toHaveCount(0);
+    const browse = list(page).getByRole('button', { name: 'Browse all venues', exact: true });
+    const target = await browse.boundingBox();
+    expect(target.width).toBeGreaterThanOrEqual(44);
+    expect(target.height).toBeGreaterThanOrEqual(44);
+    await page.screenshot({ path: testInfo.outputPath('homes-empty-390.png') });
+    await browse.tap();
+    await expect(rows(page)).toHaveCount(1);
+    await expect(list(page).getByRole('button', { name: 'Homes', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    expect(errors).toEqual([]);
+});
+
+test('Homes remains visible when Stays is selected too, with matching list count', async ({ page, baseURL }, testInfo) => {
+    const { errors } = await boot(page, baseURL, { venues: PROPERTY_FIXTURES });
+    await expect(page.locator('.ss-experience-finder .ss-discovery-source')).toContainText('Venue listings');
+    await page.getByText(/^\d+ venues nearby$/).click();
+    await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
+    await expect(rows(page)).toHaveCount(1);
+    await expect(rows(page).first()).toContainText('Fixture Home');
+    await list(page).getByRole('button', { name: 'Stays', exact: true }).tap();
+    await expect(list(page).locator('.ss-mobile-sheet-head')).toContainText('2 results');
+    await expect(rows(page)).toHaveCount(2);
+    await expect(rows(page).filter({ hasText: 'Fixture Home' })).toBeVisible();
+    await expect(rows(page).filter({ hasText: 'Fixture Home' }).getByRole('button', { name: 'Compare', exact: true })).toHaveCount(0);
+    await expect(rows(page).filter({ hasText: 'Fixture Hotel' }).getByRole('button', { name: 'Compare', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: testInfo.outputPath('homes-and-stays-390.png') });
+    await list(page).getByRole('textbox', { name: 'Search venues', exact: true }).fill('zzzz-no-match');
+    await list(page).getByRole('button', { name: 'Stays', exact: true }).tap();
+    await expect(list(page).getByRole('heading', { name: 'No homes match this search', exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+});
+
+test('Homes waits for listings before declaring missing inventory', async ({ page, baseURL }) => {
+    const { errors, venueRequest } = await boot(page, baseURL, { delayedVenues: true });
+    await page.getByText(/^\d+ venues nearby$/).click();
+    await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
+    await expect(list(page).getByRole('heading', { name: 'Checking for homes', exact: true })).toBeVisible();
+    await expect.poll(venueRequest).toBeTruthy();
+    await venueRequest().fulfill({ json: [PROPERTY_FIXTURES[0]] });
+    await expect(rows(page)).toHaveCount(1);
+    await expect(rows(page).first()).toContainText('Fixture Home');
+    expect(errors).toEqual([]);
+});
 
 test('experience shortcuts use the existing stay/date controls and comparisons', async ({ page, baseURL }) => {
     const { errors } = await boot(page, baseURL);

@@ -5,6 +5,7 @@ import { boundsOfVenues, lookupMicroclimateEntry, markerScoreFromMicroclimate, r
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
+import { homesEmptyState, includeNonStayResults } from './utils/propertyResults.js';
 import { FOOD_TYPE_FILTERS, isFoodTypeFilter, matchesFoodTypeFilters } from './utils/venueFoodType';
 import { venueTypeLabel } from './utils/venueTypeLabel';
 import { filterChoiceKey } from './utils/filterRefit';
@@ -817,7 +818,7 @@ const AppContent = () => {
     const comparisonVenues = useMemo(() => rankedStays.filter(v => comparedIds.includes(v.id)), [rankedStays, comparedIds]);
     const stayPicker = staysActive ? <StaySunPicker moment={stayMoment} date={stayDate} onMoment={setStayMoment} onDate={setStayDate} compareCount={comparisonVenues.length} onCompare={event => { compareTriggerRef.current = event.currentTarget; setCompareOpen(true); }} /> : null;
     const sortedVenues = useMemo(
-        () => staysActive ? rankedStays : sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
+        () => staysActive ? includeNonStayResults(listVenues, rankedStays) : sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
             byId: microById,
             todMinutes: listTodMinutes,
             calculateSunScore,
@@ -891,6 +892,7 @@ const AppContent = () => {
             Show all
         </button>
     );
+    const homesEmpty = useMemo(() => homesEmptyState({ venues, filters: activeFilters, loading: venuesLoading }), [venues, activeFilters, venuesLoading]);
     const listEmptyState = areaEmpty ? (
         <EmptyVenueState
             announce
@@ -900,7 +902,7 @@ const AppContent = () => {
             actionLabel="Show all venues"
         />
     ) : listVenues.length === 0 ? (
-        <EmptyVenueState announce onClearFilters={() => handleClearFilters()} />
+        <EmptyVenueState {...homesEmpty} announce onClearFilters={() => handleClearFilters()} />
     ) : null;
     const stableFilteredIds = filteredVenueIds;
     // The map refits to the results only when this changes (see utils/filterRefit).
@@ -1314,6 +1316,7 @@ const AppContent = () => {
                                     {/* The card and its spring live in EmptyVenueState;
                                         the sidebar copy is the one that announces. */}
                                     <EmptyVenueState
+                                        {...homesEmpty}
                                         onClearFilters={handleClearFilters}
                                         className="pointer-events-auto"
                                     />
