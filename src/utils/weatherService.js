@@ -1,12 +1,11 @@
 // src/utils/weatherService.js
 import { firstFinite } from './finiteOrNull.js';
 import { codeForClearness, currentSkyClearness, effectiveCloudCover, hourlySkyClearness } from './skyClearness.js';
+import { parseVenueDateTime } from './venueTime.js';
 
-export const toUnixTimestamp = (isoDateTime) => {
-    if (!isoDateTime) return null;
-    const ms = Date.parse(isoDateTime);
-    if (!Number.isFinite(ms)) return null;
-    return Math.floor(ms / 1000);
+export const toUnixTimestamp = (isoDateTime, timeZone) => {
+    const instant = parseVenueDateTime(isoDateTime, timeZone);
+    return instant ? Math.floor(instant.getTime() / 1000) : null;
 };
 
 export const getWeatherFromOpenMeteoCode = (code) => {
@@ -292,8 +291,8 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
     const weatherDesc = getWeatherFromOpenMeteoCode(wmoCode);
 
     // Derive sunrise/sunset unix from daily ISO strings
-    const sunriseUnix = toUnixTimestamp(daily.sunrise?.[0]);
-    const sunsetUnix = toUnixTimestamp(daily.sunset?.[0]);
+    const sunriseUnix = toUnixTimestamp(daily.sunrise?.[0], data.timezone);
+    const sunsetUnix = toUnixTimestamp(daily.sunset?.[0], data.timezone);
 
     return {
         main: {

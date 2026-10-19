@@ -9,6 +9,7 @@
  * microclimate profile (sun_horizon_deg) and no facing.
  */
 import { calculateBalconySunDay } from './balconySunEngine.js';
+import { venueHour, venueTimeAt } from './venueTime.js';
 
 const HOUR = 3600 * 1000;
 
@@ -43,16 +44,8 @@ function overlap(windows, from, to) {
 }
 
 /** Local wall-clock hour (decimal) of an instant in a time zone. */
-const hourFormatters = new Map();
 function localHour(instant, timeZone) {
-    let formatter = hourFormatters.get(timeZone);
-    if (!formatter) {
-        formatter = new Intl.DateTimeFormat('en-AU', { timeZone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
-        hourFormatters.set(timeZone, formatter);
-    }
-    const parts = formatter.formatToParts(instant);
-    const get = (type) => Number(parts.find((p) => p.type === type)?.value ?? NaN);
-    return get('hour') + get('minute') / 60;
+    return venueHour(instant, timeZone);
 }
 
 /**
@@ -90,8 +83,7 @@ export function sunMomentsFromDay({ daily, forecast = null, timeZone = 'Australi
             const sunset = daily?.sunset instanceof Date ? daily.sunset.getTime() : null;
             if (sunset != null) range = [sunset - 1.5 * HOUR, sunset];
         } else if (dayStart != null) {
-            // Wall-clock hours from local midnight; off by an hour only on DST change days.
-            range = [dayStart + m.from * HOUR, dayStart + m.to * HOUR];
+            range = [venueTimeAt(daily.dayStart, m.from, timeZone).getTime(), venueTimeAt(daily.dayStart, m.to, timeZone).getTime()];
         }
         if (!range) return { key: m.key, title: m.title, icon: m.icon, available: null, windows: [], sky: null };
         const hits = overlap(windows, range[0], range[1]);

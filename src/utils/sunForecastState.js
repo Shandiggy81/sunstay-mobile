@@ -14,6 +14,7 @@
  */
 
 import { SUNNY_CLEARNESS } from './skyClearness.js';
+import { venueHour, venueTimeParts, venueUtcOffsetSeconds } from './venueTime.js';
 
 export const CLOUDY_PCT = 60;
 export const RAIN_CHANCE_PCT = 50;
@@ -99,8 +100,9 @@ function minutesOfSun(hours, from, to) {
  *   cloud_cover/cloudcover[], precipitation_probability[], weather_code[],
  *   precipitation[] (any may be missing).
  * @param {number} [input.utcOffsetSeconds] Forecast offset; defaults to
- *   hourly._tzOffsetSeconds, then the device's offset (a fixed AEST default
- *   would be an hour out during daylight time).
+ *   hourly._tzOffsetSeconds, then Melbourne's offset on this date.
+ * @param {string} [input.timeZone] Explicit venue zone; converts instants with
+ *   the offset at each instant, including a daylight-saving changeover.
  * @param {Date} [input.now]
  * @param {Date|number} input.sunrise Sunrise instant, or a wall-clock decimal hour.
  * @param {Date|number} input.sunset Sunset instant, or a wall-clock decimal hour.
@@ -111,6 +113,7 @@ function minutesOfSun(hours, from, to) {
 export function deriveSunForecast({
   hourly = null,
   utcOffsetSeconds,
+  timeZone,
   now = new Date(),
   sunrise,
   sunset,
@@ -119,10 +122,15 @@ export function deriveSunForecast({
 } = {}) {
   const offset = finite(utcOffsetSeconds)
     ?? finite(hourly?._tzOffsetSeconds)
-    ?? -now.getTimezoneOffset() * 60;
-  const { dayKey, hour: nowHour } = wallClock(now, offset);
-  const sunriseHour = toWallHour(sunrise, offset);
-  const sunsetHour = toWallHour(sunset, offset);
+    ?? venueUtcOffsetSeconds(now, timeZone);
+  const local = timeZone ? venueTimeParts(now, timeZone) : null;
+  const { dayKey, hour: nowHour } = local
+    ? { dayKey: local.date, hour: local.hour + local.minute / 60 }
+    : wallClock(now, offset);
+  const sunHour = value => timeZone && value instanceof Date && Number.isFinite(value.getTime())
+    ? venueHour(value, timeZone) : toWallHour(value, offset);
+  const sunriseHour = sunHour(sunrise);
+  const sunsetHour = sunHour(sunset);
   const hasDaylight = sunriseHour != null && sunsetHour != null && sunriseHour < sunsetHour;
 
   // Today's forecast, keyed by wall-clock hour.

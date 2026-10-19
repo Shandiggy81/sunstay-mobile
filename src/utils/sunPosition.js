@@ -8,6 +8,7 @@
  */
 
 import SunCalc from 'suncalc';
+import { venueTimeAt } from './venueTime.js';
 
 export const MELBOURNE_TZ = 'Australia/Melbourne';
 
@@ -21,15 +22,7 @@ export const MELBOURNE_TZ = 'Australia/Melbourne';
  * @returns {Date}
  */
 export function melbourneDate(minutes, now = new Date()) {
-    const [y, mo, d] = new Intl.DateTimeFormat('en-CA', {
-        timeZone: MELBOURNE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(now).split('-').map(Number);
-
-    const guessUTC = Date.UTC(y, mo - 1, d, Math.floor(minutes / 60), minutes % 60, 0);
-    const asUTC = new Date(guessUTC);
-    const melbMs = new Date(asUTC.toLocaleString('en-US', { timeZone: MELBOURNE_TZ })).getTime();
-    const utcMs  = new Date(asUTC.toLocaleString('en-US', { timeZone: 'UTC' })).getTime();
-    return new Date(guessUTC - (melbMs - utcMs));
+    return venueTimeAt(now, minutes / 60, MELBOURNE_TZ);
 }
 
 export function getSunPositionForMap(lat, lng, date = new Date()) {

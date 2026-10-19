@@ -11,6 +11,8 @@ import { checkIfShaded, getVenueSunStatus } from './solarMath.js';
 import { deriveSunForecast, formatDuration, formatHour } from './sunForecastState.js';
 import { forecastKindIconName, weatherIconName } from './clayIcons.js';
 import { calculateApparentTemp, getWindProfile } from '../data/windIntelligence.js';
+import { DEFAULT_TIME_ZONE } from './balconySunEngine.js';
+import { venueUtcOffsetSeconds } from './venueTime.js';
 
 function finite(value) {
     const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
@@ -43,7 +45,8 @@ export function hasObstacleData(venue) {
 export function venueSunForecast({ venue, weather, now = new Date(), sunTimes } = {}) {
     const lat = finite(venue?.lat);
     const lng = finite(venue?.lng);
-    const times = sunTimes !== undefined ? sunTimes : (lat != null && lng != null ? getSunData(lat, lng) : null);
+    const timeZone = venue?.timeZone ?? venue?.timezone ?? DEFAULT_TIME_ZONE;
+    const times = sunTimes !== undefined ? sunTimes : (lat != null && lng != null ? getSunData(lat, lng, { now, timeZone }) : null);
 
     let shaded = false;
     if (lat != null && lng != null && hasObstacleData(venue)) {
@@ -57,6 +60,7 @@ export function venueSunForecast({ venue, weather, now = new Date(), sunTimes } 
     return deriveSunForecast({
         hourly: weather?.hourly ?? null,
         utcOffsetSeconds: weather?.utcOffsetSeconds,
+        timeZone,
         now,
         sunrise: times?.sunriseDate,
         sunset: times?.sunsetDate,
@@ -180,11 +184,11 @@ export function listSunStatus(forecast) {
  *   `forecast` (from venueSunForecast) marks night hours when the payload has no is_day.
  * @returns {Array<{ key: string, label: string, isNow: boolean, icon: string, temp: number|null, rainChance: number|null }>}
  */
-export function hourlyStrip(weather, { now = new Date(), count = 12, forecast = null } = {}) {
+export function hourlyStrip(weather, { now = new Date(), count = 12, forecast = null, timeZone = DEFAULT_TIME_ZONE } = {}) {
     const hourly = weather?.hourly;
     const times = Array.isArray(hourly?.time) ? hourly.time : [];
     if (times.length === 0) return [];
-    const offset = finite(weather?.utcOffsetSeconds) ?? finite(hourly._tzOffsetSeconds) ?? -now.getTimezoneOffset() * 60;
+    const offset = venueUtcOffsetSeconds(now, timeZone);
     const nowKey = new Date(now.getTime() + offset * 1000).toISOString().slice(0, 13);
     const start = times.findIndex((t) => typeof t === 'string' && t.slice(0, 13) === nowKey);
     if (start < 0) return [];

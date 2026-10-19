@@ -25,6 +25,7 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { venueHour } from '../utils/venueTime.js';
 
 // ── constants ────────────────────────────────────────────────────
 const AUTO_DISMISS_MS  = 8_000;
@@ -58,14 +59,9 @@ function derivePeakWindow(sunData) {
 }
 
 // ── helpers ────────────────────────────────────────────────────
-function decimalNow() {
-  const n = new Date();
-  return n.getHours() + n.getMinutes() / 60;
-}
-
-function getNextHourRainProb(hourlyData) {
+function getNextHourRainProb(hourlyData, nowH) {
   if (!hourlyData) return 0;
-  const nextHour = new Date().getHours() + 1;
+  const nextHour = Math.floor(nowH) + 1;
   const pp = hourlyData.precipitation_probability
     ?? hourlyData.precip_probability
     ?? hourlyData.precipProbability;
@@ -90,7 +86,7 @@ function evaluateRules({ nowH, peakStart, peakEnd, score, hourlyData }) {
   }
 
   // 2 — Rain Warning: next-hour rain prob > 40%
-  const nextRain = getNextHourRainProb(hourlyData);
+  const nextRain = getNextHourRainProb(hourlyData, nowH);
   if (nextRain > 40) {
     return {
       key:    'rain',
@@ -255,7 +251,7 @@ export default function NotificationCenter({ venue, weather, sunData, score = 70
       (currentWeather?.rawWeather?.time ? currentWeather.rawWeather : null) ??
       null;
 
-    const nowH  = decimalNow();
+    const nowH  = venueHour(new Date(), venue.timeZone ?? venue.timezone);
     const alert = evaluateRules({ nowH, peakStart, peakEnd, score: currentScore, hourlyData });
     if (!alert) return;
 

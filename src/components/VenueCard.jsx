@@ -466,18 +466,19 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     todMinutes,
   });
   const score = overviewScore.score;
+  const venueTimeZone = venue?.timeZone ?? venue?.timezone ?? DEFAULT_TIME_ZONE;
 
   // One sun forecast for the stat row, "Today's sun", its bar, the hourly
   // strip and the sunset tile.
   const forecast = useMemo(
     () => venueSunForecast({
-      venue: { lat: finite(lat), lng: finite(lng), obstacle_height: venue?.obstacle_height, obstacle_distance: venue?.obstacle_distance },
+      venue: { lat: finite(lat), lng: finite(lng), timeZone: venueTimeZone, obstacle_height: venue?.obstacle_height, obstacle_distance: venue?.obstacle_distance },
       weather: liveWeather,
       now,
     }),
-    [lat, lng, venue?.obstacle_height, venue?.obstacle_distance, liveWeather, now],
+    [lat, lng, venueTimeZone, venue?.obstacle_height, venue?.obstacle_distance, liveWeather, now],
   );
-  const hours = useMemo(() => hourlyStrip(liveWeather, { now, forecast }), [liveWeather, now, forecast]);
+  const hours = useMemo(() => hourlyStrip(liveWeather, { now, forecast, timeZone: venueTimeZone }), [liveWeather, now, forecast, venueTimeZone]);
   const sentence = sunSentence(forecast);
   const nowIcon = hours[0]?.icon ?? weatherIconName(null, { isNight: !forecast.isSunUp });
 
@@ -528,7 +529,6 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   // Bars, cafes and other outdoor venues: today's sun from the buildings
   // around them (stored horizon) plus today's forecast sky.
   const sunHorizon = useVenueSunHorizon(showStay ? null : venue?.id);
-  const venueTimeZone = venue?.timeZone ?? DEFAULT_TIME_ZONE;
   let todayKey = null;
   try { todayKey = venueLocalDate(now, venueTimeZone); } catch { /* bad time zone: no section */ }
   // Recomputed when the venue's day changes, not every minute.
@@ -673,6 +673,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       {sunSection !== 'today' ? (
                         <p className="text-[13px] font-medium leading-relaxed text-slate-600">{outdoorSummary?.sentence ?? sentence}</p>
                       ) : null}
+                      <p className="text-[12px] font-medium text-slate-600">{venueTimeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>
                     </div>
                     {weatherUnavailable && !weatherLoading ? (
                       <p className="-mt-2 text-[13px] font-medium text-slate-600" role="status">
