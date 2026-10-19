@@ -80,6 +80,7 @@ import {
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
+import DataBadge from '../DataBadge';
 import {
     captureMapCamera,
     claimCameraRestore,
@@ -114,7 +115,7 @@ const PIN_STATES = {
     cloudy:   { emoji: '☁️',  bg: '#e2e8f0', border: '#cbd5e1', color: '#64748b' },
 };
 
-function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive, microReading) {
+function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive, microReading, weatherUnavailable) {
     // Cozy filter is a user intent overlay, not a weather recompute.
     if (cozyFilterActive) {
         const live = liveVenueFeatures?.[venue.id] || {};
@@ -126,6 +127,9 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
     // sun_hour_fraction / effective_wind, never from client weather APIs.
     const profilePin = pinStateFromMicroclimate(microReading);
     if (profilePin && PIN_STATES[profilePin]) return profilePin;
+
+    // Missing, demo or failed weather must not colour pins as if it were real.
+    if (weatherUnavailable) return 'default';
 
     // Soft fallback only when the venue has no microclimate profile.
     if (typeof weatherColorFn === 'function') {
@@ -863,7 +867,7 @@ const VenueMap = forwardRef(({
         || recovery.phase === 'resuming'
         || recovery.phase === 'resume-failed';
 
-    const { weather, calculateSunstayScore, calculateSunScore } = useWeather();
+    const { weather, calculateSunstayScore, calculateSunScore, unavailable: weatherUnavailable, dataKind, fetchedAt } = useWeather();
     const { setBbox } = useMicroclimateActions();
     // Reader: cached venues_in_bbox rows + slider minutes. Pin colour/size
     // use these fields (effective_sun, effective_wind, sun_hour_fraction)
@@ -1779,6 +1783,7 @@ const VenueMap = forwardRef(({
                         weatherColorFnRef.current,
                         cozyFilterActiveRef.current,
                         microReading,
+                        weatherUnavailable || !weather,
                     );
                     const score = markerScoreForVenue(microReading, venue, calculateSunScore);
                     const emoji = venue.emoji ?? null;
@@ -1882,7 +1887,7 @@ const VenueMap = forwardRef(({
                 markersRef.current = {};
             }
         };
-    }, [mapLoaded, recovery.generation, weather, liveKey, cozyFilterActive, weatherColorFn, calculateSunScore, microById, clusterTodMinutes, activeSunMoment, sunMomentsById]);
+    }, [mapLoaded, recovery.generation, weather, weatherUnavailable, liveKey, cozyFilterActive, weatherColorFn, calculateSunScore, microById, clusterTodMinutes, activeSunMoment, sunMomentsById]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces
@@ -2210,9 +2215,17 @@ const VenueMap = forwardRef(({
             )}
             {mapLoaded && !mapError && (
                 <div className="ss-map-caption">
-                    <div className="ss-map-caption-inner">
-                        📍 Live Weather Pins &bull; {venues.length} venues
-                        {cozyFilterActive && <span style={{ marginLeft: 6 }}>· 🛋️ Cozy filter on</span>}
+                    <div className="ss-map-caption-inner" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>📍 {venues.length} venues</span>
+                        {dataKind && (
+                            <DataBadge
+                                kind={dataKind}
+                                updatedAt={fetchedAt}
+                                source={dataKind === 'live' ? 'Open-Meteo weather' : 'Sample weather'}
+                                size="sm"
+                            />
+                        )}
+                        {cozyFilterActive && <span>· 🛋️ Cozy filter on</span>}
                     </div>
                 </div>
             )}

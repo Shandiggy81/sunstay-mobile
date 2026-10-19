@@ -131,20 +131,25 @@ function writeLocalStorageEntry(geoKey, entry) {
     }
 }
 
-export function readOpenMeteoCache(lat, lon, now = Date.now()) {
+/** Cached `{ data, timestamp }` within the TTL, where timestamp is the original fetch time. */
+export function readOpenMeteoCacheEntry(lat, lon, now = Date.now()) {
     const geoKey = weatherCacheKey(lat, lon);
     if (!geoKey) return null;
 
     const mem = openMeteoMemoryCache.get(geoKey);
-    if (mem && now - mem.timestamp <= OPEN_METEO_CACHE_TTL_MS) return mem.data;
+    if (mem && now - mem.timestamp <= OPEN_METEO_CACHE_TTL_MS) return mem;
     if (mem) openMeteoMemoryCache.delete(geoKey);
 
     const stored = readLocalStorageEntry(geoKey);
     if (stored && now - stored.timestamp <= OPEN_METEO_CACHE_TTL_MS) {
         openMeteoMemoryCache.set(geoKey, stored);
-        return stored.data;
+        return stored;
     }
     return null;
+}
+
+export function readOpenMeteoCache(lat, lon, now = Date.now()) {
+    return readOpenMeteoCacheEntry(lat, lon, now)?.data ?? null;
 }
 
 export function writeOpenMeteoCache(lat, lon, data, now = Date.now()) {
@@ -340,15 +345,24 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
     };
 };
 
-export const fetchOpenMeteoWeather = async (lat, lon, signal, options = {}) => {
-    const cached = readOpenMeteoCache(lat, lon);
-    if (cached) return cached;
+/**
+ * Weather plus provenance for DataBadge: `kind` is 'live' for a fresh fetch and
+ * for a cache hit alike, and `fetchedAt` (epoch ms) is when the data was actually
+ * fetched, so a cache hit reports its original age.
+ */
+export const fetchOpenMeteoWeatherWithMeta = async (lat, lon, signal, options = {}) => {
+    const cached = readOpenMeteoCacheEntry(lat, lon);
+    if (cached) return { data: cached.data, kind: 'live', fetchedAt: cached.timestamp };
 
     const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : OPEN_METEO_FETCH_TIMEOUT_MS;
     const data = await fetchOpenMeteoWeatherLive(lat, lon, openMeteoAbortSignal(signal, timeoutMs));
-    writeOpenMeteoCache(lat, lon, data);
-    return data;
+    const fetchedAt = Date.now();
+    writeOpenMeteoCache(lat, lon, data, fetchedAt);
+    return { data, kind: 'live', fetchedAt };
 };
+
+export const fetchOpenMeteoWeather = async (lat, lon, signal, options = {}) =>
+    (await fetchOpenMeteoWeatherWithMeta(lat, lon, signal, options)).data;
 
 export function mapWeatherCode(wmoCode) {
   if (wmoCode === 0) return { label: 'Clear', icon: '\u2600\uFE0F' };
