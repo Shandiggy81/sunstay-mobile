@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { fetchOpenMeteoWeather } from '../utils/weatherService';
+import { fetchOpenMeteoWeatherWithMeta } from '../utils/weatherService';
 import { scoreVenueFromWeather, sunScoreFromWeather } from '../utils/scoreFromOpenMeteo';
 import { computeBestWindow } from '../utils/getBestWindow';
 import { melbourneDate } from '../utils/sunPosition';
@@ -42,6 +42,8 @@ export const WeatherProvider = ({ children }) => {
     const [weather, setWeather] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    // Provenance for DataBadge: kind 'live' | 'demo' (null while loading); fetchedAt in epoch ms.
+    const [dataMeta, setDataMeta] = useState({ kind: null, fetchedAt: null });
     const [overrideType, setOverrideType] = useState(null);
     // Settled TOD slider minutes (Melbourne wall-clock). null = live “now”.
     const [previewMinutes, setPreviewMinutes] = useState(null);
@@ -52,17 +54,19 @@ export const WeatherProvider = ({ children }) => {
 
         try {
             // Geo+TTL cache lives in weatherService (30 min, 2dp). Warm hits skip the network.
-            const data = await fetchOpenMeteoWeather(
+            const { data, kind, fetchedAt } = await fetchOpenMeteoWeatherWithMeta(
                 MELBOURNE_COORDS.lat,
                 MELBOURNE_COORDS.lon,
                 signal
             );
             setWeather(data);
+            setDataMeta({ kind, fetchedAt });
         } catch (err) {
             if (isAbortError(err)) return;
 
             console.warn('[WeatherProvider] Open-Meteo fetch failed, falling back to demo data:', err.message);
             setWeather(DEMO_WEATHER);
+            setDataMeta({ kind: 'demo', fetchedAt: null });
             setError(err.message || 'Weather temporarily unavailable');
         } finally {
             setLoading(false);
@@ -168,6 +172,8 @@ export const WeatherProvider = ({ children }) => {
         loading,
         error,
         unavailable: weatherUnavailable,
+        dataKind: dataMeta.kind,
+        fetchedAt: dataMeta.fetchedAt,
         overrideType,
         setOverrideType,
         refetch: fetchWeather,
