@@ -11,21 +11,14 @@
  * right now.
  */
 import { formatDuration, formatHour } from './sunForecastState.js';
+import { venueHour } from './venueTime.js';
 
 const MINUTE = 60 * 1000;
 
 const time = (value) => (value instanceof Date && !Number.isNaN(value.getTime()) ? value.getTime() : null);
 
-const hourFormatters = new Map();
 function localTime(instant, timeZone) {
-    let formatter = hourFormatters.get(timeZone);
-    if (!formatter) {
-        formatter = new Intl.DateTimeFormat('en-AU', { timeZone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
-        hourFormatters.set(timeZone, formatter);
-    }
-    const parts = formatter.formatToParts(new Date(instant));
-    const get = (type) => Number(parts.find((p) => p.type === type)?.value ?? NaN);
-    return formatHour(get('hour') + get('minute') / 60);
+    return formatHour(venueHour(instant, timeZone));
 }
 
 /**

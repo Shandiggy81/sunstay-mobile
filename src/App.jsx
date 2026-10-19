@@ -8,7 +8,7 @@ import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILT
 import { FOOD_TYPE_FILTERS, isFoodTypeFilter, matchesFoodTypeFilters } from './utils/venueFoodType';
 import { venueTypeLabel } from './utils/venueTypeLabel';
 import { filterChoiceKey } from './utils/filterRefit';
-import { venueLocalDate } from './utils/balconySunEngine';
+import { DEFAULT_TIME_ZONE, venueLocalDate } from './utils/balconySunEngine';
 import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
 import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
@@ -684,6 +684,7 @@ const AppContent = () => {
         if (!sunnyFilterActive) return null;
         const sun = getSunData(-37.8136, 144.9631);
         return forecastKindAt(deriveSunForecast({
+            timeZone: DEFAULT_TIME_ZONE,
             hourly: weather?.hourly,
             utcOffsetSeconds: weather?.utcOffsetSeconds,
             sunrise: sun?.sunriseDate,
@@ -1112,9 +1113,9 @@ const AppContent = () => {
 
     const selectedVenueSunData = useMemo(() =>
         selectedVenue?.lat && selectedVenue?.lng
-            ? getSunData(selectedVenue.lat, selectedVenue.lng)
+            ? getSunData(selectedVenue.lat, selectedVenue.lng, { timeZone: selectedVenue.timeZone ?? selectedVenue.timezone ?? DEFAULT_TIME_ZONE })
             : null,
-        [selectedVenue?.lat, selectedVenue?.lng]
+        [selectedVenue?.lat, selectedVenue?.lng, selectedVenue?.timeZone, selectedVenue?.timezone]
     );
 
     const selectedVenueScore = weather?.score ?? weather?.rawWeather?.score ?? 70;
