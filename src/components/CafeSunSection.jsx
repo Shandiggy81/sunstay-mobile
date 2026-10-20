@@ -111,7 +111,7 @@ export default function CafeSunSection({
       ) : null}
 
       {bestFor ? (
-        <p data-cafe-best-for className="flex items-center gap-2 rounded-2xl bg-amber-50 px-3 py-2.5 text-[14px] font-bold leading-snug text-amber-900">
+        <p data-cafe-best-for className="flex w-full max-w-[480px] items-center gap-2 rounded-2xl bg-amber-50 px-3 py-2.5 text-[14px] font-bold leading-snug text-amber-900">
           <ClayIcon name="sun" size={28} />
           {bestFor.text}
         </p>
@@ -125,7 +125,7 @@ export default function CafeSunSection({
       ) : null}
 
       {tiles.length > 0 ? (
-        <ul aria-label="At this café" className="grid grid-cols-2 gap-3">
+        <ul aria-label="At this café" className="grid w-full max-w-[480px] grid-cols-2 gap-3">
           {tiles.map((tile) => (
             <li key={tile.key} data-cafe-tile={tile.key}
               className="flex min-w-0 flex-col items-start gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-3">

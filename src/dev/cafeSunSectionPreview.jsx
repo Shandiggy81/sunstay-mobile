@@ -28,6 +28,8 @@ if (import.meta.env.DEV) {
     hours: Array.from({ length: 24 }, (_, hour) => ({ hour, kind: hour >= 15 && hour < 17 ? 'cloud' : 'sun' })),
   };
   const day = (horizon) => roundedSunDay(outdoorSunDay({ lat, lng, horizon, date, timeZone }));
+  // ?wide drops the column limit, like the venue sheet on a desktop-width window.
+  const column = new URLSearchParams(window.location.search).has('wide') ? 'max-w-none' : 'max-w-xl';
   const examples = [
     {
       key: 'clue-cafe',
@@ -62,7 +64,7 @@ if (import.meta.env.DEV) {
 
   createRoot(document.getElementById('cafe-sun-section-preview')).render(
     <main className="min-h-screen bg-white font-sans text-ink">
-      <header className="mx-auto max-w-xl px-5 pb-2 pt-6">
+      <header className={`mx-auto ${column} px-5 pb-2 pt-6`}>
         <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Development preview</p>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Café sun section</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
@@ -70,7 +72,7 @@ if (import.meta.env.DEV) {
           horizons, confidence, wind and forecast are made up.
         </p>
       </header>
-      <div className="mx-auto max-w-xl space-y-10 px-5 pb-10 pt-4">
+      <div className={`mx-auto ${column} space-y-10 px-5 pb-10 pt-4`}>
         {examples.map(({ key, title, detail, props }) => (
           <article key={key} data-example={key} className="space-y-3">
             <div>

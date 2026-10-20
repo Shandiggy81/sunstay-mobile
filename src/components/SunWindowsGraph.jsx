@@ -2,10 +2,15 @@ import React, { useId, useMemo } from 'react';
 import ClayIcon from './common/ClayIcon.jsx';
 import { layoutSunWindows } from '../utils/sunWindowsGraph.js';
 
+// 480px wide at most: axis labels then render at roughly 11–15px from 390px phones up.
+const MAX_WIDTH = 'max-w-[480px]';
+
 /**
  * Static, venue-local sun geometry. Callers supply engine windows and a clock.
  * `showSummary={false}` drops the caption and total for a caller that shows
  * its own headline from layoutSunWindows on the same input.
+ * The SVG's text scales with its width, so the graph is capped at MAX_WIDTH
+ * (left-aligned) to keep labels readable on a desktop-width sheet.
  */
 export default function SunWindowsGraph({
   windows, date, timezone = 'Australia/Melbourne', now, axisStart, axisEnd, sunrise, sunset,
@@ -110,10 +115,10 @@ export default function SunWindowsGraph({
     </svg>
   );
 
-  if (mini) return <div className={`w-full ${className}`}>{graph}</div>;
+  if (mini) return <div className={`w-full ${MAX_WIDTH} ${className}`}>{graph}</div>;
 
   return (
-    <section className={`min-w-0 rounded-3xl border border-slate-200 bg-surface p-4 font-sans text-ink ${className}`}>
+    <section className={`w-full min-w-0 ${MAX_WIDTH} rounded-3xl border border-slate-200 bg-surface p-4 font-sans text-ink ${className}`}>
       {showSummary && (
         <>
           <p className="text-[12px] font-semibold text-slate-600">
