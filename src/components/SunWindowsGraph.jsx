@@ -1,5 +1,5 @@
 import React, { useId, useMemo } from 'react';
-import ClayIcon from './common/ClayIcon.jsx';
+import ClayIcon, { clayIconUrl } from './common/ClayIcon.jsx';
 import { layoutSunWindows } from '../utils/sunWindowsGraph.js';
 
 // 480px wide at most: axis labels then render at roughly 11–15px from 390px phones up.
@@ -18,6 +18,7 @@ export default function SunWindowsGraph({
 }) {
   const id = `sun-windows-${useId().replace(/:/g, '')}`;
   const mini = variant === 'mini';
+  const sunUrl = clayIconUrl('sun');
   const layout = useMemo(() => {
     try { return layoutSunWindows({ windows, date, timezone, now, axisStart, axisEnd, sunrise, sunset }); }
     catch { return null; }
@@ -51,6 +52,7 @@ export default function SunWindowsGraph({
           <stop offset="0" stopColor="var(--color-slate-400)" />
           <stop offset="1" stopColor="var(--color-slate-500)" />
         </linearGradient>
+        {!sunUrl && <>
         <radialGradient id={`${id}-sun`} cx="0.35" cy="0.3" r="0.75">
           <stop offset="0" stopColor="var(--color-amber-100)" />
           <stop offset="0.5" stopColor="var(--color-amber-300)" />
@@ -63,7 +65,6 @@ export default function SunWindowsGraph({
         <filter id={`${id}-clay`} x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow dx="0" dy="1.5" stdDeviation="1.2" floodColor="var(--color-ink)" floodOpacity="0.12" />
         </filter>
-        <clipPath id={`${id}-band`}><rect x="0" y="12" width="360" height="104" rx="18" /></clipPath>
         <g id={`${id}-sun-shape`}>
           <circle r="23" fill={`url(#${id}-glow)`} />
           <g stroke="var(--color-amber-400)" strokeWidth="2.8" strokeLinecap="round">
@@ -74,6 +75,8 @@ export default function SunWindowsGraph({
           <circle r="12" fill={`url(#${id}-sun)`} filter={`url(#${id}-clay)`} />
           <ellipse cx="-3" cy="-4" rx="5" ry="3" fill="var(--color-surface)" opacity="0.35" />
         </g>
+        </>}
+        <clipPath id={`${id}-band`}><rect x="0" y="12" width="360" height="104" rx="18" /></clipPath>
       </defs>
       <g aria-hidden="true" clipPath={`url(#${id}-band)`}>
         <rect x="0" y="12" width="360" height="104" fill={`url(#${id}-sky)`} />
@@ -94,10 +97,21 @@ export default function SunWindowsGraph({
             <circle cx={marker.x} cy="112" r="3" fill="var(--color-ink)" stroke="var(--color-surface)" strokeWidth="1.5" />
           </g>
         )}
-        {!unavailable && layout.windows.map(window => (
-          <use key={window.start} data-window-sun="true" href={`#${id}-sun-shape`}
-            transform={`translate(${window.sun.x} ${window.sun.y}) scale(${window.sun.radius / 12})`} />
-        ))}
+      </g>
+      {/* Keep the peak decorations outside the band's clip, including in the 128px list graph. */}
+      <g aria-hidden="true">
+        {!unavailable && layout.windows.map(window => {
+          // 60 SVG units is about 21px in the list row, including the asset's transparent padding.
+          const size = mini ? Math.max(60, window.sun.radius * 4.5) : window.sun.radius * 3.5;
+          return sunUrl ? (
+            <image key={window.start} data-window-sun="true" href={sunUrl}
+              x={window.sun.x - size / 2} y={window.sun.y - size / 2} width={size} height={size}
+              preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" />
+          ) : (
+            <use key={window.start} data-window-sun="true" href={`#${id}-sun-shape`}
+              transform={`translate(${window.sun.x} ${window.sun.y}) scale(${window.sun.radius / 12})`} />
+          );
+        })}
       </g>
       {marker?.withinAxis && !mini && (
         <g aria-hidden="true" transform={`translate(${marker.labelX} 4)`}>
