@@ -6,6 +6,14 @@ const HOUR = 60 * MINUTE;
 const WIDTH = 360;
 const BASELINE = 104;
 const BOTTOM = 116;
+// Narrowest hill drawn (of the 360-unit axis), so a short window reads as a
+// small mound rather than a spike: 80 minutes' width on a 6am–6pm axis. Only
+// the drawing widens; times, positions and totals stay exact.
+export const MIN_HILL_WIDTH = 40;
+const SHADE_HEIGHT = 8;
+// Shade slivers narrower than this (e.g. sunrise to the first window) are
+// drawn flat; a mound that thin reads as a spike.
+const MIN_SHADE_MOUND_WIDTH = 12;
 const ZONED_ISO = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(Z|[+-]\d{2}:\d{2})$/i;
 
 // A date-only or unzoned wall clock is not an unambiguous window endpoint.
@@ -90,11 +98,39 @@ function merge(windows) {
 }
 
 const coordinate = number => Number(number.toFixed(6));
+// A bell with a soft foot and a broad, round crown.
 function hillPath(start, end, height) {
-  const mid = (start + end) / 2;
-  const shoulder = (end - start) * 0.2;
+  const half = (end - start) / 2;
+  const mid = start + half;
+  const foot = half * 0.35;
+  const crown = half * 0.65;
   const n = coordinate;
-  return `M ${n(start)} ${BASELINE} C ${n(start + shoulder)} ${BASELINE} ${n(mid - shoulder)} ${n(BASELINE - height)} ${n(mid)} ${n(BASELINE - height)} C ${n(mid + shoulder)} ${n(BASELINE - height)} ${n(end - shoulder)} ${BASELINE} ${n(end)} ${BASELINE} L ${n(end)} ${BOTTOM} L ${n(start)} ${BOTTOM} Z`;
+  return `M ${n(start)} ${BASELINE} C ${n(start + foot)} ${BASELINE} ${n(mid - crown)} ${n(BASELINE - height)} ${n(mid)} ${n(BASELINE - height)} C ${n(mid + crown)} ${n(BASELINE - height)} ${n(end - foot)} ${BASELINE} ${n(end)} ${BASELINE} L ${n(end)} ${BOTTOM} L ${n(start)} ${BOTTOM} Z`;
+}
+
+function bandPath(start, end) {
+  const n = coordinate;
+  return `M ${n(start)} ${BASELINE} L ${n(end)} ${BASELINE} L ${n(end)} ${BOTTOM} L ${n(start)} ${BOTTOM} Z`;
+}
+
+/**
+ * Splits a gap at sunrise and sunset. Daylight parts are building shade
+ * (a low mound, flat when very thin), the rest is night (a flat band). Without sun times the
+ * gap stays one undifferentiated mound with `kind: null`.
+ */
+function gapSegments(start, end, daylight) {
+  if (!daylight) return [{ xStart: start, xEnd: end, kind: null, path: hillPath(start, end, SHADE_HEIGHT) }];
+  const cuts = [start, ...[daylight.start, daylight.end].filter(x => x > start && x < end).sort((a, b) => a - b), end];
+  const segments = [];
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const [a, b] = [cuts[i], cuts[i + 1]];
+    if (b <= a) continue;
+    const middle = (a + b) / 2;
+    const kind = middle >= daylight.start && middle <= daylight.end ? 'shade' : 'night';
+    const mound = kind === 'shade' && b - a >= MIN_SHADE_MOUND_WIDTH;
+    segments.push({ xStart: a, xEnd: b, kind, path: mound ? hillPath(a, b, SHADE_HEIGHT) : bandPath(a, b) });
+  }
+  return segments;
 }
 
 /**
@@ -102,8 +138,12 @@ function hillPath(start, end, height) {
  * Endpoints and returned times are instants (epoch ms); `date` is a venue date or
  * a zoned instant/Date. Totals cover exactly the windows displayed after clipping.
  * Millisecond durations retain seconds instead of independently rounding minutes.
+ * Optional `sunrise`/`sunset` instants mark gaps in daylight as building shade
+ * and the rest as night; unreadable values are ignored rather than guessed.
+ * Each window's `hillStart`/`hillEnd` are drawing extents only (at least
+ * MIN_HILL_WIDTH where neighbours allow); `xStart`/`xEnd` stay exact.
  */
-export function layoutSunWindows({ windows = [], date, timezone = DEFAULT_TIME_ZONE, now, axisStart, axisEnd } = {}) {
+export function layoutSunWindows({ windows = [], date, timezone = DEFAULT_TIME_ZONE, now, axisStart, axisEnd, sunrise, sunset } = {}) {
   if (!Array.isArray(windows)) throw new RangeError('Sun windows must be an array.');
   if (typeof timezone !== 'string' || !timezone) throw new RangeError('Invalid venue timezone.');
   const day = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : instant(date);
@@ -155,11 +195,19 @@ export function layoutSunWindows({ windows = [], date, timezone = DEFAULT_TIME_Z
     const clippedEnd = Math.min(end, window.end);
     return clippedEnd > clippedStart ? [{ start: clippedStart, end: clippedEnd }] : [];
   });
-  const laidOut = displayed.map(window => {
+  const positions = displayed.map(window => ({ xStart: x(window.start), xEnd: x(window.end) }));
+  const laidOut = displayed.map((window, index) => {
     const milliseconds = window.end - window.start;
     const minutes = milliseconds / MINUTE;
-    const xStart = x(window.start);
-    const xEnd = x(window.end);
+    const { xStart, xEnd } = positions[index];
+    // Widen short hills about their centre, never past the halfway point to a
+    // neighbouring window or the axis ends, so hills never overlap.
+    const lower = index > 0 ? (positions[index - 1].xEnd + xStart) / 2 : 0;
+    const upper = index < positions.length - 1 ? (xEnd + positions[index + 1].xStart) / 2 : WIDTH;
+    const centre = (xStart + xEnd) / 2;
+    const halfWidth = Math.max(xEnd - xStart, MIN_HILL_WIDTH) / 2;
+    const hillStart = Math.min(xStart, Math.max(lower, centre - halfWidth));
+    const hillEnd = Math.max(xEnd, Math.min(upper, centre + halfWidth));
     const height = 32 + Math.min(1, Math.sqrt(minutes / 240)) * 32;
     const offsetStart = venueUtcOffsetSeconds(window.start, timezone);
     const offsetEnd = venueUtcOffsetSeconds(window.end, timezone);
@@ -167,18 +215,22 @@ export function layoutSunWindows({ windows = [], date, timezone = DEFAULT_TIME_Z
     const startLabel = clockLabel(window.start, formatter, false, showOffsets ? offsetStart : null);
     const endLabel = clockLabel(window.end, formatter, false, showOffsets ? offsetEnd : null);
     return { ...window, minutes, startLabel, endLabel, rangeLabel: `${startLabel} – ${endLabel}`,
-      durationLabel: duration(milliseconds), xStart, xEnd, height,
+      durationLabel: duration(milliseconds), xStart, xEnd, hillStart, hillEnd, height,
       sun: { x: x((window.start + window.end) / 2), y: BASELINE - height,
-        radius: Math.min(9 + Math.min(1, minutes / 240) * 6, Math.max(3, (xEnd - xStart) * 0.35)) },
-      path: hillPath(xStart, xEnd, height) };
+        radius: Math.min(9 + Math.min(1, minutes / 240) * 6, Math.max(3, (hillEnd - hillStart) * 0.35)) },
+      path: hillPath(hillStart, hillEnd, height) };
   });
+  const sunriseMs = sunrise == null ? null : instant(sunrise);
+  const sunsetMs = sunset == null ? null : instant(sunset);
+  const daylight = sunriseMs === null && sunsetMs === null ? null
+    : { start: sunriseMs === null ? -Infinity : x(sunriseMs), end: sunsetMs === null ? Infinity : x(sunsetMs) };
   const gaps = [];
   let cursor = 0;
   for (const window of laidOut) {
-    if (window.xStart > cursor) gaps.push({ xStart: cursor, xEnd: window.xStart, path: hillPath(cursor, window.xStart, 8) });
+    if (window.xStart > cursor) gaps.push(...gapSegments(cursor, window.xStart, daylight));
     cursor = window.xEnd;
   }
-  if (cursor < WIDTH) gaps.push({ xStart: cursor, xEnd: WIDTH, path: hillPath(cursor, WIDTH, 8) });
+  if (cursor < WIDTH) gaps.push(...gapSegments(cursor, WIDTH, daylight));
 
   const tickLabel = ms => clockLabel(ms, formatter, true, ambiguous(ms) ? venueUtcOffsetSeconds(ms, timezone) : null);
   const labelBounds = ms => {
