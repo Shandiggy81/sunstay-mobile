@@ -28,8 +28,8 @@ import {
     readMicroclimate,
     pinStateFromMicroclimate,
     markerScoreFromMicroclimate,
-    lookupMicroclimateEntry,
 } from '../../utils/microclimate';
+import { freshMicroclimateEntry, mapCaptionProvenance } from '../../utils/microclimateProvenance.js';
 import {
     TOD_DAY_START_MIN as DAY_START_MIN,
     TOD_DAY_END_MIN as DAY_END_MIN,
@@ -159,7 +159,8 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
 }
 
 function readingForVenue(microById, venueId, todMinutes) {
-    const entry = lookupMicroclimateEntry(microById, venueId);
+    // Rows past expires_at are treated as no profile: weather/neutral rules apply.
+    const entry = freshMicroclimateEntry(microById, venueId);
     if (!entry) return null;
     return readMicroclimate(entry, todMinutes);
 }
@@ -874,7 +875,7 @@ const VenueMap = forwardRef(({
     // Reader: cached venues_in_bbox rows + slider minutes. Pin colour/size
     // use these fields (effective_sun, effective_wind, sun_hour_fraction)
     // rather than recomputing sun from client weather when a profile exists.
-    const { byId: microById, todMinutes } = useMicroclimateState();
+    const { byId: microById, todMinutes, viewportBbox } = useMicroclimateState();
     const clusterTodMinutes = todMinutes;
 
     const safeVenues = useMemo(
@@ -895,6 +896,17 @@ const VenueMap = forwardRef(({
         if (!Array.isArray(filteredVenueIds)) return null;
         return new Set(filteredVenueIds.map(id => String(id)));
     }, [filteredVenueIds]);
+
+    // Map caption DataBadge: microclimate age when profile pins are the
+    // on-screen majority, otherwise the client weather fetch.
+    const captionBadge = useMemo(() => mapCaptionProvenance({
+        venues: filteredIdSet ? safeVenues.filter((v) => filteredIdSet.has(String(v.id))) : safeVenues,
+        bbox: viewportBbox,
+        microById,
+        todMinutes: clusterTodMinutes,
+        weatherKind: dataKind,
+        weatherFetchedAt: fetchedAt,
+    }), [safeVenues, filteredIdSet, viewportBbox, microById, clusterTodMinutes, dataKind, fetchedAt]);
 
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
@@ -2219,11 +2231,11 @@ const VenueMap = forwardRef(({
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span>📍 {venues.length} venues</span>
-                        {dataKind && (
+                        {captionBadge && (
                             <DataBadge
-                                kind={dataKind}
-                                updatedAt={fetchedAt}
-                                source={dataKind === 'live' ? 'Open-Meteo weather' : 'Sample weather'}
+                                kind={captionBadge.kind}
+                                updatedAt={captionBadge.updatedAt}
+                                source={captionBadge.source}
                                 size="sm"
                             />
                         )}
