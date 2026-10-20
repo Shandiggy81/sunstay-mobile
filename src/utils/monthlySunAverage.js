@@ -98,3 +98,28 @@ export function calculateMonthlySunAverage(options) {
     job.run(() => false);
     return job.result;
 }
+
+const MONTH_SHORT = Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
+
+/** "Jan" … "Dec" for 1–12, else null. */
+export function monthShortName(month) {
+    return Number.isInteger(month) ? MONTH_SHORT[month - 1] ?? null : null;
+}
+
+/**
+ * Months in calendar order for display, starting after the largest gap so a
+ * run across the new year reads Nov · Dec · Jan rather than Jan · Nov · Dec.
+ */
+export function sunniestMonthsInOrder(months) {
+    if (!Array.isArray(months)) return [];
+    const sorted = [...new Set(months.filter((m) => Number.isInteger(m) && m >= 1 && m <= 12))].sort((a, b) => a - b);
+    if (sorted.length < 2) return sorted;
+    let start = 0;
+    let largestGap = -1;
+    sorted.forEach((month, i) => {
+        const previous = sorted[(i - 1 + sorted.length) % sorted.length];
+        const gap = (month - previous + 12) % 12;
+        if (gap > largestGap) { largestGap = gap; start = i; }
+    });
+    return [...sorted.slice(start), ...sorted.slice(0, start)];
+}

@@ -6,7 +6,9 @@ import {
     createMonthlySunAverageJob,
     MONTHLY_SAMPLE_STEP_DAYS,
     monthlySampleDates,
+    monthShortName,
     pickSunniestMonths,
+    sunniestMonthsInOrder,
     SUNNIEST_MONTH_COUNT,
 } from './monthlySunAverage.js';
 
@@ -102,5 +104,22 @@ describe('createMonthlySunAverageJob', () => {
         assert.equal(job.done, true);
         assert.deepEqual(job.result, calculateMonthlySunAverage(NORTH_OVERHANG));
         assert.equal(job.run(() => true), true, 'running a finished job is a no-op');
+    });
+});
+
+describe('sunniestMonthsInOrder / monthShortName', () => {
+    it('reads in calendar order, wrapping across the new year', () => {
+        assert.deepEqual(sunniestMonthsInOrder([12, 1, 11]), [11, 12, 1]);
+        assert.deepEqual(sunniestMonthsInOrder([10, 9, 11]), [9, 10, 11]);
+        assert.deepEqual(sunniestMonthsInOrder([6]), [6]);
+        assert.deepEqual(sunniestMonthsInOrder([]), []);
+        assert.deepEqual(sunniestMonthsInOrder([2, 2, 13, 0, 'x']), [2]);
+        assert.deepEqual(sunniestMonthsInOrder(null), []);
+    });
+
+    it('names months briefly', () => {
+        assert.deepEqual([1, 6, 12].map(monthShortName), ['Jan', 'Jun', 'Dec']);
+        assert.equal(monthShortName(13), null);
+        assert.equal(monthShortName('1'), null);
     });
 });

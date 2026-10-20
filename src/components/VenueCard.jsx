@@ -7,7 +7,10 @@ import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
 import RoomSunCard from './RoomSunCard';
 import SunMomentsPanel from './SunMomentsPanel.jsx';
-import { useVenueSunHorizon } from '../hooks/useVenueSunHorizon';
+import CafeSunSection from './CafeSunSection.jsx';
+import { useVenueSunProfile } from '../hooks/useVenueSunProfile';
+import { isCafeVenue } from '../utils/cafeCardTiles.js';
+import { roundedSunDay } from '../utils/sunWindowsCard.js';
 import { outdoorSunDay, roomsBySunToday, sunMomentsFromDay } from '../utils/sunMoments.js';
 import { outdoorSunSummary } from '../utils/outdoorSunSummary.js';
 import { DEFAULT_TIME_ZONE, venueLocalDate } from '../utils/balconySunEngine.js';
@@ -430,6 +433,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     error: weatherError,
     unavailable: weatherUnavailableFlag,
     getSunScoreResult,
+    fetchedAt: weatherFetchedAt,
   } = useWeather();
   const weatherData = contextWeather ?? weather ?? null;
   const weatherUnavailable = Boolean(
@@ -528,22 +532,25 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const showStay = isHotelOrStay && (roomIntelligence || roomTypes.length > 0);
   // Bars, cafes and other outdoor venues: today's sun from the buildings
   // around them (stored horizon) plus today's forecast sky.
-  const sunHorizon = useVenueSunHorizon(showStay ? null : venue?.id);
+  const { horizon: sunHorizon, geometryConfidence } = useVenueSunProfile(showStay ? null : venue?.id);
+  // Cafés get the café sun card, whose windows are rounded to whole minutes
+  // so the stat row, the sentence and the headline all show the same total.
+  const isCafe = !showStay && isCafeVenue(venue);
   let todayKey = null;
   try { todayKey = venueLocalDate(now, venueTimeZone); } catch { /* bad time zone: no section */ }
   // Recomputed when the venue's day changes, not every minute.
-  const outdoorDay = useMemo(
-    () => (sunHorizon && todayKey ? outdoorSunDay({ lat, lng, horizon: sunHorizon, date: todayKey, timeZone: venueTimeZone }) : null),
-    [sunHorizon, lat, lng, todayKey, venueTimeZone],
-  );
+  const outdoorDay = useMemo(() => {
+    const day = sunHorizon && todayKey ? outdoorSunDay({ lat, lng, horizon: sunHorizon, date: todayKey, timeZone: venueTimeZone }) : null;
+    return day && isCafe ? roundedSunDay(day) : day;
+  }, [sunHorizon, lat, lng, todayKey, venueTimeZone, isCafe]);
   const outdoorMoments = useMemo(
     () => (outdoorDay ? sunMomentsFromDay({ daily: outdoorDay, forecast, timeZone: venueTimeZone }) : null),
     [outdoorDay, forecast, venueTimeZone],
   );
-  const sunSection = venueCardSunSection({ showStay, outdoorDay, outdoorMoments });
+  const sunSection = venueCardSunSection({ showStay, outdoorDay, outdoorMoments, cafe: isCafe });
   // With sun moments on screen, the stat row and sentence read the same
   // building-shaded windows as the moments' total, not the open-sky forecast.
-  const outdoorSummary = sunSection === 'moments'
+  const outdoorSummary = sunSection === 'moments' || sunSection === 'cafe'
     ? outdoorSunSummary({ daily: outdoorDay, forecast, now, timeZone: venueTimeZone })
     : null;
   const happyHour = verifiedHappyHour(venue);
@@ -653,7 +660,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       address={address}
                       mapsUrl={mapsUrl}
                       amenities={amenities}
-                      perfectFor={venuePerfectFor(outdoorMoments)}
+                      perfectFor={sunSection === 'cafe' ? '' : venuePerfectFor(outdoorMoments)}
                     />
                     {onCenter && hasValidCoordinates ? (
                       <button
@@ -714,6 +721,22 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                         <SunMomentsPanel daily={outdoorDay} summary={outdoorMoments} timeZone={venueTimeZone} now={now} label="sun at this venue" />
                         <p className="text-[11px] text-slate-500">Estimated from the sun&apos;s path and the buildings around the venue (City of Melbourne / OpenStreetMap data). Sky badges use today&apos;s forecast.</p>
                       </section>
+                    </ForecastErrorBoundary>
+                  ) : null}
+
+                  {sunSection === 'cafe' ? (
+                    <ForecastErrorBoundary>
+                      <CafeSunSection
+                        venue={venue}
+                        daily={outdoorDay}
+                        horizon={sunHorizon}
+                        geometryConfidence={geometryConfidence ?? microclimateEntry?.geometry_confidence ?? null}
+                        microclimateEntry={microclimateEntry}
+                        forecast={liveWeather ? forecast : null}
+                        weatherFetchedAt={weatherFetchedAt}
+                        now={now}
+                        timeZone={venueTimeZone}
+                      />
                     </ForecastErrorBoundary>
                   ) : null}
 

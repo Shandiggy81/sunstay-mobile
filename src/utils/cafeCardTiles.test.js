@@ -25,7 +25,7 @@ describe('cafeCardTiles', () => {
     it('shows outdoor tables from CLUE seats and wind shelter from a fresh reading', () => {
         assert.deepEqual(cafeCardTiles(CLUE_CAFE, { microclimate: fresh(0.7), now: NOW }), [
             { key: 'outdoor-tables', label: 'Outdoor tables', icon: 'garden-table', detail: '24 outdoor seats · City of Melbourne CLUE', kind: null },
-            { key: 'wind-sheltered', label: 'Wind-sheltered', icon: 'wind-sheltered', detail: 'From the current wind direction', kind: 'estimated' },
+            { key: 'wind-sheltered', label: "Sheltered from today's wind", icon: 'wind-sheltered', detail: 'Depends on the wind direction', kind: 'estimated' },
         ]);
     });
 
@@ -62,31 +62,38 @@ describe('cafeCardTiles', () => {
         assert.deepEqual(keys(cafeCardTiles(venue, { now: NOW })), ['outdoor-tables', 'dog-friendly', 'pram-friendly']);
     });
 
-    it('reads heaters and fireplaces from the static venue fields', () => {
+    it('holds heaters and fireplaces to the same sourced-record standard as dog and pram', () => {
         const tiles = (venue) => cafeCardTiles({ typeLabel: 'Cafe', ...venue }, { now: NOW });
-        assert.deepEqual(tiles({ heating: 'heated outdoor' }).map((t) => t.label), ['Outdoor heaters']);
-        assert.deepEqual(tiles({ heating: 'indoor only' }), []);
-        assert.deepEqual(tiles({ heating: 'no heating', tags: ['Heaters'] }).map((t) => t.label), ['Heaters']);
-        for (const venue of [{ heating: 'traditional-fireplace' }, { hasFireplace: true }, { tags: ['fireplace'] }]) {
-            assert.deepEqual(keys(tiles(venue)), ['fireplace']);
+        for (const unsourced of [
+            { heating: 'heated outdoor' }, { heating: 'traditional-fireplace' }, { hasFireplace: true },
+            { tags: ['Heaters', 'Fireplace'] }, { heatersOn: true, fireplaceOn: true },
+            { outdoor_heaters: true }, { fireplace: true, fireplace_source: '  ' },
+        ]) {
+            assert.deepEqual(tiles(unsourced), [], JSON.stringify(unsourced));
         }
+        assert.deepEqual(
+            tiles({ outdoor_heaters: true, outdoor_heaters_source: 'venue-confirmed', fireplace: true, fireplace_source: 'venue-confirmed' })
+                .map((t) => [t.key, t.label, t.icon]),
+            [['heaters', 'Outdoor heaters', 'heater'], ['fireplace', 'Fireplace', 'fireplace']],
+        );
     });
 
     it('keeps the brief order and at most four tiles', () => {
         assert.equal(MAX_CAFE_TILES, 4);
+        const warm = { outdoor_heaters: true, outdoor_heaters_source: 'venue-confirmed', fireplace: true, fireplace_source: 'venue-confirmed' };
         const venue = {
-            ...CLUE_CAFE, heating: 'heated outdoor fireplace',
+            ...CLUE_CAFE, ...warm,
             dog_friendly: true, dog_friendly_source: 'venue-confirmed', pram_friendly: true, pram_friendly_source: 'venue-confirmed',
         };
         assert.deepEqual(keys(cafeCardTiles(venue, { microclimate: fresh(0.8), now: NOW })),
             ['outdoor-tables', 'dog-friendly', 'pram-friendly', 'wind-sheltered']);
-        assert.deepEqual(keys(cafeCardTiles({ ...CLUE_CAFE, heating: 'heated outdoor fireplace' }, { microclimate: fresh(0.8), now: NOW })),
+        assert.deepEqual(keys(cafeCardTiles({ ...CLUE_CAFE, ...warm }, { microclimate: fresh(0.8), now: NOW })),
             ['outdoor-tables', 'wind-sheltered', 'heaters', 'fireplace']);
     });
 
     it('only names clay icons that exist', () => {
         const venue = {
-            ...CLUE_CAFE, heating: 'heated outdoor', hasFireplace: true,
+            ...CLUE_CAFE, outdoor_heaters: true, outdoor_heaters_source: 'x', fireplace: true, fireplace_source: 'x',
             dog_friendly: true, dog_friendly_source: 'x', pram_friendly: true, pram_friendly_source: 'x',
         };
         const all = [
