@@ -4,16 +4,18 @@ import { layoutSunWindows } from '../utils/sunWindowsGraph.js';
 
 /** Static, venue-local sun geometry. Callers supply engine windows and a clock. */
 export default function SunWindowsGraph({
-  windows, date, timezone = 'Australia/Melbourne', now, axisStart, axisEnd,
+  windows, date, timezone = 'Australia/Melbourne', now, axisStart, axisEnd, sunrise, sunset,
   variant = 'full', footer, className = '',
 }) {
   const id = `sun-windows-${useId().replace(/:/g, '')}`;
   const mini = variant === 'mini';
   const layout = useMemo(() => {
-    try { return layoutSunWindows({ windows, date, timezone, now, axisStart, axisEnd }); }
+    try { return layoutSunWindows({ windows, date, timezone, now, axisStart, axisEnd, sunrise, sunset }); }
     catch { return null; }
-  }, [windows, date, timezone, now, axisStart, axisEnd]);
+  }, [windows, date, timezone, now, axisStart, axisEnd, sunrise, sunset]);
   const unavailable = !layout || (layout.invalidWindowCount > 0 && layout.windowCount === 0);
+  const noSun = !unavailable && layout.windowCount === 0;
+  const noSunText = layout?.clippedByAxis ? 'No direct sun in the shown hours' : 'No direct sun on this date';
   const incomplete = !unavailable && layout.invalidWindowCount > 0;
   const summary = unavailable ? 'Sun times unavailable' : layout.accessibleSummary;
   const marker = !unavailable && layout.now;
@@ -35,6 +37,10 @@ export default function SunWindowsGraph({
         <linearGradient id={`${id}-shade`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="var(--color-slate-200)" />
           <stop offset="1" stopColor="var(--color-slate-300)" />
+        </linearGradient>
+        <linearGradient id={`${id}-night`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="var(--color-slate-400)" />
+          <stop offset="1" stopColor="var(--color-slate-500)" />
         </linearGradient>
         <radialGradient id={`${id}-sun`} cx="0.35" cy="0.3" r="0.75">
           <stop offset="0" stopColor="var(--color-amber-100)" />
@@ -64,7 +70,10 @@ export default function SunWindowsGraph({
         <rect x="0" y="12" width="360" height="104" fill={`url(#${id}-sky)`} />
         {unavailable ? <rect x="0" y="96" width="360" height="20" fill={`url(#${id}-shade)`} /> : (
           <>
-            {layout.gaps.map((gap, index) => <path key={index} d={gap.path} fill={`url(#${id}-shade)`} />)}
+            {layout.gaps.map((gap, index) => (
+              <path key={index} data-gap={gap.kind ?? 'gap'} d={gap.path}
+                fill={`url(#${id}-${gap.kind === 'night' ? 'night' : 'shade'})`} />
+            ))}
             {layout.windows.map(window => (
               <path key={window.start} data-sun-hill="true" d={window.path} fill={`url(#${id}-hill)`} />
             ))}
@@ -105,10 +114,14 @@ export default function SunWindowsGraph({
         {incomplete ? 'Known direct sun on a clear day' : layout?.clippedByAxis ? 'Direct sun in shown hours on a clear day' : 'Direct sun on a clear day'}
       </p>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <p data-sun-total="true" className="text-[32px] font-extrabold leading-tight tracking-tight tabular-nums">
-          {unavailable ? '—' : layout.totalLabel}
-        </p>
-        {!unavailable && (
+        {noSun ? (
+          <p data-sun-total="none" className="text-[20px] font-extrabold leading-tight tracking-tight">{noSunText}</p>
+        ) : (
+          <p data-sun-total="true" className="text-[32px] font-extrabold leading-tight tracking-tight tabular-nums">
+            {unavailable ? '—' : layout.totalLabel}
+          </p>
+        )}
+        {!unavailable && !noSun && (
           <p className="inline-flex items-center gap-1.5 text-[13px] font-bold text-amber-900">
             <ClayIcon name="sun" size={22} />
             {layout.windowCount} sun {layout.windowCount === 1 ? 'window' : 'windows'}
@@ -124,11 +137,9 @@ export default function SunWindowsGraph({
         </div>
       )}
       {graph}
-      {unavailable || layout.windowCount === 0 ? (
-        <p className="mt-2 text-[13px] font-semibold text-slate-600">
-          {unavailable ? 'Sun times unavailable' : layout.clippedByAxis ? 'No direct sun in the shown hours' : 'No direct sun on this date'}
-        </p>
-      ) : (
+      {unavailable ? (
+        <p className="mt-2 text-[13px] font-semibold text-slate-600">Sun times unavailable</p>
+      ) : noSun ? null : (
         <ul aria-label="Direct sun windows" className="mt-2 flex flex-wrap gap-2">
           {layout.windows.map(window => (
             <li key={window.start} className="flex min-h-11 min-w-0 flex-1 basis-[230px] items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-900">

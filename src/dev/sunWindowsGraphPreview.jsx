@@ -13,6 +13,8 @@ import '../index.css';
 if (import.meta.env.DEV) {
   const date = '2026-10-20';
   const at = time => `${date}T${time}:00+11:00`;
+  // Fabricated sun times so night and building shade draw differently.
+  const sunTimes = { sunrise: at('06:28'), sunset: at('19:43') };
   const split = [
     { start: new Date(at('06:42')), end: new Date(at('11:15')) },
     { start: at('13:05'), end: at('17:05') },
@@ -40,6 +42,14 @@ if (import.meta.env.DEV) {
         { start: at('11:40'), end: at('12:20') },
         { start: at('15:10'), end: at('15:55') },
       ],
+    },
+    {
+      key: 'short-window',
+      title: 'One short window',
+      detail: '12 minutes on a 6am–8pm axis · drawn at a readable width',
+      windows: [{ start: at('10:04'), end: at('10:16') }],
+      axisStart: at('06:00'),
+      axisEnd: at('20:00'),
     },
     { key: 'no-sun', title: 'No direct sun', detail: 'A genuinely empty window list', windows: [] },
     {
@@ -88,6 +98,7 @@ if (import.meta.env.DEV) {
                   <p className={`mt-0.5 text-xs leading-relaxed ${surface === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>{detail}</p>
                 </div>
                 <SunWindowsGraph
+                  {...sunTimes}
                   {...props}
                   date={date}
                   timezone="Australia/Melbourne"
