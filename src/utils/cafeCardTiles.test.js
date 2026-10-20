@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { cafeCardTiles, CAFE_TYPE_LABELS, isCafeVenue, MAX_CAFE_TILES, WIND_SHELTERED_MIN_SCORE } from './cafeCardTiles.js';
+import { cafeCardTiles, isCafeVenue, MAX_CAFE_TILES, WIND_SHELTERED_MIN_SCORE } from './cafeCardTiles.js';
 
 const NOW = Date.parse('2026-10-20T02:00:00Z');
 const MINUTE = 60_000;
@@ -10,14 +10,31 @@ const CLUE_CAFE = { id: 'clue-1', typeLabel: 'Cafe', data_source: 'clue', outdoo
 const keys = (tiles) => tiles.map((t) => t.key);
 
 describe('isCafeVenue', () => {
-    it("is true only for the CLUE café labels", () => {
-        assert.deepEqual([...CAFE_TYPE_LABELS], ['Cafe', 'Bakery cafe']);
-        assert.ok(isCafeVenue({ typeLabel: 'Cafe' }));
-        assert.ok(isCafeVenue({ typeLabel: 'Bakery cafe' }));
-        for (const typeLabel of ['Cafe & Roastery', 'Library Cafe', 'cafe', 'Pub & bar', undefined]) {
-            assert.equal(isCafeVenue({ typeLabel }), false);
+    it('is true for every café or bakery label, CLUE or curated', () => {
+        for (const typeLabel of ['Cafe', 'Bakery cafe', 'Cafe & Roastery', 'Library Cafe']) {
+            assert.equal(isCafeVenue({ typeCategory: 'Bar', typeLabel }), true, typeLabel);
         }
+    });
+
+    it('reads odd casing, accents and spacing', () => {
+        for (const typeLabel of ['cafe', 'CAFE', 'Café', '  bakery   CAFÉ ']) {
+            assert.equal(isCafeVenue({ typeCategory: 'Bar', typeLabel }), true, typeLabel);
+        }
+    });
+
+    it('is false for other kinds, no label and stays', () => {
+        for (const typeLabel of ['Pub & bar', 'Cocktail & wine bar', 'Restaurant', 'Takeaway', 'Eatery', 'Hotel dining', null, undefined, '']) {
+            assert.equal(isCafeVenue({ typeCategory: 'Bar', typeLabel }), false, String(typeLabel));
+        }
+        assert.equal(isCafeVenue({ typeCategory: 'Hotel', typeLabel: 'Cafe' }), false);
+        assert.equal(isCafeVenue({ typeCategory: 'Serviced apartment', typeLabel: 'Bakery cafe' }), false);
         assert.equal(isCafeVenue(null), false);
+    });
+
+    it('never comes from the name', () => {
+        assert.equal(isCafeVenue({ typeCategory: 'Bar', typeLabel: null, venueName: 'Lion and Wombat Cafe' }), false);
+        assert.equal(isCafeVenue({ typeCategory: 'Bar', typeLabel: 'Pub & bar', venueName: 'Asian Beer Cafe' }), false);
+        assert.equal(isCafeVenue({ typeCategory: 'Bar', typeLabel: 'Restaurant', venueName: 'Achelya Cafe & Kebab Restaurant' }), false);
     });
 });
 
