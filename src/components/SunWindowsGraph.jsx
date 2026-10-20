@@ -102,10 +102,12 @@ export default function SunWindowsGraph({
       <g aria-hidden="true">
         {!unavailable && layout.windows.map(window => {
           // 60 SVG units is about 21px in the list row, including the asset's transparent padding.
-          const size = mini ? Math.max(60, window.sun.radius * 4.5) : window.sun.radius * 3.5;
+          // Clamp the full asset at axis edges; its maximum 63-unit height fits the existing viewBox.
+          const size = mini ? Math.max(60, window.sun.radius * 4.5) : window.sun.radius * 4.2;
           return sunUrl ? (
             <image key={window.start} data-window-sun="true" href={sunUrl}
-              x={window.sun.x - size / 2} y={window.sun.y - size / 2} width={size} height={size}
+              x={mini ? window.sun.x - size / 2 : Math.max(0, Math.min(360 - size, window.sun.x - size / 2))}
+              y={window.sun.y - size / 2} width={size} height={size}
               preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" />
           ) : (
             <use key={window.start} data-window-sun="true" href={`#${id}-sun-shape`}
