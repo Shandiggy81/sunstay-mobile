@@ -19,6 +19,13 @@ describe('mapVenuePreview', () => {
         assert.equal(mapVenuePreview(null).subtitle, '');
     });
 
+    it('never shows typeCategory "Bar" as the type; stays still show theirs', () => {
+        // Production venues df-01…df-11 have typeCategory 'Bar' and no typeLabel or vibe.
+        assert.equal(mapVenuePreview({ venueName: 'Sister of Soul', typeCategory: 'Bar', suburb: 'St Kilda' }).subtitle, 'St Kilda');
+        assert.equal(mapVenuePreview({ typeCategory: 'Bar', typeLabel: 'Cafe', suburb: 'Carlton' }).subtitle, 'Cafe · Carlton');
+        assert.equal(mapVenuePreview({ typeCategory: 'Serviced apartment', suburb: 'Southbank' }).subtitle, 'Serviced apartment · Southbank');
+    });
+
     it('uses the same sun chip as the venue list, and does not invent an absent forecast', () => {
         const forecast = { sunriseHour: 6, sunsetHour: 19, nowHour: 12, now: { kind: 'sun' }, sunUntil: 15, hasHourly: true };
         const expected = venueConditionChips({ venue: {}, forecast }).find(chip => chip.key === 'sun');
