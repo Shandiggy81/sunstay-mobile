@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardSunWindows } from './sunWindowsCard.js';
+import { cardSunWindows, forecastForSunWindows, roundedSunDay } from './sunWindowsCard.js';
+import { outdoorSunSummary } from './outdoorSunSummary.js';
 import { layoutSunWindows } from './sunWindowsGraph.js';
 import { outdoorSunDay } from './sunMoments.js';
 
@@ -121,5 +122,50 @@ describe('cardSunWindows', () => {
         const card = cardSunWindows({ ...ENGINE_DAY, sunrise: null, sunset: undefined });
         assert.equal(card.sunrise, null);
         assert.equal(card.sunset, null);
+    });
+});
+
+describe('roundedSunDay', () => {
+    it('gives every reader of the day the graph total', () => {
+        const day = roundedSunDay(ENGINE_DAY);
+        assert.equal(day.totalMinutes, 539);
+        assert.equal(layoutSunWindows(cardSunWindows(day)).totalMinutes, 539);
+        assert.deepEqual(cardSunWindows(day), cardSunWindows(ENGINE_DAY), 'rounding twice changes nothing');
+        assert.ok(day.windows.every((w) => w.start instanceof Date && w.end instanceof Date));
+        const summary = outdoorSunSummary({ daily: day, now: at('12:00:00'), timeZone: TIMEZONE });
+        assert.equal(summary.totalMinutes, 539);
+        assert.match(summary.sentence, /8h 59m/);
+    });
+
+    it('keeps the other day fields and returns null like cardSunWindows', () => {
+        const day = roundedSunDay(ENGINE_DAY);
+        assert.equal(day.date, ENGINE_DAY.date);
+        assert.equal(day.sunset, ENGINE_DAY.sunset);
+        assert.equal(roundedSunDay(null), null);
+        assert.equal(roundedSunDay({ ...ENGINE_DAY, windows: [{ start: 'x', end: at('10:00:00') }] }), null);
+    });
+});
+
+describe('forecastForSunWindows', () => {
+    const hours = (kindAt) => Array.from({ length: 24 }, (_, hour) => ({ hour, kind: kindAt(hour) }));
+    const sun = cardSunWindows({ ...ENGINE_DAY, windows: [{ start: at('09:00:00'), end: at('13:00:00') }] });
+    const forecast = (kindAt) => ({ hasHourly: true, hours: hours(kindAt) });
+
+    it('reads the forecast sky over the sun windows only', () => {
+        assert.deepEqual(forecastForSunWindows({ forecast: forecast(() => 'sun'), sun }),
+            { kind: 'sun', text: "Mostly sunny in today's sun windows" });
+        // cloud outside the windows does not count
+        assert.equal(forecastForSunWindows({ forecast: forecast((h) => (h >= 9 && h < 13 ? 'sun' : 'cloud')), sun }).kind, 'sun');
+        assert.equal(forecastForSunWindows({ forecast: forecast((h) => (h < 11 ? 'sun' : 'cloud')), sun }).kind, 'mixed');
+        assert.equal(forecastForSunWindows({ forecast: forecast(() => 'cloud'), sun }).kind, 'cloud');
+        assert.equal(forecastForSunWindows({ forecast: forecast((h) => (h === 12 ? 'rain' : 'sun')), sun }).text,
+            "Rain forecast during today's sun windows");
+    });
+
+    it('says nothing without an hourly forecast or without sun windows', () => {
+        assert.equal(forecastForSunWindows({ forecast: null, sun }), null);
+        assert.equal(forecastForSunWindows({ forecast: { hasHourly: false, hours: [] }, sun }), null);
+        assert.equal(forecastForSunWindows({ forecast: forecast(() => 'day'), sun }), null);
+        assert.equal(forecastForSunWindows({ forecast: forecast(() => 'sun'), sun: { ...sun, windows: [] } }), null);
     });
 });

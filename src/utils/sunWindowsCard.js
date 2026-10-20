@@ -12,6 +12,7 @@
  *
  * @module utils/sunWindowsCard
  */
+import { venueHour } from './venueTime.js';
 
 const MINUTE = 60_000;
 
@@ -72,4 +73,50 @@ export function cardSunWindows(daily) {
         sunrise: roundedOrNull(daily.sunrise),
         sunset: roundedOrNull(daily.sunset),
     };
+}
+
+/**
+ * The engine day with its windows replaced by the minute-rounded ones and
+ * `totalMinutes` set to their sum, so everything else on the card that reads
+ * a day (outdoorSunSummary's stat and sentence, sunMomentsFromDay) agrees
+ * with the graph's total. Null when cardSunWindows would be.
+ */
+export function roundedSunDay(daily) {
+    const card = cardSunWindows(daily);
+    if (!card) return null;
+    const windows = card.windows.map((w) => ({ start: new Date(w.start), end: new Date(w.end) }));
+    const totalMinutes = card.windows.reduce((sum, w) => sum + (w.end - w.start) / MINUTE, 0);
+    return { ...daily, windows, totalMinutes };
+}
+
+const SKY_TEXT = Object.freeze({
+    sun: "Mostly sunny in today's sun windows",
+    mixed: "Some sun forecast in today's sun windows",
+    cloud: "Cloud forecast over today's sun windows",
+    rain: "Rain forecast during today's sun windows",
+});
+
+/**
+ * The forecast sky over the card's sun windows, read half-hourly from
+ * deriveSunForecast's hours (venue-local hour slots, 'sun' | 'cloud' | 'rain'):
+ * any rain → rain; at least 75% sun → sun; some sun → mixed; else cloud.
+ * Kept apart from the sun numbers, which assume a clear day.
+ *
+ * @param {{ forecast: object|null, sun: ReturnType<typeof cardSunWindows> }} input
+ * @returns {null | { kind: 'sun'|'mixed'|'cloud'|'rain', text: string }}
+ *   null without an hourly forecast or without sun windows
+ */
+export function forecastForSunWindows({ forecast, sun }) {
+    if (!forecast?.hasHourly || !Array.isArray(forecast.hours) || !sun?.windows?.length) return null;
+    const kinds = [];
+    for (const { start, end } of sun.windows) {
+        for (let t = start; t < end; t += 30 * MINUTE) {
+            const kind = forecast.hours[Math.floor(venueHour(t, sun.timezone))]?.kind;
+            if (kind === 'sun' || kind === 'cloud' || kind === 'rain') kinds.push(kind);
+        }
+    }
+    if (kinds.length === 0) return null;
+    const sunShare = kinds.filter((k) => k === 'sun').length / kinds.length;
+    const kind = kinds.includes('rain') ? 'rain' : sunShare >= 0.75 ? 'sun' : sunShare > 0 ? 'mixed' : 'cloud';
+    return { kind, text: SKY_TEXT[kind] };
 }
