@@ -82,6 +82,7 @@ import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
 import DataBadge from '../DataBadge';
 import { venueFeaturePinState } from '../../utils/venueFeaturePin.js';
+import { viewportBboxFromCanvas } from '../../utils/viewportBbox.js';
 import {
     captureMapCamera,
     claimCameraRestore,
@@ -800,16 +801,14 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     );
 }
 
+// Not getBounds(): it leaves out the padding fitBounds/flyTo keep on the
+// camera, which on a short map is nearly the whole canvas. The canvas css size
+// matches the transform unproject() uses, even before a pending resize().
 function readMapBounds(instance) {
     try {
-        const bounds = instance?.getBounds?.();
-        if (!bounds) return null;
-        return {
-            minLng: bounds.getWest(),
-            minLat: bounds.getSouth(),
-            maxLng: bounds.getEast(),
-            maxLat: bounds.getNorth(),
-        };
+        const canvas = instance?.getCanvas?.();
+        if (!canvas) return null;
+        return viewportBboxFromCanvas(canvas.clientWidth, canvas.clientHeight, (point) => instance.unproject(point));
     } catch {
         return null;
     }
@@ -1912,18 +1911,9 @@ const VenueMap = forwardRef(({
 
         const publishBounds = () => {
             if (map.current !== instance || staleGenerationsRef.current.has(mapGenerationRef.current)) return;
-            try {
-                const bounds = instance.getBounds();
-                if (!bounds) return;
-                setBbox({
-                    minLng: bounds.getWest(),
-                    minLat: bounds.getSouth(),
-                    maxLng: bounds.getEast(),
-                    maxLat: bounds.getNorth(),
-                });
-            } catch (e) {
-                console.warn('[VenueMap] could not read viewport bounds:', e?.message);
-            }
+            const bounds = readMapBounds(instance);
+            if (bounds) setBbox(bounds);
+            else console.warn('[VenueMap] could not read viewport bounds; keeping the last bbox');
         };
 
         publishBounds();
