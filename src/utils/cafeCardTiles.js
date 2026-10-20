@@ -14,9 +14,8 @@
  * @module utils/cafeCardTiles
  */
 import { isMicroclimateEntryStale } from './microclimateProvenance.js';
+import { venueKind } from './venueKind.js';
 
-/** Café sun cards are for these typeLabel values only (City of Melbourne CLUE labels). */
-export const CAFE_TYPE_LABELS = Object.freeze(['Cafe', 'Bakery cafe']);
 export const MAX_CAFE_TILES = 4;
 
 /**
@@ -29,8 +28,14 @@ export const MAX_CAFE_TILES = 4;
  */
 export const WIND_SHELTERED_MIN_SCORE = 0.6;
 
+/**
+ * Café sun cards are for venues whose typeLabel says café or bakery
+ * (utils/venueKind): "Cafe", "Bakery cafe", "Cafe & Roastery", "Library Cafe".
+ * Never from the name, and never a stay (venueKind returns 'stay' first).
+ */
 export function isCafeVenue(venue) {
-    return CAFE_TYPE_LABELS.includes(venue?.typeLabel);
+    const kind = venueKind(venue);
+    return kind === 'cafe' || kind === 'bakery';
 }
 
 /** True only for a sourced amenity record: `venue[field] === true` and a non-empty `venue[field + '_source']`. */
