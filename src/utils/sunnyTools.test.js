@@ -10,6 +10,7 @@ import {
     friendlyChatError,
 } from './sunnyTools.js';
 import { sunMomentsByVenue } from './sunMomentFilters.js';
+import { APP_FILTER_IDS } from './filterIds.js';
 
 describe('validateToolCall', () => {
     it('accepts setTimeOfDay minutes in 0–1439 and rounds', () => {
@@ -30,6 +31,35 @@ describe('validateToolCall', () => {
         });
         assert.equal(call.name, 'setFilters');
         assert.deepEqual(call.args.tags, ['Rooftop', 'Pet Friendly']);
+    });
+
+    it('keeps only filter ids the app has, in order and in the app\'s spelling', () => {
+        const tags = (input) => validateToolCall('setFilters', { tags: input })?.args.tags;
+        assert.deepEqual(tags(['moment-sunset', 'Pet Friendly', 'all-cafes', 'sunny-mode', 'all-stays']),
+            ['moment-sunset', 'Pet Friendly', 'all-cafes', 'sunny-mode', 'all-stays']);
+        assert.deepEqual(tags(['Hidden gem', 'Dog friendly']), ['Hidden gem', 'Dog friendly']);
+        assert.deepEqual(tags([' rooftop ', 'wheelchair accessible']), ['Rooftop', 'Wheelchair Accessible']);
+    });
+
+    it('drops unknown, made-up, empty, too long and duplicate ids', () => {
+        const call = validateToolCall('setFilters', {
+            tags: ['Rooftop', 'all-bars', 'Rooftop Bars', '', '   ', 7, null, 'x'.repeat(80), 'rooftop', 'Shaded', 'Shaded'],
+        });
+        assert.deepEqual(call, { name: 'setFilters', args: { tags: ['Rooftop', 'Shaded'] } });
+    });
+
+    it('changes nothing when every id is unknown, but an empty list still clears', () => {
+        assert.equal(validateToolCall('setFilters', { tags: ['all-bars'] }), null);
+        assert.equal(validateToolCall('setFilters', { tags: ['Speakeasy vibes', '', 42] }), null);
+        assert.deepEqual(validateToolCall('setFilters', { tags: [] }), { name: 'setFilters', args: { tags: [] } });
+        const parsed = parseChatSunnyResponse({ reply: 'Here you go', toolCalls: [{ name: 'setFilters', args: { tags: ['all-bars'] } }] });
+        assert.deepEqual(parsed.toolCalls, []);
+    });
+
+    it('still caps setFilters at 12 ids, counting only the kept ones', () => {
+        const many = ['made-up', ...APP_FILTER_IDS];
+        assert.ok(APP_FILTER_IDS.length > 12);
+        assert.deepEqual(validateToolCall('setFilters', { tags: many }).args.tags, APP_FILTER_IDS.slice(0, 12));
     });
 
     it('rejects setFilters when tags is not an array', () => {

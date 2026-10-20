@@ -39,7 +39,7 @@ describe('Homes empty-state context', () => {
         assert.equal(homesEmptyState({ venues: [hotel], filters: ['all-homes', 'all-cafes'] }).title, 'No homes in these listings');
     });
     it('leaves other categories and mixed property selections on the existing empty state', () => {
-        for (const filters of [[], ['all-stays'], ['all-homes', 'all-stays'], ['all-homes', 'all-bars']]) {
+        for (const filters of [[], ['all-stays'], ['all-homes', 'all-stays'], ['all-homes', 'all-hotels']]) {
             assert.equal(homesEmptyState({ venues: [hotel], filters }), null);
         }
     });
