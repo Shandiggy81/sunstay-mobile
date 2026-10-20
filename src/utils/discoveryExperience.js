@@ -14,7 +14,7 @@ export const DISCOVERY_EXPERIENCES = Object.freeze([
     { id: 'sunny-stay', label: 'Sunny stays', detail: 'Compare sun potential', icon: 'hotel-views', filters: ['all-stays'], moment: 'most' },
 ]);
 
-const OWNED_FILTERS = new Set(['sunny-mode', 'cozy-mode', 'all-hotels', 'all-bars',
+const OWNED_FILTERS = new Set(['sunny-mode', 'cozy-mode', 'all-hotels',
     ...PROPERTY_FILTERS.map(f => f.id), ...SUN_MOMENT_FILTERS.map(f => f.id)]);
 
 export function clearExperience(filters) {

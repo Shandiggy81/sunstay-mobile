@@ -13,7 +13,7 @@ describe('food-type filter metadata', () => {
             ['all-desserts', 'Dessert'], ['all-takeaways', 'Takeaway'],
         ]);
         assert.ok(FOOD_TYPE_FILTERS.every(filter => filter.icon && isFoodTypeFilter(filter.id)));
-        for (const id of ['all-stays', 'all-bars', 'moment-coffee', 'unknown', null]) {
+        for (const id of ['all-stays', 'all-homes', 'all-hotels', 'moment-coffee', 'unknown', null]) {
             assert.equal(isFoodTypeFilter(id), false);
         }
     });

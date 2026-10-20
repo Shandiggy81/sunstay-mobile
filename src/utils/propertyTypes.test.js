@@ -23,7 +23,11 @@ test('Homes only includes Residential, ORs with Stays and preserves older exact 
     for (const typeCategory of [...STAY_TYPES, 'Residential']) assert.equal(matchesPropertyTypeFilters({ typeCategory }, ['all-stays', 'all-homes']), true);
     assert.equal(matchesPropertyTypeFilters({ typeCategory: 'Hotel' }, ['all-hotels']), true);
     assert.equal(matchesPropertyTypeFilters({ typeCategory: 'Serviced apartment' }, ['all-hotels']), false);
-    assert.equal(matchesPropertyTypeFilters({ typeCategory: 'Bar' }, ['all-bars']), true);
+    // typeCategory 'Bar' only means "not a stay": food and drink venues pass no property filter.
+    for (const filter of ['all-stays', 'all-homes', 'all-hotels', 'all-bars']) {
+        assert.equal(matchesPropertyTypeFilters({ typeCategory: 'Bar', typeLabel: 'Cafe' }, [filter]), false);
+    }
+    assert.equal(matchesPropertyTypeFilters({}, ['all-stays']), false);
     assert.equal(matchesPropertyTypeFilters({ typeCategory: 'Cafe' }, []), true);
 });
 

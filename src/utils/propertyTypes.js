@@ -21,9 +21,8 @@ export function isPropertyVenue(venue) {
 /** Type selections are ORed, before the existing practical-needs/tag filters. */
 export function matchesPropertyTypeFilters(venue, filters) {
     if (!filters?.length) return true;
-    const type = propertyTypeCategory(venue?.typeCategory || 'Bar');
+    const type = propertyTypeCategory(venue?.typeCategory);
     return filters.some(filter => filter === 'all-stays' ? STAY_TYPES.includes(type)
         : filter === 'all-homes' ? type === 'Residential'
-        : filter === 'all-hotels' ? type === 'Hotel'
-        : filter === 'all-bars' && type === 'Bar');
+        : filter === 'all-hotels' && type === 'Hotel');
 }

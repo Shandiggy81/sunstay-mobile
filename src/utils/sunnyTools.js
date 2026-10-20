@@ -12,6 +12,7 @@
  * @module utils/sunnyTools
  */
 
+import { canonicalFilterId } from './filterIds.js';
 import { forecastSummary, topTags, venueSunWindowToday } from './sunnySuggestions.js';
 import { SUN_MOMENTS } from './sunMoments.js';
 import { keyAmenities } from './venueAmenities.js';
@@ -76,17 +77,20 @@ export function validateToolCall(name, args) {
 
     if (name === 'setFilters') {
         if (!Array.isArray(a.tags)) return null;
+        // Only filter ids the app has (utils/filterIds), in the app's spelling.
+        // An id the model made up is dropped: it would match no venue (an
+        // empty list) or, like the old 'all-bars', far too many.
         const tags = [];
-        const seen = new Set();
         for (const tag of a.tags) {
-            if (typeof tag !== 'string') continue;
-            const trimmed = tag.trim();
-            if (!trimmed || trimmed.length > MAX_TAG_LEN) continue;
-            if (seen.has(trimmed)) continue;
-            seen.add(trimmed);
-            tags.push(trimmed);
+            if (typeof tag !== 'string' || tag.trim().length > MAX_TAG_LEN) continue;
+            const id = canonicalFilterId(tag);
+            if (!id || tags.includes(id)) continue;
+            tags.push(id);
             if (tags.length >= MAX_FILTER_TAGS) break;
         }
+        // Asked for filters but none were real: leave the guest's filters as
+        // they are. An empty list on purpose still clears them.
+        if (a.tags.length > 0 && tags.length === 0) return null;
         return { name, args: { tags } };
     }
 

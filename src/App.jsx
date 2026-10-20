@@ -74,6 +74,7 @@ import EmptyVenueState from './components/common/EmptyVenueState';
 import { areaCountLabel, venueInBounds } from './utils/searchArea';
 import SunWindowsGraph from './components/SunWindowsGraph.jsx';
 import { isCafeVenue } from './utils/cafeCardTiles.js';
+import { FILTER_COZY, FILTER_SUNNY } from './utils/filterIds.js';
 import { rowSunAxis, rowSunLine } from './utils/cafeRowSun.js';
 import { isHoverPointer, isKeyboardFocus, nextHighlightedVenueId, sameVenueId } from './utils/listMapPairing.js';
 import { ROW_SUN_FAILED, setCafeRowSunScrolling, useCafeRowSun, useMinuteNow } from './hooks/useCafeRowSun.js';
@@ -82,9 +83,7 @@ const FilterSheet = lazy(() => import('./components/FilterSheet'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
 const HotelSunReport = lazy(() => import('./components/HotelSunReport.jsx'));
 
-// ── Filter ID constants (single source of truth) ──────────────────────
-export const FILTER_COZY  = 'cozy-mode';
-export const FILTER_SUNNY = 'sunny-mode';
+// Filter ID constants (cozy-mode, sunny-mode) live in utils/filterIds.
 
 // FilterSheet chips use FILTER_CATEGORIES[].id, which is also how venue.tags
 // are stored. Heating is a string on each venue (not an array).
