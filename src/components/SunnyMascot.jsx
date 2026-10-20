@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useWeather } from '../context/WeatherContext';
+import { sunnyAdvice } from '../utils/sunnyAdvice';
 import sunnyMascot from '../assets/sunny-mascot.jpg';
 
 const SunnyMascot = ({
@@ -12,12 +13,7 @@ const SunnyMascot = ({
     const [isHovered, setIsHovered] = useState(false);
     const { weather, theme } = useWeather();
 
-    const getMascotAdvice = () => {
-        if (selectedVenue?.proTip) return `Pro Tip: ${selectedVenue.proTip}`;
-
-        const temp = weather?.temperature ?? 22;
-        return `It's a beautiful ${temp}°C! Perfect for a stroll. ☀️`;
-    };
+    const getMascotAdvice = () => sunnyAdvice(weather, { proTip: selectedVenue?.proTip }).text;
 
     const getGlowColor = () => {
         if (isChatOpen) return 'bg-emerald-400';
