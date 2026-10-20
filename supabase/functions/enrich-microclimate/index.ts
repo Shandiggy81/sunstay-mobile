@@ -170,6 +170,8 @@ export async function enrichBatch(): Promise<{ updated: number; cells: number }>
       venues!inner ( id, lat, lng )
     `)
     .or(`expires_at.is.null,expires_at.lt.${new Date().toISOString()}`)
+    .order("expires_at", { ascending: true, nullsFirst: true })
+    .order("venue_id", { ascending: true })
     .limit(BATCH_SIZE);
   if (error) throw error;
   const rows = (data ?? []) as unknown as ProfileRow[];

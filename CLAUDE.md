@@ -164,6 +164,9 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
   `constructor(id: string, secret: string, serverOverrides?)`): VenueMap calls
   `new Account(id, secret)` with the pair from `parseXweatherCredentials`, and passes it to
   `new MapboxMapController(map, { account })`.
+- Open-Meteo's free API is for non-commercial use only (https://open-meteo.com/en/terms). The app's
+  forecast and air-quality calls and the `enrich-microclimate` job both use it keylessly; commercial
+  use needs a paid Open-Meteo plan before launch.
 
 ### Requires production configuration or dashboard verification
 - Whether Gemini quota or rate limits protect `chat-sunny`. (Production verified 2026-10-11: the
