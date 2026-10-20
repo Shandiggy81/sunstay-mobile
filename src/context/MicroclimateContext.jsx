@@ -49,7 +49,7 @@ export const MicroclimateProvider = ({ children }) => {
     const [todMinutes, setTodMinutesState] = useState(null);
 
     const bbox = viewportBbox ?? fallbackBbox;
-    const { byId, isLoading, error, source, count } = useVenuesInBbox(bbox);
+    const { byId, isLoading, error, source, count, newestComputedAt } = useVenuesInBbox(bbox);
 
     const setBbox = useCallback((next) => {
         setViewportBbox((prev) => (!next || sameBbox(prev, next) ? prev : next));
@@ -75,8 +75,8 @@ export const MicroclimateProvider = ({ children }) => {
     );
 
     const state = useMemo(
-        () => ({ byId, todMinutes, isLoading, error, source, count }),
-        [byId, todMinutes, isLoading, error, source, count],
+        () => ({ byId, todMinutes, isLoading, error, source, count, newestComputedAt, viewportBbox }),
+        [byId, todMinutes, isLoading, error, source, count, newestComputedAt, viewportBbox],
     );
 
     return (
@@ -108,7 +108,7 @@ const NOOP_ACTIONS = Object.freeze({
 /**
  * Reader side: the whole viewport payload.
  *
- * @returns {{ byId: Record<string, object>, todMinutes: number|null, isLoading: boolean, error: any, source: string, count: number }}
+ * @returns {{ byId: Record<string, object>, todMinutes: number|null, isLoading: boolean, error: any, source: string, count: number, newestComputedAt: number|null, viewportBbox: object|null }}
  */
 export const useMicroclimateState = () => {
     const ctx = useContext(MicroclimateStateContext);
@@ -122,6 +122,8 @@ const EMPTY_STATE = Object.freeze({
     error: null,
     source: 'none',
     count: 0,
+    newestComputedAt: null,
+    viewportBbox: null,
 });
 
 /**

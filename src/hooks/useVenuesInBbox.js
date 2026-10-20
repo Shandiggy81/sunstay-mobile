@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { fetchVenuesInBbox } from '../utils/venuesInBboxQuery';
 import { mergeMicroclimateRows } from '../utils/microclimate';
+import { newestWeatherComputedAt } from '../utils/microclimateProvenance.js';
 
 /**
  * Microclimate for every venue inside the current map viewport, via the
@@ -60,7 +61,7 @@ function normalizeBbox(bbox) {
 /**
  * @param {{minLng:number,minLat:number,maxLng:number,maxLat:number}|null} bbox
  * @param {{ limit?: number, enabled?: boolean }} [options]
- * @returns {{ byId: Record<string, object>, isLoading: boolean, error: any, source: 'rpc'|'none', count: number }}
+ * @returns {{ byId: Record<string, object>, isLoading: boolean, error: any, source: 'rpc'|'none', count: number, newestComputedAt: number|null }}
  */
 // venues_in_bbox returns at most p_limit rows (server default 500, capped at
 // 2,000) in id order, not by what's on screen. With ~1,000 venues in the CBD a
@@ -130,6 +131,8 @@ export function useVenuesInBbox(bbox, { limit = BBOX_ROW_LIMIT, enabled = true }
     }, [bboxKey, limit, enabled, normalized]);
 
     const count = useMemo(() => Object.keys(byId).length, [byId]);
+    // Across every held row, including viewports already left; epoch ms.
+    const newestComputedAt = useMemo(() => newestWeatherComputedAt(byId), [byId]);
 
     return {
         byId,
@@ -137,6 +140,7 @@ export function useVenuesInBbox(bbox, { limit = BBOX_ROW_LIMIT, enabled = true }
         error,
         source: count > 0 ? 'rpc' : 'none',
         count,
+        newestComputedAt,
     };
 }
 

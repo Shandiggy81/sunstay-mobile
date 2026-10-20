@@ -28,8 +28,8 @@ import {
     readMicroclimate,
     pinStateFromMicroclimate,
     markerScoreFromMicroclimate,
-    lookupMicroclimateEntry,
 } from '../../utils/microclimate';
+import { freshMicroclimateEntry, mapCaptionProvenance } from '../../utils/microclimateProvenance.js';
 import {
     TOD_DAY_START_MIN as DAY_START_MIN,
     TOD_DAY_END_MIN as DAY_END_MIN,
@@ -82,6 +82,7 @@ import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
 import DataBadge from '../DataBadge';
 import { venueFeaturePinState } from '../../utils/venueFeaturePin.js';
+import { viewportBboxFromCanvas } from '../../utils/viewportBbox.js';
 import {
     captureMapCamera,
     claimCameraRestore,
@@ -159,7 +160,8 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
 }
 
 function readingForVenue(microById, venueId, todMinutes) {
-    const entry = lookupMicroclimateEntry(microById, venueId);
+    // Stale rows (see isMicroclimateEntryStale) count as no profile: weather/neutral rules apply.
+    const entry = freshMicroclimateEntry(microById, venueId);
     if (!entry) return null;
     return readMicroclimate(entry, todMinutes);
 }
@@ -799,16 +801,14 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     );
 }
 
+// Not getBounds(): it leaves out the padding fitBounds/flyTo keep on the
+// camera, which on a short map is nearly the whole canvas. The canvas css size
+// matches the transform unproject() uses, even before a pending resize().
 function readMapBounds(instance) {
     try {
-        const bounds = instance?.getBounds?.();
-        if (!bounds) return null;
-        return {
-            minLng: bounds.getWest(),
-            minLat: bounds.getSouth(),
-            maxLng: bounds.getEast(),
-            maxLat: bounds.getNorth(),
-        };
+        const canvas = instance?.getCanvas?.();
+        if (!canvas) return null;
+        return viewportBboxFromCanvas(canvas.clientWidth, canvas.clientHeight, (point) => instance.unproject(point));
     } catch {
         return null;
     }
@@ -874,7 +874,7 @@ const VenueMap = forwardRef(({
     // Reader: cached venues_in_bbox rows + slider minutes. Pin colour/size
     // use these fields (effective_sun, effective_wind, sun_hour_fraction)
     // rather than recomputing sun from client weather when a profile exists.
-    const { byId: microById, todMinutes } = useMicroclimateState();
+    const { byId: microById, todMinutes, viewportBbox } = useMicroclimateState();
     const clusterTodMinutes = todMinutes;
 
     const safeVenues = useMemo(
@@ -895,6 +895,17 @@ const VenueMap = forwardRef(({
         if (!Array.isArray(filteredVenueIds)) return null;
         return new Set(filteredVenueIds.map(id => String(id)));
     }, [filteredVenueIds]);
+
+    // Map caption DataBadge: microclimate age when profile pins are the
+    // on-screen majority, otherwise the client weather fetch.
+    const captionBadge = useMemo(() => mapCaptionProvenance({
+        venues: filteredIdSet ? safeVenues.filter((v) => filteredIdSet.has(String(v.id))) : safeVenues,
+        bbox: viewportBbox,
+        microById,
+        todMinutes: clusterTodMinutes,
+        weatherKind: dataKind,
+        weatherFetchedAt: fetchedAt,
+    }), [safeVenues, filteredIdSet, viewportBbox, microById, clusterTodMinutes, dataKind, fetchedAt]);
 
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
@@ -1900,18 +1911,9 @@ const VenueMap = forwardRef(({
 
         const publishBounds = () => {
             if (map.current !== instance || staleGenerationsRef.current.has(mapGenerationRef.current)) return;
-            try {
-                const bounds = instance.getBounds();
-                if (!bounds) return;
-                setBbox({
-                    minLng: bounds.getWest(),
-                    minLat: bounds.getSouth(),
-                    maxLng: bounds.getEast(),
-                    maxLat: bounds.getNorth(),
-                });
-            } catch (e) {
-                console.warn('[VenueMap] could not read viewport bounds:', e?.message);
-            }
+            const bounds = readMapBounds(instance);
+            if (bounds) setBbox(bounds);
+            else console.warn('[VenueMap] could not read viewport bounds; keeping the last bbox');
         };
 
         publishBounds();
@@ -2219,11 +2221,11 @@ const VenueMap = forwardRef(({
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span>📍 {venues.length} venues</span>
-                        {dataKind && (
+                        {captionBadge && (
                             <DataBadge
-                                kind={dataKind}
-                                updatedAt={fetchedAt}
-                                source={dataKind === 'live' ? 'Open-Meteo weather' : 'Sample weather'}
+                                kind={captionBadge.kind}
+                                updatedAt={captionBadge.updatedAt}
+                                source={captionBadge.source}
                                 size="sm"
                             />
                         )}
