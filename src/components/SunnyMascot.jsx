@@ -142,7 +142,7 @@ const SunnyMascot = ({
                     transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
                     className="absolute right-0 bottom-[calc(100%+12px)] w-60 max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] pointer-events-none border border-white/50"
                 >
-                    <p className="text-[13px] font-bold text-gray-800 tracking-tight line-clamp-2">
+                    <p className="text-[13px] font-bold text-gray-800 tracking-tight line-clamp-4">
                         {advice.text}
                     </p>
                     <div className="absolute right-8 -bottom-1.5 w-3 h-3 bg-white/95 rotate-45" />
