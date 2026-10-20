@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
     freshMicroclimateEntry,
     isMicroclimateEntryExpired,
+    isMicroclimateEntryStale,
+    MICROCLIMATE_MAX_AGE_MINUTES,
     mapCaptionProvenance,
     newestWeatherComputedAt,
     timestampMs,
@@ -57,6 +59,42 @@ describe('isMicroclimateEntryExpired / freshMicroclimateEntry', () => {
         assert.equal(freshMicroclimateEntry({ a: fresh, b: stale }, 'a', NOW), fresh);
         assert.equal(freshMicroclimateEntry({ a: fresh, b: stale }, 'b', NOW), null);
         assert.equal(freshMicroclimateEntry({}, 'a', NOW), null);
+    });
+});
+
+describe('isMicroclimateEntryStale', () => {
+    it('uses a 60-minute limit', () => {
+        assert.equal(MICROCLIMATE_MAX_AGE_MINUTES, 60);
+    });
+
+    it('keeps rows computed under 60 minutes ago fresh', () => {
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: 0 }), NOW), false);
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: 59 }), NOW), false);
+    });
+
+    it('treats a row computed exactly 60 minutes ago as fresh', () => {
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: 60 }), NOW), false);
+        assert.equal(isMicroclimateEntryStale({ sun_now: 0.8, weather_computed_at: iso(NOW - 60 * MIN - 1) }, NOW), true);
+    });
+
+    it('treats rows computed over 60 minutes ago as stale', () => {
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: 61 }), NOW), true);
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: 600 }), NOW), true);
+    });
+
+    it('treats a missing or unreadable weather_computed_at as stale', () => {
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: null }), NOW), true);
+        assert.equal(isMicroclimateEntryStale({ sun_now: 0.8 }, NOW), true);
+        assert.equal(isMicroclimateEntryStale({ sun_now: 0.8, weather_computed_at: 'yesterday' }, NOW), true);
+    });
+
+    it('lets a past expires_at win over a recent weather_computed_at', () => {
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: 1, expiresInMin: -1 }), NOW), true);
+    });
+
+    it('applies the age rule even when expires_at is still in the future', () => {
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: 90, expiresInMin: 30 }), NOW), true);
+        assert.equal(isMicroclimateEntryStale(row({ computedMinAgo: 10, expiresInMin: 30 }), NOW), false);
     });
 });
 
@@ -133,12 +171,21 @@ describe('mapCaptionProvenance', () => {
         });
     });
 
-    it('counts rows without a readable time toward the share but not the age', () => {
-        const venues = [venue('a'), venue('b')];
-        assert.equal(caption(venues, { a: row({ computedMinAgo: 6 }), b: row({ computedMinAgo: null }) }).updatedAt, NOW - 6 * MIN);
-        const noTimes = caption(venues, { a: row({ computedMinAgo: null }), b: row({ computedMinAgo: null }) });
-        assert.equal(noTimes.kind, 'calculated');
-        assert.equal(noTimes.updatedAt, null);
+    it('excludes stale rows (over 60 minutes or no time) from the share and the age', () => {
+        const venues = [venue('a'), venue('b'), venue('c'), venue('d')];
+        const byId = {
+            a: row({ computedMinAgo: 6 }),
+            b: row({ computedMinAgo: 60 }), // exactly 60: still fresh, and the oldest fresh row
+            c: row({ computedMinAgo: 90 }),
+            d: row({ computedMinAgo: null }),
+        };
+        assert.deepEqual(caption(venues, byId), {
+            kind: 'calculated',
+            updatedAt: NOW - 60 * MIN,
+            source: '2 of 4 pins from SunStay microclimate, 2 from Open-Meteo weather',
+        });
+        const noTimes = caption(venues.slice(0, 2), { a: row({ computedMinAgo: null }), b: row({ computedMinAgo: null }) });
+        assert.equal(noTimes.kind, 'live');
     });
 
     it('only counts pins inside the viewport', () => {

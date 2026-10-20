@@ -11,6 +11,16 @@ import { markerCoordinatePlan } from './mapMarkerLifecycle.js';
 /** Share of on-screen pins that must come from a microclimate profile for the caption to describe them. */
 export const PROFILE_SHARE_THRESHOLD = 0.5;
 
+/**
+ * A row whose `weather_computed_at` is older than this is stale.
+ * `venues_in_bbox` does not return `expires_at`, so age is the client's only
+ * freshness signal. enrich-microclimate runs every 20 minutes, so 60 minutes
+ * means three missed runs, and it sits comfortably above the job's default
+ * 30-minute TTL. Exactly 60 minutes still counts as fresh.
+ */
+export const MICROCLIMATE_MAX_AGE_MINUTES = 60;
+const MICROCLIMATE_MAX_AGE_MS = MICROCLIMATE_MAX_AGE_MINUTES * 60_000;
+
 /** Epoch ms for a Date, epoch-ms number or timestamp string, else null. */
 export function timestampMs(value) {
     if (value instanceof Date) return Number.isFinite(value.getTime()) ? value.getTime() : null;
@@ -30,10 +40,23 @@ export function isMicroclimateEntryExpired(entry, now = Date.now()) {
     return expiresAt != null && nowMs != null && expiresAt <= nowMs;
 }
 
-/** The venue's microclimate row, or null when it has none or the row has expired. */
+/**
+ * True when the row should not be trusted: past a readable `expires_at`, or its
+ * `weather_computed_at` is missing, unreadable or older than
+ * MICROCLIMATE_MAX_AGE_MINUTES.
+ */
+export function isMicroclimateEntryStale(entry, now = Date.now()) {
+    if (isMicroclimateEntryExpired(entry, now)) return true;
+    const computedAt = timestampMs(entry?.weather_computed_at);
+    const nowMs = timestampMs(now);
+    if (computedAt == null || nowMs == null) return true;
+    return nowMs - computedAt > MICROCLIMATE_MAX_AGE_MS;
+}
+
+/** The venue's microclimate row, or null when it has none or the row is stale. */
 export function freshMicroclimateEntry(byId, venueId, now = Date.now()) {
     const entry = lookupMicroclimateEntry(byId, venueId);
-    return entry && !isMicroclimateEntryExpired(entry, now) ? entry : null;
+    return entry && !isMicroclimateEntryStale(entry, now) ? entry : null;
 }
 
 /** Newest readable `weather_computed_at` across all held rows, in epoch ms, or null. */
@@ -57,10 +80,9 @@ function insideBbox(venue, bbox) {
 /**
  * What the map caption's DataBadge should describe for the pins on screen.
  *
- * A pin counts as a profile pin when an unexpired microclimate row sets its
- * colour. When profile pins are at least half of the on-screen pins the badge
- * is 'calculated', aged by the OLDEST readable `weather_computed_at` among
- * them; rows without a readable time count toward the share but not the age.
+ * A pin counts as a profile pin when a fresh (not stale) microclimate row sets
+ * its colour. When profile pins are at least half of the on-screen pins the
+ * badge is 'calculated', aged by the OLDEST `weather_computed_at` among them.
  * Otherwise it describes the client weather fetch. `source` carries the split
  * for the badge's title and accessible name.
  *

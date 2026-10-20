@@ -159,7 +159,7 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
 }
 
 function readingForVenue(microById, venueId, todMinutes) {
-    // Rows past expires_at are treated as no profile: weather/neutral rules apply.
+    // Stale rows (see isMicroclimateEntryStale) count as no profile: weather/neutral rules apply.
     const entry = freshMicroclimateEntry(microById, venueId);
     if (!entry) return null;
     return readMicroclimate(entry, todMinutes);
