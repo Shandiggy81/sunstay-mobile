@@ -89,4 +89,16 @@ describe('clusterSize', () => {
     it('grows with the count', () => {
         assert.deepEqual([1, 4, 5, 14, 15, 60, 0, null].map(clusterSize), [36, 36, 42, 42, 48, 48, 36, 36]);
     });
+
+    it('rings selected and highlighted pins and stacks highlighted above selected', () => {
+        const idle = sunPinView({ score: 88 });
+        const selected = sunPinView({ score: 88, selected: true });
+        const highlighted = sunPinView({ score: 30, highlighted: true });
+        const both = sunPinView({ score: 88, selected: true, highlighted: true });
+        assert.deepEqual([idle.ring, selected.ring, highlighted.ring, both.ring], [false, true, true, true]);
+        assert.deepEqual([idle.raised, selected.raised, highlighted.raised], [false, false, true]);
+        assert.deepEqual([sunPinView({ score: 30 }).zIndex, idle.zIndex, selected.zIndex, highlighted.zIndex, both.zIndex], [1, 2, 3, 4, 4]);
+        assert.equal(highlighted.tier, 'low', 'highlight keeps the sun colour; only selection repaints it');
+        assert.equal(both.tier, 'selected');
+    });
 });

@@ -7099,6 +7099,15 @@ body,
 .ss-discovery-context { margin: 0; color: #334155; font-size: 12px; font-weight: 700; line-height: 1.5; }
 .ss-discovery-source { margin: 3px 0 0; color: #475569; font-size: 11px; font-weight: 500; line-height: 1.5; }
 .ss-vlc-moment { flex-basis: 100%; display: flex; align-items: center; gap: 5px; margin: 0; color: #78350f; font-size: 12px; font-weight: 700; }
+/* Café rows: today's sun as an unlabeled mini graph and the day's total. */
+.ss-vlc-sun { flex-basis: 100%; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ss-vlc-sun-graph { flex: 0 0 128px; width: 128px; height: 37px; }
+.ss-vlc-sun-graph--pending { display: block; border-radius: 10px; background: #f1f5f9; }
+.ss-vlc-sun-text { min-width: 0; color: #78350f; font-size: 13px; font-weight: 700; line-height: 1.3; }
+.ss-vlc-sun-text--pending { display: block; width: 96px; height: 12px; border-radius: 6px; background: #f1f5f9; }
+/* List ↔ map pairing: the row for the pin under the pointer (outline, not colour alone). */
+.ss-venue-list-card.ss-venue-list-card--paired,
+.ss-venue-list-card.ss-venue-list-card--paired:hover { border-color: #0f172a; box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.14), 0 4px 16px rgba(0, 0, 0, 0.06); }
 .ss-vlc-amenities--row { flex-basis: 100%; margin: 0; }
 .ss-stay-chips button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; }
 .ss-stay-chips + .ss-stay-chips { margin-top: 6px; }
