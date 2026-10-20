@@ -1,11 +1,15 @@
 import { keyAmenities } from './venueAmenities.js';
 import { venueConditionChips } from './venueConditionChips.js';
 import { venueTypeLabel } from './venueTypeLabel.js';
+import { venueKind } from './venueKind.js';
 
 /** Compact pin content; keep the sun wording and amenity order shared with the list. */
 export function mapVenuePreview(venue, forecast) {
     const photo = [venue?.image_url, venue?.image].find(value => typeof value === 'string' && value.trim());
-    const type = venueTypeLabel(venue?.typeLabel || venue?.vibe || venue?.typeCategory);
+    // typeCategory names only a stay's type: for food and drink it is always
+    // 'Bar' ("not a stay"), which would show a café with no label as a "Bar".
+    const category = venueKind(venue) === 'stay' ? venue.typeCategory : '';
+    const type = venueTypeLabel(venue?.typeLabel || venue?.vibe || category);
     return {
         name: String(venue?.venueName || venue?.name || 'Venue'),
         imageUrl: photo?.trim() || null,
