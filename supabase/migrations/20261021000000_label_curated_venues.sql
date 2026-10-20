@@ -98,3 +98,11 @@ update public.venues as v
  where v.id = t.id
    and v.tags = t.placeholder
    and v.tags is distinct from t.tags;
+
+-- df-04 Royal Oak Hotel, Fitzroy North: the stored site is outdated; the
+-- venue's current site is royaloakhotel.co (442 Nicholson Street, Fitzroy
+-- North, per that site). Guarded on the old value.
+update public.venues
+   set official_website_url = 'https://royaloakhotel.co/'
+ where id = 'df-04'
+   and official_website_url = 'https://royaloakfitzroynorth.com.au/';
