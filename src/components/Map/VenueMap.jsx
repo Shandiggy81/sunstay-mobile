@@ -82,6 +82,7 @@ import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
 import DataBadge from '../DataBadge';
 import { venueFeaturePinState } from '../../utils/venueFeaturePin.js';
+import { isHoverPointer, orphanedPinHover } from '../../utils/listMapPairing.js';
 import { viewportBboxFromCanvas } from '../../utils/viewportBbox.js';
 import {
     captureMapCamera,
@@ -311,7 +312,23 @@ function paintMarkerEl(el, view) {
         ? `${view.venueName}, ${view.momentBadge.label}, ${view.label}`
         : view.label);
     el.dataset.sunTier = view.tier;
-    el.style.zIndex = view.tier === 'selected' ? '3' : view.tier === 'full' ? '2' : '1';
+    el.dataset.highlighted = view.raised ? 'true' : 'false';
+    el.style.zIndex = String(view.zIndex ?? 1);
+    bubble.style.outline = view.ring ? '2.5px solid #0f172a' : '';
+    bubble.style.outlineOffset = view.ring ? '2px' : '';
+    bubble.style.transform = view.raised ? 'scale(1.08)' : '';
+}
+
+/** Repaint an existing venue pin from its record after a selection or highlight change. */
+function repaintVenueMarker(record) {
+    paintMarkerEl(record.el, {
+        ...sunPinView({
+            pinKey: record.pinKey, score: record.score, emoji: record.emoji, iconUrl: record.iconUrl,
+            selected: record.selected, highlighted: Boolean(record.highlighted),
+        }),
+        momentBadge: record.momentBadge,
+        venueName: record.venueName,
+    });
 }
 
 function createMarkerEl(view) {
@@ -823,6 +840,8 @@ const VenueMap = forwardRef(({
     sunMomentsById = null,
     filterKey,
     onVenueSelect,
+    highlightedVenueId = null, // list ↔ map pairing: the hovered/focused row's venue
+    onVenueHover = null,        // (venueId, 'enter' | 'leave') => void, from a pin hover
     liveVenueFeatures = {},
     // ── NEW: props wired from App.jsx ──────────────────────────────
     weatherColorFn    = null,   // (weather, venue) => pinKey string
@@ -921,15 +940,30 @@ const VenueMap = forwardRef(({
             const selected = id != null && record.venueId === String(id);
             if (record.selected === selected) continue;
             record.selected = selected;
-            paintMarkerEl(record.el, {
-                ...sunPinView({ pinKey: record.pinKey, score: record.score, emoji: record.emoji, iconUrl: record.iconUrl, selected }),
-                momentBadge: record.momentBadge,
-                venueName: record.venueName,
-            });
+            repaintVenueMarker(record);
         }
         // Add (or drop) the separate pin for a selected venue inside a cluster.
         syncMarkersRef.current?.('selection');
     }, [selectedVenue?.id]);
+
+    // List ↔ map pairing: a hovered or focused list row highlights its pin.
+    // Only pins whose highlight changed are repainted; no marker sync runs,
+    // so a venue hidden inside a cluster simply has no pin to highlight.
+    const onVenueHoverRef = useRef(onVenueHover);
+    useEffect(() => { onVenueHoverRef.current = onVenueHover; }, [onVenueHover]);
+    const pinHoverIdRef = useRef(null); // venue id of the pin under the mouse, if any
+    const highlightedVenueIdRef = useRef(highlightedVenueId != null ? String(highlightedVenueId) : null);
+    useEffect(() => {
+        const id = highlightedVenueId != null ? String(highlightedVenueId) : null;
+        highlightedVenueIdRef.current = id;
+        for (const record of Object.values(markersRef.current || {})) {
+            if (!record || record.isCluster || !record.el) continue;
+            const highlighted = id != null && record.venueId === id;
+            if (Boolean(record.highlighted) === highlighted) continue;
+            record.highlighted = highlighted;
+            repaintVenueMarker(record);
+        }
+    }, [highlightedVenueId]);
 
     const liveVenueFeaturesRef = useRef(liveVenueFeatures);
     const liveKey = JSON.stringify(liveVenueFeatures);
@@ -1802,10 +1836,11 @@ const VenueMap = forwardRef(({
                     const emoji = venue.emoji ?? null;
                     const iconUrl = clayPinUrlFor(venue, CLAY_PIN_URLS);
                     const selected = String(selectedVenueIdRef.current ?? '') === String(venueId);
+                    const highlighted = highlightedVenueIdRef.current != null && highlightedVenueIdRef.current === String(venueId);
                     const momentBadge = mapMomentBadge(venueId, activeSunMoment, sunMomentsById);
                     const venueName = String(venue.venueName || venue.name || venue.title || 'Venue');
                     const view = {
-                        ...sunPinView({ pinKey, score, emoji, iconUrl, selected }),
+                        ...sunPinView({ pinKey, score, emoji, iconUrl, selected, highlighted }),
                         momentBadge, venueName,
                     };
                     specs.push({
@@ -1814,13 +1849,14 @@ const VenueMap = forwardRef(({
                             if (existing.pinKey !== pinKey || existing.score !== score
                                 || existing.emoji !== emoji || existing.iconUrl !== iconUrl
                                 || existing.momentBadge !== momentBadge || existing.venueName !== venueName
-                                || existing.selected !== selected) {
+                                || existing.selected !== selected || Boolean(existing.highlighted) !== highlighted) {
                                 paintMarkerEl(existing.el, view);
                                 existing.pinKey = pinKey;
                                 existing.score = score;
                                 existing.emoji = emoji;
                                 existing.iconUrl = iconUrl;
                                 existing.selected = selected;
+                                existing.highlighted = highlighted;
                                 existing.momentBadge = momentBadge;
                                 existing.venueName = venueName;
                             }
@@ -1833,16 +1869,32 @@ const VenueMap = forwardRef(({
                                 if (mapGenerationRef.current !== generation) return;
                                 onVenueSelectRef.current?.(venue);
                             });
+                            // Mouse/pen hover highlights the venue's list row; touch taps select instead.
+                            el.addEventListener('pointerenter', (e) => {
+                                if (!isHoverPointer(e) || mapGenerationRef.current !== generation) return;
+                                pinHoverIdRef.current = String(venueId);
+                                onVenueHoverRef.current?.(String(venueId), 'enter');
+                            });
+                            el.addEventListener('pointerleave', (e) => {
+                                if (!isHoverPointer(e) || mapGenerationRef.current !== generation) return;
+                                if (pinHoverIdRef.current === String(venueId)) pinHoverIdRef.current = null;
+                                onVenueHoverRef.current?.(String(venueId), 'leave');
+                            });
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(instance);
-                            return { marker, el, pinKey, score, emoji, iconUrl, selected, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
+                            return { marker, el, pinKey, score, emoji, iconUrl, selected, highlighted, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
                         },
                     });
                 }
 
                 const synced = syncMarkerLayer(markersRef.current, generation, specs);
                 markersRef.current = synced.markers;
+                const orphanedHover = orphanedPinHover(pinHoverIdRef.current, synced.markers);
+                if (orphanedHover) {
+                    pinHoverIdRef.current = null;
+                    onVenueHoverRef.current?.(orphanedHover, 'leave');
+                }
                 const clusterCreated = synced.created.filter((id) => String(id).startsWith('cluster-')).length;
                 syncSchedulerRef.current = completeMarkerSync(syncSchedulerRef.current, {
                     created: synced.created.length,

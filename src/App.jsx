@@ -72,6 +72,11 @@ import AppErrorBoundary from './components/AppErrorBoundary';
 import NetworkErrorModal from './components/common/NetworkErrorModal';
 import EmptyVenueState from './components/common/EmptyVenueState';
 import { areaCountLabel, venueInBounds } from './utils/searchArea';
+import SunWindowsGraph from './components/SunWindowsGraph.jsx';
+import { isCafeVenue } from './utils/cafeCardTiles.js';
+import { rowSunAxis, rowSunLine } from './utils/cafeRowSun.js';
+import { isHoverPointer, isKeyboardFocus, nextHighlightedVenueId, sameVenueId } from './utils/listMapPairing.js';
+import { ROW_SUN_FAILED, setCafeRowSunScrolling, useCafeRowSun, useMinuteNow } from './hooks/useCafeRowSun.js';
 
 const FilterSheet = lazy(() => import('./components/FilterSheet'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
@@ -191,7 +196,18 @@ const getSunstayScoreVisual = (score) => {
 };
 
 // ── VenueListCard ──────────────────────────────────────────────────────
-const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys }) => {
+// The café row's unlabeled mini sun graph. Its own component so only café
+// rows re-render when the shared minute clock moves the Now marker.
+const CafeRowSunGraph = memo(function CafeRowSunGraph({ sun }) {
+    const now = useMinuteNow();
+    return (
+        <div className="ss-vlc-sun-graph">
+            <SunWindowsGraph variant="mini" {...sun} {...rowSunAxis(sun)} now={now} />
+        </div>
+    );
+});
+
+const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys, isHighlighted = false, onVenueHover, horizon = null }) => {
     // Read from context: the list never passed this prop, so venues without a
     // microclimate profile showed no badge.
     const { calculateSunScore, unavailable: weatherUnavailableFlag, error: weatherError } = useWeather();
@@ -217,7 +233,24 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     // Wheelchair, pram, dog and hidden-gem icons after the chips (utils/venueAmenities).
     const amenities = useMemo(() => keyAmenities(venue).slice(0, 3), [venue]);
     const momentMatch = matchedMomentLabel(momentKeys, activeFilters);
-    const visibleChips = momentMatch ? chips.filter(chip => chip.key !== 'sun') : chips;
+    // Cafés with a building horizon show today's sun from the same rounded day
+    // as their detail card, in place of the open-sky "Now: sun" chip, which
+    // could disagree with the building shade.
+    const cafeHorizon = isCafeVenue(venue) ? horizon : null;
+    const rowSun = useCafeRowSun({
+        venueId: venue.id, lat: venue.lat, lng: venue.lng, horizon: cafeHorizon,
+        timeZone: venue.timeZone ?? venue.timezone ?? undefined,
+    });
+    const cafeSun = Boolean(cafeHorizon) && rowSun !== ROW_SUN_FAILED;
+    const cafeSunLine = cafeSun ? rowSunLine(rowSun) : null;
+    const visibleChips = momentMatch || cafeSun ? chips.filter(chip => chip.key !== 'sun') : chips;
+    const hover = (type) => (event) => {
+        const wanted = type === 'focus' ? isKeyboardFocus(event.currentTarget) : isHoverPointer(event);
+        if (wanted) onVenueHover?.(venue.id, 'enter');
+    };
+    const unhover = (type) => (event) => {
+        if (type === 'blur' || isHoverPointer(event)) onVenueHover?.(venue.id, 'leave');
+    };
 
     // Per-venue Sunstay Score — same RPC microclimate score as the map pin
     // and the detail sheet, so scrubbing TOD cannot show 84 on the card and
@@ -253,8 +286,12 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             role="button"
             tabIndex={0}
             onKeyDown={e => { if (e.target === e.currentTarget && ['Enter', ' '].includes(e.key)) { e.preventDefault(); onVenueSelect(venue); } }}
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || sunStatus.text}`}.${sunstayScore != null && !(stayMoment && isStay) ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
-            className={`ss-venue-list-card ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''}`}
+            onPointerEnter={hover('pointer')}
+            onPointerLeave={unhover('pointer')}
+            onFocus={hover('focus')}
+            onBlur={unhover('blur')}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
+            className={`ss-venue-list-card ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
             id={`venue-list-${venue.id}`}
         >
             <div className="ss-vlc-icon" aria-hidden="true">
@@ -287,6 +324,12 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                     </div>
                 )}
             </div>
+            {cafeSun && (
+                <div className="ss-vlc-sun" data-row-sun={rowSun ? 'ready' : 'pending'} aria-hidden="true">
+                    {rowSun ? <CafeRowSunGraph sun={rowSun.sun} /> : <span className="ss-vlc-sun-graph ss-vlc-sun-graph--pending" />}
+                    {rowSun ? <span className="ss-vlc-sun-text">{cafeSunLine}</span> : <span className="ss-vlc-sun-text ss-vlc-sun-text--pending" />}
+                </div>
+            )}
             {momentMatch && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={momentMatch.icon} size={22} />{momentMatch.text}</p>}
             {!(stayMoment && isStay) && visibleChips.length > 0 && (
                 <ul className="ss-vlc-chips" aria-hidden="true">
@@ -343,6 +386,7 @@ const LiveVenueList = memo(function LiveVenueList({
     onLoadMore,
     stayMoment, comparedIds = [], onCompare,
     activeFilters, sunMomentsById,
+    highlightedVenueId = null, onVenueHover, sunHorizons = null,
 }) {
     if (venues.length === 0) {
         return (
@@ -368,6 +412,7 @@ const LiveVenueList = memo(function LiveVenueList({
                 ref={virtuosoRef}
                 data={venues}
                 computeItemKey={(_index, venue) => venue.id}
+                isScrolling={setCafeRowSunScrolling}
                 context={{ showLoadMore, onLoadMore, safeAreaFooter }}
                 style={{ flex: 1, minHeight: 0, height: '100%', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}
                 className="overscroll-contain"
@@ -385,6 +430,9 @@ const LiveVenueList = memo(function LiveVenueList({
                             onCompare={onCompare}
                             activeFilters={activeFilters}
                             momentKeys={sunMomentsById?.get(String(venue.id))}
+                            isHighlighted={sameVenueId(highlightedVenueId, venue.id)}
+                            onVenueHover={onVenueHover}
+                            horizon={sunHorizons?.get(String(venue.id)) ?? null}
                         />
                     </div>
                 )}
@@ -577,6 +625,11 @@ const AppContent = () => {
 
     const [selectedVenue, setSelectedVenue]           = useState(null);
     const [previewVenue, setPreviewVenue]             = useState(null);
+    // List ↔ map pairing: the venue whose row or pin the pointer is over.
+    const [highlightedVenueId, setHighlightedVenueId] = useState(null);
+    const handleVenueHover = useCallback((venueId, type) => {
+        setHighlightedVenueId((current) => nextHighlightedVenueId(current, { type, venueId }));
+    }, []);
     const mapPreviewPointer = useRef(null);
     const [isChatOpen, setIsChatOpen]                 = useState(false);
     // "Centre on map" hides the venue card but keeps the venue selected, so
@@ -1098,14 +1151,18 @@ const AppContent = () => {
 
     const renderedVenuesRef = useRef(renderedVenues);
     renderedVenuesRef.current = renderedVenues;
+    // The list follows the venue the map shows as selected: a tapped pin's
+    // preview or the open venue card. It scrolls to that row and marks it.
+    const pairedVenue = previewVenue ?? selectedVenue;
+    const pairedVenueId = pairedVenue?.id ?? null;
     useEffect(() => {
-        if (!selectedVenue) return undefined;
-        const index = renderedVenuesRef.current.findIndex((v) => v.id === selectedVenue.id);
+        if (pairedVenueId == null) return undefined;
+        const index = renderedVenuesRef.current.findIndex((v) => v.id === pairedVenueId);
         if (index < 0) return undefined;
         sidebarVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         mobileVirtuosoRef.current?.scrollIntoView?.({ index, behavior: 'smooth' });
         return undefined;
-    }, [selectedVenue]);
+    }, [pairedVenueId]);
 
     const selectedLiveFeatureState = selectedVenue?.id ? liveVenueFeatures?.[selectedVenue.id] : null;
     const selectedVenueLiveFeatures = useMemo(() => {
@@ -1259,8 +1316,11 @@ const AppContent = () => {
                                         onCompare={toggleCompare}
                                         showLoadMore={hasMoreVenues}
                                         onLoadMore={handleLoadMoreVenues}
-                                        selectedVenue={selectedVenue}
+                                        selectedVenue={pairedVenue}
                                         onVenueSelect={handleVenueSelect}
+                                        highlightedVenueId={highlightedVenueId}
+                                        onVenueHover={handleVenueHover}
+                                        sunHorizons={sunHorizons}
                                         weather={weather}
                                         activeFilters={activeFilters}
                                         sunMomentsById={sunMomentsById}
@@ -1286,6 +1346,8 @@ const AppContent = () => {
                                         venues={venues}
                                         onVenueSelect={handlePinSelect}
                                         selectedVenue={previewVenue ?? selectedVenue}
+                                        highlightedVenueId={highlightedVenueId}
+                                        onVenueHover={handleVenueHover}
                                         filteredVenueIds={stableFilteredIds}
                                         activeSunMoment={wantedSunMoments[0] ?? null}
                                         sunMomentsById={sunMomentsById}
@@ -1512,8 +1574,11 @@ const AppContent = () => {
                                         onCompare={toggleCompare}
                                             showLoadMore={hasMoreVenues}
                                             onLoadMore={handleLoadMoreVenues}
-                                            selectedVenue={selectedVenue}
+                                            selectedVenue={pairedVenue}
                                             onVenueSelect={handleVenueSelect}
+                                            highlightedVenueId={highlightedVenueId}
+                                            onVenueHover={handleVenueHover}
+                                            sunHorizons={sunHorizons}
                                             weather={weather}
                                             activeFilters={activeFilters}
                                             sunMomentsById={sunMomentsById}

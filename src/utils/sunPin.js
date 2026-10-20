@@ -30,11 +30,13 @@ export function sunTier(score) {
 }
 
 /**
- * @param {{ pinKey?: string, score?: number|null, emoji?: string|null, iconUrl?: string|null, selected?: boolean }} input
+ * @param {{ pinKey?: string, score?: number|null, emoji?: string|null, iconUrl?: string|null, selected?: boolean, highlighted?: boolean }} input
  *   iconUrl: the venue's clay pin image (utils/clayVenuePins); the pin shows
  *   it in place of the emoji, which stays as the fallback if it fails to load.
+ *   highlighted: the list row for this venue is hovered or focused (list ↔ map
+ *   pairing). It raises the pin above every other, the selected one included.
  */
-export function sunPinView({ pinKey = 'default', score = null, emoji = null, iconUrl = null, selected = false } = {}) {
+export function sunPinView({ pinKey = 'default', score = null, emoji = null, iconUrl = null, selected = false, highlighted = false } = {}) {
     const n = Number.isFinite(score) ? Math.round(score) : null;
     const tier = selected ? 'selected' : sunTier(n);
     const style = SUN_PIN_TIERS[tier];
@@ -49,6 +51,11 @@ export function sunPinView({ pinKey = 'default', score = null, emoji = null, ico
         border: style.border,
         text: style.text,
         label: n == null ? 'Sun score unknown' : `Sun score ${n}`,
+        // A selected or highlighted pin also gets a ring, so the cue is a
+        // shape and not colour alone; highlighted also grows a little.
+        ring: Boolean(selected || highlighted),
+        raised: Boolean(highlighted),
+        zIndex: highlighted ? 4 : tier === 'selected' ? 3 : tier === 'full' ? 2 : 1,
     };
 }
 
