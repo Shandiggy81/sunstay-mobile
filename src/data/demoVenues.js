@@ -744,8 +744,9 @@ export const demoVenues = [
         address: "293 Fitzroy Street, Fitzroy VIC 3065",
         full_street_address: "293 Fitzroy Street, Fitzroy VIC 3065",
         suburb: "Fitzroy",
-        lat: -37.7975,
-        lng: 144.9772,
+        // OpenStreetMap way 228466557 (Standard Hotel, 293 Fitzroy St).
+        lat: -37.8007515,
+        lng: 144.9768301,
         emoji: "🌿",
         vibe: "Maze Garden",
         typeCategory: "Bar",
