@@ -1,6 +1,7 @@
-import { calculateBalconySunDay, DEFAULT_TIME_ZONE, formatGuestWindows, venueLocalDate, facingLabel } from './balconySunEngine.js';
+import { calculateBalconySunDay, DEFAULT_TIME_ZONE, formatGuestWindows, venueLocalDate } from './balconySunEngine.js';
 import { isStayVenue } from './propertyTypes.js';
 import { isEstimatedRoom } from './roomProfiles.js';
+import { stayRoomDisplay } from './stayRoomTypes.js';
 
 export const SUN_MOMENTS = Object.freeze({ coffee: 'Morning coffee', sunset: 'Sunset drinks', most: 'Most sun' });
 export function roomSunOptions(venue, room) {
@@ -52,7 +53,8 @@ export function stayMomentBadge(venue, moment) {
   const label = moment === 'sunset' ? 'Sunset' : moment === 'coffee' ? 'Morning' : 'Sun';
   if (!venue.bestRoom) return `No ${moment === 'sunset' ? 'sunset' : moment === 'coffee' ? 'morning' : 'direct'} sun this day`;
   const room = venue.bestRoom;
-  return `${moment === 'sunset' ? '🥂' : moment === 'coffee' ? '☕' : '☀️'} ${label} ${venue.windowsText} · ${({ W: 'West', E: 'East', N: 'North', S: 'South' })[facingLabel(room.orientation)] ?? facingLabel(room.orientation)}-facing${room.floorLevel != null && room.floorLevel !== '' ? `, Level ${room.floorLevel}` : ''}${isEstimatedRoom(room) ? ' · Estimated' : ''}`;
+  // "West side", not "West-facing rooms": today's entries are modelled sides of the building.
+  return `${moment === 'sunset' ? '🥂' : moment === 'coffee' ? '☕' : '☀️'} ${label} ${venue.windowsText} · ${stayRoomDisplay(venue, room).title}${room.floorLevel != null && room.floorLevel !== '' ? `, Level ${room.floorLevel}` : ''}${isEstimatedRoom(room) ? ' · Estimated' : ''}`;
 }
 
 export function compareStayRank(a, b) { return compare({ ...a, name: a.venueName ?? '' }, { ...b, name: b.venueName ?? '' }); }

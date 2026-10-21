@@ -9,6 +9,7 @@ import {
 } from '../utils/balconySunEngine.js';
 import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
 import { roomSourceLabel } from '../utils/roomProfiles.js';
+import { stayRoomDisplay } from '../utils/stayRoomTypes.js';
 
 // "North-facing rooms · Level 8" → "North-facing rooms" (the level is shown underneath).
 const roomTitle = (name) => String(name ?? '').replace(/\s*·\s*Level\s+\d+\s*$/i, '');
@@ -67,7 +68,10 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
       if (timer !== undefined) clearTimeout(timer);
     };
   }, [options, year, hasDaily]);
+  // Facade sides are named as sides of the building, never as bookable rooms.
+  const display = useMemo(() => room ? stayRoomDisplay(venue, room, { now }) : null, [venue, room, now]);
   if (!room) return null;
+  const facadeSide = display?.kind === 'facade_side';
 
   const {
     name,
@@ -100,14 +104,14 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {highlighted && <p className="self-start rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">Best room for your sun moment</p>}
+      {highlighted && <p className="self-start rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">{facadeSide ? 'Sunniest side for your sun moment' : 'Best room for your sun moment'}</p>}
       <div className="flex justify-between items-start gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50" aria-hidden="true">
             <ClayIcon name="hotel-views" size={40} />
           </span>
           <div className="min-w-0">
-            <h4 className="text-[16px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900">{roomTitle(name)}</h4>
+            <h4 className="text-[16px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900">{display?.title ?? roomTitle(name)}</h4>
             <p className="mt-0.5 text-[12px] font-semibold text-slate-500">
               Level {floorLevel} · {typeof orientation === 'number' ? `faces ${directionWord(orientation)} (${Math.round(orientation)}°)` : `${orientation} facing`}
             </p>
@@ -119,8 +123,8 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
           <span className="text-slate-500 text-[10px] block">/ night</span>
         </div>}
       </div>
-      {room.source === 'venue-verified' ? <p className="self-start rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800">Verified by venue</p>
-        : roomSourceLabel(room) ? <p className="self-start rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{roomSourceLabel(room)}</p> : null}
+      {display?.chip ? <p className="self-start rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800" title={display.trustLine}>{display.chip}</p>
+        : display ? <p className="self-start rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600" title={roomSourceLabel(room) ?? display.trustLine}>{display.evidenceLabel}</p> : null}
 
       {daily ? (
         <div className="flex flex-col gap-3">
@@ -165,7 +169,7 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
       </div>
       ) : (
         <p className="rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-[12px] text-slate-700" role="status">
-          Balcony sun unavailable. Check the room bearing, coordinates, timezone and measured shading geometry.
+          {facadeSide ? 'Sun estimate unavailable for this side.' : 'Balcony sun unavailable.'} Check the {facadeSide ? 'side' : 'room'} bearing, coordinates, timezone and measured shading geometry.
         </p>
       )}
     </motion.div>
