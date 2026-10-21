@@ -48,7 +48,7 @@ test('absolute dates respect venue timezone and invalid dates are rejected', () 
 
 test('badge uses floorLevel only and omits missing levels instead of using height in metres', () => {
   const venue = { bestRoom: { orientation: 'W', floorHeight: 42 }, windowsText: '6:02–7:32pm' };
-  assert.equal(stayMomentBadge(venue, 'sunset'), '🥂 Sunset 6:02–7:32pm · West-facing');
+  assert.equal(stayMomentBadge(venue, 'sunset'), '🥂 Sunset 6:02–7:32pm · West side');
   for (const floorLevel of [null, undefined, '']) {
     assert.ok(!stayMomentBadge({ ...venue, bestRoom: { ...venue.bestRoom, floorLevel } }, 'sunset').includes('Level'));
   }

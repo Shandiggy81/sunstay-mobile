@@ -16,6 +16,6 @@ export default function StaySunPicker({ moment, date, onMoment, onDate, compareC
       {[['today', 'Today'], ['tomorrow', 'Tomorrow'], ['saturday', 'This Saturday']].map(([id, label]) => <button key={id} onClick={() => { onDate(id === 'today' ? null : id); setDatesOpen(false); }}>{label}</button>)}
       <label>Pick a date<input aria-label="Pick a date" type="date" value={/^\d{4}-/.test(date ?? '') ? date : quickStayDate('today')} onChange={e => { if (e.target.value) onDate(e.target.value); }} /></label>
     </div>}
-    <p className="ss-discovery-source">Room-side sun estimates · not reservation availability.</p>
+    <p className="ss-discovery-source">Sun by side of the building · modelled, not reservation availability.</p>
   </div>;
 }

@@ -117,7 +117,7 @@ test('future room sun uses the selected date and marks geometry as potential sun
     await rows(page).first().tap();
     const card = page.getByRole('article');
     await expect(card).toBeVisible();
-    await card.getByRole('heading', { name: 'Your stay', exact: true }).scrollIntoViewIfNeeded();
+    await card.getByRole('heading', { name: 'Sun by side of the building', exact: true }).scrollIntoViewIfNeeded();
     await expect(card.getByText('Thu 22 Oct · Melbourne time', { exact: true }).first()).toBeVisible();
     await expect(card.getByText(/of potential sun .* on Thu 22 Oct$/).first()).toBeVisible();
     await expect(card.getByText(/of potential sun .* today$/)).toHaveCount(0);

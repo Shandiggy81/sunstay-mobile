@@ -6,6 +6,7 @@ import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
 import RoomSunCard from './RoomSunCard';
+import { stayRoomTypesDisplay } from '../utils/stayRoomTypes.js';
 import SunMomentsPanel from './SunMomentsPanel.jsx';
 import CafeSunSection from './CafeSunSection.jsx';
 import { useVenueSunProfile } from '../hooks/useVenueSunProfile';
@@ -530,6 +531,8 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const roomIntelligence = venue?.roomIntelligence;
   const roomTypes = Array.isArray(venue?.roomTypes) ? venue.roomTypes : [];
   const showStay = isHotelOrStay && (roomIntelligence || roomTypes.length > 0);
+  // Today's roomTypes are modelled facade sides, so the section names sides, not rooms.
+  const stayDisplay = roomTypes.length > 0 ? stayRoomTypesDisplay(venue) : null;
   // Bars, cafes and other outdoor venues: today's sun from the buildings
   // around them (stored horizon) plus today's forecast sky.
   const { horizon: sunHorizon, geometryConfidence } = useVenueSunProfile(showStay ? null : venue?.id);
@@ -692,7 +695,10 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
 
                   {sunSection === 'stay' ? (
                     <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
-                      <h3 id="stay-heading" className={SECTION_TITLE}>{venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay'}</h3>
+                      <div>
+                        <h3 id="stay-heading" className={SECTION_TITLE}>{stayDisplay?.headline ?? (venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay')}</h3>
+                        {stayDisplay?.trustLine ? <p className="mt-1 text-[12px] font-medium text-slate-500">{stayDisplay.trustLine}</p> : null}
+                      </div>
                       {onOpenSunReport && canShowHotelSunReport(venue) ? (
                         <button
                           type="button"
