@@ -5,6 +5,7 @@ import headerLogo from '../assets/logo-header.png';
 import { presentWind } from '../utils/presentWind';
 import { resolveFiltersControls } from '../utils/filtersControls';
 import { headerWeatherSummary } from '../utils/headerWeatherSummary';
+import { weatherClayIcon } from '../utils/weatherClayIcon';
 import ClayIcon from './common/ClayIcon.jsx';
 import SunnyMascot from './SunnyMascot.jsx';
 import './ExploreHeader.css';
@@ -44,7 +45,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
                     </div>
                     <button type="button" onClick={() => setOpen(value => !value)} disabled={!summary.details.length}
                         aria-expanded={open} aria-controls={detailsId} className="ss-map-first-weather">
-                        <ClayIcon name="sun" size={20} />
+                        <ClayIcon name={weatherClayIcon(summary.condition, { isNight: weather?.isDay === false })} size={20} />
                         <span><strong>{summary.temperature}</strong> <span>{summary.condition}</span></span>
                         {summary.details.length ? <ChevronDown size={12} aria-hidden="true" className={open ? 'rotate-180' : ''} /> : null}
                     </button>

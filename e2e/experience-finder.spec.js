@@ -67,7 +67,7 @@ test('Homes remains visible when Stays is selected too, with matching list count
     await expect(rows(page).filter({ hasText: 'Fixture Hotel' }).getByRole('button', { name: 'Compare', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await page.screenshot({ path: testInfo.outputPath('homes-and-stays-390.png') });
-    await list(page).getByRole('textbox', { name: 'Search venues', exact: true }).fill('zzzz-no-match');
+    await page.getByRole('textbox', { name: 'Search venues', exact: true }).fill('zzzz-no-match');
     await list(page).getByRole('button', { name: 'Stays', exact: true }).tap();
     await expect(list(page).getByRole('heading', { name: 'No homes match this search', exact: true })).toBeVisible();
     expect(errors).toEqual([]);
@@ -143,7 +143,7 @@ test('keyboard presets, missing weather and empty results stay usable', async ({
     await page.keyboard.press('Enter');
     await expect(list(page).getByRole('button', { name: 'Cozy', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(list(page).getByRole('heading', { name: 'Venues', exact: true })).toBeFocused();
-    await list(page).getByRole('textbox', { name: 'Search venues', exact: true }).fill('zzzz-no-such-venue');
+    await page.getByRole('textbox', { name: 'Search venues', exact: true }).fill('zzzz-no-such-venue');
     await expect(list(page).getByRole('button', { name: /clear filters/i })).toBeVisible();
     await expect(list(page).locator('.ss-discovery-source')).toContainText('forecast unavailable');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

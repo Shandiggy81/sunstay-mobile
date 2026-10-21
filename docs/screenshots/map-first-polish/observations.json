@@ -1,0 +1,410 @@
+[
+  {
+    "width": 390,
+    "state": "clear",
+    "peek": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "chipRow": {
+        "left": 0,
+        "top": 108,
+        "right": 390,
+        "bottom": 152,
+        "width": 390,
+        "height": 44
+      },
+      "sheet": null,
+      "searchFieldsVisible": 1,
+      "topSearch": {
+        "visible": true,
+        "placeholder": "Find me a sunny spot…",
+        "value": ""
+      },
+      "disclaimersVisible": 1,
+      "sheetHeader": null,
+      "weatherChip": {
+        "text": "23° Clear sky",
+        "icon": "sun"
+      },
+      "searchArea": null,
+      "caption": null,
+      "horizontalOverflow": false
+    },
+    "expanded": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "chipRow": {
+        "left": 0,
+        "top": 108,
+        "right": 390,
+        "bottom": 152,
+        "width": 390,
+        "height": 44
+      },
+      "sheet": {
+        "left": 0,
+        "top": 160,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 684
+      },
+      "searchFieldsVisible": 1,
+      "topSearch": {
+        "visible": true,
+        "placeholder": "Find me a sunny spot…",
+        "value": ""
+      },
+      "disclaimersVisible": 1,
+      "sheetHeader": {
+        "venuesHeading": true,
+        "resultCount": true,
+        "sunniestFirst": true
+      },
+      "weatherChip": {
+        "text": "23° Clear sky",
+        "icon": "sun"
+      },
+      "searchArea": null,
+      "caption": null,
+      "horizontalOverflow": false
+    },
+    "weatherDetailsOverList": {
+      "top": 160,
+      "uncovered": true
+    },
+    "errors": []
+  },
+  {
+    "width": 320,
+    "state": "clear",
+    "peek": {
+      "viewport": {
+        "width": 320,
+        "height": 844
+      },
+      "chipRow": {
+        "left": 0,
+        "top": 108,
+        "right": 320,
+        "bottom": 152,
+        "width": 320,
+        "height": 44
+      },
+      "sheet": null,
+      "searchFieldsVisible": 1,
+      "topSearch": {
+        "visible": true,
+        "placeholder": "Find me a sunny spot…",
+        "value": ""
+      },
+      "disclaimersVisible": 1,
+      "sheetHeader": null,
+      "weatherChip": {
+        "text": "23° Clear sky",
+        "icon": "sun"
+      },
+      "searchArea": null,
+      "caption": null,
+      "horizontalOverflow": false
+    },
+    "expanded": {
+      "viewport": {
+        "width": 320,
+        "height": 844
+      },
+      "chipRow": {
+        "left": 0,
+        "top": 108,
+        "right": 320,
+        "bottom": 152,
+        "width": 320,
+        "height": 44
+      },
+      "sheet": {
+        "left": 0,
+        "top": 160,
+        "right": 320,
+        "bottom": 844,
+        "width": 320,
+        "height": 684
+      },
+      "searchFieldsVisible": 1,
+      "topSearch": {
+        "visible": true,
+        "placeholder": "Find me a sunny spot…",
+        "value": ""
+      },
+      "disclaimersVisible": 1,
+      "sheetHeader": {
+        "venuesHeading": true,
+        "resultCount": true,
+        "sunniestFirst": true
+      },
+      "weatherChip": {
+        "text": "23° Clear sky",
+        "icon": "sun"
+      },
+      "searchArea": null,
+      "caption": null,
+      "horizontalOverflow": false
+    },
+    "weatherDetailsOverList": {
+      "top": 160,
+      "uncovered": true
+    },
+    "errors": []
+  },
+  {
+    "width": 390,
+    "state": "overlay fixture",
+    "moved": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "chipRow": {
+        "left": 0,
+        "top": 108,
+        "right": 390,
+        "bottom": 152,
+        "width": 390,
+        "height": 44
+      },
+      "sheet": null,
+      "searchFieldsVisible": 1,
+      "topSearch": {
+        "visible": true,
+        "placeholder": "Find me a sunny spot…",
+        "value": ""
+      },
+      "disclaimersVisible": 1,
+      "sheetHeader": null,
+      "weatherChip": {
+        "text": "23° Clear sky",
+        "icon": "sun"
+      },
+      "searchArea": {
+        "rect": {
+          "left": 132.234375,
+          "top": 153,
+          "right": 257.765625,
+          "bottom": 197,
+          "width": 125.53125,
+          "height": 44
+        },
+        "pillHeight": 30,
+        "centreOffset": 0,
+        "uncovered": true
+      },
+      "caption": {
+        "rect": {
+          "left": 17,
+          "top": 699.875,
+          "right": 232.484375,
+          "bottom": 733,
+          "width": 215.484375,
+          "height": 33.125
+        },
+        "text": "56 venues Live · just now",
+        "locate": {
+          "left": 329,
+          "top": 687,
+          "right": 373,
+          "bottom": 731,
+          "width": 44,
+          "height": 44
+        }
+      },
+      "horizontalOverflow": false
+    },
+    "movedThenList": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "chipRow": {
+        "left": 0,
+        "top": 108,
+        "right": 390,
+        "bottom": 152,
+        "width": 390,
+        "height": 44
+      },
+      "sheet": {
+        "left": 0,
+        "top": 160,
+        "right": 390,
+        "bottom": 844,
+        "width": 390,
+        "height": 684
+      },
+      "searchFieldsVisible": 1,
+      "topSearch": {
+        "visible": true,
+        "placeholder": "Find me a sunny spot…",
+        "value": ""
+      },
+      "disclaimersVisible": 1,
+      "sheetHeader": {
+        "venuesHeading": true,
+        "resultCount": true,
+        "sunniestFirst": true
+      },
+      "weatherChip": {
+        "text": "23° Clear sky",
+        "icon": "sun"
+      },
+      "searchArea": null,
+      "caption": null,
+      "horizontalOverflow": false
+    },
+    "errors": []
+  },
+  {
+    "width": 320,
+    "state": "overlay fixture",
+    "moved": {
+      "viewport": {
+        "width": 320,
+        "height": 844
+      },
+      "chipRow": {
+        "left": 0,
+        "top": 108,
+        "right": 320,
+        "bottom": 152,
+        "width": 320,
+        "height": 44
+      },
+      "sheet": null,
+      "searchFieldsVisible": 1,
+      "topSearch": {
+        "visible": true,
+        "placeholder": "Find me a sunny spot…",
+        "value": ""
+      },
+      "disclaimersVisible": 1,
+      "sheetHeader": null,
+      "weatherChip": {
+        "text": "23° Clear sky",
+        "icon": "sun"
+      },
+      "searchArea": {
+        "rect": {
+          "left": 97.234375,
+          "top": 153,
+          "right": 222.765625,
+          "bottom": 197,
+          "width": 125.53125,
+          "height": 44
+        },
+        "pillHeight": 30,
+        "centreOffset": 0,
+        "uncovered": true
+      },
+      "caption": {
+        "rect": {
+          "left": 17,
+          "top": 699.875,
+          "right": 232.484375,
+          "bottom": 733,
+          "width": 215.484375,
+          "height": 33.125
+        },
+        "text": "56 venues Live · just now",
+        "locate": {
+          "left": 259,
+          "top": 687,
+          "right": 303,
+          "bottom": 731,
+          "width": 44,
+          "height": 44
+        }
+      },
+      "horizontalOverflow": false
+    },
+    "movedThenList": {
+      "viewport": {
+        "width": 320,
+        "height": 844
+      },
+      "chipRow": {
+        "left": 0,
+        "top": 108,
+        "right": 320,
+        "bottom": 152,
+        "width": 320,
+        "height": 44
+      },
+      "sheet": {
+        "left": 0,
+        "top": 160,
+        "right": 320,
+        "bottom": 844,
+        "width": 320,
+        "height": 684
+      },
+      "searchFieldsVisible": 1,
+      "topSearch": {
+        "visible": true,
+        "placeholder": "Find me a sunny spot…",
+        "value": ""
+      },
+      "disclaimersVisible": 1,
+      "sheetHeader": {
+        "venuesHeading": true,
+        "resultCount": true,
+        "sunniestFirst": true
+      },
+      "weatherChip": {
+        "text": "23° Clear sky",
+        "icon": "sun"
+      },
+      "searchArea": null,
+      "caption": null,
+      "horizontalOverflow": false
+    },
+    "errors": []
+  },
+  {
+    "width": 390,
+    "state": "foggy",
+    "chip": {
+      "text": "14° Foggy",
+      "icon": "fog"
+    },
+    "errors": []
+  },
+  {
+    "width": 320,
+    "state": "foggy",
+    "chip": {
+      "text": "14° Foggy",
+      "icon": "fog"
+    },
+    "errors": []
+  },
+  {
+    "width": 390,
+    "state": "rainy",
+    "chip": {
+      "text": "15° Rain showers",
+      "icon": "rain"
+    },
+    "errors": []
+  },
+  {
+    "width": 320,
+    "state": "rainy",
+    "chip": {
+      "text": "15° Rain showers",
+      "icon": "rain"
+    },
+    "errors": []
+  }
+]
