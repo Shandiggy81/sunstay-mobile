@@ -1,0 +1,36 @@
+[
+  {
+    "width": 390,
+    "height": 844,
+    "text": "56 venues Live · just now",
+    "rect": {
+      "left": 17,
+      "right": 232.484375,
+      "top": 699.875,
+      "bottom": 733
+    },
+    "sheetTop": 748,
+    "sheetText": "56 venues · 41 in full sun",
+    "expandedSheet": false,
+    "horizontalOverflow": false,
+    "checks": {},
+    "errors": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "text": "56 venues Live · just now",
+    "rect": {
+      "left": 17,
+      "right": 232.484375,
+      "top": 423.875,
+      "bottom": 457
+    },
+    "sheetTop": 472,
+    "sheetText": "56 venues · 41 in full sun",
+    "expandedSheet": false,
+    "horizontalOverflow": false,
+    "checks": {},
+    "errors": []
+  }
+]

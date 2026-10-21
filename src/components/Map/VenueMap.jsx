@@ -2233,10 +2233,9 @@ const VenueMap = forwardRef(({
                     )}
                 </div>
             )}
-            {mapLoaded && !mapError && (
+            {mapLoaded && !mapError && (captionBadge || cozyFilterActive) && (
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span className="inline-flex items-center gap-1"><ClayIcon name="map-pin" size={20} />{venues.length} venues</span>
                         {captionBadge && (
                             <DataBadge
                                 kind={captionBadge.kind}
@@ -2245,7 +2244,7 @@ const VenueMap = forwardRef(({
                                 size="sm"
                             />
                         )}
-                        {cozyFilterActive && <span className="inline-flex items-center gap-1">· <ClayIcon name="indoor-warmth" size={20} />Cozy filter on</span>}
+                        {cozyFilterActive && <span className="inline-flex items-center gap-1"><ClayIcon name="indoor-warmth" size={20} />Cozy filter on</span>}
                     </div>
                 </div>
             )}
