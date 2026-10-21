@@ -87,7 +87,8 @@ export function tonightFeel({ venue, weather, now } = {}) {
         icon = 'jacket';
     }
     const when = local.hour >= 17 && coldest.hour === local.hour ? 'now' : `by ${formatHour(coldest.hour)}`;
-    const detail = `Feels ${coldest.feels}° ${when} · ${windWord(wind).toLowerCase()}`
-        + (rain >= 30 ? ` · ${rain}% chance of rain` : '');
+    // Thresholds use the raw forecast; the text rounds like the rest of the card ("14°").
+    const detail = `Feels ${Math.round(coldest.feels)}° ${when} · ${windWord(wind).toLowerCase()}`
+        + (rain >= 30 ? ` · ${Math.round(rain)}% chance of rain` : '');
     return { verdict, icon, detail, warmth: warmthForVenue(venue) };
 }

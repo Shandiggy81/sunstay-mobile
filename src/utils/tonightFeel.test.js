@@ -24,7 +24,7 @@ test('jacket verdict covers 12 to below 18 without rounding across a boundary', 
         const result = view(payload(temperature));
         assert.equal(result.verdict, 'Jacket weather outside');
         assert.equal(result.icon, 'jacket');
-        assert.match(result.detail, new RegExp(`Feels ${temperature}°`));
+        assert.match(result.detail, new RegExp(`Feels ${Math.round(temperature)}° `));
     }
     assert.equal(view(payload(11.9)).verdict, 'Best inside tonight');
 });
@@ -45,8 +45,17 @@ test('40–49% rain keeps a cautious jacket verdict and the explicit rain chance
     for (const chance of [40, 49, 49.9]) {
         const result = view(payload(20, chance));
         assert.equal(result.verdict, 'Jacket weather outside');
-        assert.ok(result.detail.includes(`${chance}% chance of rain`));
+        assert.ok(result.detail.includes(`${Math.round(chance)}% chance of rain`));
     }
+});
+
+test('detail text is rounded while thresholds use the raw forecast', () => {
+    const weather = payload(17.6);
+    weather.hourly.apparent_temperature[21] = 11.4;
+    const result = view(weather);
+    assert.equal(result.verdict, 'Best inside tonight');
+    assert.equal(result.detail, 'Feels 11° by 9pm · light wind');
+    assert.equal(view(payload(17.6)).verdict, 'Jacket weather outside', '17.6 stays under 18 even though it shows as 18°');
 });
 
 test('detail reports the actual coldest hour, peak wind and rain only at 30% or above', () => {
