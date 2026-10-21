@@ -118,14 +118,22 @@ Hotels see why the ladder matters: confirmed rooms rank with accurate sun, and "
    if the invite flow isn't built yet, still recorded as `hotel_confirmed` with a real contact.
 5. **Stay card build** from the redesign canvas once real room types exist.
 
-## 8. Decisions needed from Shannon
+## 8. Decisions (Shannon, 21 Oct 2026)
 
-- **Pilot hotels.** Which two or three to approach first? The redesign canvas uses a fictional
-  "Harbour View Hotel"; the pilot needs real partners.
-- **Floor range display.** Is a range ("4h 10m – 5h 30m") acceptable on the card, or should we
-  show the typical middle floor with "varies by floor"?
-- **Corner rooms.** Support two-facade room types in the pilot, or defer them?
-- **On-site checks.** Is a paid on-site check part of the hotel offer, or later?
+- **Pilot hotels: three stays already in SunStay, one of each partner type.**
+  - Quest St Kilda Bayside (serviced apartments): a local franchisee decides, and the balconies
+    by the bay show the room picker best.
+  - Lancemore Crossley St (boutique): the fastest likely yes, to prove the flow.
+  - Mantra on Little Bourke or the Grand Hyatt (major brand): slower, but the credibility
+    hotel groups and investors look for.
+- **Floor range: show it, kept simple.** "4h 10m – 5h 30m of balcony sun · higher floors get
+  more". Never show the best floor's number alone. A single "typical floor" figure would
+  mislead guests on low floors.
+- **Corner rooms: deferred.** In the pilot, a corner room uses its main facade with the note
+  "Corner room, may get extra sun". `stay_room_type_facades` keeps the two-facade option for later.
+- **On-site checks: later, as a paid tier.** The pilot is free and reaches `hotel_confirmed`.
+  A paid on-site check unlocking "SunStay Verified" is offered once two or three pilot hotels
+  have seen the benefit.
 
 ## 9. Not covered here
 
