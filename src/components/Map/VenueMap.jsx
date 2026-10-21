@@ -326,7 +326,7 @@ function repaintVenueMarker(record) {
     paintMarkerEl(record.el, {
         ...sunPinView({
             pinKey: record.pinKey, score: record.score, emoji: record.emoji, iconUrl: record.iconUrl,
-            selected: record.selected, highlighted: Boolean(record.highlighted),
+            selected: record.selected, highlighted: Boolean(record.highlighted), night: Boolean(record.night),
         }),
         momentBadge: record.momentBadge,
         venueName: record.venueName,
@@ -807,6 +807,7 @@ const VenueMap = forwardRef(({
     weatherColorFn    = null,   // (weather, venue) => pinKey string
     cozyWeatherActive = false,  // true when weather is cold/rainy
     cozyFilterActive  = false,  // true when user has 'Cozy' filter selected
+    isNight           = false,  // sun is down at the map's time: pins show a moon, not 0
     filtersControl    = null,   // Filters FAB — stacked above TOD, layout only
     searchedArea      = null,   // bounds the list is narrowed to, or null
     onSearchArea      = null,   // (bounds) => void — "Search this area" pill
@@ -936,6 +937,8 @@ const VenueMap = forwardRef(({
     const cozyFilterActiveRef = useRef(cozyFilterActive);
     useEffect(() => { weatherColorFnRef.current   = weatherColorFn;   }, [weatherColorFn]);
     useEffect(() => { cozyFilterActiveRef.current = cozyFilterActive; }, [cozyFilterActive]);
+    const isNightRef = useRef(isNight);
+    useEffect(() => { isNightRef.current = isNight; }, [isNight]);
 
     const placeUserMarker = useCallback((lng, lat) => {
         const mapInst = map.current;
@@ -1799,8 +1802,9 @@ const VenueMap = forwardRef(({
                     const highlighted = highlightedVenueIdRef.current != null && highlightedVenueIdRef.current === String(venueId);
                     const momentBadge = mapMomentBadge(venueId, activeSunMoment, sunMomentsById);
                     const venueName = String(venue.venueName || venue.name || venue.title || 'Venue');
+                    const night = Boolean(isNightRef.current);
                     const view = {
-                        ...sunPinView({ pinKey, score, emoji, iconUrl, selected, highlighted }),
+                        ...sunPinView({ pinKey, score, emoji, iconUrl, selected, highlighted, night }),
                         momentBadge, venueName,
                     };
                     specs.push({
@@ -1809,7 +1813,8 @@ const VenueMap = forwardRef(({
                             if (existing.pinKey !== pinKey || existing.score !== score
                                 || existing.emoji !== emoji || existing.iconUrl !== iconUrl
                                 || existing.momentBadge !== momentBadge || existing.venueName !== venueName
-                                || existing.selected !== selected || Boolean(existing.highlighted) !== highlighted) {
+                                || existing.selected !== selected || Boolean(existing.highlighted) !== highlighted
+                                || Boolean(existing.night) !== night) {
                                 paintMarkerEl(existing.el, view);
                                 existing.pinKey = pinKey;
                                 existing.score = score;
@@ -1819,6 +1824,7 @@ const VenueMap = forwardRef(({
                                 existing.highlighted = highlighted;
                                 existing.momentBadge = momentBadge;
                                 existing.venueName = venueName;
+                                existing.night = night;
                             }
                         },
                         create() {
@@ -1843,7 +1849,7 @@ const VenueMap = forwardRef(({
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(instance);
-                            return { marker, el, pinKey, score, emoji, iconUrl, selected, highlighted, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
+                            return { marker, el, pinKey, score, emoji, iconUrl, selected, highlighted, night, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
                         },
                     });
                 }
@@ -1912,7 +1918,7 @@ const VenueMap = forwardRef(({
                 markersRef.current = {};
             }
         };
-    }, [mapLoaded, recovery.generation, weather, weatherUnavailable, liveKey, cozyFilterActive, weatherColorFn, calculateSunScore, microById, clusterTodMinutes, activeSunMoment, sunMomentsById]);
+    }, [mapLoaded, recovery.generation, weather, weatherUnavailable, liveKey, cozyFilterActive, isNight, weatherColorFn, calculateSunScore, microById, clusterTodMinutes, activeSunMoment, sunMomentsById]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces

@@ -87,6 +87,20 @@ export function venueFeelsLike(venue, weather) {
 const hasDaylight = (f) => f?.sunriseHour != null && f?.sunsetHour != null && f.sunriseHour < f.sunsetHour;
 
 /**
+ * Whether the sun is down at the list's time: `minutes` past midnight (the
+ * time-of-day scrubber, same as the scores) or, when null, the forecast's own
+ * now. Unknown daylight is never called night.
+ */
+export function isNightAt(forecast, minutes = null) {
+    if (!hasDaylight(forecast)) return false;
+    const hour = Number.isFinite(minutes)
+        ? (((Math.round(minutes) % 1440) + 1440) % 1440) / 60
+        : forecast.nowHour;
+    if (!Number.isFinite(hour)) return false;
+    return hour >= forecast.sunsetHour || hour < forecast.sunriseHour;
+}
+
+/**
  * The stat row's middle cell: "Sun until 3pm", "Sun returns 6pm", …
  * @returns {string}
  */

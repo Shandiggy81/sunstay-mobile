@@ -197,3 +197,23 @@ describe('venueFeelsLike', () => {
         assert.equal(venueFeelsLike(null, { main: {} }), null);
     });
 });
+
+describe('isNightAt', () => {
+    const f = { sunriseHour: 6.5, sunsetHour: 19.5, nowHour: 21 };
+    it('uses the scrubbed time when given, and the forecast now otherwise', async () => {
+        const { isNightAt } = await import('./venueSun.js');
+        assert.equal(isNightAt(f, 12 * 60), false, 'lunch scrubbed at night shows the lunch score');
+        assert.equal(isNightAt(f, 20 * 60), true);
+        assert.equal(isNightAt(f, 5 * 60), true, 'before sunrise');
+        assert.equal(isNightAt(f, 6.5 * 60), false, 'sunrise minute is day');
+        assert.equal(isNightAt(f, 19.5 * 60), true, 'sunset minute is night');
+        assert.equal(isNightAt(f), true, 'null minutes falls back to now');
+        assert.equal(isNightAt({ ...f, nowHour: 13 }), false);
+        assert.equal(isNightAt(f, 24 * 60 + 12 * 60), false, 'wraps past midnight');
+    });
+    it('never calls unknown daylight night', async () => {
+        const { isNightAt } = await import('./venueSun.js');
+        assert.equal(isNightAt(null, 22 * 60), false);
+        assert.equal(isNightAt({ sunriseHour: null, sunsetHour: 19 }, 22 * 60), false);
+    });
+});

@@ -55,7 +55,7 @@ import { getComfortLevel } from './utils/weatherService';
 import { getSunData } from './utils/getSunData';
 import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import { venueDisplayScore } from './utils/venueDisplayScore';
-import { listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
+import { isNightAt, listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
 import { venueConditionChips } from './utils/venueConditionChips';
 import { keyAmenities, venueMatchesAmenityFilter } from './utils/venueAmenities';
 import { feelsLikeIconName, venueIcon } from './utils/clayIcons';
@@ -207,7 +207,7 @@ const CafeRowSunGraph = memo(function CafeRowSunGraph({ sun }) {
     );
 });
 
-const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys, isHighlighted = false, onVenueHover, horizon = null }) => {
+const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys, isHighlighted = false, onVenueHover, horizon = null, isNight = false }) => {
     // Read from context: the list never passed this prop, so venues without a
     // microclimate profile showed no badge.
     const { calculateSunScore, unavailable: weatherUnavailableFlag, error: weatherError } = useWeather();
@@ -292,7 +292,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             onPointerLeave={unhover('pointer')}
             onFocus={hover('focus')}
             onBlur={unhover('blur')}
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? (isNight ? ' Sun score not shown after dark.' : ` Sun score ${sunstayScore} out of 100.`) : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
             className={`ss-venue-list-card ${!isStay ? 'ss-explore-row' : ''} ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
             id={`venue-list-${venue.id}`}
         >
@@ -307,7 +307,13 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             </div>
             <div className="ss-vlc-right">
                 {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
-                {scoreVisual && !(stayMoment && isStay) && (
+                {scoreVisual && !(stayMoment && isStay) && (isNight ? (
+                    // After dark every score is 0, which reads like a bad venue.
+                    <div className="ss-vlc-badge" style={{ background: '#e2e8f0', color: '#334155' }} title="After dark">
+                        <ClayIcon name="night" size={18} />
+                        <span>Night</span>
+                    </div>
+                ) : (
                     <div
                         className="ss-vlc-badge"
                         style={{ background: scoreVisual.color + '1f', color: scoreVisual.text }}
@@ -316,7 +322,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                         <ClayIcon name="sun" size={18} />
                         <span>{sunstayScore}</span>
                     </div>
-                )}
+                ))}
                 {isStay && venue.nightlyPriceDemo ? (
                     <div className="ss-vlc-temp !bg-emerald-50 !text-emerald-700 !border-emerald-100 px-2 rounded-lg">
                         <span className="text-[9px] font-black uppercase tracking-tighter">Stay</span>
@@ -390,7 +396,7 @@ const LiveVenueList = memo(function LiveVenueList({
     onLoadMore,
     stayMoment, comparedIds = [], onCompare,
     activeFilters, sunMomentsById,
-    highlightedVenueId = null, onVenueHover, sunHorizons = null,
+    highlightedVenueId = null, onVenueHover, sunHorizons = null, isNight = false,
 }) {
     if (venues.length === 0) {
         return (
@@ -437,6 +443,7 @@ const LiveVenueList = memo(function LiveVenueList({
                             isHighlighted={sameVenueId(highlightedVenueId, venue.id)}
                             onVenueHover={onVenueHover}
                             horizon={sunHorizons?.get(String(venue.id)) ?? null}
+                            isNight={isNight}
                         />
                     </div>
                 )}
@@ -719,17 +726,13 @@ const AppContent = () => {
             sunset: sun?.sunsetDate,
         }), listTodMinutes);
     }, [sunnyFilterActive, weather?.hourly, weather?.utcOffsetSeconds, listTodMinutes]);
-    // Day/night at the list's time, for the home sheet's sun line.
-    const homeForecastKind = useMemo(() => {
-        const sun = getSunData(-37.8136, 144.9631);
-        return forecastKindAt(deriveSunForecast({
-            timeZone: DEFAULT_TIME_ZONE,
-            hourly: weather?.hourly,
-            utcOffsetSeconds: weather?.utcOffsetSeconds,
-            sunrise: sun?.sunriseDate,
-            sunset: sun?.sunsetDate,
-        }), listTodMinutes);
-    }, [weather?.hourly, weather?.utcOffsetSeconds, listTodMinutes]);
+    // Sun down at the list's time (Melbourne CBD sunrise and sunset), shared by
+    // the sheet line, list badges and map pins so they always agree. Sunrise and
+    // sunset come from the sun's position, so this works without live weather.
+    const cityNight = useMemo(() => isNightAt(
+        venueSunForecast({ venue: { lat: -37.8136, lng: 144.9631, timeZone: DEFAULT_TIME_ZONE }, weather }),
+        listTodMinutes,
+    ), [weather, listTodMinutes]);
 
     // Sun-moment chips (and Sunny's chat): which venues get sun today in
     // each moment, from their stored building horizon and today's Melbourne
@@ -1307,6 +1310,7 @@ const AppContent = () => {
                                         highlightedVenueId={highlightedVenueId}
                                         onVenueHover={handleVenueHover}
                                         sunHorizons={sunHorizons}
+                                        isNight={cityNight}
                                         weather={weather}
                                         activeFilters={activeFilters}
                                         sunMomentsById={sunMomentsById}
@@ -1342,6 +1346,7 @@ const AppContent = () => {
                                         weatherColorFn={getMarkerWeatherColor}
                                         cozyWeatherActive={cozyWeatherActive}
                                         cozyFilterActive={cozyFilterActive}
+                                        isNight={cityNight}
                                         isExpanded={mobileMapExpanded}
                                         searchedArea={areaBounds}
                                         onSearchArea={setAreaBounds}
@@ -1480,7 +1485,7 @@ const AppContent = () => {
                         <div className="ss-mobile-sheet-grab" />
                         <span className="ss-home-peek-headline">
                             {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} venues`}
-                            {homeSunClause(homeSummary, homeForecastKind) && <span> · {homeSunClause(homeSummary, homeForecastKind)}</span>}
+                            {homeSunClause(homeSummary, cityNight ? 'night' : null) && <span> · {homeSunClause(homeSummary, cityNight ? 'night' : null)}</span>}
                             {areaBounds ? showAllChip('-my-3') : null}
                             {ENABLE_MANUAL_VENUE_REFRESH ? (
                                 <VenueRefreshButton
@@ -1566,6 +1571,7 @@ const AppContent = () => {
                                             highlightedVenueId={highlightedVenueId}
                                             onVenueHover={handleVenueHover}
                                             sunHorizons={sunHorizons}
+                                            isNight={cityNight}
                                             weather={weather}
                                             activeFilters={activeFilters}
                                             sunMomentsById={sunMomentsById}
