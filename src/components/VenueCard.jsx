@@ -23,6 +23,7 @@ import {
   HappyHourSection,
   HourByHour,
   TodaysSun,
+  TonightFeelSection,
   VenueHero,
   VenueInfoHeader,
   VenueOfferingsList,
@@ -50,6 +51,7 @@ import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
 import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, isNightAt, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { venueOfferings } from '../utils/venueOfferings';
+import { tonightFeel } from '../utils/tonightFeel.js';
 import { keyAmenities } from '../utils/venueAmenities';
 import { venuePerfectFor } from '../utils/venuePerfectFor.js';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
@@ -299,8 +301,14 @@ function useSavedVenue(venueId) {
 function useMinuteClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(id);
+    let timer;
+    const tick = () => {
+      setNow(new Date());
+      timer = setTimeout(tick, 60_000 - Date.now() % 60_000);
+    };
+    // Align with real minute boundaries, including the 11pm evening cutoff.
+    timer = setTimeout(tick, 60_000 - Date.now() % 60_000);
+    return () => clearTimeout(timer);
   }, []);
   return now;
 }
@@ -484,6 +492,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     [lat, lng, venueTimeZone, venue?.obstacle_height, venue?.obstacle_distance, liveWeather, now],
   );
   const hours = useMemo(() => hourlyStrip(liveWeather, { now, forecast, timeZone: venueTimeZone }), [liveWeather, now, forecast, venueTimeZone]);
+  const tonight = useMemo(() => tonightFeel({ venue, weather: liveWeather, now }), [venue, liveWeather, now]);
   const sentence = sunSentence(forecast);
   const nowIcon = hours[0]?.icon ?? weatherIconName(null, { isNight: !forecast.isSunUp });
   // Sun down at the score's time (the scrubber, like the list): show "Night", not 0.
@@ -747,6 +756,8 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       />
                     </ForecastErrorBoundary>
                   ) : null}
+
+                  <TonightFeelSection view={tonight} />
 
                   <ForecastErrorBoundary>
                     <HourByHour items={hours} />

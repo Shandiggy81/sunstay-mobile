@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Share2, Heart, ChevronRight } from 'lucide-react';
 import ClayIcon from './common/ClayIcon';
+import DataBadge from './DataBadge.jsx';
 import VenueIcon from './common/VenueIcon';
 import LiveSunTimeline from './LiveSunTimeline';
 import { OFFERINGS_PREVIEW } from '../utils/venueOfferings';
@@ -188,6 +189,39 @@ export function TodaysSun({ forecast, sentence }) {
       <h3 id="todays-sun-heading" className={SECTION_TITLE}>Today&rsquo;s sun</h3>
       <p className="text-[15px] font-medium leading-relaxed text-slate-700">{sentence}</p>
       <LiveSunTimeline forecast={forecast} />
+    </section>
+  );
+}
+
+// Today's evening forecast uses the card's real clock, independently of map preview time.
+export function TonightFeelSection({ view }) {
+  if (!view) return null;
+  return (
+    <section aria-labelledby="tonight-feel-heading" data-tonight-feel
+      className="ss-tonight-feel flex min-w-0 flex-col gap-3 rounded-3xl border border-amber-200/70 bg-[#FFFBF3] p-3.5">
+      <div className="flex items-center gap-2.5">
+        <ClayIcon name="night" size={36} />
+        <div className="min-w-0">
+          <h3 id="tonight-feel-heading" className={SECTION_TITLE}>How it feels tonight</h3>
+          <div className="mt-1 [&_[data-marker]]:hidden">
+            <DataBadge kind="forecast" source="Open-Meteo hourly forecast · Melbourne evening" size="sm" />
+          </div>
+        </div>
+      </div>
+      <div className="flex items-start gap-2.5">
+        <ClayIcon name={view.icon} size={30} />
+        <div className="min-w-0">
+          <p className="text-[15px] font-bold leading-snug text-slate-900">{view.verdict}</p>
+          <p className="mt-1 text-[13px] font-medium leading-relaxed text-slate-600">{view.detail}</p>
+        </div>
+      </div>
+      {view.warmth.length > 0 && (
+        <p className="flex flex-wrap gap-x-3 gap-y-2 border-t border-amber-200/60 pt-3 text-[13px] font-semibold leading-snug text-slate-700">
+          {view.warmth.map(item => <span key={item.icon} className="inline-flex items-center gap-1.5">
+            <ClayIcon name={item.icon} size={28} />{item.text}
+          </span>)}
+        </p>
+      )}
     </section>
   );
 }
