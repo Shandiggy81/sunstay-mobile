@@ -32,6 +32,59 @@ export function representativeLevel(topMetres) {
     return Math.min(highestLevel, Math.max(2, Math.round((topMetres * 0.6) / STOREY_M)));
 }
 
+/** Perpendicular distance from p to segment ab (metres). */
+function segmentDistance(p, a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)) : 0;
+    return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+
+/** Douglas–Peucker on an open polyline of [x, y] metres. */
+function simplifyLine(points, tolerance) {
+    if (points.length < 3) return points;
+    let worst = 0, index = 0;
+    for (let i = 1; i < points.length - 1; i++) {
+        const d = segmentDistance(points[i], points[0], points.at(-1));
+        if (d > worst) { worst = d; index = i; }
+    }
+    if (worst <= tolerance) return [points[0], points.at(-1)];
+    return [...simplifyLine(points.slice(0, index + 1), tolerance).slice(0, -1), ...simplifyLine(points.slice(index), tolerance)];
+}
+
+/**
+ * Smooths a footprint's rings so curved or stepped façades read as walls.
+ * The facade finder ignores edges under 4 m, so a curved tower drawn as many
+ * 1–3 m segments would otherwise lose most of its walls. Rings that would
+ * collapse below a triangle are kept as they were.
+ */
+export function simplifyFootprint(geometry, toleranceMetres = 2) {
+    const polygons = rings(geometry);
+    if (!polygons.length) return geometry;
+    const origin = polygons[0]?.[0]?.[0];
+    if (!origin) return geometry;
+    const kx = 111320 * Math.cos(origin[1] * Math.PI / 180), ky = 111132;
+    const toXY = ([lng, lat]) => [(lng - origin[0]) * kx, (lat - origin[1]) * ky];
+    const toLngLat = ([x, y]) => [origin[0] + x / kx, origin[1] + y / ky];
+    const simplifyRing = ring => {
+        const pts = ring.map(toXY);
+        const open = pts.length > 1 && pts[0][0] === pts.at(-1)[0] && pts[0][1] === pts.at(-1)[1] ? pts.slice(0, -1) : pts;
+        if (open.length < 4) return ring;
+        // Split the closed ring at its two most distant vertices so both halves simplify.
+        let far = 0, farIndex = 0;
+        for (let i = 1; i < open.length; i++) {
+            const d = Math.hypot(open[i][0] - open[0][0], open[i][1] - open[0][1]);
+            if (d > far) { far = d; farIndex = i; }
+        }
+        const first = simplifyLine(open.slice(0, farIndex + 1), toleranceMetres);
+        const second = simplifyLine([...open.slice(farIndex), open[0]], toleranceMetres);
+        const merged = [...first.slice(0, -1), ...second.slice(0, -1)];
+        if (merged.length < 3) return ring;
+        return [...merged, merged[0]].map(toLngLat);
+    };
+    const out = polygons.map(polygon => polygon.map(simplifyRing));
+    return out.length === 1 ? { type: 'Polygon', coordinates: out[0] } : { type: 'MultiPolygon', coordinates: out };
+}
+
 /** Height in metres of the representative room level (what the context query must slice at). */
 export function representativeFloorHeight(topMetres) {
     return Math.round(representativeLevel(topMetres) * STOREY_M * 10) / 10;
@@ -154,7 +207,7 @@ export function buildRoomProfiles({ venueId, own, ownAtLevel = null, top, neighb
     // Rooms at this level look out from the part of the building that reaches it.
     // The whole outline includes podiums and low wings, whose edges can press
     // against neighbouring towers while the rooms above sit well back from them.
-    const footprint = rings(ownAtLevel).some(polygon => polygon?.[0]?.length >= 4) ? ownAtLevel : own;
+    const footprint = simplifyFootprint(rings(ownAtLevel).some(polygon => polygon?.[0]?.length >= 4) ? ownAtLevel : own);
     const facades = calculateFacadeSun(footprint, neighbours.map(n => ({ footprint: n.g ?? n.footprint, height_m: n.h ?? n.height_m })), floorHeight)
         .filter(facade => facade.length >= minWallMetres)
         // Party walls: a taller neighbour just in front, or the wall itself inside one

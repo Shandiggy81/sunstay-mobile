@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRoomProfiles, compressObstructions, directionName, horizonAround, pointInGeometry, representativeFloorHeight, representativeLevel } from './roomProfiles.js';
+import { buildRoomProfiles, compressObstructions, directionName, horizonAround, pointInGeometry, representativeFloorHeight, representativeLevel, simplifyFootprint } from './roomProfiles.js';
 import { calculateBalconySunDay } from './balconySunEngine.js';
 
 // 40 m x 24 m block in Melbourne's CBD, long walls facing north and south.
@@ -111,4 +111,22 @@ test('a missing or empty ownAtLevel falls back to the whole outline', () => {
     const base = buildRoomProfiles({ venueId: 'v', own, top: 40, neighbours: [] });
     assert.deepEqual(buildRoomProfiles({ venueId: 'v', own, ownAtLevel: null, top: 40, neighbours: [] }), base);
     assert.deepEqual(buildRoomProfiles({ venueId: 'v', own, ownAtLevel: { type: 'Polygon', coordinates: [] }, top: 40, neighbours: [] }), base);
+});
+
+test('a curved tower drawn in short segments still gets its walls', () => {
+    // A 30 x 30 m tower whose north face is a shallow arc of 1.5 m segments
+    // (bulging up to 1.5 m). The facade finder drops edges under 4 m.
+    const arc = [];
+    for (let x = 15; x >= -15; x -= 1.5) arc.push([x, 15 + 1.5 * (1 - (x / 15) ** 2)]);
+    const metres = [[-15, -15], [15, -15], ...arc, [-15, -15]];
+    const curved = { type: 'Polygon', coordinates: [metres.map(([x, y]) => [lng + x / mPerDegLng, lat + y / mPerDegLat])] };
+    const rooms = buildRoomProfiles({ venueId: 'v', own: curved, top: 40, neighbours: [] });
+    const north = rooms.find(r => r.name.startsWith('North'));
+    assert.ok(north, rooms.map(r => r.name).join(', '));
+    assert.ok(north.wallMetres >= 28, `north wall ${north.wallMetres}`);
+});
+
+test('simplifyFootprint leaves a plain rectangle alone and ignores empty input', () => {
+    assert.deepEqual(simplifyFootprint(own).coordinates[0].length, own.coordinates[0].length);
+    assert.equal(simplifyFootprint(null), null);
 });
