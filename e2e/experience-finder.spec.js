@@ -22,7 +22,7 @@ async function boot(page, baseURL, { unavailable = false, delayedVenues = false,
         return route.abort('blockedbyclient');
     });
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Find your kind of day', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Find your kind of day', exact: true })).toBeVisible();
     await expect(page.getByText(unavailable ? 'Live weather unavailable' : '23°', { exact: true }).first()).toBeVisible();
     return { errors, venueRequest: () => venueRequest };
 }
@@ -36,8 +36,8 @@ const PROPERTY_FIXTURES = [
 
 test('Homes explains missing inventory and lets the user browse again', async ({ page, baseURL }, testInfo) => {
     const { errors } = await boot(page, baseURL, { venues: [PROPERTY_FIXTURES[1]] });
-    await expect(page.locator('.ss-experience-finder .ss-discovery-source')).toContainText('Venue listings');
-    await page.getByText(/^\d+ venues nearby$/).click();
+    await expect(page.locator('.ss-mobile-sheet-handle .ss-discovery-source')).toContainText('Venue listings');
+    await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
     await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
     await expect(list(page).getByRole('heading', { name: 'No homes in these listings', exact: true })).toBeVisible();
     await expect(list(page).getByRole('heading', { name: 'A bit too specific!', exact: true })).toHaveCount(0);
@@ -54,8 +54,8 @@ test('Homes explains missing inventory and lets the user browse again', async ({
 
 test('Homes remains visible when Stays is selected too, with matching list count', async ({ page, baseURL }, testInfo) => {
     const { errors } = await boot(page, baseURL, { venues: PROPERTY_FIXTURES });
-    await expect(page.locator('.ss-experience-finder .ss-discovery-source')).toContainText('Venue listings');
-    await page.getByText(/^\d+ venues nearby$/).click();
+    await expect(page.locator('.ss-mobile-sheet-handle .ss-discovery-source')).toContainText('Venue listings');
+    await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
     await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
     await expect(rows(page)).toHaveCount(1);
     await expect(rows(page).first()).toContainText('Fixture Home');
@@ -75,7 +75,7 @@ test('Homes remains visible when Stays is selected too, with matching list count
 
 test('Homes waits for listings before declaring missing inventory', async ({ page, baseURL }) => {
     const { errors, venueRequest } = await boot(page, baseURL, { delayedVenues: true });
-    await page.getByText(/^\d+ venues nearby$/).click();
+    await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
     await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
     await expect(list(page).getByRole('heading', { name: 'Checking for homes', exact: true })).toBeVisible();
     await expect.poll(venueRequest).toBeTruthy();
@@ -132,7 +132,7 @@ test('future room sun uses the selected date and marks geometry as potential sun
 test('keyboard presets, missing weather and empty results stay usable', async ({ page, baseURL }) => {
     const { errors } = await boot(page, baseURL, { unavailable: true });
     const finder = page.getByRole('region', { name: 'Find your kind of day', exact: true });
-    await expect(finder.getByText(/Sample listings · forecast unavailable/)).toBeVisible();
+    await expect(page.locator('.ss-mobile-sheet-handle').getByText(/Sample listings · forecast unavailable/)).toBeVisible();
     const options = finder.getByRole('group', { name: 'Find an experience', exact: true }).getByRole('button');
     const targets = await options.evaluateAll(buttons => buttons.map(button => ({ w: button.getBoundingClientRect().width, h: button.getBoundingClientRect().height })));
     expect(targets).toHaveLength(4);
@@ -154,12 +154,12 @@ test('keyboard presets, missing weather and empty results stay usable', async ({
 test('loading and successful live-source states have honest labels', async ({ page, baseURL }) => {
     const { errors, venueRequest } = await boot(page, baseURL, { delayedVenues: true });
     const finder = page.getByRole('region', { name: 'Find your kind of day', exact: true });
-    await expect(finder.getByText(/Loading listings/)).toBeVisible();
+    await expect(page.locator('.ss-mobile-sheet-handle').getByText(/Loading listings/)).toBeVisible();
     await expect.poll(venueRequest).toBeTruthy();
     await venueRequest().fulfill({ json: [{ id: 'fixture-cafe', venue_name: 'Fixture Cafe', lat: -37.81, lng: 144.96,
         typeLabel: 'Cafe', typeCategory: 'Bar', tags: ['Outdoor Seating'] }] });
-    await expect(finder.getByText(/Venue listings · Open-Meteo forecast/)).toBeVisible();
-    await expect(finder.getByText(/Sample listings/)).toHaveCount(0);
+    await expect(page.locator('.ss-mobile-sheet-handle').getByText(/Venue listings · Open-Meteo forecast/)).toBeVisible();
+    await expect(page.locator('.ss-mobile-sheet-handle').getByText(/Sample listings/)).toHaveCount(0);
     expect(errors).toEqual([]);
 });
 

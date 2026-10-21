@@ -43,7 +43,7 @@ async function boot(page, baseURL, now, { horizon = null } = {}) {
 }
 
 async function openVenue(page) {
-  await page.getByText(/^\d+ venues nearby$/).click();
+  await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
   await page.getByRole('textbox', { name: 'Search venues', exact: true }).fill(VENUE);
   await page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: / }).filter({ hasText: VENUE }).first().tap();
   await expect(page.getByRole('heading', { level: 2, name: VENUE, exact: true })).toBeVisible();

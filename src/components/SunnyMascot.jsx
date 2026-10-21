@@ -12,6 +12,7 @@ const SunnyMascot = ({
     onClick,
     isChatOpen,
     selectedVenue,
+    variant = 'floating',
     className = 'fixed right-4 z-[1000] pointer-events-none bottom-[calc(env(safe-area-inset-bottom)+90px)]',
 }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -54,6 +55,24 @@ const SunnyMascot = ({
         setIsFocused(false);
         onClick?.(event);
     };
+
+    if (variant === 'compact') {
+        return <div className="ss-sunny-compact">
+            <motion.button type="button" onClick={handleClick} aria-label="Ask Sunny" title="Ask Sunny"
+                aria-expanded={Boolean(isChatOpen)} aria-describedby={isChatOpen ? undefined : adviceId}
+                onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
+                onHoverStart={() => setIsHovered(true)} onHoverEnd={() => setIsHovered(false)}
+                whileHover={reduceMotion ? undefined : { scale: 1.04 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.96 }} className="ss-sunny-compact-button">
+                <img src={sunnyMascot} alt="" draggable={false} />
+            </motion.button>
+            {!isChatOpen && <motion.div id={adviceId} role="tooltip" aria-hidden={!bubbleVisible}
+                initial={false} animate={{ opacity: bubbleVisible ? 1 : 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }} className="ss-sunny-compact-tooltip">
+                <p>{advice.text}</p><span aria-hidden="true" />
+            </motion.div>}
+        </div>;
+    }
 
     const getGlowColor = () => {
         if (isChatOpen) return 'bg-emerald-400';

@@ -82,6 +82,7 @@ import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
 import DataBadge from '../DataBadge';
 import ClayIcon from '../common/ClayIcon';
+import MapTimeControls from './MapTimeControls.jsx';
 import { venueFeaturePinState } from '../../utils/venueFeaturePin.js';
 import { isHoverPointer, orphanedPinHover } from '../../utils/listMapPairing.js';
 import { viewportBboxFromCanvas } from '../../utils/viewportBbox.js';
@@ -532,7 +533,7 @@ function computeSunLight(minutes, lat, lng) {
 // preview commits only on pointer-up / cancel / blur / keyup — never the
 // live scrub path.
 function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes = null }) {
-    const { setScorePreviewMinutes } = useWeather();
+    const { weather, error: weatherError, unavailable: weatherUnavailable, setScorePreviewMinutes } = useWeather();
     // Writer-only: publishing the scrub position re-renders the microclimate
     // readouts, not this component or the map.
     const { setTodMinutes } = useMicroclimateActions();
@@ -752,71 +753,29 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
         setTodMinutes(v);
     };
 
-    return (
-        <motion.div
-            className={`relative z-40 w-full max-w-[340px] ${
-                isVenueSelected ? 'pointer-events-none' : 'pointer-events-auto'
-            }`}
-            initial={false}
-            animate={isVenueSelected
-                ? { y: 180, opacity: 0 }
-                : { y: 0, opacity: 1 }
-            }
-            transition={{ type: 'spring', damping: 30, stiffness: 280 }}
-            aria-hidden={isVenueSelected}
-            inert={isVenueSelected || undefined}
-        >
-            {/* No backdrop blur: this card floats over the live map, where blur
-                makes iOS Safari re-composite the map on every pan frame. */}
-            <div className="ss-map-time-card flex items-center gap-3 rounded-[22px] border border-white/60 bg-white/90 px-4 py-2.5 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)]">
-                <ClayIcon name="sun" size={32} />
-                <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                        <label htmlFor="tod-slider" className="text-[12px] font-semibold text-slate-600">
-                            {timeLabel.label}
-                        </label>
-                        <span className="flex items-center gap-2">
-                            <span
-                                aria-live="polite"
-                                className="text-[13px] font-semibold tabular-nums tracking-[-0.01em] text-slate-900"
-                            >
-                                {clock}
-                            </span>
-                            {!timeLabel.atNow ? (
-                                <button
-                                    type="button"
-                                    onClick={jumpToNow}
-                                    className="flex min-h-8 items-center rounded-full bg-amber-500 px-3 text-[12px] font-bold text-slate-900 shadow-sm active:bg-amber-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-                                    aria-label="Jump to the current time"
-                                >
-                                    Now
-                                </button>
-                            ) : null}
-                        </span>
-                    </div>
-                    <input
-                        ref={rangeRef}
-                        id="tod-slider"
-                        type="range"
-                        min={DAY_START_MIN}
-                        max={DAY_END_MIN}
-                        step={TOD_SLIDER_STEP_MIN}
-                        value={sliderMinutes}
-                        onChange={handleScrub}
-                        onPointerDown={handleRangePointerDown}
-                        onFocus={pauseMapPan}
-                        onPointerUp={handleRangeRelease}
-                        onPointerCancel={handleRangeRelease}
-                        onBlur={handleRangeRelease}
-                        onKeyUp={settleScrub}
-                        aria-label="Time of day for 3D building shadows"
-                        aria-valuetext={clock}
-                        className="h-11 min-h-11 w-full cursor-pointer accent-amber-500 touch-pan-x"
-                    />
-                </div>
-            </div>
-        </motion.div>
-    );
+    const selectPresetMinutes = (minutes) => {
+        handleScrub({ target: { value: String(minutes) } });
+        handleRangeRelease();
+    };
+
+    return <MapTimeControls
+        minutes={sliderMinutes}
+        clock={clock}
+        timeLabel={timeLabel}
+        nowMinutes={nowMinutes}
+        weather={weatherError || weatherUnavailable ? null : weather}
+        hidden={isVenueSelected}
+        onSelectMinutes={selectPresetMinutes}
+        onJumpNow={jumpToNow}
+        rangeRef={rangeRef}
+        rangeProps={{
+            min: DAY_START_MIN, max: DAY_END_MIN, step: TOD_SLIDER_STEP_MIN,
+            value: sliderMinutes, onChange: handleScrub,
+            onPointerDown: handleRangePointerDown, onFocus: pauseMapPan,
+            onPointerUp: handleRangeRelease, onPointerCancel: handleRangeRelease,
+            onBlur: handleRangeRelease, onKeyUp: settleScrub,
+        }}
+    />;
 }
 
 // Not getBounds(): it leaves out the padding fitBounds/flyTo keep on the
@@ -2179,7 +2138,7 @@ const VenueMap = forwardRef(({
                 layers need the loaded map. */}
             {!mapError && (
                 <div
-                    className="absolute right-4 top-4 z-50 flex flex-col items-end gap-2 lg:right-14"
+                    className="ss-map-layer-controls absolute right-4 top-4 z-50 flex flex-col items-end gap-2 lg:right-14"
                     onTouchEnd={e => e.stopPropagation()}
                 >
                     <button
@@ -2227,7 +2186,7 @@ const VenueMap = forwardRef(({
             )}
 
             {areaPrompt && !selectedVenue && !webglLost && mapLoaded && !mapError ? (
-                <div className="pointer-events-none absolute inset-x-0 top-4 z-50 flex justify-center px-20">
+                <div className="ss-map-search-area pointer-events-none absolute inset-x-0 top-4 z-50 flex justify-center px-20">
                     <button
                         type="button"
                         onClick={onSearchAreaClick}
@@ -2242,16 +2201,14 @@ const VenueMap = forwardRef(({
             ) : null}
 
             {/* Bottom-center stack: Filters sits cleanly above the TOD slider */}
-            <div className="pointer-events-none absolute inset-x-0 z-40 bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]">
+            <div className="ss-map-bottom-controls pointer-events-none absolute inset-x-0 z-40 bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]">
                 <div className="absolute bottom-0 left-4 right-[6.75rem] flex flex-col items-center gap-4">
                     {filtersControl ? (
                         <div className="pointer-events-auto lg:hidden">
                             {filtersControl}
                         </div>
                     ) : null}
-                    {mapLoaded && !mapError && recovery.phase !== 'resuming' ? (
-                        <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} todMinutes={todMinutes} />
-                    ) : null}
+                    <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} todMinutes={todMinutes} />
                 </div>
             </div>
 
