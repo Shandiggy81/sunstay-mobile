@@ -13,7 +13,8 @@ const WARMTH = [
     { key: 'indoor warmth', icon: 'indoor-warmth', text: 'Warm indoor space' },
 ];
 
-function warmthForVenue(venue) {
+/** The venue's own declared warmth (fireplace, outdoor heaters, warm indoor space); never a live status. */
+export function warmthForVenue(venue) {
     const heating = normaliseTag(venue?.heating);
     // A negative heating description must not become venueOfferings' positive
     // fireplace substring match. Tags remain the venue's own explicit facts.
