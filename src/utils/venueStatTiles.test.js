@@ -42,3 +42,10 @@ test('missing data and loading scores never fabricate weather or numbers', () =>
 test('comparison calendar dates retain their day regardless of room timezone', () => {
   assert.equal(formatGuestDate('2026-10-15T12:00:00Z', 'UTC'), 'Thu 15 Oct');
 });
+
+test('after dark the score tile says so instead of 0', () => {
+  const tiles = venueStatTiles({ venue: {}, weather: null, forecast, feelsLike: 15, score: 0, isNight: true });
+  assert.deepEqual(tiles[3], { label: 'Sun score', icon: 'night', value: 'After dark', note: 'back at sunrise' });
+  const loading = venueStatTiles({ venue: {}, weather: null, forecast, feelsLike: 15, score: null, scoreLoading: true, isNight: true });
+  assert.equal(loading[3].value, '…', 'loading wins over night');
+});

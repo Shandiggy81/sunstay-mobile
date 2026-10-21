@@ -7,7 +7,7 @@ import { windChip } from './venueConditionChips.js';
  * `sunNow` (outdoorSunSummary) replaces the forecast's "Sun now" cell when the
  * card shows the venue's building-shaded sun moments.
  */
-export function venueStatTiles({ venue, weather, forecast, score, scoreLoading, feelsLike, sunNow = null }) {
+export function venueStatTiles({ venue, weather, forecast, score, scoreLoading, feelsLike, sunNow = null, isNight = false }) {
   const wind = windChip(venue, weather);
   return [
     sunNow
@@ -15,6 +15,8 @@ export function venueStatTiles({ venue, weather, forecast, score, scoreLoading, 
       : { label: 'Sun now', icon: forecastKindIconName(forecast?.now?.kind), value: sunStatText(forecast) },
     { label: 'Wind here', icon: 'windsock', value: wind?.text ?? 'Unavailable', note: wind ? `${wind.kmh} km/h` : null },
     { label: 'Feels like', icon: feelsLikeIconName(feelsLike), value: Number.isFinite(feelsLike) ? `${Math.round(feelsLike)}°` : '–' },
-    { label: 'Sun score', icon: 'sun', value: scoreLoading ? '…' : Number.isFinite(score) ? String(Math.round(score)) : '–', note: 'out of 100' },
+    !scoreLoading && isNight
+      ? { label: 'Sun score', icon: 'night', value: 'After dark', note: 'back at sunrise' }
+      : { label: 'Sun score', icon: 'sun', value: scoreLoading ? '…' : Number.isFinite(score) ? String(Math.round(score)) : '–', note: 'out of 100' },
   ];
 }

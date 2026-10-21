@@ -108,4 +108,13 @@ describe('clusterSize', () => {
         assert.equal(highlighted.tier, 'low', 'highlight keeps the sun colour; only selection repaints it');
         assert.equal(both.tier, 'selected');
     });
+
+    it('shows a moon after dark but keeps the number in the label and conditions on top', () => {
+        const night = sunPinView({ score: 0, night: true });
+        assert.equal(night.scoreText, '🌙');
+        assert.equal(night.label, 'After dark. Sun score 0');
+        assert.equal(sunPinView({ score: 0 }).scoreText, '0', 'daytime is unchanged');
+        assert.equal(sunPinView({ pinKey: 'heater', score: 0, night: true }).scoreText, '🔥', 'heaters still show at night');
+        assert.equal(sunPinView({ score: null, night: true }).scoreText, '', 'no score, no claim');
+    });
 });
