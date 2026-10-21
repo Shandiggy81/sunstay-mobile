@@ -64,11 +64,11 @@ export default function MapTimeControls({ minutes, clock, timeLabel, nowMinutes,
     return <>
         {createPortal(<>
             <span className="ss-map-time-shortcuts" role="group" aria-label="Preview time today">
-                {presets.map(item => <button key={item.id} type="button"
+                {/* Shortcuts with no time to show (Tomorrow, or Golden hour without a
+                    live sunset) are hidden rather than shown as dead chips. */}
+                {presets.filter(item => item.id === 'now' || item.minutes != null).map(item => <button key={item.id} type="button"
                     className="ss-map-time-chip" aria-pressed={selected === item.id}
-                    disabled={item.minutes == null}
-                    title={item.id === 'tomorrow' ? 'Tomorrow preview is not available'
-                        : item.id === 'golden' ? 'One hour before Melbourne sunset'
+                    title={item.id === 'golden' ? 'One hour before Melbourne sunset'
                             : item.id === 'lunch' ? 'Today at 12pm' : item.id === 'arvo' ? 'Today at 3pm' : timeLabel.label}
                     onClick={() => item.id === 'now' ? onJumpNow() : onSelectMinutes(item.minutes)}>
                     <span>{item.label}</span>
