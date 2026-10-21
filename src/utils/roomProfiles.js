@@ -32,6 +32,11 @@ export function representativeLevel(topMetres) {
     return Math.min(highestLevel, Math.max(2, Math.round((topMetres * 0.6) / STOREY_M)));
 }
 
+/** Height in metres of the representative room level (what the context query must slice at). */
+export function representativeFloorHeight(topMetres) {
+    return Math.round(representativeLevel(topMetres) * STOREY_M * 10) / 10;
+}
+
 function maxAltitudeInBin(obstructions, from, to) {
     let max = 0;
     for (const range of obstructions) {
@@ -137,14 +142,20 @@ export function isPartyWall(facade, neighbours, { gapMetres = 1.5 } = {}) {
 
 /**
  * One room type per main facade (up to four, longest first, at least 12 m of wall),
- * at a representative level, shaded by the real neighbouring buildings. Party walls
+ * at a representative level, shaded by the real neighbouring buildings.
+ * `ownAtLevel`: the union of the building's parts taller than the representative
+ * floor height (see representativeFloorHeight). Falls back to `own`, the whole outline. Party walls
  * are dropped, and each compass direction appears once (its longest wall).
  */
-export function buildRoomProfiles({ venueId, own, top, neighbours }, { maxFacades = 4, minWallMetres = 12 } = {}) {
+export function buildRoomProfiles({ venueId, own, ownAtLevel = null, top, neighbours }, { maxFacades = 4, minWallMetres = 12 } = {}) {
     const level = representativeLevel(top);
-    const floorHeight = Math.round(level * STOREY_M * 10) / 10;
+    const floorHeight = representativeFloorHeight(top);
     const seen = new Set();
-    const facades = calculateFacadeSun(own, neighbours.map(n => ({ footprint: n.g ?? n.footprint, height_m: n.h ?? n.height_m })), floorHeight)
+    // Rooms at this level look out from the part of the building that reaches it.
+    // The whole outline includes podiums and low wings, whose edges can press
+    // against neighbouring towers while the rooms above sit well back from them.
+    const footprint = rings(ownAtLevel).some(polygon => polygon?.[0]?.length >= 4) ? ownAtLevel : own;
+    const facades = calculateFacadeSun(footprint, neighbours.map(n => ({ footprint: n.g ?? n.footprint, height_m: n.h ?? n.height_m })), floorHeight)
         .filter(facade => facade.length >= minWallMetres)
         // Party walls: a taller neighbour just in front, or the wall itself inside one
         // (the horizon straight ahead is vertical; a tower across even a narrow
