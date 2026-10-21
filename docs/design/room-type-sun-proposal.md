@@ -114,6 +114,9 @@ Hotels see why the ladder matters: confirmed rooms rank with accurate sun, and "
    Fixture data only.
 3. **Migration proposal PR** for §3. Reviewed SQL, grants and RLS. **Not applied** without
    Shannon's explicit approval, because merging under `supabase/` deploys.
+   *Draft written 22 Oct 2026:* [`room-type-schema-draft.sql`](room-type-schema-draft.sql), kept
+   under `docs/` so merging it deploys nothing. Moving it into `supabase/migrations/` is a
+   separate, approved step.
 4. **Pilot**: two or three Melbourne hotels through the partner flow, with manual entry by staff
    if the invite flow isn't built yet, still recorded as `hotel_confirmed` with a real contact.
 5. **Stay card build** from the redesign canvas once real room types exist.
