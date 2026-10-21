@@ -5,23 +5,31 @@
  *
  *   node scripts/buildRoomProfiles.mjs <context.json>
  *
- * context.json maps venue id -> { structure, top, own, neighbours: [{ h, g }] }:
- * the stay's own building (all parts unioned, GeoJSON), its height, and every
- * other building part (height >= 6 m) within 200 m. Produce it read-only from
- * Supabase (service role; public.buildings is not readable by anon):
+ * context.json maps venue id -> { structure, top, own, ownAtLevel, neighbours: [{ h, g }] }:
+ * the stay's own building (all parts unioned, GeoJSON), the union of only the
+ * parts taller than the representative room floor (ownAtLevel: the outline the
+ * rooms actually look out from, without podiums or low wings), its height, and
+ * every other building part (height >= 6 m) within 200 m.
+ * The floor_h expression below must match representativeFloorHeight().
+ * Produce it read-only from Supabase (service role; public.buildings is not readable by anon):
  *
  *   with pin as (select id, st_setsrid(st_makepoint(lng, lat), 4326) g from public.venues where id = any(:ids)),
  *   own as (select pin.id, (select b.structure_ref from public.buildings b
  *            where b.source = 'com2023' and st_dwithin(b.geom::geography, pin.g::geography, 20)
- *            order by st_distance(b.geom::geography, pin.g::geography), b.height_m desc limit 1) ref from pin)
+ *            order by st_distance(b.geom::geography, pin.g::geography), b.height_m desc limit 1) ref from pin),
+ *   tall as (select own.*, (select max(height_m) from public.buildings where structure_ref = own.ref) top from own),
+ *   lvl as (select tall.*, round((least(greatest(1, floor((top - 3.2) / 3.2)),
+ *            greatest(2, round(top * 0.6 / 3.2))) * 3.2)::numeric, 1) floor_h from tall)
  *   select json_object_agg(own.id, json_build_object('structure', own.ref,
- *     'top', (select max(height_m) from public.buildings where structure_ref = own.ref),
+ *     'top', own.top,
  *     'own', (select st_asgeojson(st_union(geom), 7)::json from public.buildings where structure_ref = own.ref),
+ *     'ownAtLevel', (select st_asgeojson(st_union(geom), 7)::json from public.buildings
+ *        where structure_ref = own.ref and height_m > own.floor_h),
  *     'neighbours', (select coalesce(json_agg(json_build_object('h', n.height_m, 'g', st_asgeojson(n.geom, 7)::json)), '[]')
  *        from public.buildings n where not n.superseded and n.height_m >= 6
  *          and n.structure_ref is distinct from own.ref
  *          and st_dwithin(n.geom::geography, (select st_union(geom) from public.buildings where structure_ref = own.ref)::geography, 200))))
- *   from own where own.ref is not null;
+ *   from lvl as own where own.ref is not null;
  *
  * Building data © City of Melbourne (CC BY 4.0).
  */
@@ -36,7 +44,8 @@ if (!file) {
 const context = JSON.parse(readFileSync(file, 'utf8'));
 const out = {};
 for (const [venueId, entry] of Object.entries(context).sort(([a], [b]) => a.localeCompare(b))) {
-    const rooms = buildRoomProfiles({ venueId, own: entry.own, top: entry.top, neighbours: entry.neighbours ?? [] });
+    if (!entry.ownAtLevel) console.warn(`${venueId}: no ownAtLevel in context; using the whole outline (podium edges may add false shade)`);
+    const rooms = buildRoomProfiles({ venueId, own: entry.own, ownAtLevel: entry.ownAtLevel, top: entry.top, neighbours: entry.neighbours ?? [] });
     out[venueId] = { structure: entry.structure, buildingTopMetres: entry.top, rooms };
     console.log(`${venueId}: ${rooms.length} rooms, level ${rooms[0]?.floorLevel ?? '-'}, ` +
         `${rooms.reduce((n, r) => n + r.obstructions.length, 0)} horizon ranges from ${entry.neighbours?.length ?? 0} neighbours`);

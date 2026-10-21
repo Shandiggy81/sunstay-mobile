@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRoomProfiles, compressObstructions, directionName, horizonAround, pointInGeometry, representativeLevel } from './roomProfiles.js';
+import { buildRoomProfiles, compressObstructions, directionName, horizonAround, pointInGeometry, representativeFloorHeight, representativeLevel, simplifyFootprint } from './roomProfiles.js';
 import { calculateBalconySunDay } from './balconySunEngine.js';
 
 // 40 m x 24 m block in Melbourne's CBD, long walls facing north and south.
@@ -88,4 +88,45 @@ test('a tall tower across the street to the north takes away the north rooms\' w
     const minutes = room => calculateBalconySunDay({ lat, lng, facing: room.orientation, obstructions: room.obstructions, date: '2027-06-21' }).totalMinutes;
     assert.ok(minutes(open) > 400, `open north room gets most of the winter day (${minutes(open)} min)`);
     assert.ok(minutes(shaded) < minutes(open) / 2, `tower removes most of it (${minutes(shaded)} min)`);
+});
+
+test('rooms above a podium use the tower outline, not the podium edge', () => {
+    // 80 x 80 m podium (20 m) with a 24 x 24 m tower (100 m) in the middle.
+    // A 120 m neighbour stands 4 m east of the podium edge, so 32 m east of the tower.
+    const podium = rect(0, 0, 80, 80), tower = rect(0, 0, 24, 24);
+    const neighbour = { g: rect(52, 0, 16, 80), h: 120 };
+    const floorHeight = representativeFloorHeight(100);
+    assert.ok(floorHeight > 20 && floorHeight < 100);
+    const east = rooms => rooms.find(r => r.name.startsWith('East'));
+    const eastPeak = room => Math.max(...room.obstructions.filter(r => r.start <= 90 && r.end >= 90).map(r => r.minAltitude));
+    const whole = east(buildRoomProfiles({ venueId: 'v', own: podium, top: 100, neighbours: [neighbour] }));
+    const atLevel = east(buildRoomProfiles({ venueId: 'v', own: podium, ownAtLevel: tower, top: 100, neighbours: [neighbour] }));
+    assert.equal(atLevel.wallMetres, 24);
+    // From the podium edge the neighbour looks almost vertical; from the tower it does not.
+    assert.ok(eastPeak(whole) > 80, `whole outline: ${eastPeak(whole)}`);
+    assert.ok(eastPeak(atLevel) < 65, `tower outline: ${eastPeak(atLevel)}`);
+});
+
+test('a missing or empty ownAtLevel falls back to the whole outline', () => {
+    const base = buildRoomProfiles({ venueId: 'v', own, top: 40, neighbours: [] });
+    assert.deepEqual(buildRoomProfiles({ venueId: 'v', own, ownAtLevel: null, top: 40, neighbours: [] }), base);
+    assert.deepEqual(buildRoomProfiles({ venueId: 'v', own, ownAtLevel: { type: 'Polygon', coordinates: [] }, top: 40, neighbours: [] }), base);
+});
+
+test('a curved tower drawn in short segments still gets its walls', () => {
+    // A 30 x 30 m tower whose north face is a shallow arc of 1.5 m segments
+    // (bulging up to 1.5 m). The facade finder drops edges under 4 m.
+    const arc = [];
+    for (let x = 15; x >= -15; x -= 1.5) arc.push([x, 15 + 1.5 * (1 - (x / 15) ** 2)]);
+    const metres = [[-15, -15], [15, -15], ...arc, [-15, -15]];
+    const curved = { type: 'Polygon', coordinates: [metres.map(([x, y]) => [lng + x / mPerDegLng, lat + y / mPerDegLat])] };
+    const rooms = buildRoomProfiles({ venueId: 'v', own: curved, top: 40, neighbours: [] });
+    const north = rooms.find(r => r.name.startsWith('North'));
+    assert.ok(north, rooms.map(r => r.name).join(', '));
+    assert.ok(north.wallMetres >= 28, `north wall ${north.wallMetres}`);
+});
+
+test('simplifyFootprint leaves a plain rectangle alone and ignores empty input', () => {
+    assert.deepEqual(simplifyFootprint(own).coordinates[0].length, own.coordinates[0].length);
+    assert.equal(simplifyFootprint(null), null);
 });
