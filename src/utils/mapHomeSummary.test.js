@@ -9,3 +9,11 @@ test('unknown scores and empty listings make no full-sun claim', () => {
     assert.deepEqual(mapHomeSummary([null, undefined, NaN, Infinity]), { total: 4, known: 0, fullSun: 0 });
     assert.deepEqual(mapHomeSummary([]), { total: 0, known: 0, fullSun: 0 });
 });
+test('night says after dark instead of a zero full-sun count', async () => {
+    const { homeSunClause } = await import('./mapHomeSummary.js');
+    const summary = mapHomeSummary([0, 0, 0]);
+    assert.equal(homeSunClause(summary, 'night'), 'after dark');
+    assert.equal(homeSunClause(summary, 'clear'), '0 in full sun');
+    assert.equal(homeSunClause(mapHomeSummary([100, 80]), null), '2 in full sun');
+    assert.equal(homeSunClause(mapHomeSummary([null]), 'night'), null);
+});

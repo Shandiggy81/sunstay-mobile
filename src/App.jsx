@@ -1,6 +1,6 @@
 import './components/ExplorePresentation.css';
 import './components/MapFirstHome.css';
-import { mapHomeSummary } from './utils/mapHomeSummary.js';
+import { homeSunClause, mapHomeSummary } from './utils/mapHomeSummary.js';
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
@@ -719,6 +719,17 @@ const AppContent = () => {
             sunset: sun?.sunsetDate,
         }), listTodMinutes);
     }, [sunnyFilterActive, weather?.hourly, weather?.utcOffsetSeconds, listTodMinutes]);
+    // Day/night at the list's time, for the home sheet's sun line.
+    const homeForecastKind = useMemo(() => {
+        const sun = getSunData(-37.8136, 144.9631);
+        return forecastKindAt(deriveSunForecast({
+            timeZone: DEFAULT_TIME_ZONE,
+            hourly: weather?.hourly,
+            utcOffsetSeconds: weather?.utcOffsetSeconds,
+            sunrise: sun?.sunriseDate,
+            sunset: sun?.sunsetDate,
+        }), listTodMinutes);
+    }, [weather?.hourly, weather?.utcOffsetSeconds, listTodMinutes]);
 
     // Sun-moment chips (and Sunny's chat): which venues get sun today in
     // each moment, from their stored building horizon and today's Melbourne
@@ -1469,7 +1480,7 @@ const AppContent = () => {
                         <div className="ss-mobile-sheet-grab" />
                         <span className="ss-home-peek-headline">
                             {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} venues`}
-                            {homeSummary.known > 0 && <span> · {homeSummary.fullSun} in full sun</span>}
+                            {homeSunClause(homeSummary, homeForecastKind) && <span> · {homeSunClause(homeSummary, homeForecastKind)}</span>}
                             {areaBounds ? showAllChip('-my-3') : null}
                             {ENABLE_MANUAL_VENUE_REFRESH ? (
                                 <VenueRefreshButton
