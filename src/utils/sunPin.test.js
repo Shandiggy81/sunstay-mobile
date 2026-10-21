@@ -27,11 +27,11 @@ describe('sunPinView', () => {
         }
     });
 
-    it('shows the score without condition emoji for both idle and selected pins', () => {
-        for (const pinKey of ['heater', 'cozy', 'rain', 'cold', 'windy']) {
+    it('shows a condition marker instead of the number for both idle and selected pins', () => {
+        for (const [pinKey, glyph] of [['heater', '🔥'], ['cozy', '🛋️'], ['rain', '🌧'], ['cold', '🥶'], ['windy', '💨']]) {
             for (const selected of [false, true]) {
                 const view = sunPinView({ pinKey, score: 88, selected });
-                assert.equal(view.scoreText, '88');
+                assert.equal(view.scoreText, glyph);
                 assert.equal(view.label, 'Sun score 88');
                 assert.equal(view.tier, selected ? 'selected' : 'full');
             }
@@ -46,6 +46,13 @@ describe('sunPinView', () => {
         assert.equal(v.scoreText, '88');
         assert.equal(v.label, 'Sun score 88');
         assert.equal(sunPinView({ score: 30, selected: true }).scoreText, '30');
+    });
+
+    it('fills full-sun pins so they stand out from part-sun pins', () => {
+        const full = sunPinView({ score: 90 });
+        const part = sunPinView({ score: 60 });
+        assert.equal(full.bg, '#FFE7A3');
+        assert.notEqual(full.bg, part.bg);
     });
 
     it('keeps low and part sun surfaces white with different border tones', () => {
