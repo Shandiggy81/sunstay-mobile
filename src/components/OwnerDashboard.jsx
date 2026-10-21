@@ -1,405 +1,161 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
-import FohWeatherWidget from './FohWeatherWidget';
-import MascotReaction from './MascotReaction';
-
-// ── Section Heading ─────────────────────────────────────────────────────
-const SectionHeading = ({ children, style = {} }) => (
-  <p className="tracking-wider text-xs font-semibold uppercase" style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 12, ...style }}>{children}</p>
-);
-
-// ── Inline Status ────────────────────────────────────────────────────────
-const InlineStatus = ({ text, type }) => (
-  <AnimatePresence>
-    {text && (
-      <motion.span
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0 }}
-        style={{ fontSize: '0.7rem', color: type === 'error' ? '#F87171' : type === 'info' ? '#FBBF24' : '#34D399', fontWeight: 600, marginLeft: 8 }}
-      >{text}</motion.span>
-    )}
-  </AnimatePresence>
-);
-
-// ── Dark Toggle Switch ──────────────────────────────────────────────────
-const DarkToggle = ({ label, icon, value, onChange, accentColor }) => {
-  const accent = accentColor || '#14B8A6';
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{icon}</span>
-        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>{label}</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <button
-          onClick={() => onChange(!value)}
-          style={{
-            width: 44, height: 24, borderRadius: 12, position: 'relative', border: 'none', cursor: 'pointer',
-            background: value ? accent : 'rgba(255,255,255,0.2)', transition: 'background 200ms ease',
-          }}
-        >
-          <div style={{
-            position: 'absolute', top: 2, width: 20, height: 20, borderRadius: '50%', background: '#fff',
-            transition: 'transform 200ms ease', transform: value ? 'translateX(22px)' : 'translateX(2px)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-          }} />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// ── Styled Text Input ─────────────────────────────────────────────────────
-const inputStyle = {
-  background: 'rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 12px',
-  color: '#fff', fontSize: '0.85rem', border: '1px solid rgba(255,255,255,0.2)',
-  outline: 'none', width: '100%',
-};
+import FohWeatherWidget from './FohWeatherWidget.jsx';
+import PartnerSunToday from './PartnerSunToday.jsx';
+import ClayIcon from './common/ClayIcon.jsx';
+import { partnerStatusGroups, partnerTagIcon, partnerTagSuggestions, partnerType } from '../utils/partnerVenueControls.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABELS = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+const booleanFromVenue = (value, fallback) => typeof value === 'boolean' ? value : !!fallback;
+const PREVIEW_NOTE = 'Preview updated on this device';
 
-const PRESET_TAGS = [
-  'Sunny Terrace', 'Dog Friendly', 'Live Music', 'Late Night',
-  'Cosy Inside', 'Rooftop', 'Garden', 'Sports Screens',
-  'Firepit', 'BYO', 'Cocktails', 'Family Friendly',
-];
-
-const HEATING_FIELDS = [
-  { key: 'heatersOn',         label: 'Mushroom Heaters',    icon: '🔆' },
-  { key: 'fireplaceOn',       label: 'Open Fire / Fire Pit', icon: '🔥' },
-  { key: 'hasUmbrellas',      label: 'Umbrellas Deployed',     icon: '⛱️' },
-  { key: 'hasWindProtection', label: 'Awnings / Windbreaks Down',     icon: '🌬️' },
-];
-
-const booleanFromVenue = (currentValue, legacyFallback) => (
-  typeof currentValue === 'boolean' ? currentValue : !!legacyFallback
-);
-
-// ── Inner modal — rendered inside the Portal ────────────────────
-function OwnerDashboardInner({
-  venue,
-  onClose,
-  liveVenueFeatures,
-  setLiveVenueFeatures,
-  onVenueUpdate,
-}) {
-  const safeVenue = venue || {};
-  const venueId   = safeVenue.id;
-  const venueName = safeVenue.name || safeVenue.venueName || 'Venue';
-
-  const defaultHours = {};
-  DAYS.forEach(d => {
-    const existing = safeVenue?.hours?.[d];
-    defaultHours[d] = existing || { open: '08:00', close: '22:00', closed: false };
-  });
-  const [hours, setHours]             = useState(defaultHours);
-  const [hoursStatus, setHoursStatus] = useState({ text: '', type: '' });
-  const [showHoursEdit, setShowHoursEdit] = useState(false);
-
-  const [heatingState, setHeatingState] = useState({
-    heatersOn:         booleanFromVenue(safeVenue?.heatersOn,         safeVenue?.hasHeaters),
-    fireplaceOn:       booleanFromVenue(safeVenue?.fireplaceOn,       safeVenue?.hasFireplace),
-    hasUmbrellas:      !!safeVenue?.hasUmbrellas,
-    hasWindProtection: !!safeVenue?.hasWindProtection,
-  });
-
-  // ── Live Sunshine toggle ─────────────────────────────────────────
-  const [sunshineNow, setSunshineNow] = useState(
-    booleanFromVenue(safeVenue?.sunshineNow, false)
-  );
-
-  const [activeTags, setActiveTags] = useState(() => {
-    if (Array.isArray(safeVenue.tags)) return safeVenue.tags;
-    if (Array.isArray(safeVenue.vibe)) return safeVenue.vibe;
-    return safeVenue.vibe ? [safeVenue.vibe] : [];
-  });
-  const [customTag,  setCustomTag]  = useState('');
-  const [vibeStatus, setVibeStatus] = useState({ text: '', type: '' });
-
-  const timeoutIdsRef = useRef(new Set());
-  const scheduleTimeout = useCallback((callback, delay) => {
-    const id = setTimeout(() => { timeoutIdsRef.current.delete(id); callback(); }, delay);
-    timeoutIdsRef.current.add(id);
-    return id;
-  }, []);
-  useEffect(() => () => { timeoutIdsRef.current.forEach(clearTimeout); timeoutIdsRef.current.clear(); }, []);
-
-  const flashStatus = useCallback((setter, text, type = 'success', duration = 2000) => {
-    setter({ text, type });
-    scheduleTimeout(() => setter({ text: '', type: '' }), duration);
-  }, [scheduleTimeout]);
-
-  // Changes stay on this device. Production RLS has no UPDATE policy on
-  // venues for anon or authenticated, so a browser write would match zero
-  // rows and report success; the dashboard used to flash "Saved" on that.
-  // Persisting owner edits needs a signed-in, server-side path first.
-  const PREVIEW_NOTE = 'Preview only · not saved';
-
-  const handleSaveHours = () => {
-    onVenueUpdate?.({ ...safeVenue, hours });
-    flashStatus(setHoursStatus, PREVIEW_NOTE, 'info', 3000);
-  };
-
-  const handleHeatingToggle = useCallback((key, value) => {
-    setHeatingState(prev => ({ ...prev, [key]: value }));
-    if (setLiveVenueFeatures) {
-      setLiveVenueFeatures(prev => ({
-        ...prev,
-        [venueId]: { ...(prev?.[venueId] || {}), [key]: value },
-      }));
-    }
-    onVenueUpdate?.({ [key]: value });
-  }, [venueId, setLiveVenueFeatures, onVenueUpdate]);
-
-  const handleSunshineToggle = useCallback((value) => {
-    setSunshineNow(value);
-    if (setLiveVenueFeatures) {
-      setLiveVenueFeatures(prev => ({
-        ...prev,
-        [venueId]: { ...(prev?.[venueId] || {}), sunshineNow: value },
-      }));
-    }
-    onVenueUpdate?.({ sunshineNow: value });
-  }, [venueId, setLiveVenueFeatures, onVenueUpdate]);
-
-  const handleSaveVibe = () => {
-    onVenueUpdate?.({ ...safeVenue, tags: activeTags });
-    flashStatus(setVibeStatus, PREVIEW_NOTE, 'info', 3000);
-  };
-
-  const addTag    = (tag) => { if (activeTags.length >= 8 || activeTags.includes(tag)) return; setActiveTags(t => [...t, tag]); };
-  const removeTag = (tag) => setActiveTags(t => t.filter(x => x !== tag));
-  const handleAddCustomTag = () => {
-    const trimmed = customTag.trim().slice(0, 20);
-    if (!trimmed || activeTags.includes(trimmed) || activeTags.length >= 8) return;
-    setActiveTags(t => [...t, trimmed]);
-    setCustomTag('');
-  };
-
-  return (
-    <div
-      className="absolute inset-0 z-[110] flex cursor-pointer flex-col overflow-hidden bg-black/30 backdrop-blur-sm"
-      onClick={onClose}
-      role="button"
-      tabIndex={0}
-      aria-label="Close dashboard"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClose();
-        }
-      }}
-    >
-      <MascotReaction lat={safeVenue?.lat || safeVenue?.latitude} lng={safeVenue?.lng || safeVenue?.longitude} />
-      <motion.div
-        key="owner-dashboard"
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-        onClick={e => e.stopPropagation()}
-        className="relative z-50 flex h-full min-h-0 flex-col overflow-hidden rounded-t-3xl bg-[#1a1a2e]/90 backdrop-blur-2xl border-t border-white/40 transition-transform duration-[400ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
-      >
-        {/* Drag Handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, cursor: 'pointer' }} onClick={onClose}>
-          <div style={{ width: 40, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.3)' }} />
-        </div>
-
-        {/* Top Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <div>
-            <h2 className="tracking-tight" style={{ color: '#fff', fontWeight: 700, fontSize: '1rem', margin: 0 }}>{venueName}</h2>
-            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem' }}>Floor Ops Manager · Preview</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
-          >
-            <X size={16} color="#F1F5F9" />
-          </button>
-        </div>
-
-        <p
-          role="note"
-          style={{ margin: 0, padding: '10px 16px', background: 'rgba(245,158,11,0.15)', borderBottom: '1px solid rgba(245,158,11,0.35)', color: '#FCD34D', fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.4, flexShrink: 0 }}
-        >
-          Partner editing isn&apos;t live yet. Changes here only show on this device and aren&apos;t saved for other guests.
-        </p>
-
-        {/* Pinned Actionable Alerts Banner (FOH Weather Intel) */}
-        <div style={{ padding: '16px 16px 16px', background: 'rgba(15,23,42,0.65)', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-          <SectionHeading style={{ marginBottom: 10 }}>📊 FOH Weather Intel</SectionHeading>
-          <FohWeatherWidget lat={safeVenue?.lat || safeVenue?.latitude} lng={safeVenue?.lng || safeVenue?.longitude} />
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
-
-          {/* Collapsed Static Schedule */}
-          <section>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showHoursEdit ? 12 : 0 }}>
-              <SectionHeading style={{ marginBottom: 0 }}>🕐 Service Hours</SectionHeading>
-              <button
-                type="button"
-                onClick={() => setShowHoursEdit(prev => !prev)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 8,
-                  background: showHoursEdit ? 'rgba(255,255,255,0.15)' : 'rgba(20,184,166,0.2)',
-                  border: `1px solid ${showHoursEdit ? 'rgba(255,255,255,0.2)' : 'rgba(20,184,166,0.5)'}`,
-                  color: showHoursEdit ? '#F1F5F9' : '#2DD4BF',
-                  fontWeight: 700,
-                  fontSize: '0.75rem',
-                  cursor: 'pointer',
-                  transition: 'all 150ms ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <span>{showHoursEdit ? 'Close Service Hours' : 'Edit Service Hours'}</span>
-                <span style={{ fontSize: '0.65rem' }}>{showHoursEdit ? '▲' : '▼'}</span>
-              </button>
-            </div>
-
-            <AnimatePresence>
-              {showHoursEdit && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: 'easeInOut' }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {DAYS.map(day => {
-                      const d = hours[day];
-                      return (
-                        <div key={day} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ width: 32, fontSize: '0.7rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>{DAY_LABELS[day]}</span>
-                          <button
-                            type="button"
-                            onClick={() => setHours(h => ({ ...h, [day]: { ...h[day], closed: !h[day].closed } }))}
-                            style={{ width: 36, height: 20, borderRadius: 10, position: 'relative', border: 'none', cursor: 'pointer', flexShrink: 0, background: d.closed ? 'rgba(255,255,255,0.15)' : '#14B8A6', transition: 'background 200ms ease' }}
-                          >
-                            <div style={{ position: 'absolute', top: 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'transform 200ms ease', transform: d.closed ? 'translateX(2px)' : 'translateX(18px)', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
-                          </button>
-                          {d.closed ? (
-                            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>Closed</span>
-                          ) : (
-                            <>
-                              <input type="time" value={d.open}  onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], open:  e.target.value } }))} style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }} />
-                              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}>–</span>
-                              <input type="time" value={d.close} onChange={e => setHours(h => ({ ...h, [day]: { ...h[day], close: e.target.value } }))} style={{ ...inputStyle, width: 90, padding: '4px 8px', fontSize: '0.75rem' }} />
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', marginTop: 14, marginBottom: 4 }}>
-                    <button type="button" onClick={handleSaveHours} style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer' }}>
-                      Preview Trading Hours
-                    </button>
-                    <InlineStatus text={hoursStatus.text} type={hoursStatus.type} />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
-
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
-
-          {/* ── Live Sunshine Section ───────────────────────────────── */}
-          <section>
-            <SectionHeading>☀️ Live Floor Status</SectionHeading>
-            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
-              Flip this when the beer garden is cracking.
-              On this device, your map pin turns into a ☀️ so you can see how it looks.
-            </p>
-            <DarkToggle
-              label="Sun is Hitting the Garden"
-              icon="☀️"
-              value={sunshineNow}
-              onChange={handleSunshineToggle}
-              accentColor="#F59E0B"
-            />
-          </section>
-
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
-
-          <section>
-            <SectionHeading>🔥 Winter Proofing</SectionHeading>
-            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 10 }}>
-              Got the fires roaring? Flip these on to preview the 🔥 pin on this device.
-            </p>
-            {HEATING_FIELDS.map(({ key, label, icon }) => (
-              <DarkToggle
-                key={key}
-                label={label}
-                icon={icon}
-                value={heatingState[key]}
-                onChange={val => handleHeatingToggle(key, val)}
-              />
-            ))}
-          </section>
-
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />
-
-          <section>
-            <SectionHeading>✨ Venue Vibe Check</SectionHeading>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-              {activeTags.map(tag => (
-                <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 999, background: '#14B8A6', color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>
-                  {tag}
-                  <button onClick={() => removeTag(tag)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: 0, fontSize: '0.8rem', lineHeight: 1 }}>✕</button>
-                </span>
-              ))}
-              {activeTags.length === 0 && (
-                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontStyle: 'italic' }}>No vibe tags set — tap below to add</span>
-              )}
-            </div>
-            <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginBottom: 8, fontWeight: 600 }}>{activeTags.length}/8 tags</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 12 }}>
-              {PRESET_TAGS.map(tag => {
-                const active = activeTags.includes(tag);
-                return (
-                  <button key={tag} onClick={() => !active && addTag(tag)} disabled={active || activeTags.length >= 8}
-                    style={{ padding: '6px 10px', borderRadius: 8, fontSize: '0.7rem', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)', cursor: active ? 'default' : 'pointer', background: active ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', color: active ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.7)', transition: 'all 150ms ease' }}>
-                    {tag}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <input type="text" value={customTag} onChange={e => setCustomTag(e.target.value.slice(0, 20))} placeholder="Custom tag..." maxLength={20} onKeyDown={e => e.key === 'Enter' && handleAddCustomTag()} style={{ ...inputStyle, flex: 1 }} />
-              <button onClick={handleAddCustomTag} disabled={!customTag.trim() || activeTags.length >= 8}
-                style={{ padding: '8px 16px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer', opacity: (!customTag.trim() || activeTags.length >= 8) ? 0.4 : 1 }}>
-                Add
-              </button>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <button onClick={handleSaveVibe}
-                style={{ padding: '8px 20px', borderRadius: 8, background: '#14B8A6', color: '#fff', fontWeight: 700, fontSize: '0.75rem', border: 'none', cursor: 'pointer' }}>
-                Preview Vibe
-              </button>
-              <InlineStatus text={vibeStatus.text} type={vibeStatus.type} />
-            </div>
-          </section>
-
-          <div style={{ height: 48 }} />
-        </div>
-      </motion.div>
-    </div>
-  );
+function StatusTile({ label, icon, value, onChange }) {
+    return <button type="button" className="ss-partner-toggle" role="switch" aria-checked={value} onClick={() => onChange(!value)}>
+        <ClayIcon name={icon} size={56} />
+        <span className="ss-partner-toggle-label">{label}<small>{value ? 'On' : 'Off'}</small></span>
+        <span className="ss-partner-switch" aria-hidden="true"><span /></span>
+    </button>;
 }
 
-// ── Public export — fills ss-main under TopBar (no guessed 132px offset) ──
+function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFeatures, onVenueUpdate }) {
+    const venueId = venue.id;
+    const venueName = venue.venueName || venue.name || 'Your venue';
+    const type = partnerType(venue);
+    const reduceMotion = useReducedMotion();
+    const panelRef = useRef(null);
+    const [now, setNow] = useState(() => new Date());
+    const [hours, setHours] = useState(() => Object.fromEntries(DAYS.map(day => [day,
+        venue.hours?.[day] && typeof venue.hours[day] === 'object' ? { ...venue.hours[day] }
+            : { open: '', close: '', closed: true },
+    ])));
+    const [showHoursEdit, setShowHoursEdit] = useState(false);
+    const [hoursStatus, setHoursStatus] = useState('');
+    const [vibeStatus, setVibeStatus] = useState('');
+    const [customTag, setCustomTag] = useState('');
+    const [activeTags, setActiveTags] = useState(() => {
+        const tags = Array.isArray(venue.tags) ? venue.tags : Array.isArray(venue.vibe) ? venue.vibe : venue.vibe ? [venue.vibe] : [];
+        return [...new Set(tags.filter(tag => typeof tag === 'string' && tag.trim()))].slice(0, 8);
+    });
+    const live = liveVenueFeatures?.[venueId] ?? {};
+    const [status, setStatus] = useState(() => ({
+        sunshineNow: booleanFromVenue(live.sunshineNow, venue.sunshineNow),
+        heatersOn: booleanFromVenue(live.heatersOn, booleanFromVenue(venue.heatersOn, venue.hasHeaters)),
+        fireplaceOn: booleanFromVenue(live.fireplaceOn, booleanFromVenue(venue.fireplaceOn, venue.hasFireplace)),
+        hasUmbrellas: booleanFromVenue(live.hasUmbrellas, venue.hasUmbrellas),
+        hasWindProtection: booleanFromVenue(live.hasWindProtection, venue.hasWindProtection),
+    }));
+    const groups = partnerStatusGroups(venue);
+    const suggestions = partnerTagSuggestions(venue);
+
+    useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 60000);
+        return () => clearInterval(timer);
+    }, []);
+    useEffect(() => {
+        const previous = document.activeElement;
+        const root = document.getElementById('root');
+        const wasInert = root?.inert;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        if (root) root.inert = true;
+        panelRef.current?.querySelector('[aria-label="Close partner preview"]')?.focus({ preventScroll: true });
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            if (root) root.inert = wasInert;
+            if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true });
+        };
+    }, []);
+
+    // Keep the existing device-local feature keys and pin preview updates.
+    // No Supabase client or write: partner persistence needs a server-side path.
+    const toggleStatus = useCallback((key, value) => {
+        setStatus(previous => ({ ...previous, [key]: value }));
+        setLiveVenueFeatures?.(previous => ({
+            ...previous,
+            [venueId]: { ...(previous?.[venueId] || {}), [key]: value },
+        }));
+        onVenueUpdate?.({ [key]: value });
+    }, [venueId, setLiveVenueFeatures, onVenueUpdate]);
+    const addTag = tag => {
+        if (activeTags.length >= 8 || activeTags.includes(tag)) return;
+        setActiveTags(tags => [...tags, tag]);
+    };
+    const addCustomTag = () => {
+        const tag = customTag.trim().slice(0, 20);
+        if (!tag || activeTags.includes(tag) || activeTags.length >= 8) return;
+        addTag(tag); setCustomTag('');
+    };
+    const hasHours = DAYS.some(day => hours[day].open || hours[day].close);
+
+    return createPortal(<div className="ss-partner-overlay" onClick={onClose} onKeyDown={event => {
+        if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
+        if (event.key === 'Tab') {
+            const controls = [...panelRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), a[href]')];
+            const first = controls[0], last = controls.at(-1);
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        }
+    }}>
+        <motion.section ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="partner-preview-title" className="ss-partner-panel"
+            initial={reduceMotion ? false : { y: 32, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={event => event.stopPropagation()}>
+            <header className="ss-partner-header">
+                <div className="ss-partner-title"><h2 id="partner-preview-title">{venueName}</h2><div className="ss-partner-chips">
+                    <span className="ss-partner-type"><ClayIcon name={type.icon} size={24} />{type.label}</span>
+                    <span className="ss-partner-preview-pill">Partner preview</span>
+                </div></div>
+                <button type="button" className="ss-partner-close" onClick={onClose} aria-label="Close partner preview"><X size={20} aria-hidden="true" /></button>
+            </header>
+            <div className="ss-partner-content">
+                <aside role="note" className="ss-partner-notice"><ClayIcon name="house" size={32} /><p><strong>Preview only.</strong> Changes stay on this device until partner editing launches.</p></aside>
+                <PartnerSunToday venue={venue} now={now} />
+                <FohWeatherWidget venue={venue} hours={hours} now={now} />
+                {groups.length > 0 && <section className="ss-partner-card" aria-labelledby="partner-status-heading">
+                    <h3 id="partner-status-heading">Live status preview</h3>
+                    <p className="ss-partner-help">Try a status to preview your map pin on this device. Guests won’t see these changes.</p>
+                    {groups.map(group => <fieldset key={group.label} className="ss-partner-toggle-group"><legend>{group.label}</legend>
+                        {group.controls.map(control => <StatusTile key={control.key} {...control} value={status[control.key]} onChange={value => toggleStatus(control.key, value)} />)}
+                    </fieldset>)}
+                </section>}
+                <section className="ss-partner-card" aria-labelledby="partner-hours-heading">
+                    <div className="ss-partner-section-heading"><ClayIcon name="clock" size={40} /><h3 id="partner-hours-heading">Service hours</h3></div>
+                    <p className="ss-partner-help">{hasHours ? 'Use your actual opening hours to preview relevant weather tips.' : 'Hours not supplied. Add your opening hours to preview relevant weather tips.'}</p>
+                    <button type="button" className="ss-partner-button ss-partner-button--soft" aria-expanded={showHoursEdit} onClick={() => setShowHoursEdit(value => !value)}>{showHoursEdit ? 'Hide service hours' : 'Edit service hours'}</button>
+                    {showHoursEdit && <div className="ss-partner-hours">
+                        {DAYS.map(day => <div key={day} className="ss-partner-day"><span>{DAY_LABELS[day]}</span>
+                            <button type="button" aria-label={`${DAY_LABELS[day]} open`} aria-pressed={!hours[day].closed} onClick={() => setHours(previous => ({ ...previous, [day]: { ...previous[day], closed: !previous[day].closed } }))}>{hours[day].closed ? 'Closed' : 'Open'}</button>
+                            {!hours[day].closed && <div className="ss-partner-time-range">
+                                <input aria-label={`${DAY_LABELS[day]} opening time`} type="time" value={hours[day].open} onChange={event => setHours(previous => ({ ...previous, [day]: { ...previous[day], open: event.target.value } }))} />
+                                <span>to</span>
+                                <input aria-label={`${DAY_LABELS[day]} closing time`} type="time" value={hours[day].close} onChange={event => setHours(previous => ({ ...previous, [day]: { ...previous[day], close: event.target.value } }))} />
+                            </div>}
+                        </div>)}
+                        <button type="button" className="ss-partner-button" onClick={() => { onVenueUpdate?.({ ...venue, hours }); setHoursStatus(PREVIEW_NOTE); }}>Preview service hours</button>
+                    </div>}
+                    <p role="status" className="ss-partner-save-status">{hoursStatus}</p>
+                </section>
+                <section className="ss-partner-card" aria-labelledby="partner-tags-heading">
+                    <div className="ss-partner-section-heading"><ClayIcon name="sparkles" size={40} /><div><h3 id="partner-tags-heading">Your venue’s tags</h3><p>{activeTags.length}/8 tags · preview only</p></div></div>
+                    <div className="ss-partner-tags">{activeTags.map(tag => <button type="button" key={tag} aria-label={`Remove ${tag}`} onClick={() => setActiveTags(tags => tags.filter(value => value !== tag))}>
+                        <ClayIcon name={partnerTagIcon(tag)} size={28} /><span>{tag}</span><X size={14} aria-hidden="true" />
+                    </button>)}</div>
+                    <p className="ss-partner-help">Add what fits your venue</p>
+                    <div className="ss-partner-tags ss-partner-suggestions">{suggestions.map(tag => <button type="button" key={tag} disabled={activeTags.includes(tag) || activeTags.length >= 8} onClick={() => addTag(tag)}><ClayIcon name={partnerTagIcon(tag)} size={28} /><span>{tag}</span></button>)}</div>
+                    <div className="ss-partner-custom-tag"><input aria-label="Custom tag" type="text" placeholder="Add your own tag" maxLength={20} value={customTag} onChange={event => setCustomTag(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') addCustomTag(); }} /><button type="button" className="ss-partner-button ss-partner-button--soft" disabled={!customTag.trim() || activeTags.length >= 8} onClick={addCustomTag}>Add</button></div>
+                    <button type="button" className="ss-partner-button" onClick={() => { onVenueUpdate?.({ ...venue, tags: activeTags }); setVibeStatus(PREVIEW_NOTE); }}>Preview tags</button>
+                    <p role="status" className="ss-partner-save-status">{vibeStatus}</p>
+                </section>
+                <section className="ss-partner-card ss-partner-invite"><ClayIcon name="sun" size={56} /><h3>Want this live for your guests?</h3><p>Let’s bring your venue’s sun story to SunStay.</p>
+                    <a className="ss-partner-button" href={`mailto:sunstayglobal@gmail.com?subject=${encodeURIComponent(`SunStay partner enquiry: ${venueName}`)}`}>Become a SunStay partner</a>
+                </section>
+            </div>
+        </motion.section>
+    </div>, document.body);
+}
+
 export default function OwnerDashboard(props) {
-  if (!props.venue) return null;
-  return <OwnerDashboardInner key="owner-dashboard-inner" {...props} />;
+    return props.venue ? <OwnerDashboardInner key={props.venue.id} {...props} /> : null;
 }
