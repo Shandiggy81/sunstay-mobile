@@ -5,9 +5,14 @@ import { normaliseTag, venueOfferings } from './venueOfferings.js';
 const FOOD_KINDS = new Set(['cafe', 'bakery', 'bar', 'pub', 'restaurant', 'takeaway']);
 const tagsFor = venue => new Set((Array.isArray(venue?.tags) ? venue.tags : []).map(normaliseTag));
 const hasTag = (tags, values) => values.some(value => tags.has(value));
+// Device-local "Preview tags" replace the venue's own tags for the controls. Nothing is saved.
+const withPreviewTags = (venue, previewTags) => Array.isArray(previewTags) ? { ...venue, tags: previewTags } : venue;
+
+export const PARTNER_SUN_HINT = 'Got a beer garden, terrace or courtyard? Add it in your tags below to preview sun switches.';
 
 /** Outdoor access must be explicit. Facade-only room estimates are not balconies. */
-export function partnerOutdoorSpace(venue) {
+export function partnerOutdoorSpace(baseVenue, previewTags) {
+    const venue = withPreviewTags(baseVenue, previewTags);
     const kind = venueKind(venue), tags = tagsFor(venue);
     if (kind === 'stay') {
         const rooms = Array.isArray(venue.roomTypes) ? venue.roomTypes : [];
@@ -26,21 +31,43 @@ export function partnerOutdoorSpace(venue) {
     return null;
 }
 
-/** Keys match the existing device-local venue feature/pin preview contract. */
-export function partnerStatusGroups(venue) {
+/**
+ * Keys match the existing device-local venue feature/pin preview contract.
+ * Food and drink venues always get Warmth: heaters and an indoor fireplace need
+ * no outdoor area. Sun & shade needs one. Stays need an outdoor space for either.
+ */
+export function partnerStatusGroups(baseVenue, previewTags) {
+    const venue = withPreviewTags(baseVenue, previewTags);
+    const kind = venueKind(venue);
+    const stay = kind === 'stay';
+    if (!stay && !FOOD_KINDS.has(kind)) return [];
     const space = partnerOutdoorSpace(venue);
-    if (!space) return [];
-    const stay = venueKind(venue) === 'stay';
-    const sun = [{ key: 'sunshineNow', label: `Sun on the ${space.label}`, icon: 'sun' }];
-    if (!stay || space.communal) sun.push(
-        { key: 'hasUmbrellas', label: 'Umbrellas up', icon: 'umbrella' },
-        { key: 'hasWindProtection', label: 'Awnings / windbreaks down', icon: 'wind-sheltered' },
-    );
+    if (stay && !space) return [];
+    const groups = [];
+    if (space) {
+        const sun = [{ key: 'sunshineNow', label: `Sun on the ${space.label}`, icon: 'sun' }];
+        if (!stay || space.communal) sun.push(
+            { key: 'hasUmbrellas', label: 'Umbrellas up', icon: 'umbrella' },
+            { key: 'hasWindProtection', label: 'Awnings / windbreaks down', icon: 'wind-sheltered' },
+        );
+        groups.push({ label: 'Sun & shade', controls: sun });
+    }
     const warmth = [];
     const tags = tagsFor(venue);
     if (!stay || venue.hasHeaters === true || hasTag(tags, ['heaters', 'heated outdoor'])) warmth.push({ key: 'heatersOn', label: 'Heaters on', icon: 'heater' });
-    if (!stay) warmth.push({ key: 'fireplaceOn', label: 'Fire pit lit', icon: 'fireplace' });
-    return [{ label: 'Sun & shade', controls: sun }, ...(warmth.length ? [{ label: 'Warmth', controls: warmth }] : [])];
+    if (!stay) {
+        // A fire pit is outdoors; a fireplace (the heating field says so, or there's nowhere outside) is not.
+        const fireplace = /fireplace/i.test(String(venue.heating ?? '')) || !space;
+        warmth.push({ key: 'fireplaceOn', label: fireplace ? 'Fireplace lit' : 'Fire pit lit', icon: 'fireplace' });
+    }
+    if (warmth.length) groups.push({ label: 'Warmth', controls: warmth });
+    return groups;
+}
+
+/** The friendly prompt shown in place of Sun & shade for a food or drink venue with no outdoor space. */
+export function partnerSunHint(baseVenue, previewTags) {
+    const venue = withPreviewTags(baseVenue, previewTags);
+    return FOOD_KINDS.has(venueKind(venue)) && !partnerOutdoorSpace(venue) ? PARTNER_SUN_HINT : null;
 }
 
 const TAGS = {

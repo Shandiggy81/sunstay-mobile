@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import FohWeatherWidget from './FohWeatherWidget.jsx';
 import PartnerSunToday from './PartnerSunToday.jsx';
 import ClayIcon from './common/ClayIcon.jsx';
-import { partnerStatusGroups, partnerTagIcon, partnerTagSuggestions, partnerType } from '../utils/partnerVenueControls.js';
+import { partnerStatusGroups, partnerSunHint, partnerTagIcon, partnerTagSuggestions, partnerType } from '../utils/partnerVenueControls.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABELS = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
@@ -39,6 +39,8 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
         const tags = Array.isArray(venue.tags) ? venue.tags : Array.isArray(venue.vibe) ? venue.vibe : venue.vibe ? [venue.vibe] : [];
         return [...new Set(tags.filter(tag => typeof tag === 'string' && tag.trim()))].slice(0, 8);
     });
+    // Tags from the last "Preview tags", kept on this device; they drive the switches below.
+    const [previewedTags, setPreviewedTags] = useState(null);
     const live = liveVenueFeatures?.[venueId] ?? {};
     const [status, setStatus] = useState(() => ({
         sunshineNow: booleanFromVenue(live.sunshineNow, venue.sunshineNow),
@@ -47,7 +49,8 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
         hasUmbrellas: booleanFromVenue(live.hasUmbrellas, venue.hasUmbrellas),
         hasWindProtection: booleanFromVenue(live.hasWindProtection, venue.hasWindProtection),
     }));
-    const groups = partnerStatusGroups(venue);
+    const groups = partnerStatusGroups(venue, previewedTags);
+    const sunHint = partnerSunHint(venue, previewedTags);
     const suggestions = partnerTagSuggestions(venue);
 
     useEffect(() => {
@@ -113,9 +116,12 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                 <aside role="note" className="ss-partner-notice"><ClayIcon name="house" size={32} /><p><strong>Preview only.</strong> Changes stay on this device until partner editing launches.</p></aside>
                 <PartnerSunToday venue={venue} now={now} />
                 <FohWeatherWidget venue={venue} hours={hours} now={now} />
-                {groups.length > 0 && <section className="ss-partner-card" aria-labelledby="partner-status-heading">
+                {(groups.length > 0 || sunHint) && <section className="ss-partner-card" aria-labelledby="partner-status-heading">
                     <h3 id="partner-status-heading">Live status preview</h3>
                     <p className="ss-partner-help">Try a status to preview your map pin on this device. Guests won’t see these changes.</p>
+                    {sunHint && <fieldset className="ss-partner-toggle-group"><legend>Sun &amp; shade</legend>
+                        <p className="ss-partner-notice"><ClayIcon name="beer-garden" size={40} /><span>{sunHint}</span></p>
+                    </fieldset>}
                     {groups.map(group => <fieldset key={group.label} className="ss-partner-toggle-group"><legend>{group.label}</legend>
                         {group.controls.map(control => <StatusTile key={control.key} {...control} value={status[control.key]} onChange={value => toggleStatus(control.key, value)} />)}
                     </fieldset>)}
@@ -145,7 +151,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                     <p className="ss-partner-help">Add what fits your venue</p>
                     <div className="ss-partner-tags ss-partner-suggestions">{suggestions.map(tag => <button type="button" key={tag} disabled={activeTags.includes(tag) || activeTags.length >= 8} onClick={() => addTag(tag)}><ClayIcon name={partnerTagIcon(tag)} size={28} /><span>{tag}</span></button>)}</div>
                     <div className="ss-partner-custom-tag"><input aria-label="Custom tag" type="text" placeholder="Add your own tag" maxLength={20} value={customTag} onChange={event => setCustomTag(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') addCustomTag(); }} /><button type="button" className="ss-partner-button ss-partner-button--soft" disabled={!customTag.trim() || activeTags.length >= 8} onClick={addCustomTag}>Add</button></div>
-                    <button type="button" className="ss-partner-button" onClick={() => { onVenueUpdate?.({ ...venue, tags: activeTags }); setVibeStatus(PREVIEW_NOTE); }}>Preview tags</button>
+                    <button type="button" className="ss-partner-button" onClick={() => { setPreviewedTags(activeTags); onVenueUpdate?.({ ...venue, tags: activeTags }); setVibeStatus(PREVIEW_NOTE); }}>Preview tags</button>
                     <p role="status" className="ss-partner-save-status">{vibeStatus}</p>
                 </section>
                 <section className="ss-partner-card ss-partner-invite"><ClayIcon name="sun" size={56} /><h3>Want this live for your guests?</h3><p>Let’s bring your venue’s sun story to SunStay.</p>
