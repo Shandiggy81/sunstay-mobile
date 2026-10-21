@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { fetchOpenMeteoWeatherWithMeta } from '../utils/weatherService';
 import { scoreVenueFromWeather, sunScoreFromWeather } from '../utils/scoreFromOpenMeteo';
 import { computeBestWindow } from '../utils/getBestWindow';
 import { melbourneDate } from '../utils/sunPosition';
+import { weatherRetryDecision } from '../utils/weatherRecovery';
 
 const WeatherContext = createContext(null);
 
@@ -48,9 +49,22 @@ export const WeatherProvider = ({ children }) => {
     // Settled TOD slider minutes (Melbourne wall-clock). null = live “now”.
     const [previewMinutes, setPreviewMinutes] = useState(null);
 
-    const fetchWeather = useCallback(async (signal) => {
-        setLoading(true);
-        setError(null);
+    // Retry bookkeeping lives in a ref so retries never re-render on their own.
+    const recovery = useRef({ live: false, inFlight: false, timedRetryUsed: false, lastAttemptAt: null });
+
+    /**
+     * One Open-Meteo attempt. A quiet attempt is a background retry: it keeps
+     * the fallback on screen (no loading flash) and only changes state on success.
+     * Resolves true when live weather loaded.
+     */
+    const fetchWeather = useCallback(async (signal, { quiet = false } = {}) => {
+        const r = recovery.current;
+        r.inFlight = true;
+        r.lastAttemptAt = Date.now();
+        if (!quiet) {
+            setLoading(true);
+            setError(null);
+        }
 
         try {
             // Geo+TTL cache lives in weatherService (30 min, 2dp). Warm hits skip the network.
@@ -59,24 +73,66 @@ export const WeatherProvider = ({ children }) => {
                 MELBOURNE_COORDS.lon,
                 signal
             );
+            r.live = true;
             setWeather(data);
             setDataMeta({ kind, fetchedAt });
+            setError(null);
+            return true;
         } catch (err) {
-            if (isAbortError(err)) return;
-
+            if (isAbortError(err)) return false;
+            if (quiet) {
+                console.warn('[WeatherProvider] Open-Meteo retry failed:', err.message);
+                return false;
+            }
             console.warn('[WeatherProvider] Open-Meteo fetch failed, falling back to demo data:', err.message);
             setWeather(DEMO_WEATHER);
             setDataMeta({ kind: 'demo', fetchedAt: null });
             setError(err.message || 'Weather temporarily unavailable');
+            return false;
         } finally {
-            setLoading(false);
+            r.inFlight = false;
+            if (!quiet) setLoading(false);
         }
     }, []);
 
     useEffect(() => {
         const controller = new AbortController();
-        fetchWeather(controller.signal);
-        return () => controller.abort();
+        const r = recovery.current;
+        let timer = null;
+
+        const decide = (trigger) => weatherRetryDecision({ ...r, now: Date.now(), trigger });
+
+        const attempt = async (quiet) => {
+            const ok = await fetchWeather(controller.signal, { quiet });
+            if (ok || controller.signal.aborted) return;
+            // One timed retry per page load; after that only online/visible can retry.
+            const decision = decide('failed');
+            if (decision.retry) {
+                r.timedRetryUsed = true;
+                timer = setTimeout(() => { timer = null; attempt(true); }, decision.delayMs);
+            }
+        };
+
+        const retryOn = (trigger) => {
+            if (trigger === 'visible' && document.visibilityState !== 'visible') return;
+            if (!decide(trigger).retry) return;
+            clearTimeout(timer);
+            timer = null;
+            attempt(true);
+        };
+        const onOnline = () => retryOn('online');
+        const onVisible = () => retryOn('visible');
+
+        window.addEventListener('online', onOnline);
+        document.addEventListener('visibilitychange', onVisible);
+        attempt(false);
+
+        return () => {
+            controller.abort();
+            clearTimeout(timer);
+            window.removeEventListener('online', onOnline);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
     }, [fetchWeather]);
 
     const getWeatherSummary = useCallback(() => {

@@ -62,6 +62,14 @@ describe('sunnyAdvice', () => {
         assert.match(sunnyAdvice(live({ weather: [{ main: 'Clouds' }], clouds: { all: 85 } })).text, /cloudy/);
     });
 
+    it('uses the same sky wording as the header', () => {
+        // Open-Meteo "mostly clear" arrives as main "Clouds"; the header shows "Mostly clear".
+        const advice = sunnyAdvice(live({ main: { temp: 17 }, weather: [{ main: 'Clouds', description: 'mostly clear' }], clouds: { all: 30 } }));
+        assert.match(advice.text, /^17° and sunny/);
+        const overcast = sunnyAdvice(live({ main: { temp: 17 }, weather: [{ main: 'Clouds', description: 'overcast' }], clouds: { all: 40 } }));
+        assert.match(overcast.text, /cloudy/);
+    });
+
     it('never calls a clear night sunny', () => {
         const advice = sunnyAdvice(live({ isDay: false, main: { temp: 18 } }));
         assert.equal(advice.text, '18° and a clear night. Good for a heated courtyard or rooftop.');
