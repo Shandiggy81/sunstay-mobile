@@ -53,6 +53,8 @@ const getWeatherMood = (weather) => {
   if (wind > 30) return { emoji: '💨', label: 'Windy out there!', gradient: 'from-teal-400 via-cyan-400 to-blue-400' };
   if ((cw.uv ?? 0) >= 8) return { emoji: '🕶️', label: 'UV is high today', gradient: 'from-orange-500 via-red-400 to-orange-400' };
   if ((cw.cloud ?? 0) > 70) return { emoji: '☁️', label: 'Cloudy vibes', gradient: 'from-gray-400 via-slate-400 to-gray-500' };
+  // Same day/night flag the header uses for its moon, so the chat never says "day" after sunset.
+  if (weather?.isDay === false) return { emoji: '🌙', label: 'Great night out', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
   if ((cw.temp ?? 0) >= 28) return { emoji: '🌞', label: 'Cracking day!', gradient: 'from-yellow-400 via-amber-400 to-orange-400' };
   return { emoji: '😎', label: 'Great day out', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
 };
@@ -494,7 +496,7 @@ const ChatWidget = ({
               </div>
               <button
                 onClick={onClose}
-                className="w-9 h-9 flex items-center justify-center hover:bg-white/20 rounded-full transition-colors"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center hover:bg-white/20 rounded-full transition-colors"
                 aria-label="Close chat"
               >
                 <X className="w-5 h-5 text-white" />
@@ -609,14 +611,14 @@ const ChatWidget = ({
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   placeholder="Ask Sunny anything..."
-                  className="flex-1 h-10 px-4 bg-gray-50 border border-gray-200 rounded-full text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
+                  className="flex-1 min-w-0 h-11 px-4 bg-gray-50 border border-gray-200 rounded-full text-[16px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
                 />
                 <motion.button
                   type="submit"
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.93 }}
                   disabled={!inputValue.trim()}
-                  className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-gradient-to-r from-amber-400 to-orange-500 rounded-full shadow-md disabled:opacity-40 transition-opacity"
+                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-gradient-to-r from-amber-400 to-orange-500 rounded-full shadow-md disabled:opacity-40 transition-opacity"
                   aria-label="Send"
                 >
                   <Send className="w-4 h-4 text-white" />

@@ -62,6 +62,26 @@ describe('sunnyAdvice', () => {
         assert.match(sunnyAdvice(live({ weather: [{ main: 'Clouds' }], clouds: { all: 85 } })).text, /cloudy/);
     });
 
+    it('never calls a clear night sunny', () => {
+        const advice = sunnyAdvice(live({ isDay: false, main: { temp: 18 } }));
+        assert.equal(advice.text, '18° and a clear night. Good for a heated courtyard or rooftop.');
+        assert.doesNotMatch(advice.text, /sunny/i);
+    });
+
+    it('points to warmth, not sun, on a chilly or cloudy night', () => {
+        const chilly = sunnyAdvice(live({ isDay: false, main: { temp: 9 } }));
+        assert.match(chilly.text, /chilly 9° tonight/);
+        assert.doesNotMatch(chilly.text, /sunny/i);
+        const cloudy = sunnyAdvice(live({ isDay: false, weather: [{ main: 'Clouds' }], clouds: { all: 85 } }));
+        assert.match(cloudy.text, /cloudy tonight/);
+        assert.doesNotMatch(cloudy.text, /sun windows/);
+    });
+
+    it('keeps daytime advice when the day flag is missing', () => {
+        assert.match(sunnyAdvice(live()).text, /and sunny/);
+        assert.match(sunnyAdvice(live({ isDay: true })).text, /and sunny/);
+    });
+
     it('a venue pro tip wins over weather', () => {
         const advice = sunnyAdvice(live(), { proTip: '  Grab the corner table at 3pm. ' });
         assert.equal(advice.text, 'Pro tip: Grab the corner table at 3pm.');
