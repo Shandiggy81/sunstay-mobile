@@ -1,25 +1,16 @@
 /**
- * Map pins show the venue's own icon, coloured by how much sun it gets.
- * Keep the numeric sun score in the accessible label, not the visual label.
+ * Map pins show the venue's own icon and the existing rounded sun score.
+ * Tier colours and selection rings are presentation only.
  *
  * Pure, so the look of every pin state is testable without a map.
  */
 
 export const SUN_PIN_TIERS = Object.freeze({
-    full:     { bg: '#fbbf24', border: '#d97706', text: '#0f172a' },
+    full:     { bg: '#ffffff', border: '#f59e0b', text: '#0f172a' },
     part:     { bg: '#ffffff', border: '#f59e0b', text: '#0f172a' },
-    low:      { bg: '#e2e8f0', border: '#94a3b8', text: '#475569' },
-    unknown:  { bg: '#ffffff', border: '#cbd5e1', text: '#475569' },
-    selected: { bg: '#0f172a', border: '#0f172a', text: '#fbbf24' },
-});
-
-// Conditions keep their glyph alongside the venue icon, without a number.
-const CONDITION_GLYPHS = Object.freeze({
-    heater: '🔥',
-    cozy: '🛋️',
-    rain: '🌧',
-    cold: '🥶',
-    windy: '💨',
+    low:      { bg: '#ffffff', border: '#d6d3ce', text: '#475569' },
+    unknown:  { bg: '#ffffff', border: '#d6d3ce', text: '#475569' },
+    selected: { bg: '#ffffff', border: '#f59e0b', text: '#0f172a' },
 });
 
 export function sunTier(score) {
@@ -41,7 +32,7 @@ export function sunPinView({ pinKey = 'default', score = null, emoji = null, ico
     const tier = selected ? 'selected' : sunTier(n);
     const style = SUN_PIN_TIERS[tier];
     const icon = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : '📍';
-    const scoreText = n == null ? '' : CONDITION_GLYPHS[pinKey] ?? '';
+    const scoreText = n == null ? '' : String(n);
     return {
         tier,
         icon,

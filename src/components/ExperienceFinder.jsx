@@ -15,7 +15,7 @@ export default function ExperienceFinder({ selected, onSelect, onClear, canClear
             <div className="ss-experience-options" role="group" aria-label="Find an experience">
                 {DISCOVERY_EXPERIENCES.map(item => <button key={item.id} type="button" aria-pressed={selected === item.id}
                     onClick={() => onSelect(item.id)}>
-                    <ClayIcon name={item.icon} size={40} />
+                    <ClayIcon name={item.icon} size={32} />
                     <span><strong>{item.label}</strong><small>{item.detail}</small></span>
                 </button>)}
             </div>

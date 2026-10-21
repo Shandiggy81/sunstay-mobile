@@ -81,6 +81,7 @@ import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
 import DataBadge from '../DataBadge';
+import ClayIcon from '../common/ClayIcon';
 import { venueFeaturePinState } from '../../utils/venueFeaturePin.js';
 import { isHoverPointer, orphanedPinHover } from '../../utils/listMapPairing.js';
 import { viewportBboxFromCanvas } from '../../utils/viewportBbox.js';
@@ -767,8 +768,8 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
         >
             {/* No backdrop blur: this card floats over the live map, where blur
                 makes iOS Safari re-composite the map on every pan frame. */}
-            <div className="flex items-center gap-3 rounded-[22px] border border-white/60 bg-white/90 px-4 py-2.5 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)]">
-                <span className="select-none text-xl leading-none" aria-hidden="true">🌇</span>
+            <div className="ss-map-time-card flex items-center gap-3 rounded-[22px] border border-white/60 bg-white/90 px-4 py-2.5 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)]">
+                <ClayIcon name="sun" size={32} />
                 <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center justify-between gap-2">
                         <label htmlFor="tod-slider" className="text-[12px] font-semibold text-slate-600">
@@ -2115,10 +2116,10 @@ const VenueMap = forwardRef(({
     }, [mapLoaded, showRadar, recovery.phase, recovery.generation, recovery.resumeAttempts]);
 
     const layerOptions = [
-        { id: 'radar', icon: '🌧️', label: 'Rain radar', on: showRadar, disabled: false, toggle: () => setShowRadar(on => !on) },
-        { id: 'comfort', icon: '🔥', label: 'Comfort heatmap', on: comfortMapOn, disabled: !mapLoaded, toggle: () => setComfortMapOn(on => !on) },
+        { id: 'radar', icon: 'rain', label: 'Rain radar', on: showRadar, disabled: false, toggle: () => setShowRadar(on => !on) },
+        { id: 'comfort', icon: 'thermometer', label: 'Comfort heatmap', on: comfortMapOn, disabled: !mapLoaded, toggle: () => setComfortMapOn(on => !on) },
         ...(WEATHER_API_KEY
-            ? [{ id: 'cloud', icon: '☁️', label: 'Cloud cover', on: cloudOn, disabled: !mapLoaded, toggle: () => setCloudOn(on => !on) }]
+            ? [{ id: 'cloud', icon: 'cloud', label: 'Cloud cover', on: cloudOn, disabled: !mapLoaded, toggle: () => setCloudOn(on => !on) }]
             : []),
     ];
     const activeLayerCount = layerOptions.filter(option => option.on).length;
@@ -2215,7 +2216,7 @@ const VenueMap = forwardRef(({
                                     className="flex min-h-11 w-full items-center gap-3 px-4 text-left text-[14px] font-semibold text-slate-800 transition-colors active:bg-slate-50 disabled:opacity-40"
                                     style={CONTROL_TOUCH_STYLE}
                                 >
-                                    <span aria-hidden="true" className="text-[17px]">{option.icon}</span>
+                                    <ClayIcon name={option.icon} size={26} />
                                     <span className="flex-1">{option.label}</span>
                                     {option.on ? <Check size={16} strokeWidth={2.5} className="text-amber-600" aria-hidden="true" /> : null}
                                 </button>
@@ -2255,15 +2256,15 @@ const VenueMap = forwardRef(({
             </div>
 
             {(!mapLoaded || mapError) && !recovery.sessionLocked && (
-                <div style={styles.overlay}>
+                <div className="ss-map-state" style={styles.overlay}>
                     {mapError ? (
                         <div style={{ textAlign: 'center', padding: 24 }}>
-                            <div style={{ fontSize: 48, marginBottom: 16 }}>🗺️</div>
+                            <ClayIcon name="sun" size={64} className="mx-auto mb-4" />
                             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: 600 }}>Map failed to load</p>
                         </div>
                     ) : (
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 40 }}>☀️</div>
+                            <ClayIcon name="sun" size={64} className="mx-auto" />
                             <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Loading map...</p>
                         </div>
                     )}
@@ -2272,7 +2273,7 @@ const VenueMap = forwardRef(({
             {mapLoaded && !mapError && (
                 <div className="ss-map-caption">
                     <div className="ss-map-caption-inner" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span>📍 {venues.length} venues</span>
+                        <span className="inline-flex items-center gap-1"><ClayIcon name="map-pin" size={20} />{venues.length} venues</span>
                         {captionBadge && (
                             <DataBadge
                                 kind={captionBadge.kind}
@@ -2281,7 +2282,7 @@ const VenueMap = forwardRef(({
                                 size="sm"
                             />
                         )}
-                        {cozyFilterActive && <span>· 🛋️ Cozy filter on</span>}
+                        {cozyFilterActive && <span className="inline-flex items-center gap-1">· <ClayIcon name="indoor-warmth" size={20} />Cozy filter on</span>}
                     </div>
                 </div>
             )}

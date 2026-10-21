@@ -1,0 +1,51 @@
+/* Explore chrome: warm, solid surfaces with the existing weather and filters. */
+.ss-explore-topbar { background: #fffbf3; color: var(--color-ink); }
+.ss-explore-topbar-surface { border-bottom: 1px solid #f1e8d8; background: #fffbf3; }
+.ss-explore-topbar-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; }
+.ss-explore-brand { height: 44px; width: auto; flex-shrink: 0; user-select: none; border-radius: 14px; }
+.ss-explore-weather { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 52px; flex: 1; padding: 7px 10px; border: 1px solid #f1e8d8; border-radius: 22px; background: white; color: var(--color-ink); text-align: left; box-shadow: 0 4px 12px rgba(120,80,20,.07); }
+.ss-explore-weather-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 3px; }
+.ss-explore-weather-headline { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 6px; line-height: 1.15; }
+.ss-explore-weather-headline strong { font-size: 23px; font-weight: 800; letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+.ss-explore-weather-headline > span { font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+.ss-explore-weather-place { color: #64748b; font-size: 10px; line-height: 1.35; }
+.ss-explore-weather-chevron { flex-shrink: 0; color: #64748b; transition: transform .2s; }
+.ss-explore-filter-button { display: flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 5px; min-width: 44px; min-height: 44px; padding: 0 12px; border: 1px solid #f0e4ce; border-radius: 999px; background: white; color: var(--color-ink); font-size: 12px; font-weight: 800; box-shadow: 0 6px 18px rgba(120,80,20,.1); }
+.ss-explore-filter-button:active, .ss-explore-weather:enabled:active { background: #fff3cf; }
+.ss-explore-filter-button:focus-visible, .ss-explore-weather:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.ss-explore-weather-details { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 0 16px 12px; font-size: 13px; }
+.ss-explore-weather-detail { min-width: 0; padding: 10px; border: 1px solid #f1e8d8; border-radius: 16px; background: white; }
+
+.ss-app-root .ss-experience-finder { padding: 10px 16px 12px; border-bottom: 1px solid #f1e8d8; background: #fffbf3; }
+.ss-app-root .ss-experience-heading h1 { color: var(--color-ink); font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+.ss-app-root .ss-experience-heading p { margin-top: 2px; color: #64748b; font-size: 12px; }
+.ss-app-root .ss-experience-options { gap: 9px; padding: 10px 2px; scrollbar-width: none; }
+.ss-app-root .ss-experience-options::-webkit-scrollbar { display: none; }
+.ss-app-root .ss-experience-options > button { flex: 1 0 164px; min-height: 62px; gap: 7px; padding: 9px 13px 9px 9px; border: 1px solid #f0e4ce; border-radius: 999px; background: white; color: var(--color-ink); box-shadow: 0 4px 12px rgba(120,80,20,.07); }
+.ss-app-root .ss-experience-options strong { font-size: 13px; font-weight: 800; }
+.ss-app-root .ss-experience-options small { margin-top: 2px; color: #64748b; font-size: 10px; }
+.ss-app-root .ss-experience-options > button[aria-pressed=true] { border-color: var(--color-accent); background: #fff0b7; color: var(--color-ink); box-shadow: 0 0 0 1px var(--color-accent), 0 6px 18px rgba(120,80,20,.1); }
+.ss-app-root .ss-experience-clear { border-radius: 999px; background: #fff3cf; }
+.ss-app-root .ss-experience-finder .ss-discovery-context { font-size: 11px; }
+.ss-app-root .ss-experience-finder .ss-discovery-source { font-size: 10px; }
+
+@media (max-width: 380px) {
+  .ss-explore-topbar-row { gap: 7px; padding: 8px 12px; }
+  .ss-explore-brand { height: 38px; }
+  .ss-explore-weather { padding: 7px; }
+  .ss-explore-weather-headline strong { font-size: 21px; }
+  .ss-explore-weather-headline > span { font-size: 11px; }
+  .ss-explore-weather-chevron { display: none; }
+  .ss-explore-filter-button { padding: 0 9px; font-size: 11px; }
+  .ss-app-root .ss-experience-finder { padding-inline: 12px; }
+  .ss-app-root .ss-experience-heading h1 { font-size: 18px; }
+  .ss-app-root .ss-experience-options > button { flex-basis: 155px; }
+}
+@media (min-width: 768px) {
+  .ss-explore-topbar-row { max-width: 1200px; margin-inline: auto; }
+  .ss-explore-weather { flex: 0 1 330px; margin-left: auto; }
+  .ss-app-root .ss-experience-options > button { flex: 1 1 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss-explore-weather-chevron { transition: none; }
+}
