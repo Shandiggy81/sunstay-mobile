@@ -42,6 +42,9 @@ export function sunnyAdvice(weather, { proTip = null } = {}) {
     // Same string as the header ("24°"), so the two can never disagree.
     const shown = summary.temperature;
     const condition = String(weather.weather?.[0]?.main || '').toLowerCase();
+    // The header shows the description ("Mostly clear"), so the sky wording
+    // here reads it first; `main` alone ("Clouds") made the two disagree.
+    const sky = String(weather.weather?.[0]?.description || condition).toLowerCase();
     const cloud = finite(weather.clouds?.all);
     const wind = windView.speedKmh;
     const rain = rainChancePercent(weather);
@@ -65,11 +68,11 @@ export function sunnyAdvice(weather, { proTip = null } = {}) {
         text = isNight
             ? `A chilly ${shown} tonight. Fireplaces and heaters will feel best.`
             : `A chilly ${shown}. Sunny, sheltered spots will feel warmest.`;
-    } else if (condition.includes('clear') || (cloud != null && cloud < 25)) {
+    } else if (sky.includes('clear') || (cloud != null && cloud < 25)) {
         text = isNight
             ? `${shown} and a clear night. Good for a heated courtyard or rooftop.`
             : `${shown} and sunny. Great for an outdoor table.`;
-    } else if (condition.includes('cloud') || (cloud != null && cloud >= 60)) {
+    } else if (sky.includes('cloud') || sky.includes('overcast') || (cloud != null && cloud >= 60)) {
         text = isNight
             ? `${shown} and cloudy tonight. A cosy spot inside suits.`
             : `${shown} and cloudy. Check sun windows for the breaks.`;
