@@ -1,0 +1,88 @@
+/* Explore chrome only. Detail cards, room cards and partner preview keep their styles. */
+.ss-app-root {
+  --explore-surface: #fffbf3;
+  --explore-sunflower: #ffc531;
+  --explore-shadow: 0 6px 18px rgba(120, 80, 20, .14);
+  background: var(--explore-surface);
+  color: var(--color-ink);
+}
+
+.ss-explore-search { display: flex; align-items: center; gap: 10px; padding: 4px 16px 10px; flex-shrink: 0; }
+.ss-explore-search .ss-search-wrap { flex: 1; min-width: 0; }
+.ss-app-root .ss-search-input { height: 48px; border-radius: 999px; border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: 0 3px 12px rgba(120,80,20,.07); backdrop-filter: none; padding-left: 40px; padding-right: 44px; font-size: 13px; }
+.ss-app-root .ss-search-input::placeholder { color: #64748b; }
+.ss-app-root .ss-search-icon { color: #64748b; left: 15px; }
+.ss-app-root .ss-search-clear { width: 44px; height: 44px; right: 2px; background: transparent; color: var(--color-ink); }
+.ss-ask-sunny { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--color-accent); background: white; box-shadow: var(--explore-shadow); }
+.ss-ask-sunny:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
+.ss-app-root .ss-explore-locate { background: white; border-color: #efe4d1; box-shadow: var(--explore-shadow); }
+.ss-app-root .ss-explore-locate button { color: var(--color-ink); }
+
+.ss-app-root .ss-sidebar { background: var(--explore-surface); border-color: #efe4d1; border-radius: 24px; padding: 8px; }
+.ss-app-root .ss-sidebar-count { padding: 4px 8px; color: #475569; }
+.ss-app-root .ss-quick-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; gap: 4px; background: white; border: 1px solid #efe4d1; color: var(--color-ink); }
+.ss-app-root .ss-quick-pill--active { background: #fff0bd; border-color: var(--color-accent); }
+.ss-app-root .ss-footer-badge { background: white; color: #475569; border: 1px solid #efe4d1; box-shadow: var(--explore-shadow); backdrop-filter: none; }
+
+.ss-app-root .ss-mobile-sheet-handle { min-height: 64px; border-radius: 28px 28px 0 0; background: white; box-shadow: 0 -6px 24px rgba(120,80,20,.12); }
+.ss-app-root .ss-mobile-sheet-grab { background: #dfd3bf; width: 40px; height: 4px; border-radius: 999px; }
+.ss-app-root .ss-mobile-sheet { background: white; border-radius: 28px 28px 0 0; border-top: 1px solid #f3e9da; box-shadow: 0 -8px 30px rgba(120,80,20,.16); }
+.ss-app-root .ss-mobile-sheet-head { padding: 18px 16px 8px; gap: 6px 10px; }
+.ss-app-root .ss-mobile-sheet-head h3 { display: flex; align-items: center; gap: 6px; font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+.ss-app-root .ss-mobile-sheet-head p { color: #475569; font-size: 12px; }
+.ss-app-root .ss-mobile-sheet-search { background: white; border-color: #f3e9da; padding-bottom: 10px; }
+.ss-app-root .ss-quick-chips { padding-top: 2px; padding-bottom: 5px; }
+.ss-app-root .ss-quick-chip { border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: 0 2px 6px rgba(120,80,20,.04); }
+.ss-app-root .ss-quick-chip--active { background: #fff0bd; border-color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
+.ss-app-root .ss-quick-chip--clear { box-shadow: none; color: #92400e; }
+.ss-app-root .ss-mobile-sheet-list { padding: 12px 12px 0; }
+
+.ss-app-root .ss-explore-row { border: 1px solid #f0e5d4; border-radius: 24px; padding: 14px 12px; gap: 10px; background: white; box-shadow: 0 4px 14px rgba(120,80,20,.08); backdrop-filter: none; }
+.ss-app-root .ss-explore-row:hover { background: #fffdf8; border-color: #edd7a7; box-shadow: var(--explore-shadow); }
+.ss-app-root .ss-explore-row.ss-venue-list-card--active { border-color: var(--color-accent); background: #fffaf0; }
+.ss-app-root .ss-explore-row.ss-venue-list-card--paired { border-color: var(--color-ink); box-shadow: 0 0 0 2px #0f172a24, var(--explore-shadow); }
+.ss-explore-row .ss-vlc-icon { width: 64px; height: 64px; border-radius: 20px; background: #fff5df; overflow: hidden; }
+.ss-explore-row .ss-vlc-icon > img:not(.object-contain) { width: 100%; height: 100%; object-fit: cover; }
+.ss-explore-row .ss-vlc-name { font-size: 16px; font-weight: 800; letter-spacing: -.3px; line-height: 1.35; }
+.ss-explore-row .ss-vlc-sub { display: flex; align-items: center; gap: 3px; margin-top: 4px; color: #475569; white-space: normal; font-size: 11px; line-height: 1.4; }
+.ss-explore-row .ss-vlc-sub > img { flex-shrink: 0; }
+.ss-explore-row .ss-vlc-right { gap: 6px; }
+.ss-explore-row .ss-vlc-badge { min-height: 30px; padding: 4px 8px 4px 4px; font-size: 14px; }
+.ss-explore-row .ss-vlc-temp { background: #fffbf3; color: #475569; }
+.ss-explore-row .ss-vlc-chips { gap: 5px; }
+.ss-explore-row .ss-vlc-chip { border: 1px solid #f0e5d4; background: #fffbf3; color: #475569; }
+.ss-explore-row .ss-vlc-sun { padding: 4px 0; }
+.ss-explore-row .ss-vlc-sun-text { font-size: 12px; }
+.ss-explore-row .ss-vlc-amenities--row { color: #475569; gap: 8px; }
+.ss-explore-row .ss-vlc-amenities--row li { background: #fffbf3; }
+
+/* Presentation only: the range retains every existing scrub/release handler. */
+.ss-app-root .ss-map-time-card { border-color: #efe4d1; background: white; border-radius: 24px; box-shadow: var(--explore-shadow); gap: 8px; padding: 10px 12px; }
+.ss-map-time-card label { color: var(--color-ink); }
+.ss-map-time-card button { min-height: 44px; background: var(--color-ink); color: white; }
+.ss-map-time-card input { accent-color: var(--color-accent); }
+.ss-app-root .ss-map-state { background: #fffbf3 !important; }
+.ss-app-root .ss-map-state p { color: #475569 !important; }
+
+@media (max-width: 359px) {
+  .ss-explore-search { padding-inline: 12px; gap: 8px; }
+  .ss-explore-row .ss-vlc-icon { width: 52px; height: 60px; border-radius: 17px; }
+  .ss-app-root .ss-explore-row { padding: 12px 10px; gap: 8px; }
+  .ss-explore-row .ss-vlc-name { font-size: 15px; }
+  .ss-explore-row .ss-vlc-sun-graph { flex-basis: 112px; width: 112px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ss-app-root .ss-explore-row, .ss-app-root .ss-mobile-sheet-handle { transition: none; }
+}
+.ss-explore-sort { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 4px 8px 4px 4px; background: #fff4d6; color: #78350f; font-size: 10px; font-weight: 700; margin-left: auto; }
+.ss-app-root #map-layers-menu, .ss-app-root [aria-controls="map-layers-menu"] { background: white; border-color: #efe4d1; box-shadow: var(--explore-shadow); }
+.ss-app-root .ss-map-caption-inner { background: white; color: #475569; border-color: #efe4d1; box-shadow: var(--explore-shadow); backdrop-filter: none; }
+/* Keep the existing date picker and list usable on short phones. */
+@media (max-width: 380px) and (max-height: 650px) {
+  .ss-app-root .ss-mobile-sheet-head { padding-top: 12px; padding-bottom: 4px; }
+  .ss-app-root .ss-mobile-sheet-search { padding-bottom: 6px; }
+  .ss-app-root .ss-mobile-sheet-list { padding-top: 8px; }
+}
+.ss-map-time-card > div > div:first-child { flex-wrap: wrap; row-gap: 2px; }
+.ss-map-time-card > div > div:first-child > span { flex: 1; justify-content: space-between; }
+.ss-explore-row .ss-vlc-sun-text small { display: block; margin-top: 3px; color: #64748b; font-size: 10px; font-weight: 500; }

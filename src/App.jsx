@@ -1,3 +1,4 @@
+import './components/ExplorePresentation.css';
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
@@ -13,7 +14,6 @@ import { DEFAULT_TIME_ZONE, venueLocalDate } from './utils/balconySunEngine';
 import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
 import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
-import WeatherBackground from './components/WeatherBackground';
 import VenueMap from './components/Map/VenueMap';
 import MapVenuePreview from './components/MapVenuePreview';
 import { isPreviewMapDrag } from './utils/mapVenuePreview';
@@ -267,6 +267,8 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     );
 
     const isStay = isStayVenue(venue);
+    const [photoFailed, setPhotoFailed] = useState(false);
+    const photo = !isStay && [venue.image_url, venue.image].find(value => typeof value === 'string' && value.trim());
 
     // `typeLabel` and `vibe` are both nullable in the venues table, so the
     // subtitle is joined from present parts only — never " · Fitzroy".
@@ -290,15 +292,17 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             onFocus={hover('focus')}
             onBlur={unhover('blur')}
             aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? ` Sun score ${sunstayScore} out of 100.` : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
-            className={`ss-venue-list-card ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
+            className={`ss-venue-list-card ${!isStay ? 'ss-explore-row' : ''} ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
             id={`venue-list-${venue.id}`}
         >
             <div className="ss-vlc-icon" aria-hidden="true">
-                <VenueIcon icon={venueIcon(venue)} size={36} />
+                {photo && !photoFailed ? (
+                    <img src={photo.trim()} alt="" loading="lazy" decoding="async" onError={() => setPhotoFailed(true)} />
+                ) : <VenueIcon icon={venueIcon(venue)} size={isStay ? 36 : 48} />}
             </div>
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
-                {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
+                {subtitle ? <div className="ss-vlc-sub">{!isStay && <VenueIcon icon={venueIcon(venue)} size={20} />}{subtitle}</div> : null}
             </div>
             <div className="ss-vlc-right">
                 {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
@@ -326,7 +330,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             {cafeSun && (
                 <div className="ss-vlc-sun" data-row-sun={rowSun ? 'ready' : 'pending'} aria-hidden="true">
                     {rowSun ? <CafeRowSunGraph sun={rowSun.sun} /> : <span className="ss-vlc-sun-graph ss-vlc-sun-graph--pending" />}
-                    {rowSun ? <span className="ss-vlc-sun-text">{cafeSunLine}</span> : <span className="ss-vlc-sun-text ss-vlc-sun-text--pending" />}
+                    {rowSun ? <span className="ss-vlc-sun-text">{cafeSunLine}<small>At the venue point · clear day</small></span> : <span className="ss-vlc-sun-text ss-vlc-sun-text--pending" />}
                 </div>
             )}
             {momentMatch && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={momentMatch.icon} size={22} />{momentMatch.text}</p>}
@@ -450,7 +454,7 @@ const VenueSearchInput = memo(({ id, value, onChange }) => (
             enterKeyHint="search"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Search venues, suburbs…"
+            placeholder="Find me a sunny spot…"
             value={value}
             onChange={e => onChange(e.target.value)}
             className="ss-search-input"
@@ -1232,13 +1236,22 @@ const AppContent = () => {
             <div
                 className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
             >
-                <WeatherBackground />
+                {/* Explore uses a solid warm surface; detail weather retains its own presentation. */}
 
                 <TopBar
                     weather={weather}
                     onFiltersOpen={openMobileFilters}
                     comfort={comfort}
                 />
+
+                {!mobileMapExpanded && !venueCardOpen && !sheetExpanded && (
+                    <div className="ss-explore-search">
+                        <VenueSearchInput id="explore-venue-search" value={searchQuery} onChange={setSearchQuery} />
+                        <button type="button" className="ss-ask-sunny" onClick={toggleChat} aria-label="Ask Sunny" title="Ask Sunny" aria-expanded={isChatOpen}>
+                            <ClayIcon name="sun" size={32} />
+                        </button>
+                    </div>
+                )}
 
                 {!mobileMapExpanded && !venueCardOpen && <ExperienceFinder selected={selectedExperience(activeFilters, stayMoment)} onSelect={handleExperienceSelect}
                     onClear={() => setActiveFilters(clearExperience(activeFilters))} canClear={clearExperience(activeFilters).length !== activeFilters.length}
@@ -1247,14 +1260,6 @@ const AppContent = () => {
                 <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
                     {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
                     <aside className="ss-sidebar hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96">
-                        <div className="ss-search-pin px-3 pt-3 pb-1 flex-shrink-0">
-                            <VenueSearchInput
-                                id="venue-search"
-                                value={searchQuery}
-                                onChange={setSearchQuery}
-                            />
-                        </div>
-
                         <div className="px-3 pt-2"><PropertyFilterPills activeFilters={activeFilters} onToggle={handleFilterToggle} /></div>
                         {/* Quick-filter pills share the unified filter state. */}
                         <div className="ss-quick-filter-row flex flex-shrink-0 gap-2 px-3 py-2">
@@ -1263,14 +1268,14 @@ const AppContent = () => {
                                 className={`ss-quick-pill ${cozyFilterActive ? 'ss-quick-pill--active' : ''}`}
                                 aria-pressed={cozyFilterActive}
                             >
-                                🛋️ Cozy
+                                <ClayIcon name="indoor-warmth" size={24} /> Cozy
                             </button>
                             <button
                                 onClick={() => handleFilterToggle(FILTER_SUNNY)}
                                 className={`ss-quick-pill ${sunnyFilterActive ? 'ss-quick-pill--active' : ''}`}
                                 aria-pressed={sunnyFilterActive}
                             >
-                                ☀️ Sunny
+                                <ClayIcon name="sun" size={24} /> Sunny
                             </button>
                         </div>
 
@@ -1399,7 +1404,7 @@ const AppContent = () => {
                                 )}
                                 {/* One location button. If location is off or the user is
                                     outside Melbourne, it falls back to the Melbourne view. */}
-                                <div className="flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/90 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] divide-y divide-slate-900/[0.07]">
+                                <div className="ss-explore-locate flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/90 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] divide-y divide-slate-900/[0.07]">
                                     <motion.button
                                         type="button"
                                         className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center text-sky-700 transition-colors active:bg-slate-900/10 disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"
@@ -1522,7 +1527,7 @@ const AppContent = () => {
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
-                                    <h3 id="mobile-discovery-results" tabIndex={-1}>Venues</h3>
+                                    <h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="sun" size={30} />Venues</h3>
                                     <p className="inline-flex items-center gap-2">
                                         {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} results`}
                                         {areaBounds ? showAllChip('-my-3') : null}
@@ -1533,6 +1538,7 @@ const AppContent = () => {
                                             />
                                         ) : null}
                                     </p>
+                                    {!staysActive && <span className="ss-explore-sort"><ClayIcon name="sun" size={18} />Sunniest first</span>}
                                     {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
                                     {!isRefreshing && refreshFailureVisible(refreshStatus) ? (
                                         <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>

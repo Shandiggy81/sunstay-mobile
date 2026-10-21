@@ -1,19 +1,22 @@
 /**
- * Map pins show the venue's own icon, coloured by how much sun it gets.
- * Keep the numeric sun score in the accessible label, not the visual label.
+ * Map pins show the venue's own icon and the rounded sun score. Full sun gets
+ * a sunflower fill so the sunniest venues stand out at a glance; a venue
+ * condition (heaters on, cozy, rain, cold, windy) shows its marker in place of
+ * the number, which the partner preview relies on to show a status change.
+ * The numeric score always stays in the accessible label.
  *
  * Pure, so the look of every pin state is testable without a map.
  */
 
 export const SUN_PIN_TIERS = Object.freeze({
-    full:     { bg: '#fbbf24', border: '#d97706', text: '#0f172a' },
+    full:     { bg: '#FFE7A3', border: '#f59e0b', text: '#0f172a' },
     part:     { bg: '#ffffff', border: '#f59e0b', text: '#0f172a' },
-    low:      { bg: '#e2e8f0', border: '#94a3b8', text: '#475569' },
-    unknown:  { bg: '#ffffff', border: '#cbd5e1', text: '#475569' },
-    selected: { bg: '#0f172a', border: '#0f172a', text: '#fbbf24' },
+    low:      { bg: '#ffffff', border: '#d6d3ce', text: '#475569' },
+    unknown:  { bg: '#ffffff', border: '#d6d3ce', text: '#475569' },
+    selected: { bg: '#ffffff', border: '#f59e0b', text: '#0f172a' },
 });
 
-// Conditions keep their glyph alongside the venue icon, without a number.
+// Conditions show their marker instead of the number, for idle and selected pins.
 const CONDITION_GLYPHS = Object.freeze({
     heater: '🔥',
     cozy: '🛋️',
@@ -41,7 +44,7 @@ export function sunPinView({ pinKey = 'default', score = null, emoji = null, ico
     const tier = selected ? 'selected' : sunTier(n);
     const style = SUN_PIN_TIERS[tier];
     const icon = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : '📍';
-    const scoreText = n == null ? '' : CONDITION_GLYPHS[pinKey] ?? '';
+    const scoreText = n == null ? '' : CONDITION_GLYPHS[pinKey] ?? String(n);
     return {
         tier,
         icon,

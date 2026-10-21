@@ -10,24 +10,24 @@ describe('sunTier', () => {
 });
 
 describe('sunPinView', () => {
-    it('shows the venue icon on its tier colour and keeps the score accessible', () => {
+    it('shows the venue icon and the same rounded score as its accessible label', () => {
         const v = sunPinView({ score: 91.6, emoji: '🍺' });
         assert.equal(v.tier, 'full');
         assert.equal(v.icon, '🍺');
-        assert.equal(v.scoreText, '');
+        assert.equal(v.scoreText, '92');
         assert.equal(v.bg, SUN_PIN_TIERS.full.bg);
         assert.equal(v.label, 'Sun score 92');
     });
 
-    it('omits numbers and tier glyphs for every normal score tier', () => {
+    it('shows the existing numeric score for every normal score tier', () => {
         for (const score of [0, 12, 49, 50, 64, 74, 75, 88, 100]) {
             const view = sunPinView({ score, emoji: '🍷' });
-            assert.equal(view.scoreText, '');
+            assert.equal(view.scoreText, String(score));
             assert.equal(view.label, `Sun score ${score}`);
         }
     });
 
-    it('keeps each condition glyph alone for both idle and selected pins', () => {
+    it('shows a condition marker instead of the number for both idle and selected pins', () => {
         for (const [pinKey, glyph] of [['heater', '🔥'], ['cozy', '🛋️'], ['rain', '🌧'], ['cold', '🥶'], ['windy', '💨']]) {
             for (const selected of [false, true]) {
                 const view = sunPinView({ pinKey, score: 88, selected });
@@ -38,24 +38,31 @@ describe('sunPinView', () => {
         }
     });
 
-    it('keeps the selected pin dark and icon-only across score tiers', () => {
+    it('keeps the selected pin white with the existing score across score tiers', () => {
         const v = sunPinView({ score: 88, emoji: '☕', selected: true });
         assert.equal(v.tier, 'selected');
-        assert.equal(v.bg, '#0f172a');
-        assert.equal(v.text, '#fbbf24');
-        assert.equal(v.scoreText, '');
+        assert.equal(v.bg, '#ffffff');
+        assert.equal(v.text, '#0f172a');
+        assert.equal(v.scoreText, '88');
         assert.equal(v.label, 'Sun score 88');
-        assert.equal(sunPinView({ score: 30, selected: true }).scoreText, '');
+        assert.equal(sunPinView({ score: 30, selected: true }).scoreText, '30');
     });
 
-    it('distinguishes low sun from white part sun with a darker slate surface and border', () => {
+    it('fills full-sun pins so they stand out from part-sun pins', () => {
+        const full = sunPinView({ score: 90 });
+        const part = sunPinView({ score: 60 });
+        assert.equal(full.bg, '#FFE7A3');
+        assert.notEqual(full.bg, part.bg);
+    });
+
+    it('keeps low and part sun surfaces white with different border tones', () => {
         const low = sunPinView({ score: 30 });
         const part = sunPinView({ score: 60 });
-        assert.equal(low.bg, '#e2e8f0');
-        assert.equal(low.border, '#94a3b8');
+        assert.equal(low.bg, '#ffffff');
+        assert.equal(low.border, '#d6d3ce');
         assert.equal(low.text, '#475569');
         assert.equal(part.bg, '#ffffff');
-        assert.notEqual(low.bg, part.bg);
+        assert.equal(low.bg, part.bg);
         assert.notEqual(low.border, part.border);
     });
 
