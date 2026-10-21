@@ -46,22 +46,33 @@ export function sunnyAdvice(weather, { proTip = null } = {}) {
     const wind = windView.speedKmh;
     const rain = rainChancePercent(weather);
     const rounded = Math.round(temp);
+    // Same day/night signal the header uses for its moon icon, so Sunny never
+    // promises sun after sunset.
+    const isNight = weather.isDay === false;
 
     let text;
     if (condition.includes('thunder')) {
         text = `${shown} with storms about. Best to stay undercover.`;
     } else if (condition.includes('rain') || condition.includes('drizzle') || rain >= 60) {
-        text = `${shown} and wet. A cosy spot with heaters suits today.`;
+        text = `${shown} and wet. A cosy spot with heaters suits ${isNight ? 'tonight' : 'today'}.`;
     } else if (wind != null && wind >= 30) {
         text = `${shown} but windy. Look for wind-sheltered spots.`;
     } else if (rounded >= 32) {
-        text = `${shown} and hot. Find some shade and stay hydrated.`;
+        text = isNight
+            ? `${shown} and a hot night. Look for a breezy terrace and stay hydrated.`
+            : `${shown} and hot. Find some shade and stay hydrated.`;
     } else if (rounded < 12) {
-        text = `A chilly ${shown}. Sunny, sheltered spots will feel warmest.`;
+        text = isNight
+            ? `A chilly ${shown} tonight. Fireplaces and heaters will feel best.`
+            : `A chilly ${shown}. Sunny, sheltered spots will feel warmest.`;
     } else if (condition.includes('clear') || (cloud != null && cloud < 25)) {
-        text = `${shown} and sunny. Great for an outdoor table.`;
+        text = isNight
+            ? `${shown} and a clear night. Good for a heated courtyard or rooftop.`
+            : `${shown} and sunny. Great for an outdoor table.`;
     } else if (condition.includes('cloud') || (cloud != null && cloud >= 60)) {
-        text = `${shown} and cloudy. Check sun windows for the breaks.`;
+        text = isNight
+            ? `${shown} and cloudy tonight. A cosy spot inside suits.`
+            : `${shown} and cloudy. Check sun windows for the breaks.`;
     } else {
         text = `It's ${shown} right now.`;
     }

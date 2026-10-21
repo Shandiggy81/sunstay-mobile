@@ -123,7 +123,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                         <p className="ss-partner-notice"><ClayIcon name="beer-garden" size={40} /><span>{sunHint}</span></p>
                     </fieldset>}
                     {groups.map(group => <fieldset key={group.label} className="ss-partner-toggle-group"><legend>{group.label}</legend>
-                        {group.controls.map(control => <StatusTile key={control.key} {...control} value={status[control.key]} onChange={value => toggleStatus(control.key, value)} />)}
+                        {group.controls.map(({ key: controlKey, ...control }) => <StatusTile key={controlKey} {...control} value={status[controlKey]} onChange={value => toggleStatus(controlKey, value)} />)}
                     </fieldset>)}
                 </section>}
                 <section className="ss-partner-card" aria-labelledby="partner-hours-heading">
