@@ -31,8 +31,8 @@ import TopBar from './components/TopBar';
 import NotificationCenter from './components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ChevronUp, ChevronDown, Search,
-    Wind, Cloud, X, Locate
+    ChevronUp, ChevronDown,
+    Wind, Cloud, Locate
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
 import { findHotelSunReportVenue, hotelSunReportUrl, readHotelSunReportId } from './utils/hotelSunReportRoute.js';
@@ -445,36 +445,6 @@ const LiveVenueList = memo(function LiveVenueList({
     );
 });
 LiveVenueList.displayName = 'LiveVenueList';
-
-const VenueSearchInput = memo(({ id, value, onChange }) => (
-    <div className="ss-search-wrap">
-        <Search size={15} className="ss-search-icon" aria-hidden="true" />
-        <input
-            type="text"
-            inputMode="search"
-            enterKeyHint="search"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="Find me a sunny spot…"
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            className="ss-search-input"
-            id={id}
-            aria-label="Search venues"
-        />
-        {value ? (
-            <button
-                type="button"
-                onClick={() => onChange('')}
-                className="ss-search-clear"
-                aria-label="Clear search"
-            >
-                <X size={13} />
-            </button>
-        ) : null}
-    </div>
-));
-VenueSearchInput.displayName = 'VenueSearchInput';
 
 // 3D icons for the quick filters (src/assets/clay/*.webp).
 const QUICK_FILTER_ICONS = Object.freeze({ 'all-stays': 'hotel-views', 'all-homes': 'house' });
@@ -1547,21 +1517,18 @@ const AppContent = () => {
                                     {!isRefreshing && refreshFailureVisible(refreshStatus) ? (
                                         <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
                                     ) : null}
+                                    {/* The peek header's context lines, shown once here while it is hidden. */}
+                                    <p className="ss-discovery-context">{experienceContext}</p>
+                                    <p className="ss-discovery-source">{dataLabel}</p>
                                 </div>
+                                {/* Search stays in the floating top bar, which drives the same query. */}
                                 <div className="ss-mobile-sheet-search flex-shrink-0 px-4 pt-1 pb-2 flex flex-col gap-2 bg-white border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
-                                    <VenueSearchInput
-                                        id="mobile-venue-search"
-                                        value={searchQuery}
-                                        onChange={setSearchQuery}
-                                    />
                                     <QuickFilterChips
                                         activeFilters={activeFilters}
                                         onToggle={handleFilterToggle}
                                         onClear={handleClearFilters}
                                         showClear={activeFilters.length > 0 || Boolean(searchQuery.trim())}
                                     />
-                                    <p className="ss-discovery-context">{experienceContext}</p>
-                                    <p className="ss-discovery-source">{dataLabel}</p>
                                 </div>
                                 {stayPicker}
                                     <MascotPullRefresh

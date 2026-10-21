@@ -1,5 +1,6 @@
 /* Floating controls leave the map interactive between the actual touch targets. */
-.ss-map-first-topbar.ss-explore-topbar { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 16px); left: 16px; right: 16px; z-index: 40; background: transparent; pointer-events: none; }
+/* z-index 41 (the expanded list is 40) so weather details and Sunny's tip open above the list. */
+.ss-map-first-topbar.ss-explore-topbar { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 16px); left: 16px; right: 16px; z-index: 41; background: transparent; pointer-events: none; }
 .ss-map-first-topbar-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) 44px; align-items: start; gap: 8px; }
 .ss-map-first-brand { width: 32px; height: 32px; object-fit: contain; margin-top: 6px; border-radius: 10px; }
 .ss-map-first-search-column { min-width: 0; }
