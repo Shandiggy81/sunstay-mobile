@@ -1,0 +1,34 @@
+/* Floating controls leave the map interactive between the actual touch targets. */
+.ss-map-first-topbar.ss-explore-topbar { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 16px); left: 16px; right: 16px; z-index: 40; background: transparent; pointer-events: none; }
+.ss-map-first-topbar-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) 44px; align-items: start; gap: 8px; }
+.ss-map-first-brand { width: 32px; height: 32px; object-fit: contain; margin-top: 6px; border-radius: 10px; }
+.ss-map-first-search-column { min-width: 0; }
+.ss-map-first-search-pill { display: flex; align-items: center; min-width: 0; height: 48px; gap: 6px; padding: 2px 2px 2px 12px; border: 1px solid #f0e4ce; border-radius: 999px; background: white; box-shadow: 0 6px 18px rgba(120,80,20,.14); pointer-events: auto; }
+.ss-map-first-search-icon { flex-shrink: 0; color: #64748b; }
+.ss-map-first-search-pill input { min-width: 0; flex: 1; width: 100%; height: 44px; padding: 0; border: 0; outline: none; background: transparent; color: var(--color-ink); font: inherit; font-size: 13px; }
+.ss-map-first-search-pill input::placeholder { color: #64748b; }
+.ss-map-first-search-pill:focus-within { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ss-map-first-search-pill input::-webkit-search-cancel-button { display: none; }
+.ss-map-first-search-clear { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; color: #64748b; }
+.ss-map-first-topbar .ss-map-first-filters { width: 44px; height: 44px; min-width: 44px; padding: 0; border-radius: 50%; pointer-events: auto; }
+.ss-map-first-weather { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 4px; width: max-content; max-width: 100%; min-height: 44px; margin-top: -4px; padding: 4px 8px; border-radius: 16px; color: var(--color-ink); font-size: 10px; font-weight: 600; line-height: 1.3; pointer-events: auto; }
+.ss-map-first-weather::before { content: ''; position: absolute; inset: 6px 0; z-index: -1; border: 1px solid #f0e4ce; border-radius: 999px; background: white; box-shadow: 0 3px 12px rgba(120,80,20,.08); }
+.ss-map-first-weather > span { min-width: 0; overflow-wrap: anywhere; }
+.ss-map-first-weather strong { font-size: 11px; font-weight: 800; }
+.ss-map-first-weather > svg { flex-shrink: 0; }
+.ss-map-first-weather:focus-visible, .ss-map-first-search-clear:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ss-map-first-topbar .ss-map-first-weather-details { position: absolute; top: calc(100% + 56px); left: 0; right: 0; gap: 6px; margin-top: 0; padding: 0; border-radius: 20px; font-size: 12px; box-shadow: 0 6px 18px rgba(120,80,20,.14); pointer-events: none; }
+.ss-map-first-weather-details .ss-explore-weather-detail { padding: 9px; pointer-events: auto; }
+.ss-sunny-compact { position: relative; flex-shrink: 0; width: 44px; height: 44px; pointer-events: auto; }
+.ss-sunny-compact-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; overflow: hidden; border: 2px solid var(--color-accent); border-radius: 50%; background: #fff5d8; }
+.ss-sunny-compact-button img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.ss-sunny-compact-button:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+.ss-sunny-compact-tooltip { position: absolute; right: 0; top: calc(100% + 98px); width: 240px; max-width: calc(100vw - 104px); padding: 12px 14px; border: 1px solid #f0e4ce; border-radius: 20px; background: white; color: var(--color-ink); box-shadow: 0 6px 18px rgba(120,80,20,.14); pointer-events: none; }
+.ss-sunny-compact-tooltip p { margin: 0; font-size: 12px; font-weight: 700; line-height: 1.45; }
+.ss-sunny-compact-tooltip > span { position: absolute; top: -6px; right: 16px; width: 10px; height: 10px; border-left: 1px solid #f0e4ce; border-top: 1px solid #f0e4ce; background: white; transform: rotate(45deg); }
+@media (min-width: 1024px) { .ss-map-first-topbar.ss-explore-topbar { max-width: 660px; right: auto; width: calc(100% - 32px); } }
+@media (max-width: 359px) {
+  .ss-map-first-search-icon { display: none; }
+  .ss-map-first-search-pill { gap: 4px; padding-left: 10px; }
+  .ss-map-first-search-pill input { font-size: 12px; }
+}

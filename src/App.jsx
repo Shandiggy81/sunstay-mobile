@@ -1,4 +1,6 @@
 import './components/ExplorePresentation.css';
+import './components/MapFirstHome.css';
+import { mapHomeSummary } from './utils/mapHomeSummary.js';
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
@@ -24,7 +26,6 @@ import ExperienceFinder from './components/ExperienceFinder.jsx';
 import { clearExperience, discoveryContext, discoveryDataLabel, matchedMomentLabel, selectedExperience, selectExperience } from './utils/discoveryExperience.js';
 import { isEstimatedRoom } from './utils/roomProfiles.js';
 import { rankStays, stayMomentBadge, quickStayDate, compareStayRank } from './utils/stayRanking.js';
-import SunnyMascot from './components/SunnyMascot';
 import ChatWidget from './components/ChatWidget';
 import TopBar from './components/TopBar';
 import NotificationCenter from './components/NotificationCenter';
@@ -939,6 +940,10 @@ const AppContent = () => {
     // --- END DIAGNOSTICS ---
 
     const matchingCount = listVenues.length;
+    const homeSummary = useMemo(() => mapHomeSummary(listVenues.map(venue => venueDisplayScore(venue, {
+        byId: microById, todMinutes: listTodMinutes, calculateSunScore,
+    }))), [listVenues, microById, listTodMinutes, calculateSunScore]);
+    const peekDragged = useRef(false);
     const showAllChip = (className) => (
         <button
             type="button"
@@ -1234,28 +1239,24 @@ const AppContent = () => {
             </div>
 
             <div
-                className={`ss-app-root flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
+                className={`ss-app-root ss-map-first-home ${previewVenue ? 'ss-map-first-home--preview' : ''} ${sheetExpanded ? 'ss-map-first-home--list-open' : ''} flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
             >
                 {/* Explore uses a solid warm surface; detail weather retains its own presentation. */}
 
-                <TopBar
-                    weather={weather}
-                    onFiltersOpen={openMobileFilters}
-                    comfort={comfort}
-                />
+                {!venueCardOpen && <TopBar
+                    weather={weather} onFiltersOpen={openMobileFilters} comfort={comfort}
+                    searchQuery={searchQuery} onSearchChange={setSearchQuery}
+                    isChatOpen={isChatOpen} onSunnyClick={toggleChat}
+                />}
 
-                {!mobileMapExpanded && !venueCardOpen && !sheetExpanded && (
-                    <div className="ss-explore-search">
-                        <VenueSearchInput id="explore-venue-search" value={searchQuery} onChange={setSearchQuery} />
-                        <button type="button" className="ss-ask-sunny" onClick={toggleChat} aria-label="Ask Sunny" title="Ask Sunny" aria-expanded={isChatOpen}>
-                            <ClayIcon name="sun" size={32} />
-                        </button>
+                <div className={`ss-home-chip-layer ${venueCardOpen ? 'ss-home-chip-layer--hidden' : ''}`}>
+                    <div className="ss-home-chip-row">
+                        <span id="explore-time-controls" />
+                        <span className="ss-home-chip-divider" aria-hidden="true" />
+                        <ExperienceFinder selected={selectedExperience(activeFilters, stayMoment)} onSelect={handleExperienceSelect}
+                            onClear={() => setActiveFilters(clearExperience(activeFilters))} canClear={clearExperience(activeFilters).length !== activeFilters.length} />
                     </div>
-                )}
-
-                {!mobileMapExpanded && !venueCardOpen && <ExperienceFinder selected={selectedExperience(activeFilters, stayMoment)} onSelect={handleExperienceSelect}
-                    onClear={() => setActiveFilters(clearExperience(activeFilters))} canClear={clearExperience(activeFilters).length !== activeFilters.length}
-                    context={experienceContext} dataLabel={dataLabel} />}
+                </div>
 
                 <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
                     {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
@@ -1391,9 +1392,9 @@ const AppContent = () => {
                         </AnimatePresence>
 
                         {/* Bottom-anchored map controls — clear of the collapsed venue sheet */}
-                        <div className={`pointer-events-none absolute inset-x-0 z-50 ${previewVenue ? 'bottom-[calc(env(safe-area-inset-bottom)+310px)] lg:bottom-[230px]' : 'bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]'}`}>
+                        <div className={`ss-home-locate-layer pointer-events-none absolute inset-x-0 z-50 ${previewVenue ? 'bottom-[calc(env(safe-area-inset-bottom)+310px)] lg:bottom-[230px]' : 'bottom-[calc(env(safe-area-inset-bottom)+90px)] lg:bottom-[46px]'}`}>
                             {/* Right column: Locate Me + Recenter + Sunny — Filters+TOD live in VenueMap */}
-                            <div className="pointer-events-auto absolute right-4 bottom-0 flex flex-col items-end gap-3">
+                            <div className="pointer-events-none absolute right-4 bottom-0 flex flex-col items-end gap-3">
                                 {locateHint && (
                                     <div
                                         role="status"
@@ -1404,7 +1405,7 @@ const AppContent = () => {
                                 )}
                                 {/* One location button. If location is off or the user is
                                     outside Melbourne, it falls back to the Melbourne view. */}
-                                <div className="ss-explore-locate flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/90 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] divide-y divide-slate-900/[0.07]">
+                                <div className="ss-explore-locate pointer-events-auto flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/90 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] divide-y divide-slate-900/[0.07]">
                                     <motion.button
                                         type="button"
                                         className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center text-sky-700 transition-colors active:bg-slate-900/10 disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"
@@ -1418,13 +1419,7 @@ const AppContent = () => {
                                         <Locate size={19} strokeWidth={2.25} className={isLocating ? 'animate-pulse' : undefined} />
                                     </motion.button>
                                 </div>
-                                {!venueCardOpen && (
-                                    <SunnyMascot
-                                        onClick={toggleChat}
-                                        isChatOpen={isChatOpen}
-                                        className="relative z-50 pointer-events-none"
-                                    />
-                                )}
+
                             </div>
                         </div>
                         <AnimatePresence mode="wait">
@@ -1491,13 +1486,20 @@ const AppContent = () => {
                 {/* Hidden while Filters is open: the fixed bar sat on top of the
                     sheet's "Show N venues" button and swallowed the tap. */}
                 {!mobileMapExpanded && !venueCardOpen && !mobileFilterOpen && (
-                    <div
+                    <motion.div
+                        role="button" tabIndex={0} aria-label="Show venue list" aria-expanded={sheetExpanded}
+                        drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.12}
+                        onPointerDown={() => { peekDragged.current = false; }}
+                        onDragStart={() => { peekDragged.current = true; }}
+                        onDragEnd={(_, { offset, velocity }) => { if (offset.y < -40 || velocity.y < -300) { setPreviewVenue(null); setMobileSheetState('expanded'); } }}
+                        onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); setPreviewVenue(null); setMobileSheetState('expanded'); } }}
                         className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
-                        onClick={() => { setPreviewVenue(null); setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded'); }}
+                        onClick={() => { if (peekDragged.current) { peekDragged.current = false; return; } setPreviewVenue(null); setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded'); }}
                     >
                         <div className="ss-mobile-sheet-grab" />
-                        <span className="inline-flex items-center gap-2">
-                            {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} venues nearby`}
+                        <span className="ss-home-peek-headline">
+                            {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} venues`}
+                            {homeSummary.known > 0 && <span> · {homeSummary.fullSun} in full sun</span>}
                             {areaBounds ? showAllChip('-my-3') : null}
                             {ENABLE_MANUAL_VENUE_REFRESH ? (
                                 <VenueRefreshButton
@@ -1506,8 +1508,10 @@ const AppContent = () => {
                                 />
                             ) : null}
                         </span>
-                        {mobileSheetState === 'expanded' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                    </div>
+                        <p className="ss-discovery-context">{experienceContext}</p>
+                        <p className="ss-discovery-source">{dataLabel}</p>
+                        <ChevronUp size={14} className="ss-home-peek-chevron" />
+                    </motion.div>
                 )}
 
                 <AnimatePresence>

@@ -1,0 +1,58 @@
+/* Map-first home: only the container and floating chrome change. */
+.ss-map-first-home { --home-peek-height: 96px; --home-controls-bottom: calc(env(safe-area-inset-bottom, 0px) + 112px); }
+.ss-map-first-home .ss-main { position: absolute; inset: 0; padding: 0; gap: 0; }
+.ss-map-first-home .ss-map-area, .ss-map-first-home .ss-map-container { border-radius: 0; }
+.ss-map-first-home .ss-map-container { width: 100%; height: 100%; }
+.ss-home-chip-layer { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 108px); left: 0; right: 0; z-index: 41; pointer-events: none; }
+.ss-home-chip-layer--hidden { visibility: hidden; }
+.ss-home-chip-row { display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; pointer-events: none; overscroll-behavior-x: contain; }
+.ss-home-chip-row::-webkit-scrollbar { display: none; }
+.ss-home-chip-divider { width: 1px; height: 20px; margin: 0 4px; background: #cdbf9f; flex-shrink: 0; }
+.ss-map-first-home .ss-home-moments { display: flex; align-items: center; flex-shrink: 0; gap: 6px; padding: 0; border: 0; background: transparent; }
+.ss-map-first-home .ss-home-moments .ss-experience-options { display: flex; align-items: center; gap: 6px; padding: 0; overflow: visible; }
+.ss-map-first-home .ss-home-moments .ss-experience-options > button { position: relative; display: inline-flex; flex: 0 0 auto; height: 44px; min-height: 44px; gap: 4px; padding: 0 10px 0 6px; border-radius: 999px; border: 1px solid #eee2cc; background: white; box-shadow: 0 2px 6px rgba(120,80,20,.07); pointer-events: auto; touch-action: pan-x; }
+.ss-map-first-home .ss-home-moments strong { font-size: 11px; white-space: nowrap; }
+.ss-map-first-home .ss-home-moments .ss-experience-options > button[aria-pressed=true] { background: #fff0b7; border-color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
+.ss-map-first-home .ss-home-moments .ss-experience-clear { min-height: 40px; white-space: nowrap; font-size: 11px; pointer-events: auto; }
+.ss-map-first-home .ss-map-time-chip { height: 44px; pointer-events: auto; touch-action: pan-x; }
+.ss-map-first-home .ss-map-time-chip[aria-pressed=true] > span { background: #fff0b7; color: var(--color-ink); border-color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
+.ss-map-first-home--list-open .ss-map-first-search-pill input, .ss-map-first-home--list-open .ss-map-first-search-clear { visibility: hidden; }
+
+.ss-map-first-home .ss-home-locate-layer { bottom: var(--home-controls-bottom); }
+.ss-map-first-home .ss-explore-locate { border-radius: 50%; }
+.ss-map-first-home .ss-map-layer-controls { top: auto; bottom: calc(var(--home-controls-bottom) + 54px); right: 16px; pointer-events: none; }
+.ss-map-layer-controls > button, .ss-map-layer-controls #map-layers-menu { pointer-events: auto; }
+.ss-map-first-home .ss-map-layer-controls #map-layers-menu { position: absolute; bottom: 54px; right: 0; }
+.ss-map-first-home .ss-map-search-area { top: calc(env(safe-area-inset-top, 0px) + 160px); padding: 0 16px; pointer-events: none; }
+.ss-map-first-home .ss-map-search-area button { font-size: 12px; box-shadow: var(--explore-shadow); }
+.ss-map-first-home--preview { --home-controls-bottom: calc(env(safe-area-inset-bottom, 0px) + 310px); }
+.ss-map-first-home .ss-map-venue-preview { bottom: calc(env(safe-area-inset-bottom, 0px) + 108px); }
+.ss-map-first-home .ss-map-caption { bottom: calc(env(safe-area-inset-bottom, 0px) + 110px); left: 16px; }
+.ss-map-first-home .ss-footer-badge { display: none; }
+
+.ss-map-first-home .ss-mobile-sheet-handle { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; min-height: var(--home-peek-height); padding: 16px 28px calc(8px + env(safe-area-inset-bottom, 0px)) 16px; text-align: left; touch-action: none; }
+.ss-map-first-home .ss-home-peek-headline { display: block; color: var(--color-ink); font-size: 15px; font-weight: 800; letter-spacing: -.3px; line-height: 22px; }
+.ss-map-first-home .ss-home-peek-headline > span { font-size: inherit; font-weight: inherit; }
+.ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-context { color: #475569; font-size: 10px; line-height: 13px; font-weight: 600; }
+.ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-source { margin: 0; color: #64748b; font-size: 10px; line-height: 13px; font-weight: 500; }
+.ss-home-peek-chevron { position: absolute; right: 14px; top: 22px; }
+.ss-mobile-sheet-handle:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -3px; }
+
+@media (max-width: 359px) {
+  .ss-map-first-home .ss-home-peek-headline { font-size: 13px; }
+  .ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-context,
+  .ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-source { font-size: 9px; }
+}
+@media (min-width: 1024px) {
+  .ss-map-first-home .ss-sidebar { padding-top: 160px; border-radius: 0; }
+  .ss-map-first-home .ss-map-venue-preview { bottom: 16px; }
+  .ss-map-first-home { --home-controls-bottom: 24px; }
+  .ss-home-chip-layer { max-width: 100%; }
+}
+
+/* Compact visual pills retain the existing 44px touch area. */
+.ss-map-first-home .ss-home-moments .ss-experience-options > button,
+.ss-map-first-home .ss-home-moments .ss-experience-options > button[aria-pressed=true] { isolation: isolate; background: transparent; border: 0; box-shadow: none; }
+.ss-home-moments .ss-experience-options > button::before { content: ''; position: absolute; inset: 4px 0; z-index: -1; border: 1px solid #eee2cc; border-radius: 999px; background: white; box-shadow: 0 2px 6px rgba(120,80,20,.07); }
+.ss-home-moments .ss-experience-options > button[aria-pressed=true]::before { border-color: var(--color-accent); background: #fff0b7; box-shadow: inset 0 0 0 1px var(--color-accent); }
+.ss-map-first-home--list-open .ss-mobile-sheet-handle { visibility: hidden; pointer-events: none; }
