@@ -1012,6 +1012,7 @@ const VenueMap = forwardRef(({
             const nLng = Number(lng);
             const nLat = Number(lat);
             if (!map.current || !Number.isFinite(nLng) || !Number.isFinite(nLat)) return;
+            hasFlownToBounds.current = true;
             try {
                 placeUserMarker(nLng, nLat);
                 map.current.flyTo({
@@ -1078,6 +1079,7 @@ const VenueMap = forwardRef(({
         let resizeObserver;
         let resizeFrame = 0;
         let removeWakeListeners = () => {};
+        let removeUserCameraListener = () => {};
         const loadTimeout = setTimeout(() => {
             if (disposed || !isCurrent()) return;
             if (recoveryRef.current.phase === 'resuming') {
@@ -1122,6 +1124,14 @@ const VenueMap = forwardRef(({
                 customAttribution:   CITY_BUILDINGS_ATTRIBUTION,
                 ...(memoryOptions.config ? { config: memoryOptions.config } : {}),
             });
+
+            const instance = map.current;
+            const onUserCameraMove = (event) => {
+                if (disposed || !isCurrent() || map.current !== instance) return;
+                if (event.originalEvent) hasFlownToBounds.current = true;
+            };
+            instance.on('movestart', onUserCameraMove);
+            removeUserCameraListener = () => instance.off('movestart', onUserCameraMove);
 
             if (reason === 'resume') {
                 // Put the camera back where it was when the GPU context was lost.
@@ -1339,6 +1349,7 @@ const VenueMap = forwardRef(({
             for (const timer of pendingTimersRef.current) clearTimeout(timer);
             pendingTimersRef.current.clear();
             resizeObserver?.disconnect();
+            removeUserCameraListener();
             removeWakeListeners();
             if (resizeFrame) clearTimeout(resizeFrame);
             if (rafRef.current) {
