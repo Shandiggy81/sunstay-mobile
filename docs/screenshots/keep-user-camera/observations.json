@@ -1,0 +1,506 @@
+[
+  {
+    "kind": "normal-load",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "before": {
+      "lng": 144.96309999999994,
+      "lat": -37.81360000000003,
+      "zoom": 13
+    },
+    "chosen": {
+      "lng": 144.96309999999994,
+      "lat": -37.81360000000003,
+      "zoom": 13
+    },
+    "final": {
+      "lng": 144.9712400000002,
+      "lat": -37.8231583157913,
+      "zoom": 11.32511330015751
+    },
+    "secondsAfterLoad": 10,
+    "venuesInCanvas": true,
+    "label": null,
+    "syntheticPreloadGesture": false,
+    "events": [
+      {
+        "type": "movestart",
+        "user": false,
+        "centre": [
+          144.96309999999994,
+          -37.81360000000003
+        ],
+        "zoom": 13,
+        "at": 4703
+      },
+      {
+        "type": "zoomend",
+        "user": false,
+        "centre": [
+          144.9712400000002,
+          -37.8231583157913
+        ],
+        "zoom": 11.32511330015751,
+        "at": 6705
+      },
+      {
+        "type": "moveend",
+        "user": false,
+        "centre": [
+          144.9712400000002,
+          -37.8231583157913
+        ],
+        "zoom": 11.32511330015751,
+        "at": 6705
+      }
+    ],
+    "errors": []
+  },
+  {
+    "kind": "early-locate",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "before": {
+      "lng": 144.96309999999994,
+      "lat": -37.81360000000003,
+      "zoom": 13
+    },
+    "chosen": {
+      "lng": 144.9679,
+      "lat": -37.815899999999985,
+      "zoom": 14
+    },
+    "final": {
+      "lng": 144.9679,
+      "lat": -37.815899999999985,
+      "zoom": 14
+    },
+    "secondsAfterLoad": 10,
+    "venuesInCanvas": null,
+    "label": "Walk times from your location",
+    "syntheticPreloadGesture": false,
+    "events": [
+      {
+        "type": "movestart",
+        "user": false,
+        "centre": [
+          144.96309999999994,
+          -37.81360000000003
+        ],
+        "zoom": 13,
+        "at": 1422
+      },
+      {
+        "type": "zoomend",
+        "user": false,
+        "centre": [
+          144.9679,
+          -37.815899999999985
+        ],
+        "zoom": 14,
+        "at": 2529
+      },
+      {
+        "type": "moveend",
+        "user": false,
+        "centre": [
+          144.9679,
+          -37.815899999999985
+        ],
+        "zoom": 14,
+        "at": 2529
+      }
+    ],
+    "errors": []
+  },
+  {
+    "kind": "early-pan",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "before": {
+      "lng": 144.96309999999994,
+      "lat": -37.81360000000003,
+      "zoom": 13
+    },
+    "chosen": {
+      "lng": 144.96609173521847,
+      "lat": -37.81465080024495,
+      "zoom": 14.2
+    },
+    "final": {
+      "lng": 144.96609173521847,
+      "lat": -37.81465080024495,
+      "zoom": 14.2
+    },
+    "secondsAfterLoad": 10,
+    "venuesInCanvas": null,
+    "label": null,
+    "syntheticPreloadGesture": true,
+    "events": [
+      {
+        "type": "movestart",
+        "user": true,
+        "centre": [
+          144.96309999999994,
+          -37.81360000000003
+        ],
+        "zoom": 13,
+        "at": 1507
+      },
+      {
+        "type": "movestart",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1508
+      },
+      {
+        "type": "zoomend",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1508
+      },
+      {
+        "type": "moveend",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1508
+      },
+      {
+        "type": "movestart",
+        "user": true,
+        "centre": [
+          144.97070375656517,
+          -37.816881201208346
+        ],
+        "zoom": 14.2,
+        "at": 2417
+      },
+      {
+        "type": "moveend",
+        "user": true,
+        "centre": [
+          144.96609173521847,
+          -37.81465080024495
+        ],
+        "zoom": 14.2,
+        "at": 2931
+      }
+    ],
+    "errors": []
+  },
+  {
+    "kind": "early-wheel",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "before": {
+      "lng": 144.96309999999994,
+      "lat": -37.81360000000003,
+      "zoom": 13
+    },
+    "chosen": {
+      "lng": 144.97062718444397,
+      "lat": -37.816227272406906,
+      "zoom": 14.721555455054418
+    },
+    "final": {
+      "lng": 144.97062718444397,
+      "lat": -37.816227272406906,
+      "zoom": 14.721555455054418
+    },
+    "secondsAfterLoad": 10,
+    "venuesInCanvas": null,
+    "label": null,
+    "syntheticPreloadGesture": true,
+    "events": [
+      {
+        "type": "movestart",
+        "user": true,
+        "centre": [
+          144.96309999999994,
+          -37.81360000000003
+        ],
+        "zoom": 13,
+        "at": 1402
+      },
+      {
+        "type": "movestart",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1403
+      },
+      {
+        "type": "zoomend",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1403
+      },
+      {
+        "type": "moveend",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1403
+      },
+      {
+        "type": "movestart",
+        "user": false,
+        "centre": [
+          144.97081883239963,
+          -37.81662449842841
+        ],
+        "zoom": 14.43010237778539,
+        "at": 2387
+      },
+      {
+        "type": "zoomend",
+        "user": false,
+        "centre": [
+          144.97062718444397,
+          -37.816227272406906
+        ],
+        "zoom": 14.721555455054418,
+        "at": 2753
+      },
+      {
+        "type": "moveend",
+        "user": false,
+        "centre": [
+          144.97062718444397,
+          -37.816227272406906
+        ],
+        "zoom": 14.721555455054418,
+        "at": 2754
+      }
+    ],
+    "errors": []
+  },
+  {
+    "kind": "early-pinch",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "before": {
+      "lng": 144.96309999999994,
+      "lat": -37.81360000000003,
+      "zoom": 13
+    },
+    "chosen": {
+      "lng": 144.97046723724793,
+      "lat": -37.81567324323162,
+      "zoom": 15.576730339689652
+    },
+    "final": {
+      "lng": 144.97046723724793,
+      "lat": -37.81567324323162,
+      "zoom": 15.576730339689652
+    },
+    "secondsAfterLoad": 10,
+    "venuesInCanvas": null,
+    "label": null,
+    "syntheticPreloadGesture": true,
+    "events": [
+      {
+        "type": "movestart",
+        "user": true,
+        "centre": [
+          144.96309999999994,
+          -37.81360000000003
+        ],
+        "zoom": 13,
+        "at": 1564
+      },
+      {
+        "type": "movestart",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1565
+      },
+      {
+        "type": "zoomend",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1565
+      },
+      {
+        "type": "moveend",
+        "user": false,
+        "centre": [
+          144.971,
+          -37.817
+        ],
+        "zoom": 14.2,
+        "at": 1565
+      },
+      {
+        "type": "movestart",
+        "user": true,
+        "centre": [
+          144.97089169894008,
+          -37.81673029620685
+        ],
+        "zoom": 14.392645077942394,
+        "at": 2514
+      },
+      {
+        "type": "zoomend",
+        "user": true,
+        "centre": [
+          144.97049034795435,
+          -37.81573079708686
+        ],
+        "zoom": 15.480107919192735,
+        "at": 2832
+      },
+      {
+        "type": "zoomend",
+        "user": true,
+        "centre": [
+          144.97046723724793,
+          -37.81567324323162
+        ],
+        "zoom": 15.576730339689652,
+        "at": 3026
+      },
+      {
+        "type": "moveend",
+        "user": true,
+        "centre": [
+          144.97046723724793,
+          -37.81567324323162
+        ],
+        "zoom": 15.576730339689652,
+        "at": 3027
+      }
+    ],
+    "errors": []
+  },
+  {
+    "kind": "programmatic-move",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "before": {
+      "lng": 144.96309999999994,
+      "lat": -37.81360000000003,
+      "zoom": 13
+    },
+    "chosen": {
+      "lng": 144.98000000000002,
+      "lat": -37.81999999999998,
+      "zoom": 14
+    },
+    "final": {
+      "lng": 144.9712400000002,
+      "lat": -37.8231583157913,
+      "zoom": 11.32511330015751
+    },
+    "secondsAfterLoad": 10,
+    "venuesInCanvas": true,
+    "label": null,
+    "syntheticPreloadGesture": false,
+    "events": [
+      {
+        "type": "movestart",
+        "user": false,
+        "centre": [
+          144.96309999999994,
+          -37.81360000000003
+        ],
+        "zoom": 13,
+        "at": 1397
+      },
+      {
+        "type": "zoomend",
+        "user": false,
+        "centre": [
+          144.98000000000002,
+          -37.81999999999998
+        ],
+        "zoom": 14,
+        "at": 1398
+      },
+      {
+        "type": "moveend",
+        "user": false,
+        "centre": [
+          144.98000000000002,
+          -37.81999999999998
+        ],
+        "zoom": 14,
+        "at": 1398
+      },
+      {
+        "type": "movestart",
+        "user": false,
+        "centre": [
+          144.98000000000002,
+          -37.81999999999998
+        ],
+        "zoom": 14,
+        "at": 1536
+      },
+      {
+        "type": "zoomend",
+        "user": false,
+        "centre": [
+          144.9712400000002,
+          -37.8231583157913
+        ],
+        "zoom": 11.32511330015751,
+        "at": 3537
+      },
+      {
+        "type": "moveend",
+        "user": false,
+        "centre": [
+          144.9712400000002,
+          -37.8231583157913
+        ],
+        "zoom": 11.32511330015751,
+        "at": 3537
+      }
+    ],
+    "errors": []
+  }
+]
