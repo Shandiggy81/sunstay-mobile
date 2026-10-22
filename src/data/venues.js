@@ -47,8 +47,8 @@ export const venues = [
         vibe: "Rooftop Club",
         emoji: "🍸",
         tags: ["Party", "Views", "Rooftop", "Smoking Area"],
-        lat: -37.8394,
-        lng: 145.0008,
+        lat: -37.84637,
+        lng: 144.99121,
         happyHour: {"days":["Fri"],"start":"17:00","end":"20:00","deal":"$7 Tap Beers/Wines & $3.50 Oysters"},
         weatherNow: { windSpeed: 32, uvIndex: 8, precipProb: 15 },
         shielding: { windbreak: 35, rainCover: 60, shadeFactor: 50 }
