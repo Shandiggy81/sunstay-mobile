@@ -2,7 +2,8 @@
 
 **Status: proposal for Shannon's approval.** Written 22 October 2026 (Australia/Melbourne) against
 main `538574f`+ and production project `fksuqgvsazoxarocmaii`. This document authorises nothing: no
-migration, Auth setting change, function deployment or venue outreach.
+migration, Auth setting change, function deployment or venue outreach. Shannon's answers to the
+blocking questions are recorded in §8 (22 October 2026).
 
 Read first: [CLAUDE.md](../../CLAUDE.md), the
 [venue-confirmed attributes proposal](venue-attributes-proposal.md) (#207, whose contact checks,
@@ -143,12 +144,20 @@ Every decision is logged.
 
 ## 8. Open questions
 
+### Decided (Shannon, 22 October 2026)
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Approve every entry for the whole pilot, or trust venues after (say) 5 clean entries? | **Approve every entry for the whole pilot.** Trusted venues (P1) wait until after the pilot. |
+| 2 | How do we verify a venue contact? | **Either a call to the venue's published number or an in-person visit.** Record which one, when and by whom (`verified_via`, `verified_by`). An email or message from the person alone never counts. |
+| 3 | Which 5 pilot venues? | **Five pubs that SunStay staff can visit in person**, all already in the venue list and all advertising weekly nights on their own websites (checked 22 Oct 2026): Union Hotel, Windsor (trivia Thursday, poker Wednesday); Railway Hotel, Windsor (trivia Wednesday); Wonderland Bar, Windsor (trivia Wednesday, music bingo, karaoke); Pause Bar, Balaclava (open mic Wednesday); The Vineyard, St Kilda (live music and DJs Thursday to Sunday). Backups: The Espy and Holy Grail. This replaces the earlier suggestion (Union Hotel, Lion & Wombat, the Standard and two cultural venues): Lion & Wombat lists food specials but no gigs or trivia, and the cultural venues already reach guests through ticketing. |
+| 4 | Supabase Auth email sender | **Resend, free plan.** Supabase's built-in sender only delivers to the project's own team, two messages an hour, and its docs say it is not for production ([Supabase SMTP docs](https://supabase.com/docs/guides/auth/auth-smtp)). Resend's free plan allows 3,000 emails a month and 100 a day ([Resend pricing](https://resend.com/pricing)), which covers the pilot at no cost. Still to settle: which domain the codes come from (it needs DNS records added). Switching Supabase Auth to custom SMTP is a production settings change and needs explicit approval when the build reaches it. |
+
+### Still open
+
 | # | Question | Who | Blocking? |
 |---|---|---|---|
-| 1 | Approve every entry for the whole pilot, or trust venues after (say) 5 clean entries? | Shannon | No (default: approve all) |
-| 2 | How do we verify a venue contact: call the published number, visit in person, or both? | Shannon | **Yes** |
-| 3 | Which 5 pilot venues? Suggest Union Hotel, Lion & Wombat, the Standard and two from the cultural six. | Shannon | **Yes** |
-| 4 | Supabase Auth email: the built-in sender has low limits; a custom SMTP sender (e.g. Resend) may cost money. | Engineering → Shannon (cost) | Yes, before launch |
+| 4a | Which domain do sign-in codes come from, and who can add its DNS records? | Shannon | Yes, before the pilot |
 | 5 | Are venue-entered events counted in Ticketmaster's terms as "mixed with" their data? Show them as separate rows? | Engineering (terms check) | No |
 | 6 | Privacy notice for venue staff emails and retention (#207 proposes 24 months for review history). | Shannon / legal | Yes, before launch |
 
