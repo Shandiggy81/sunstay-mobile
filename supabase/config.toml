@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.enrich-microclimate]
 verify_jwt = true
+
+[functions.events-tonight]
+verify_jwt = true
