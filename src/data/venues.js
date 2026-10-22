@@ -73,8 +73,8 @@ export const venues = [
         vibe: "Courtyard",
         emoji: "🥂",
         tags: ["Hidden Gem", "Sunny", "Pet Friendly"],
-        lat: -37.8686,
-        lng: 145.0039,
+        lat: -37.86860,
+        lng: 144.99287,
         happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat"],"start":"16:00","end":"19:00","deal":"$10.50 Pints & 2-for-$26 Espresso Martinis"},
         weatherNow: { windSpeed: 10, uvIndex: 5, precipProb: 15 },
         shielding: { windbreak: 88, rainCover: 90, shadeFactor: 75 }
@@ -112,8 +112,8 @@ export const venues = [
         vibe: "Lounge",
         emoji: "🛋️",
         tags: ["Comfy", "Fireplace", "Wheelchair Accessible"],
-        lat: -37.8575,
-        lng: 144.9960,
+        lat: -37.85353,
+        lng: 144.99319,
         happyHour: {"days":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],"start":"17:00","end":"21:00","deal":"Sliding Prices: $5 at 5pm, $6 at 6pm, $7 at 7pm"},
         weatherNow: { windSpeed: 6, uvIndex: 3, precipProb: 10 },
         shielding: { windbreak: 95, rainCover: 100, shadeFactor: 90 }
@@ -149,8 +149,8 @@ export const venues = [
         vibe: "Brewery",
         emoji: "🍻",
         tags: ["Pet Friendly", "Large Groups", "Beer Garden", "Pram Friendly", "Wheelchair Accessible"],
-        lat: -37.8363,
-        lng: 144.9353,
+        lat: -37.82867,
+        lng: 144.93687,
         happyHour: {"days":["Sat"],"start":"14:00","end":"17:00","deal":"$6 Schooners (Tappy Hour)"},
         weatherNow: { windSpeed: 12, uvIndex: 5, precipProb: 24 },
         shielding: { windbreak: 80, rainCover: 85, shadeFactor: 70 }
@@ -162,8 +162,8 @@ export const venues = [
         vibe: "Tavern",
         emoji: "🎱",
         tags: ["Fireplace", "Pub Grub", "Pet Friendly", "Smoking Area"],
-        lat: -37.8597,
-        lng: 144.9953,
+        lat: -37.86459,
+        lng: 144.99122,
         weatherNow: { windSpeed: 18, uvIndex: 6, precipProb: 32 },
         shielding: { windbreak: 65, rainCover: 80, shadeFactor: 55 }
     },
