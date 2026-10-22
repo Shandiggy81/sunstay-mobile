@@ -69,3 +69,26 @@
 .ss-home-moments .ss-experience-options > button::before { content: ''; position: absolute; inset: 4px 0; z-index: -1; border: 1px solid #eee2cc; border-radius: 999px; background: white; box-shadow: 0 2px 6px rgba(120,80,20,.07); }
 .ss-home-moments .ss-experience-options > button[aria-pressed=true]::before { border-color: var(--color-accent); background: #fff0b7; box-shadow: inset 0 0 0 1px var(--color-accent); }
 .ss-map-first-home--list-open .ss-mobile-sheet-handle { visibility: hidden; pointer-events: none; }
+
+/* Mode buttons sit outside the peek's drag/click target. */
+.ss-home-sheet-mode { display: flex; flex-shrink: 0; gap: 4px; padding: 4px; margin: 8px 16px; border: 1px solid #eee2cc; border-radius: 999px; background: #fff8e9; }
+.ss-home-sheet-mode button { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 0 12px; border-radius: 999px; color: var(--color-ink); font-size: 13px; font-weight: 800; touch-action: manipulation; }
+.ss-home-sheet-mode button[aria-pressed=true] { background: #ffe8a0; box-shadow: 0 2px 6px rgba(120,80,20,.12); }
+.ss-home-sheet-mode button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ss-home-sheet-peek { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; border-radius: 28px 28px 0 0; background: white; box-shadow: 0 -6px 24px rgba(120,80,20,.12); }
+.ss-map-first-home .ss-home-sheet-peek .ss-mobile-sheet-handle { position: relative; border-radius: 0; box-shadow: none; }
+.ss-map-first-home--list-open .ss-home-sheet-peek { visibility: hidden; pointer-events: none; }
+.ss-mobile-sheet-head > .ss-home-sheet-mode { flex-basis: 100%; margin: 4px 0 8px; }
+.ss-map-first-home .ss-mobile-sheet-head:has(.ss-home-sheet-mode) { flex-shrink: 0; }
+.ss-map-first-home .ss-home-sheet-peek .ss-home-sheet-mode { margin-bottom: 0; }
+.ss-map-first-home { --home-peek-height: 96px; --home-controls-bottom: calc(env(safe-area-inset-bottom, 0px) + 172px); }
+.ss-map-first-home .ss-map-caption { bottom: calc(env(safe-area-inset-bottom, 0px) + 170px); }
+/* The mode control needs room without squeezing the Sun date picker or list. */
+.ss-map-first-home--list-open .ss-home-chip-layer { visibility: hidden; }
+.ss-map-first-home--list-open .ss-mobile-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 108px); }
+.ss-map-first-home .ss-mobile-sheet--after-dark .ss-mobile-sheet-head h3 { font-size: 18px; }
+@media (min-width: 1024px) {
+  .ss-home-sheet-peek { display: none; }
+  .ss-map-first-home { --home-controls-bottom: 24px; }
+  .ss-map-first-home .ss-map-caption { bottom: 10px; }
+}

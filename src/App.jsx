@@ -17,6 +17,10 @@ import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMoment
 import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
 import VenueMap from './components/Map/VenueMap';
+import AfterDarkPanel from './components/AfterDarkPanel.jsx';
+import HomeSheetMode from './components/HomeSheetMode.jsx';
+import { useAfterDarkEvents } from './hooks/useAfterDarkEvents.js';
+import { afterDarkOrigin, resolveAfterDarkMode } from './utils/afterDarkHome.js';
 import MapVenuePreview from './components/MapVenuePreview';
 import { isPreviewMapDrag } from './utils/mapVenuePreview';
 import VenueCard from './components/VenueCard';
@@ -36,7 +40,7 @@ import {
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
 import { findHotelSunReportVenue, hotelSunReportUrl, readHotelSunReportId } from './utils/hotelSunReportRoute.js';
-import { MAPBOX_TOKEN, MAX_BOUNDS } from './config/mapConfig';
+import { INITIAL_VIEW_STATE, MAPBOX_TOKEN, MAX_BOUNDS } from './config/mapConfig';
 import { needsPlaceLookup, parsePlaceResponse, parseSearchQuery, placeCountLabel, placeLookupUrl, venueMatchesSearch, venuesNearPlace } from './utils/locationSearch';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
@@ -714,7 +718,31 @@ const AppContent = () => {
     // The Sunny filter reads each venue's own sun at the slider time, plus the
     // Melbourne hourly forecast for that hour (the same one the Sun Forecast
     // tab uses). UV is safety info only.
-    const { byId: microById, todMinutes: listTodMinutes } = useMicroclimateState();
+    const { byId: microById, todMinutes: listTodMinutes, viewportBbox } = useMicroclimateState();
+    const [homeModeChoice, setHomeModeChoice] = useState(() => {
+        try { return sessionStorage.getItem('ss-home-sheet-mode'); } catch { return null; }
+    });
+    const homeNow = useMinuteNow();
+    // Tonight follows the real Melbourne clock, independently of map preview time.
+    const homeIsNight = useMemo(() => isNightAt(venueSunForecast({
+        venue: { lat: -37.8136, lng: 144.9631, timeZone: DEFAULT_TIME_ZONE }, weather, now: new Date(homeNow),
+    })), [weather, homeNow]);
+    const homeMode = resolveAfterDarkMode(homeModeChoice, homeIsNight);
+    const eventOrigin = useMemo(() => afterDarkOrigin(viewportBbox, {
+        lat: INITIAL_VIEW_STATE.latitude, lng: INITIAL_VIEW_STATE.longitude,
+    }, mapRef.current?.getMap?.()?.getCenter?.()), [viewportBbox]);
+    const rememberHomeMode = (mode) => {
+        setHomeModeChoice(mode);
+        try { sessionStorage.setItem('ss-home-sheet-mode', mode); } catch { /* Session choice still works in memory. */ }
+    };
+    const handleHomeMode = (mode) => {
+        rememberHomeMode(mode);
+        setPreviewVenue(null);
+        if (isMobile && mode === 'after-dark') {
+            setMobileSheetState('expanded');
+            requestAnimationFrame(() => document.querySelector('.ss-mobile-sheet .ss-home-sheet-mode button[aria-pressed=true]')?.focus({ preventScroll: true }));
+        }
+    };
     const sunnyForecastKind = useMemo(() => {
         if (!sunnyFilterActive) return null;
         const sun = getSunData(-37.8136, 144.9631);
@@ -1179,7 +1207,7 @@ const AppContent = () => {
     useEffect(() => {
         if (!selectedVenue) setVenueSheetDragging(false);
     }, [selectedVenue]);
-    const sheetClassName = `ss-mobile-sheet ${filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''} ${sheetDrag.className}`.trim();
+    const sheetClassName = `ss-mobile-sheet ${homeMode === 'after-dark' ? 'ss-mobile-sheet--after-dark' : ''} ${homeMode === 'sun' && filteredVenues.length === 0 ? 'ss-mobile-sheet--empty' : ''} ${sheetDrag.className}`.trim();
     useEffect(() => {
         if (!sheetExpanded) setSheetDragging(false);
     }, [sheetExpanded]);
@@ -1198,6 +1226,15 @@ const AppContent = () => {
             transition: { type: 'spring', damping: 25, stiffness: 200 },
     };
     const backdropMotionProps = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } };
+    const afterDark = useAfterDarkEvents({
+        open: homeMode === 'after-dark' && !venueCardOpen && !mobileFilterOpen && reportId === null && (!isMobile || sheetExpanded),
+        origin: eventOrigin,
+        // Same public client configuration used by postChatSunny.
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+        anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    });
+    const afterDarkPanel = <AfterDarkPanel origin={eventOrigin} venues={venues} weather={weather} state={afterDark}
+        onRetry={afterDark.retry} onCosy={() => { rememberHomeMode('sun'); handleExperienceSelect('cozy'); }} />;
 
     return (
         <>
@@ -1223,7 +1260,7 @@ const AppContent = () => {
             </div>
 
             <div
-                className={`ss-app-root ss-map-first-home ${previewVenue ? 'ss-map-first-home--preview' : ''} ${sheetExpanded ? 'ss-map-first-home--list-open' : ''} flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
+                className={`ss-app-root ss-map-first-home ${previewVenue ? 'ss-map-first-home--preview' : ''} ${sheetExpanded ? 'ss-map-first-home--list-open' : ''} ${sheetExpanded && homeMode === 'after-dark' ? 'ss-map-first-home--after-dark' : ''} flex h-dvh min-h-0 flex-col overflow-hidden ${mobileMapExpanded ? 'ss-app-root--map-expanded' : ''}`}
             >
                 {/* Explore uses a solid warm surface; detail weather retains its own presentation. */}
 
@@ -1245,6 +1282,8 @@ const AppContent = () => {
                 <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
                     {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
                     <aside className="ss-sidebar hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96">
+                        <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
+                        {homeMode === 'after-dark' ? (!isMobile && afterDarkPanel) : <>
                         <div className="px-3 pt-2"><PropertyFilterPills activeFilters={activeFilters} onToggle={handleFilterToggle} /></div>
                         {/* Quick-filter pills share the unified filter state. */}
                         <div className="ss-quick-filter-row flex flex-shrink-0 gap-2 px-3 py-2">
@@ -1318,6 +1357,7 @@ const AppContent = () => {
                                     />
                                 </MascotPullRefresh>
                         ) : null}
+                        </>}
                     </aside>
 
                     {/* RIGHT: Map */}
@@ -1472,8 +1512,10 @@ const AppContent = () => {
                 {/* Hidden while Filters is open: the fixed bar sat on top of the
                     sheet's "Show N venues" button and swallowed the tap. */}
                 {!mobileMapExpanded && !venueCardOpen && !mobileFilterOpen && (
+                    <div className="ss-home-sheet-peek">
+                    <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                     <motion.div
-                        role="button" tabIndex={0} aria-label="Show venue list" aria-expanded={sheetExpanded}
+                        role="button" tabIndex={0} aria-label={homeMode === 'after-dark' ? "Show tonight's events" : 'Show venue list'} aria-expanded={sheetExpanded}
                         drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.12}
                         onPointerDown={() => { peekDragged.current = false; }}
                         onDragStart={() => { peekDragged.current = true; }}
@@ -1484,6 +1526,7 @@ const AppContent = () => {
                     >
                         <div className="ss-mobile-sheet-grab" />
                         <span className="ss-home-peek-headline">
+                            {homeMode === 'after-dark' ? 'Tonight near the map centre' : <>
                             {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} venues`}
                             {homeSunClause(homeSummary, cityNight ? 'night' : null) && <span> · {homeSunClause(homeSummary, cityNight ? 'night' : null)}</span>}
                             {areaBounds ? showAllChip('-my-3') : null}
@@ -1493,11 +1536,13 @@ const AppContent = () => {
                                     isRefreshing={isRefreshing}
                                 />
                             ) : null}
+                            </>}
                         </span>
-                        <p className="ss-discovery-context">{experienceContext}</p>
-                        <p className="ss-discovery-source">{dataLabel}</p>
+                        <p className="ss-discovery-context">{homeMode === 'after-dark' ? 'Events within 3 km' : experienceContext}</p>
+                        <p className="ss-discovery-source">{homeMode === 'after-dark' ? 'Events from Ticketmaster' : dataLabel}</p>
                         <ChevronUp size={14} className="ss-home-peek-chevron" />
                     </motion.div>
+                    </div>
                 )}
 
                 <AnimatePresence>
@@ -1517,6 +1562,11 @@ const AppContent = () => {
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
+                                    <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
+                                    {homeMode === 'after-dark' ? (
+                                        <><h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="night" size={30} />Tonight</h3>
+                                        <p>Near the map centre · 3 km</p></>
+                                    ) : <>
                                     <h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="sun" size={30} />Venues</h3>
                                     <p className="inline-flex items-center gap-2">
                                         {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} results`}
@@ -1536,7 +1586,9 @@ const AppContent = () => {
                                     {/* The peek header's context lines, shown once here while it is hidden. */}
                                     <p className="ss-discovery-context">{experienceContext}</p>
                                     <p className="ss-discovery-source">{dataLabel}</p>
+                                    </>}
                                 </div>
+                                {homeMode === 'after-dark' ? afterDarkPanel : <>
                                 {/* Search stays in the floating top bar, which drives the same query. */}
                                 <div className="ss-mobile-sheet-search flex-shrink-0 px-4 pt-1 pb-2 flex flex-col gap-2 bg-white border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
                                     <QuickFilterChips
@@ -1578,6 +1630,7 @@ const AppContent = () => {
                                             empty={listEmptyState}
                                         />
                                     </MascotPullRefresh>
+                                </>}
                             </motion.div>
                         </>
                     )}

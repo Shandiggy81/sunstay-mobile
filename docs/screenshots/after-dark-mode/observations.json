@@ -1,0 +1,179 @@
+[
+  {
+    "width": 390,
+    "height": 844,
+    "kind": "events",
+    "eventRequests": [
+      {
+        "lat": -37.8136,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      },
+      {
+        "lat": -37.7936,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      }
+    ],
+    "measurements": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "visibleFlatIcons": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "kind": "empty",
+    "eventRequests": [
+      {
+        "lat": -37.8136,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      }
+    ],
+    "measurements": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "visibleFlatIcons": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "kind": "error",
+    "eventRequests": [
+      {
+        "lat": -37.8136,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      },
+      {
+        "lat": -37.8136,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      }
+    ],
+    "measurements": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "visibleFlatIcons": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "kind": "events",
+    "eventRequests": [
+      {
+        "lat": -37.8136,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      },
+      {
+        "lat": -37.7936,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      }
+    ],
+    "measurements": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "visibleFlatIcons": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "kind": "empty",
+    "eventRequests": [
+      {
+        "lat": -37.8136,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      }
+    ],
+    "measurements": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "visibleFlatIcons": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "kind": "error",
+    "eventRequests": [
+      {
+        "lat": -37.8136,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      },
+      {
+        "lat": -37.8136,
+        "lng": 144.9631,
+        "radius": "3",
+        "start": "2026-10-19T07:00:00Z",
+        "end": "2026-10-19T18:00:00Z"
+      }
+    ],
+    "measurements": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "visibleFlatIcons": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "kind": "abort-close",
+    "requestCount": 2,
+    "aborted": [
+      "net::ERR_ABORTED"
+    ],
+    "errors": []
+  },
+  {
+    "kind": "night-session-choice",
+    "errors": [],
+    "requestCount": 0
+  },
+  {
+    "kind": "storage-denied",
+    "errors": [],
+    "requestCount": 0
+  },
+  {
+    "kind": "network-error-retry",
+    "requestCount": 2,
+    "errors": []
+  }
+]
