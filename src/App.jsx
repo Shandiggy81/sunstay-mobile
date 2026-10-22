@@ -40,7 +40,7 @@ import {
 } from 'lucide-react';
 import { useVenues } from './hooks/useVenues';
 import { findHotelSunReportVenue, hotelSunReportUrl, readHotelSunReportId } from './utils/hotelSunReportRoute.js';
-import { INITIAL_VIEW_STATE, MAPBOX_TOKEN, MAX_BOUNDS } from './config/mapConfig';
+import { MAPBOX_TOKEN, MAX_BOUNDS } from './config/mapConfig';
 import { needsPlaceLookup, parsePlaceResponse, parseSearchQuery, placeCountLabel, placeLookupUrl, venueMatchesSearch, venuesNearPlace } from './utils/locationSearch';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
@@ -695,6 +695,8 @@ const AppContent = () => {
     );
     const [isLocating, setIsLocating]               = useState(false);
     const [locateHint, setLocateHint]               = useState(null);
+    const [eventCamera, setEventCamera]             = useState(null);
+    const [locatedPoint, setLocatedPoint]           = useState(null);
 
     const mapRef  = useRef(null);
     const sidebarVirtuosoRef = useRef(null);
@@ -724,7 +726,7 @@ const AppContent = () => {
     // The Sunny filter reads each venue's own sun at the slider time, plus the
     // Melbourne hourly forecast for that hour (the same one the Sun Forecast
     // tab uses). UV is safety info only.
-    const { byId: microById, todMinutes: listTodMinutes, viewportBbox } = useMicroclimateState();
+    const { byId: microById, todMinutes: listTodMinutes } = useMicroclimateState();
     const [homeModeChoice, setHomeModeChoice] = useState(() => {
         try { return sessionStorage.getItem('ss-home-sheet-mode'); } catch { return null; }
     });
@@ -734,9 +736,7 @@ const AppContent = () => {
         venue: { lat: -37.8136, lng: 144.9631, timeZone: DEFAULT_TIME_ZONE }, weather, now: new Date(homeNow),
     })), [weather, homeNow]);
     const homeMode = resolveAfterDarkMode(homeModeChoice, homeIsNight);
-    const eventOrigin = useMemo(() => afterDarkOrigin(viewportBbox, {
-        lat: INITIAL_VIEW_STATE.latitude, lng: INITIAL_VIEW_STATE.longitude,
-    }, mapRef.current?.getMap?.()?.getCenter?.()), [viewportBbox]);
+    const eventOrigin = useMemo(() => afterDarkOrigin(eventCamera, locatedPoint), [eventCamera, locatedPoint]);
     const rememberHomeMode = (mode) => {
         setHomeModeChoice(mode);
         try { sessionStorage.setItem('ss-home-sheet-mode', mode); } catch { /* Session choice still works in memory. */ }
@@ -1142,6 +1142,7 @@ const AppContent = () => {
                         handleRecenter();
                         return;
                     }
+                    setLocatedPoint({ lat, lng });
                     try {
                         if (mapRef.current?.locateUser) {
                             mapRef.current.locateUser({ lng, lat, zoom: 14 });
@@ -1396,6 +1397,7 @@ const AppContent = () => {
                                         isExpanded={mobileMapExpanded}
                                         searchedArea={areaBounds}
                                         onSearchArea={setAreaBounds}
+                                        onCameraSettle={setEventCamera}
                                     />
                                 </Suspense>
                             </MapErrorBoundary>
@@ -1532,7 +1534,7 @@ const AppContent = () => {
                     >
                         <div className="ss-mobile-sheet-grab" />
                         <span className="ss-home-peek-headline">
-                            {homeMode === 'after-dark' ? 'Tonight near the map centre' : <>
+                            {homeMode === 'after-dark' ? "Tonight's events" : <>
                             {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} venues`}
                             {homeSunClause(homeSummary, cityNight ? 'night' : null) && <span> · {homeSunClause(homeSummary, cityNight ? 'night' : null)}</span>}
                             {areaBounds ? showAllChip('-my-3') : null}
@@ -1571,7 +1573,7 @@ const AppContent = () => {
                                     <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                                     {homeMode === 'after-dark' ? (
                                         <><h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="night" size={30} />Tonight</h3>
-                                        <p>Near the map centre · 3 km</p></>
+                                        <p>Within 3 km</p></>
                                     ) : <>
                                     <h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="sun" size={30} />Venues</h3>
                                     <p className="inline-flex items-center gap-2">
