@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.events-tonight]
 verify_jwt = true
+
+[functions.weather]
+verify_jwt = true

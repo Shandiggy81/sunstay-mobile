@@ -2,6 +2,7 @@
 import { firstFinite } from './finiteOrNull.js';
 import { codeForClearness, currentSkyClearness, effectiveCloudCover, hourlySkyClearness } from './skyClearness.js';
 import { parseVenueDateTime } from './venueTime.js';
+import { fetchOpenMeteoResponse } from './openMeteoClient.js';
 
 export const toUnixTimestamp = (isoDateTime, timeZone) => {
     const instant = parseVenueDateTime(isoDateTime, timeZone);
@@ -258,7 +259,7 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
     });
 
     const url = `https://api.open-meteo.com/v1/forecast?${params}`;
-    const response = await fetch(url, { signal });
+    const response = await fetchOpenMeteoResponse('forecast', lat, lon, { signal, directUrl: url });
     if (!response.ok) throw new Error(`Open-Meteo HTTP ${response.status}`);
     const data = await response.json();
 

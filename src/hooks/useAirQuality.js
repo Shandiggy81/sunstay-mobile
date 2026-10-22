@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { storage } from '../utils/platform';
+import { fetchOpenMeteoResponse } from '../utils/openMeteoClient';
 
 const CACHE_KEY_PREFIX = 'sunstay_air_quality_';
 const CACHE_EXPIRY = 20 * 60 * 1000;
@@ -85,7 +86,10 @@ const fetchFromOpenMeteo = async (lat, lng, signal) => {
         timezone: 'auto',
     });
 
-    const response = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`, { signal });
+    const response = await fetchOpenMeteoResponse('air', lat, lng, {
+        directUrl: `https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`,
+        signal,
+    });
     if (!response.ok) return null;
 
     const payload = await response.json();

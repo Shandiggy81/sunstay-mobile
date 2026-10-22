@@ -1,0 +1,158 @@
+[
+  {
+    "kind": "direct",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "header": "23° Clear sky",
+    "cardAir": null,
+    "isolatedConsumers": null,
+    "requests": [
+      {
+        "host": "api.open-meteo.com",
+        "kind": "forecast",
+        "method": "GET"
+      },
+      {
+        "host": "api.open-meteo.com",
+        "kind": "forecast",
+        "method": "GET"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "kind": "proxy",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "header": "23° Clear sky",
+    "cardAir": "Pristine",
+    "isolatedConsumers": {
+      "currentAir": "Pristine",
+      "hourlyAir": "Pristine",
+      "hourlyForecast": "success"
+    },
+    "requests": [
+      {
+        "path": "/functions/v1/weather",
+        "kind": "forecast",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8136,
+        "lng": 144.9631
+      },
+      {
+        "path": "/functions/v1/weather",
+        "kind": "forecast",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8136,
+        "lng": 144.9631
+      },
+      {
+        "path": "/functions/v1/weather",
+        "kind": "air",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8679,
+        "lng": 144.979
+      },
+      {
+        "path": "/functions/v1/weather",
+        "kind": "hourly",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8183,
+        "lng": 144.9671
+      },
+      {
+        "path": "/functions/v1/weather",
+        "kind": "air",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8183,
+        "lng": 144.9671
+      },
+      {
+        "path": "/functions/v1/weather",
+        "kind": "air",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8183,
+        "lng": 144.9671
+      }
+    ],
+    "errors": []
+  },
+  {
+    "kind": "fallback",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "header": "23° Clear sky",
+    "cardAir": null,
+    "isolatedConsumers": null,
+    "requests": [
+      {
+        "path": "/functions/v1/weather",
+        "kind": "forecast",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8136,
+        "lng": 144.9631
+      },
+      {
+        "path": "/functions/v1/weather",
+        "kind": "forecast",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8136,
+        "lng": 144.9631
+      },
+      {
+        "host": "api.open-meteo.com",
+        "kind": "forecast",
+        "method": "GET"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "kind": "unavailable",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "header": "– Live weather unavailable",
+    "cardAir": null,
+    "isolatedConsumers": null,
+    "requests": [
+      {
+        "path": "/functions/v1/weather",
+        "kind": "forecast",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8136,
+        "lng": 144.9631
+      },
+      {
+        "path": "/functions/v1/weather",
+        "kind": "forecast",
+        "anonHeaders": true,
+        "method": "GET",
+        "lat": -37.8136,
+        "lng": 144.9631
+      },
+      {
+        "host": "api.open-meteo.com",
+        "kind": "forecast",
+        "method": "GET"
+      }
+    ],
+    "errors": []
+  }
+]
