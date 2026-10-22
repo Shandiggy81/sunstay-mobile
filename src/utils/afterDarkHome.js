@@ -1,7 +1,11 @@
 import { dedupeEvents, distanceMetres, eventsTonight } from './afterDarkEvents.js';
 import { parseVenueDateTime, venueTimeParts } from './venueTime.js';
+import { MAX_BOUNDS } from '../config/mapBounds.js';
 
 const MELBOURNE = 'Australia/Melbourne';
+export const AFTER_DARK_DEFAULT_ORIGIN = Object.freeze({ lat: -37.8183, lng: 144.9671 });
+export const AFTER_DARK_MIN_CAMERA_ZOOM = 14;
+export const AFTER_DARK_LOCATION_RADIUS_METRES = 150;
 
 export function resolveAfterDarkMode(choice, isNight) {
     return choice === 'sun' || choice === 'after-dark' ? choice : isNight ? 'after-dark' : 'sun';
@@ -12,16 +16,17 @@ function validOrigin(origin) {
         && typeof origin?.lng === 'number' && Number.isFinite(origin.lng) && Math.abs(origin.lng) <= 180;
 }
 
-/** Prefer the map's reported centre, with its existing viewport as a fallback. */
-export function afterDarkOrigin(bbox, fallback, center = null) {
-    if (validOrigin(center)) return { lat: center.lat, lng: center.lng };
-    if (bbox && [bbox.minLat, bbox.maxLat, bbox.minLng, bbox.maxLng].every(value => typeof value === 'number' && Number.isFinite(value))
-        && bbox.minLat < bbox.maxLat && bbox.minLng < bbox.maxLng
-        && Math.abs(bbox.minLat) <= 90 && Math.abs(bbox.maxLat) <= 90
-        && Math.abs(bbox.minLng) <= 180 && Math.abs(bbox.maxLng) <= 180) {
-        return { lat: (bbox.minLat + bbox.maxLat) / 2, lng: (bbox.minLng + bbox.maxLng) / 2 };
+/** A citywide or unavailable camera uses Flinders St, never a pitched viewport's midpoint. */
+export function afterDarkOrigin(camera = null, locatedPoint = null) {
+    const [[minLng, minLat], [maxLng, maxLat]] = MAX_BOUNDS;
+    if (!validOrigin(camera) || !Number.isFinite(camera.zoom) || camera.zoom < AFTER_DARK_MIN_CAMERA_ZOOM
+        || camera.lat < minLat || camera.lat > maxLat || camera.lng < minLng || camera.lng > maxLng) {
+        return { ...AFTER_DARK_DEFAULT_ORIGIN, kind: 'default', label: 'Walk times from Flinders St Station' };
     }
-    return validOrigin(fallback) ? { lat: fallback.lat, lng: fallback.lng } : null;
+    const fromLocation = validOrigin(locatedPoint)
+        && distanceMetres(camera, locatedPoint) <= AFTER_DARK_LOCATION_RADIUS_METRES;
+    return { lat: camera.lat, lng: camera.lng, kind: fromLocation ? 'location' : 'map',
+        label: fromLocation ? 'Walk times from your location' : 'Walk times from the map centre' };
 }
 
 /** A cached result or in-flight request is reused until the centre moves over 1km. */

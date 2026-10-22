@@ -811,6 +811,7 @@ const VenueMap = forwardRef(({
     filtersControl    = null,   // Filters FAB — stacked above TOD, layout only
     searchedArea      = null,   // bounds the list is narrowed to, or null
     onSearchArea      = null,   // (bounds) => void — "Search this area" pill
+    onCameraSettle    = null,   // ({ lat, lng, zoom } | null) => void
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -1924,7 +1925,10 @@ const VenueMap = forwardRef(({
     // Reported on settle rather than on every move frame; the hook debounces
     // again and ignores responses from a viewport the user has already left.
     useEffect(() => {
-        if (!mapLoaded || !map.current) return undefined;
+        if (!mapLoaded || !map.current) {
+            onCameraSettle?.(null);
+            return undefined;
+        }
         const instance = map.current;
 
         const publishBounds = () => {
@@ -1932,6 +1936,8 @@ const VenueMap = forwardRef(({
             const bounds = readMapBounds(instance);
             if (bounds) setBbox(bounds);
             else console.warn('[VenueMap] could not read viewport bounds; keeping the last bbox');
+            const camera = captureMapCamera(instance);
+            onCameraSettle?.(camera ? { lat: camera.lat, lng: camera.lng, zoom: camera.zoom } : null);
         };
 
         publishBounds();
@@ -1943,8 +1949,9 @@ const VenueMap = forwardRef(({
                 instance.off('moveend', publishBounds);
                 instance.off('zoomend', publishBounds);
             } catch { /* noop */ }
+            onCameraSettle?.(null);
         };
-    }, [mapLoaded, setBbox]);
+    }, [mapLoaded, setBbox, onCameraSettle]);
 
     // ── "Search this area" pill ─────────────────────────────────────
     // Only a pan or zoom the user made offers it; flyTo, fitBounds and

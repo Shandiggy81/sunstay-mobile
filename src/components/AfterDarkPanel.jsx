@@ -78,6 +78,7 @@ export default function AfterDarkPanel({ origin, venues, weather, state, onRetry
                         onClick={() => setFreeOnly(value => !value)}>Free</button>
                     <p className="ss-after-dark-source">Events from Ticketmaster{updated && <> · updated <time dateTime={state.fetchedAt} title="Melbourne time">{updated}</time></>}</p>
                 </div>
+                <p className="ss-after-dark-origin">{origin.label}</p>
             </div>
             <div className="ss-after-dark-results" aria-busy={loading}>
                 {loading ? <div role="status" className="ss-after-dark-loading">

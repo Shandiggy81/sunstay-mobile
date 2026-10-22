@@ -32,6 +32,7 @@
 .ss-after-dark-filter-meta { display: flex; align-items: center; gap: 10px; padding: 0 16px; }
 .ss-after-dark-free { padding-inline: 14px; }
 .ss-after-dark-source { flex: 1; min-width: 0; margin: 0; color: #64748b; font-size: 10px; font-weight: 500; line-height: 1.5; }
+.ss-after-dark-origin { margin: 4px 16px 0; color: #64748b; font-size: 11px; font-weight: 600; line-height: 1.5; }
 .ss-after-dark-results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; padding: 12px 12px calc(16px + env(safe-area-inset-bottom, 0px)); }
 .ss-after-dark-event-list, .ss-after-dark-loading { display: flex; flex-direction: column; gap: 12px; }
 .ss-after-dark-event { min-width: 0; padding: 14px; border: 1px solid #eee3d2; border-radius: 22px; background: white; box-shadow: 0 6px 18px rgba(120,80,20,.08); overflow-wrap: anywhere; }

@@ -1,0 +1,70 @@
+[
+  {
+    "kind": "no-credentials",
+    "width": 390,
+    "height": 844,
+    "label": "Walk times from Flinders St Station",
+    "requests": [],
+    "measured": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "mapCanvasCount": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "kind": "no-credentials",
+    "width": 320,
+    "height": 568,
+    "label": "Walk times from Flinders St Station",
+    "requests": [],
+    "measured": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "mapCanvasCount": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "kind": "fixture-events",
+    "width": 390,
+    "height": 844,
+    "label": "Walk times from Flinders St Station",
+    "requests": [
+      {
+        "lat": -37.8183,
+        "lng": 144.9671,
+        "radius": 3
+      }
+    ],
+    "measured": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "mapCanvasCount": 0,
+      "smallControls": []
+    },
+    "errors": []
+  },
+  {
+    "kind": "fixture-events",
+    "width": 320,
+    "height": 568,
+    "label": "Walk times from Flinders St Station",
+    "requests": [
+      {
+        "lat": -37.8183,
+        "lng": 144.9671,
+        "radius": 3
+      }
+    ],
+    "measured": {
+      "horizontalOverflow": false,
+      "panelOverflow": false,
+      "mapCanvasCount": 0,
+      "smallControls": []
+    },
+    "errors": []
+  }
+]

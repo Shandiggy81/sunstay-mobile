@@ -1,24 +1,80 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { afterDarkOrigin, afterDarkPriceLabel, afterDarkTitle, formatAfterDarkPrice, formatAfterDarkTime, resolveAfterDarkMode,
+import { AFTER_DARK_DEFAULT_ORIGIN, AFTER_DARK_LOCATION_RADIUS_METRES, AFTER_DARK_MIN_CAMERA_ZOOM, afterDarkOrigin, afterDarkPriceLabel, afterDarkTitle, formatAfterDarkPrice, formatAfterDarkTime, resolveAfterDarkMode,
     shouldFetchAfterDark, tonightsEvents } from './afterDarkHome.js';
+import { MAX_BOUNDS } from '../config/mapBounds.js';
 
 const origin = { lat: -37.8136, lng: 144.9631 };
 const north = metres => ({ lat: origin.lat + metres / 6371000 * 180 / Math.PI, lng: origin.lng });
 
-test('origin follows the existing viewport centre, with a valid initial-map fallback', () => {
-    const bbox = { minLat: -38, maxLat: -37, minLng: 144, maxLng: 146 };
-    assert.deepEqual(afterDarkOrigin(bbox, origin), { lat: -37.5, lng: 145 });
-    const center = { lat: -37.8, lng: 144.9 };
-    assert.deepEqual(afterDarkOrigin(bbox, origin, center), center, 'the actual map centre wins over bounds on a pitched map');
-    assert.deepEqual(afterDarkOrigin(bbox, origin, { lat: NaN, lng: 144 }), { lat: -37.5, lng: 145 });
-    assert.deepEqual(afterDarkOrigin(null, origin, { lat: -100, lng: 144 }), origin);
-    for (const bbox of [null, {}, { minLat: 1, maxLat: 0, minLng: 144, maxLng: 146 },
-        { minLat: -38, maxLat: -37, minLng: null, maxLng: 146 },
-        { minLat: -38, maxLat: -37, minLng: 144, maxLng: 181 }]) {
-        assert.deepEqual(afterDarkOrigin(bbox, origin), origin);
+const defaultOrigin = { lat: -37.8183, lng: 144.9671, kind: 'default', label: 'Walk times from Flinders St Station' };
+const camera = { lat: -37.8159, lng: 144.9679, zoom: 14 };
+
+test('without a camera the origin is Flinders St Station, even after Locate Me', () => {
+    assert.deepEqual(AFTER_DARK_DEFAULT_ORIGIN, { lat: -37.8183, lng: 144.9671 });
+    assert.deepEqual(afterDarkOrigin(), defaultOrigin);
+    assert.deepEqual(afterDarkOrigin(null, origin), defaultOrigin);
+    assert.deepEqual(afterDarkOrigin({ minLat: -38, maxLat: -37, minLng: 144, maxLng: 146 }), defaultOrigin,
+        'a viewport bbox is not a camera and must never supply the origin');
+});
+
+test('zoom 13.9 uses Flinders St; zoom 14 and closer use the real camera centre', () => {
+    assert.equal(AFTER_DARK_MIN_CAMERA_ZOOM, 14);
+    assert.deepEqual(afterDarkOrigin({ ...camera, zoom: 13.9 }), defaultOrigin);
+    for (const zoom of [14, 14.1, 18]) {
+        assert.deepEqual(afterDarkOrigin({ ...camera, zoom }), {
+            lat: camera.lat, lng: camera.lng, kind: 'map', label: 'Walk times from the map centre',
+        });
     }
-    assert.equal(afterDarkOrigin(null, { lat: NaN, lng: 144 }), null);
+});
+
+test('invalid camera coordinates or zoom use Flinders St instead of another fallback', () => {
+    for (const invalid of [null, undefined, NaN, Infinity, '', '14', false]) {
+        assert.deepEqual(afterDarkOrigin({ ...camera, zoom: invalid }), defaultOrigin);
+    }
+    for (const coordinate of ['lat', 'lng']) {
+        for (const invalid of [null, undefined, NaN, Infinity, '', '144', false]) {
+            assert.deepEqual(afterDarkOrigin({ ...camera, [coordinate]: invalid }), defaultOrigin);
+        }
+    }
+    assert.deepEqual(afterDarkOrigin({ lat: -91, lng: 144, zoom: 14 }), defaultOrigin);
+    assert.deepEqual(afterDarkOrigin({ lat: -37, lng: 181, zoom: 14 }), defaultOrigin);
+});
+
+test('camera centres outside MAX_BOUNDS use Flinders St; boundary points remain valid', () => {
+    const [[minLng, minLat], [maxLng, maxLat]] = MAX_BOUNDS;
+    for (const point of [
+        { lat: minLat - .0001, lng: camera.lng }, { lat: maxLat + .0001, lng: camera.lng },
+        { lat: camera.lat, lng: minLng - .0001 }, { lat: camera.lat, lng: maxLng + .0001 },
+    ]) assert.deepEqual(afterDarkOrigin({ ...point, zoom: 14 }), defaultOrigin);
+    for (const point of [{ lat: minLat, lng: minLng }, { lat: maxLat, lng: maxLng }]) {
+        assert.equal(afterDarkOrigin({ ...point, zoom: 14 }).kind, 'map');
+    }
+});
+
+test('a camera within 150m of the last Locate Me point keeps the camera coordinates and location label', () => {
+    assert.equal(AFTER_DARK_LOCATION_RADIUS_METRES, 150);
+    const locatedNorth = metres => ({ lat: camera.lat + metres / 6371000 * 180 / Math.PI, lng: camera.lng });
+    for (const metres of [0, 100, 149.9, 150]) {
+        assert.deepEqual(afterDarkOrigin(camera, locatedNorth(metres)), {
+            lat: camera.lat, lng: camera.lng, kind: 'location', label: 'Walk times from your location',
+        });
+    }
+    assert.equal(afterDarkOrigin(camera, locatedNorth(150.1)).kind, 'map');
+    assert.equal(afterDarkOrigin(camera, { lat: NaN, lng: camera.lng }).kind, 'map');
+    assert.equal(afterDarkOrigin({ ...camera, zoom: 13.9 }, camera).kind, 'default', 'zoom rule still wins near a location');
+});
+
+test('the chosen origin drives radius and walking distance, without label changes triggering a fetch', () => {
+    const now = new Date('2026-10-22T03:00:00Z');
+    const chosen = afterDarkOrigin({ lat: -37.8232, lng: 144.9924, zoom: 13.9 });
+    const event = metres => ({ id: String(metres), source: 'ticketmaster', status: 'approved', title: `Show ${metres}`,
+        category: 'theatre', start: '2026-10-22T09:00:00Z', lat: chosen.lat + metres / 6371000 * 180 / Math.PI, lng: chosen.lng });
+    const listed = tonightsEvents([event(2900), event(3100)], { now, origin: chosen, maxKm: 3 });
+    assert.deepEqual(listed.map(item => [item.id, item.distanceMetres, item.walkMinutes]), [['2900', 2900, 36]]);
+    const mapOrigin = afterDarkOrigin(camera);
+    const locationOrigin = afterDarkOrigin(camera, camera);
+    assert.equal(shouldFetchAfterDark({ open: true, origin: locationOrigin, previousOrigin: mapOrigin }), false);
 });
 
 test('night defaults to After Dark while daytime defaults to Sun', () => {
