@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ClayIcon from './common/ClayIcon';
-import { EVENT_CATEGORIES, eventsTonight, showtimeWeather, warmPairings } from '../utils/afterDarkEvents.js';
-import { formatAfterDarkPrice, formatAfterDarkTime } from '../utils/afterDarkHome.js';
+import { EVENT_CATEGORIES, showtimeWeather, warmPairings } from '../utils/afterDarkEvents.js';
+import { afterDarkPriceLabel, afterDarkTitle, formatAfterDarkTime, tonightsEvents } from '../utils/afterDarkHome.js';
 import { useMinuteNow } from '../hooks/useCafeRowSun.js';
 import './AfterDarkPanel.css';
 
@@ -9,14 +9,15 @@ function EventRow({ event, weather, venues }) {
     const category = EVENT_CATEGORIES[event.category];
     const forecast = showtimeWeather(event, weather);
     const pairing = warmPairings(event, venues)[0];
-    const price = formatAfterDarkPrice(event.priceFrom);
+    const price = afterDarkPriceLabel(event);
+    const title = afterDarkTitle(event);
     return (
-        <article className="ss-after-dark-event" aria-label={event.title}>
+        <article className="ss-after-dark-event" aria-label={title}>
             <div className="ss-after-dark-event-head">
                 <span className="ss-after-dark-event-icon"><ClayIcon name={category.icon} size={38} /></span>
                 <div className="ss-after-dark-event-title">
                     <p className="ss-after-dark-category">{category.label}</p>
-                    <h4>{event.title}</h4>
+                    <h4>{title}</h4>
                     <p className="ss-after-dark-when">
                         <time dateTime={event.start} title="Melbourne time">{formatAfterDarkTime(event.start)}</time>
                         {event.walkMinutes != null && <span> · {event.walkMinutes} min walk</span>}
@@ -53,7 +54,7 @@ export default function AfterDarkPanel({ origin, venues, weather, state, onRetry
     const [category, setCategory] = useState(null);
     const [freeOnly, setFreeOnly] = useState(false);
     const now = useMinuteNow();
-    const events = useMemo(() => eventsTonight(state.events, {
+    const events = useMemo(() => tonightsEvents(state.events, {
         now: new Date(now), origin, maxKm: 3, categories: category ? [category] : null, freeOnly,
     }), [state.events, origin, category, freeOnly, now]);
     const updated = formatAfterDarkTime(state.fetchedAt);

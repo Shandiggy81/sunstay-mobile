@@ -87,6 +87,11 @@
 .ss-map-first-home--list-open .ss-home-chip-layer { visibility: hidden; }
 .ss-map-first-home--list-open .ss-mobile-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 108px); }
 .ss-map-first-home .ss-mobile-sheet--after-dark .ss-mobile-sheet-head h3 { font-size: 18px; }
+/* 320×568-class phones: a slimmer mode control and 8px more sheet keep the Sun date picker's results as tall as before the control. */
+@media (max-width: 380px) and (max-height: 650px) {
+  .ss-mobile-sheet-head > .ss-home-sheet-mode { margin: 0 0 4px; padding: 2px; }
+  .ss-map-first-home--list-open .ss-mobile-sheet { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 100px); }
+}
 @media (min-width: 1024px) {
   .ss-home-sheet-peek { display: none; }
   .ss-map-first-home { --home-controls-bottom: 24px; }

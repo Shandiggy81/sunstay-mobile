@@ -42,7 +42,12 @@ async function boot(page, baseURL, now, { horizon = null } = {}) {
   return { errors, seen };
 }
 
-async function openVenue(page) {
+async function openVenue(page, { defaultMode = 'Sun' } = {}) {
+  // The home sheet opens in After Dark between sunset and sunrise (After Dark
+  // brief: "switch from sun mode to After Dark at sunset"); venues stay one tap away in Sun.
+  const modes = page.getByRole('group', { name: 'Home sheet mode', exact: true });
+  await expect(modes.getByRole('button', { name: defaultMode, exact: true })).toHaveAttribute('aria-pressed', 'true');
+  if (defaultMode !== 'Sun') await modes.getByRole('button', { name: 'Sun', exact: true }).click();
   await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
   await page.getByRole('textbox', { name: 'Search venues', exact: true }).fill(VENUE);
   await page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: / }).filter({ hasText: VENUE }).first().tap();
@@ -55,14 +60,14 @@ async function expectFitsPhone(page) {
   expect(width).toBeLessThanOrEqual(390);
 }
 
-for (const [label, now, sunNow] of [
-  ['midday', melbourne(11), /^Sun until|^Sun returns|^Shaded now|^No more sun/],
-  ['before sunrise', melbourne(5), /^Sun up /],
-  ['after sunset', melbourne(21), /^Sun has set$/],
+for (const [label, now, sunNow, defaultMode] of [
+  ['midday', melbourne(11), /^Sun until|^Sun returns|^Shaded now|^No more sun/, 'Sun'],
+  ['before sunrise', melbourne(5), /^Sun up /, 'After Dark'],
+  ['after sunset', melbourne(21), /^Sun has set$/, 'After Dark'],
 ]) {
   test(`outdoor venue card sun text is consistent at 390×844 (${label})`, async ({ page, baseURL }, testInfo) => {
     const { errors } = await boot(page, baseURL, now);
-    const card = await openVenue(page);
+    const card = await openVenue(page, { defaultMode });
     const tile = card.getByLabel('Current venue conditions').locator('div').filter({ hasText: 'Sun now' }).locator('dd');
     await expect(tile).toHaveText(sunNow);
     const text = await card.innerText();
