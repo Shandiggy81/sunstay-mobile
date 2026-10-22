@@ -211,6 +211,8 @@ export function warmPairings(event, venues, { maxMetres = 500, limit = 2 } = {})
     return (Array.isArray(venues) ? venues : []).flatMap(venue => {
         const lat = finite(venue?.lat), lng = finite(venue?.lng);
         if (lat === null || lng === null) return [];
+        // Pair with somewhere else: an event's own venue is not its "nearby" warm spot.
+        if (event.venueId != null && String(venue.id) === String(event.venueId)) return [];
         const warmth = warmthForVenue(venue);
         if (!warmth.length) return [];
         const metres = distanceMetres(event, { lat, lng });
@@ -257,4 +259,41 @@ export async function fetchEventsTonight({
         if (error?.name === 'AbortError') return { ok: false, events: [], error: 'aborted', fetchedAt: null };
         return { ok: false, events: [], error: 'network', fetchedAt: null };
     }
+}
+
+const titleWords = title => new Set(String(title ?? '').toLowerCase()
+    .replace(/\(.*?\)/g, ' ').replace(/[^a-z0-9]+/g, ' ').split(' ').filter(w => w.length > 2 && !['the', 'and', 'live', 'with', 'presents'].includes(w)));
+
+/**
+ * The same show from two sources (say Ticketmaster and the venue itself):
+ * starts within 30 minutes, venues within 150 m, and most title words shared.
+ */
+export function isSameEvent(a, b) {
+    if (!a || !b || a.id === b.id) return Boolean(a && b);
+    const dt = Math.abs(new Date(a.start) - new Date(b.start));
+    if (!Number.isFinite(dt) || dt > 30 * 60000) return false;
+    if ([a.lat, a.lng, b.lat, b.lng].some(v => finite(v) === null) || distanceMetres(a, b) > 150) return false;
+    const wa = titleWords(a.title), wb = titleWords(b.title);
+    if (!wa.size || !wb.size) return false;
+    const shared = [...wa].filter(w => wb.has(w)).length;
+    return shared / Math.min(wa.size, wb.size) >= 0.6;
+}
+
+/**
+ * One row per show. The venue's own entry wins (it knows indoor/outdoor and
+ * its own details); a ticket link and price from another source fill its gaps.
+ */
+export function dedupeEvents(events) {
+    const rank = e => (e?.source === 'venue' ? 0 : 1);
+    const kept = [];
+    for (const event of [...(Array.isArray(events) ? events : [])].filter(Boolean).sort((a, b) => rank(a) - rank(b))) {
+        const twin = kept.find(k => isSameEvent(k, event));
+        if (!twin) { kept.push({ ...event }); continue; }
+        twin.ticketUrl ??= event.ticketUrl;
+        twin.priceFrom ??= event.priceFrom;
+        twin.isFree ??= event.isFree;
+        twin.adultsOnly = Boolean(twin.adultsOnly || event.adultsOnly);
+        twin.alsoListedBy = [...(twin.alsoListedBy ?? []), event.source];
+    }
+    return kept.sort((a, b) => new Date(a.start) - new Date(b.start));
 }
