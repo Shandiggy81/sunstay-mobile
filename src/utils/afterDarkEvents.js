@@ -8,7 +8,7 @@
  * { id, source, sourceUrl, capturedAt, status: 'review'|'approved', title,
  *   category: 'live-music'|'comedy'|'theatre'|'family', start: ISO string,
  *   venueName, lat, lng, priceFrom: number|null, isFree: boolean|null,
- *   ticketUrl: string|null, exposure: 'indoor'|'outdoor'|null }
+ *   ticketUrl: string|null, exposure: 'indoor'|'outdoor'|null, adultsOnly: boolean }
  * Facts only: no images or promo copy (brief: copyright guardrail).
  */
 import { parseVenueDateTime, venueTimeParts, venueTimeAt } from './venueTime.js';
@@ -24,7 +24,7 @@ export const EVENT_CATEGORIES = Object.freeze({
     family: { label: 'Family', icon: 'family' },
 });
 
-const THEATRE_GENRES = ['theatre', 'musical', 'opera', 'ballet', 'dance', "children's theatre", 'cabaret', 'magic & illusion', 'circus & specialty acts'];
+const ADULTS_ONLY = /\b(?:18\s*\+|R18\+?|over\s*18s?|adults?\s+only)/i;
 const DROPPED_STATUS = new Set(['canceled', 'cancelled', 'postponed']);
 
 const lower = value => (typeof value === 'string' ? value.trim().toLowerCase() : '');
@@ -43,7 +43,9 @@ export function ticketmasterCategory(classifications) {
         if (genre === 'comedy' || sub === 'comedy') return 'comedy';
         if (c?.family === true || segment === 'family' || genre === 'family' || genre === "children's theatre") return 'family';
         if (segment === 'music') return 'live-music';
-        if (segment === 'arts & theatre' && (THEATRE_GENRES.includes(genre) || !genre || genre === 'undefined')) return 'theatre';
+        // Live data (22 Oct 2026) tags cabaret as Arts & Theatre → Variety → Cabaret: every
+        // Arts & Theatre show that isn't comedy or family is a theatre night.
+        if (segment === 'arts & theatre') return 'theatre';
     }
     return null;
 }
@@ -96,6 +98,8 @@ export function normaliseTicketmasterEvent(raw, { capturedAt = new Date(), statu
         ticketUrl: url,
         // Ticketmaster does not say whether a show is indoors or outdoors.
         exposure: null,
+        // Age limits appear only in titles in the live feed ("(18+ Event)").
+        adultsOnly: ADULTS_ONLY.test(title),
     };
 }
 
@@ -216,4 +220,41 @@ export function warmPairings(event, venues, { maxMetres = 500, limit = 2 } = {})
         return [{ id: venue.id, name, distanceMetres: rounded, warmth,
             line: `${WARMTH_SHORT[warmth[0].icon] ?? warmth[0].text} at ${name}, ${rounded} m away` }];
     }).sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, limit);
+}
+
+/**
+ * Tonight's Ticketmaster events near a point, through the events-tonight Edge
+ * Function (which holds the key). Ticketmaster is a licensed feed with live
+ * cancellation status, so its events are shown as approved; venue-page events
+ * still go through review. Returns { ok, events, error, fetchedAt }.
+ */
+export async function fetchEventsTonight({
+    supabaseUrl, anonKey, origin, radiusKm = 3, now = new Date(), fetchImpl = fetch, signal,
+} = {}) {
+    if (!supabaseUrl || !anonKey) return { ok: false, events: [], error: 'missing_supabase', fetchedAt: null };
+    let search;
+    try {
+        search = ticketmasterSearchParams({ lat: origin?.lat, lng: origin?.lng, radiusKm, now });
+    } catch {
+        return { ok: false, events: [], error: 'missing_origin', fetchedAt: null };
+    }
+    const query = new URLSearchParams({
+        lat: String(origin.lat), lng: String(origin.lng), radius: search.get('radius'),
+        start: search.get('startDateTime'), end: search.get('endDateTime'),
+    });
+    try {
+        const res = await fetchImpl(`${String(supabaseUrl).replace(/\/$/, '')}/functions/v1/events-tonight?${query}`, {
+            method: 'GET',
+            headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+            signal,
+        });
+        const body = await res.json().catch(() => null);
+        if (!res.ok) return { ok: false, events: [], error: body?.error || `http_${res.status}`, fetchedAt: null };
+        const capturedAt = body?.fetchedAt ? new Date(body.fetchedAt) : now;
+        const events = normaliseTicketmasterResponse(body, { capturedAt, status: 'approved' });
+        return { ok: true, events, error: null, fetchedAt: capturedAt.toISOString() };
+    } catch (error) {
+        if (error?.name === 'AbortError') return { ok: false, events: [], error: 'aborted', fetchedAt: null };
+        return { ok: false, events: [], error: 'network', fetchedAt: null };
+    }
 }
