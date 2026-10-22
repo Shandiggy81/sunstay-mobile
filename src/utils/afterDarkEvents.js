@@ -211,6 +211,8 @@ export function warmPairings(event, venues, { maxMetres = 500, limit = 2 } = {})
     return (Array.isArray(venues) ? venues : []).flatMap(venue => {
         const lat = finite(venue?.lat), lng = finite(venue?.lng);
         if (lat === null || lng === null) return [];
+        // Pair with somewhere else: an event's own venue is not its "nearby" warm spot.
+        if (event.venueId != null && String(venue.id) === String(event.venueId)) return [];
         const warmth = warmthForVenue(venue);
         if (!warmth.length) return [];
         const metres = distanceMetres(event, { lat, lng });
