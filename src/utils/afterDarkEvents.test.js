@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    distanceMetres, eventsTonight, normaliseTicketmasterEvent, normaliseTicketmasterResponse,
+    distanceMetres, eventsTonight, fetchEventsTonight, normaliseTicketmasterEvent, normaliseTicketmasterResponse,
     showtimeWeather, ticketmasterCategory, ticketmasterSearchParams, tonightWindow, warmPairings,
 } from './afterDarkEvents.js';
 
@@ -25,6 +25,7 @@ test('normalises a Ticketmaster event to facts only, in review by default', () =
         capturedAt: '2026-10-22T01:00:00.000Z', status: 'review', title: 'Sample Band Live', category: 'live-music',
         start: '2026-10-22T09:00:00.000Z', venueName: 'Sample Hall', lat: -37.812, lng: 144.965,
         priceFrom: 45, isFree: false, ticketUrl: 'https://www.ticketmaster.com.au/event/G5vYZ0001', exposure: null,
+        adultsOnly: false,
     });
 });
 
@@ -55,6 +56,9 @@ test('maps classifications to the four launch categories', () => {
     assert.equal(ticketmasterCategory([{ segment: { name: 'Arts & Theatre' }, genre: { name: "Children's Theatre" } }]), 'family');
     assert.equal(ticketmasterCategory([{ segment: { name: 'Music' }, family: true }]), 'family');
     assert.equal(ticketmasterCategory([{ segment: { name: 'Film' } }]), null);
+    // Shapes seen in the live feed on 22 Oct 2026.
+    assert.equal(ticketmasterCategory([{ primary: true, segment: { name: 'Arts & Theatre' }, genre: { name: 'Variety' }, subGenre: { name: 'Cabaret' }, family: false }]), 'theatre');
+    assert.equal(ticketmasterCategory([{ primary: true, segment: { name: 'Undefined' }, genre: { name: 'Undefined' }, family: false }]), null);
     assert.equal(ticketmasterCategory([{ primary: false, segment: { name: 'Sports' } }, { primary: true, segment: { name: 'Music' } }]), 'live-music');
     assert.equal(ticketmasterCategory(undefined), null);
 });
@@ -170,4 +174,39 @@ test('distanceMetres is symmetric and roughly right', () => {
     const d = distanceMetres(CBD, { lat: -37.8226, lng: 144.9631 });
     assert.ok(Math.abs(d - 1000) < 5, String(d));
     assert.equal(Math.round(distanceMetres(CBD, { lat: -37.8226, lng: 144.9631 })), Math.round(distanceMetres({ lat: -37.8226, lng: 144.9631 }, CBD)));
+});
+
+test('age limits in titles mark an event adults-only', () => {
+    for (const name of ['The House Soiree (18+ Event)', 'Late Show 18 +', 'R18 Comedy', 'Adults only trivia', 'Over 18s night'])
+        assert.equal(normaliseTicketmasterEvent(tm({ name })).adultsOnly, true, name);
+    for (const name of ['Sample Band Live', 'Class of 2018 reunion gig', 'Top 180 hits'])
+        assert.equal(normaliseTicketmasterEvent(tm({ name })).adultsOnly, false, name);
+});
+
+test('fetchEventsTonight calls the function with tonight\'s window and normalises the reply', async () => {
+    const calls = [];
+    const fetchImpl = async (url, init) => {
+        calls.push({ url, init });
+        return { ok: true, status: 200, json: async () => ({ _embedded: { events: [tm()] }, fetchedAt: '2026-10-22T03:00:00.000Z' }) };
+    };
+    const result = await fetchEventsTonight({ supabaseUrl: 'https://x.supabase.co/', anonKey: 'anon', origin: CBD,
+        now: new Date('2026-10-22T03:00:00Z'), fetchImpl });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.events.map(e => [e.id, e.status]), [['tm:G5vYZ0001', 'approved']]);
+    assert.equal(result.fetchedAt, '2026-10-22T03:00:00.000Z');
+    const url = new URL(calls[0].url);
+    assert.equal(url.pathname, '/functions/v1/events-tonight');
+    assert.deepEqual(Object.fromEntries(url.searchParams), { lat: '-37.8136', lng: '144.9631', radius: '3',
+        start: '2026-10-22T03:00:00Z', end: '2026-10-22T18:00:00Z' });
+    assert.equal(calls[0].init.headers.Authorization, 'Bearer anon');
+});
+
+test('fetchEventsTonight reports errors without throwing', async () => {
+    const fail = (status, body) => async () => ({ ok: false, status, json: async () => body });
+    const base = { supabaseUrl: 'https://x.supabase.co', anonKey: 'anon', origin: CBD };
+    assert.equal((await fetchEventsTonight({ ...base, fetchImpl: fail(503, { error: 'quota_exhausted' }) })).error, 'quota_exhausted');
+    assert.equal((await fetchEventsTonight({ ...base, fetchImpl: fail(500, null) })).error, 'http_500');
+    assert.equal((await fetchEventsTonight({ ...base, fetchImpl: async () => { throw new TypeError('x'); } })).error, 'network');
+    assert.equal((await fetchEventsTonight({ ...base, origin: null })).error, 'missing_origin');
+    assert.equal((await fetchEventsTonight({ origin: CBD })).error, 'missing_supabase');
 });
