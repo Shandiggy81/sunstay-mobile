@@ -82,3 +82,22 @@ test('venue events flow through the shared engine: review gate, outdoor advice, 
     const nextDoor = [...venues, { id: 'bar', venueName: 'Heater Bar', tags: ['Heaters'], lat: -37.8137, lng: 144.9657 }];
     assert.equal(warmPairings(shown[0], nextDoor)[0].name, 'Heater Bar');
 });
+
+test('the same show from Ticketmaster and the venue appears once, with the best of both', async () => {
+    const { dedupeEvents, isSameEvent } = await import('./afterDarkEvents.js');
+    const venueGig = venueEventsTonight([trivia({ title: 'The Murlocs live', category: 'live-music', startTime: '20:00', exposure: 'outdoor', status: 'approved' })], venues, { now: THU_2PM })[0];
+    const tmGig = { id: 'tm:1', source: 'ticketmaster', title: 'The Murlocs (18+)', start: '2026-10-22T09:15:00.000Z', lat: -37.8136, lng: 144.9656,
+        ticketUrl: 'https://www.ticketmaster.com.au/x', priceFrom: 49, isFree: false, adultsOnly: true, status: 'approved', category: 'live-music' };
+    const other = { ...tmGig, id: 'tm:2', title: 'Comedy Gala' };
+    assert.equal(isSameEvent(venueGig, tmGig), true);
+    assert.equal(isSameEvent(venueGig, other), false, 'different title');
+    assert.equal(isSameEvent(venueGig, { ...tmGig, start: '2026-10-22T11:00:00.000Z' }), false, 'different time');
+    assert.equal(isSameEvent(venueGig, { ...tmGig, lat: -37.82 }), false, 'different place');
+    const merged = dedupeEvents([tmGig, venueGig, other]);
+    assert.deepEqual(merged.map(e => e.id), [venueGig.id, 'tm:2']);
+    assert.equal(merged[0].exposure, 'outdoor', 'the venue knows it is outdoors');
+    assert.equal(merged[0].ticketUrl, 'https://www.ticketmaster.com.au/x');
+    assert.equal(merged[0].priceFrom, 49);
+    assert.equal(merged[0].adultsOnly, true);
+    assert.deepEqual(merged[0].alsoListedBy, ['ticketmaster']);
+});
