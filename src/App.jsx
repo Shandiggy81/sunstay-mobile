@@ -4,7 +4,7 @@ import { homeSunClause, mapHomeSummary } from './utils/mapHomeSummary.js';
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
-import { boundsOfVenues, lookupMicroclimateEntry, markerScoreFromMicroclimate, readMicroclimate } from './utils/microclimate';
+import { lookupMicroclimateEntry, markerScoreFromMicroclimate, readMicroclimate } from './utils/microclimate';
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
@@ -582,13 +582,19 @@ const AppContent = () => {
     const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
     const { setFallbackBbox } = useMicroclimateActions();
 
-    // Seed the microclimate fetch from the loaded venues so the list has
-    // readings before the map reports a viewport — and still has them if the
-    // map never loads. A live viewport supersedes this.
+    // Seed the microclimate fetch with the whole map area, so the list has
+    // readings before the map reports a viewport, and still has them if the
+    // map never loads. The map can't leave MAX_BOUNDS and every venue fits in
+    // one request (BBOX_ROW_LIMIT), so each viewport after this lies inside a
+    // complete read and useVenuesInBbox skips it (utils/bboxCoverage.js).
+    // Seeding from the venues' own outline instead cost 4–5 overlapping
+    // downloads of the same ~1,060 rows on every cold load (22 Oct 2026). If
+    // the area ever holds more rows than the limit, the read is incomplete and
+    // viewports fetch as before.
     useEffect(() => {
-        const bbox = boundsOfVenues(venues);
-        if (bbox) setFallbackBbox(bbox);
-    }, [venues, setFallbackBbox]);
+        const [[minLng, minLat], [maxLng, maxLat]] = MAX_BOUNDS;
+        setFallbackBbox({ minLng, minLat, maxLng, maxLat });
+    }, [setFallbackBbox]);
 
     // Splash-screen readiness: weather is the remaining async dependency.
     // useVenues starts with demoVenues so the list is available immediately.

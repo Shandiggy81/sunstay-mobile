@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { fetchVenuesInBbox } from '../utils/venuesInBboxQuery';
 import { mergeMicroclimateRows } from '../utils/microclimate';
 import { newestWeatherComputedAt } from '../utils/microclimateProvenance.js';
+import { isCompleteFetch, needsBboxFetch, recordBboxFetch } from '../utils/bboxCoverage.js';
 
 /**
  * Microclimate for every venue inside the current map viewport, via the
@@ -80,6 +81,9 @@ export function useVenuesInBbox(bbox, { limit = BBOX_ROW_LIMIT, enabled = true }
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const latestRequestRef = useRef(0);
+    // Viewports already read, so one inside a fresh, complete read is not
+    // downloaded again. Its rows are already in byId.
+    const fetchHistoryRef = useRef([]);
 
     useEffect(() => {
         if (!enabled || !bboxKey || !supabase) return undefined;
@@ -90,6 +94,12 @@ export function useVenuesInBbox(bbox, { limit = BBOX_ROW_LIMIT, enabled = true }
         latestRequestRef.current = requestId;
 
         const debounceId = setTimeout(() => {
+            if (!needsBboxFetch(normalized, fetchHistoryRef.current)) {
+                // An earlier request this effect aborted may have left the
+                // flag set; nothing is loading now.
+                setIsLoading(false);
+                return;
+            }
             const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
             setIsLoading(true);
 
@@ -111,6 +121,11 @@ export function useVenuesInBbox(bbox, { limit = BBOX_ROW_LIMIT, enabled = true }
                     // replaced: venues outside this viewport keep their rows,
                     // so the list scores them the same way as the pins.
                     setById((prev) => mergeMicroclimateRows(prev, data));
+                    fetchHistoryRef.current = recordBboxFetch(fetchHistoryRef.current, {
+                        bbox: normalized,
+                        fetchedAt: Date.now(),
+                        complete: isCompleteFetch(Array.isArray(data) ? data.length : NaN, limit),
+                    });
                     setError(null);
                     setIsLoading(false);
                 })
