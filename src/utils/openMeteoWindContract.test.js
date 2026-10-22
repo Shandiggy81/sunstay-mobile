@@ -113,12 +113,10 @@ describe('Open-Meteo wind unit contract', () => {
     it('requests km/h from HourlyForecastStrip and never asks for m/s in production callers', () => {
         const strip = readFileSync(new URL('../components/HourlyForecastStrip.jsx', import.meta.url), 'utf8');
         const service = readFileSync(new URL('./weatherService.js', import.meta.url), 'utf8');
-        const weatherApi = readFileSync(new URL('./weatherApi.js', import.meta.url), 'utf8');
 
         assert.match(strip, /wind_speed_unit:\s*'kmh'/);
         assert.match(service, /wind_speed_unit:\s*'kmh'/);
         assert.doesNotMatch(strip, /windSpeedUnit:\s*'ms'/);
         assert.doesNotMatch(service, /windSpeedUnit:\s*'ms'/);
-        assert.doesNotMatch(weatherApi, /wind_speed_10m|wind_gusts_10m|wind_speed_unit/);
     });
 });

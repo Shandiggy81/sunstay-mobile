@@ -17,6 +17,7 @@ import {
   isForecastAbort,
 } from '../utils/sunForecastRequest';
 import { shouldStartForecastFetch } from '../utils/mapCameraSettle';
+import { fetchOpenMeteoResponse } from '../utils/openMeteoClient';
 
 function getWeatherEmoji(code, isNight) {
   if (code === 0)                               return isNight ? '🌙' : '☀️';
@@ -118,7 +119,10 @@ export default function HourlyForecastStrip({
       wind_speed_unit: 'kmh',
     });
 
-    fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: controller.signal })
+    fetchOpenMeteoResponse('hourly', latNum, lngNum, {
+      directUrl: `https://api.open-meteo.com/v1/forecast?${params}`,
+      signal: controller.signal,
+    })
       .then((response) => {
         const plan = forecastHttpPlan(response.ok, response.status);
         if (plan.action === 'error') {

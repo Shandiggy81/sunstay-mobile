@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { shouldFetchRemote } from './shouldFetchRemote';
+import { fetchOpenMeteoResponse } from '../utils/openMeteoClient';
 
 // In-memory cache: key = "lat,lng", value = { aqLabel, expiresAt }
 const _cache = new Map();
@@ -46,7 +47,8 @@ export function useOpenAQ(lat, lng, { enabled = true } = {}) {
           timezone: 'auto',
           forecast_days: '1',
         });
-        const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params}`, {
+        const res = await fetchOpenMeteoResponse('air', lat, lng, {
+          directUrl: `https://air-quality-api.open-meteo.com/v1/air-quality?${params}`,
           signal: controller.signal,
         });
         if (!res.ok) throw new Error('AQ fetch failed');
