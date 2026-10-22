@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Locate } from 'lucide-react';
 import ClayIcon from './common/ClayIcon';
 import { EVENT_CATEGORIES, showtimeWeather, warmPairings } from '../utils/afterDarkEvents.js';
 import { afterDarkPriceLabel, afterDarkTitle, formatAfterDarkTime, tonightsEvents } from '../utils/afterDarkHome.js';
@@ -50,7 +51,7 @@ function EventRow({ event, weather, venues }) {
 }
 
 /** Existing event engine and weather, presented as a list without event map pins. */
-export default function AfterDarkPanel({ origin, venues, weather, state, onRetry, onCosy }) {
+export default function AfterDarkPanel({ origin, venues, weather, state, onRetry, onCosy, onLocate, locating = false, locateHint = null }) {
     const [category, setCategory] = useState(null);
     const [freeOnly, setFreeOnly] = useState(false);
     const now = useMinuteNow();
@@ -78,7 +79,13 @@ export default function AfterDarkPanel({ origin, venues, weather, state, onRetry
                         onClick={() => setFreeOnly(value => !value)}>Free</button>
                     <p className="ss-after-dark-source">Events from Ticketmaster{updated && <> · updated <time dateTime={state.fetchedAt} title="Melbourne time">{updated}</time></>}</p>
                 </div>
-                <p className="ss-after-dark-origin">{origin.label}</p>
+                <div className="ss-after-dark-origin-row">
+                    <p className="ss-after-dark-origin" role="status">{locating ? 'Finding you…' : locateHint ?? origin.label}</p>
+                    {onLocate && origin.kind !== 'location' && <button type="button" className="ss-after-dark-locate"
+                        onClick={onLocate} disabled={locating}>
+                        <Locate size={16} strokeWidth={2.4} aria-hidden="true" />Use my location
+                    </button>}
+                </div>
             </div>
             <div className="ss-after-dark-results" aria-busy={loading}>
                 {loading ? <div role="status" className="ss-after-dark-loading">

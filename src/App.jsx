@@ -1241,7 +1241,8 @@ const AppContent = () => {
         anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
     });
     const afterDarkPanel = <AfterDarkPanel origin={eventOrigin} venues={venues} weather={weather} state={afterDark}
-        onRetry={afterDark.retry} onCosy={() => { rememberHomeMode('sun'); handleExperienceSelect('cozy'); }} />;
+        onRetry={afterDark.retry} onCosy={() => { rememberHomeMode('sun'); handleExperienceSelect('cozy'); }}
+        onLocate={handleLocateMe} locating={isLocating} locateHint={locateHint} />;
 
     return (
         <>
