@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AFTER_DARK_DEFAULT_ORIGIN, AFTER_DARK_LOCATION_RADIUS_METRES, AFTER_DARK_MIN_CAMERA_ZOOM, afterDarkOrigin, afterDarkPriceLabel, afterDarkTitle, formatAfterDarkPrice, formatAfterDarkTime, resolveAfterDarkMode,
+import { AFTER_DARK_DEFAULT_ORIGIN, AFTER_DARK_LOCATION_RADIUS_METRES, AFTER_DARK_MIN_CAMERA_ZOOM, afterDarkNightLabel, afterDarkOrigin, afterDarkPriceLabel, afterDarkTitle, displayAfterDarkTitle, formatAfterDarkPrice, formatAfterDarkTime, resolveAfterDarkMode,
     shouldFetchAfterDark, tonightsEvents } from './afterDarkHome.js';
 import { MAX_BOUNDS } from '../config/mapBounds.js';
 
@@ -159,6 +159,31 @@ test('the 18+ badge replaces a trailing "(18+ Event)" in the title, and nothing 
     assert.equal(afterDarkTitle({ title: 'Band (Live) at the Forum', adultsOnly: true }), 'Band (Live) at the Forum');
     assert.equal(afterDarkTitle({ title: '(18+)', adultsOnly: true }), '(18+)', 'never an empty title');
     assert.equal(afterDarkTitle(null), '');
+});
+
+test('display titles soften overwhelmingly uppercase text and replace its spaced tilde separator', () => {
+    assert.equal(displayAfterDarkTitle('NOISEMAKERS AUSTRALIAN TOUR ~ MELBOURNE EDITION'), 'Noisemakers Australian Tour, Melbourne Edition');
+    assert.equal(displayAfterDarkTitle('DJ SET: NYE IN THE UK, USA & AFL'), 'DJ Set: NYE In The UK, USA & AFL');
+    assert.equal(displayAfterDarkTitle('DON’T MISS THE LATE-NIGHT SHOW'), 'Don’t Miss The Late-Night Show');
+    assert.equal(displayAfterDarkTitle('NOISEMAKERS AUSTRALIAN TOUR ~ MELBOURNE EDITION presents'), 'Noisemakers Australian Tour, Melbourne Edition Presents');
+    assert.equal(displayAfterDarkTitle('DJ’S UK TOUR'), 'DJ’s UK Tour');
+    const event = { title: 'DJ NYE PARTY (18+ EVENT)', adultsOnly: true };
+    assert.equal(displayAfterDarkTitle(afterDarkTitle(event)), 'DJ NYE Party');
+    assert.equal(event.title, 'DJ NYE PARTY (18+ EVENT)', 'formatting never mutates source data');
+});
+
+test('mixed-case titles, branding, punctuation and titles without letters stay untouched', () => {
+    for (const title of ['The House Soiree at Pipers Playhouse', 'The DJ Set ~ Melbourne', 'Sia LIVE', 'eXperimental: a New Show', '123 ~ 456', '', '   ']) {
+        assert.equal(displayAfterDarkTitle(title), title);
+    }
+    for (const missing of [null, undefined, false, 123]) assert.equal(displayAfterDarkTitle(missing), '');
+});
+
+test('night eyebrow uses Melbourne calendar day across UTC midnight and DST', () => {
+    assert.equal(afterDarkNightLabel(new Date('2026-10-24T14:00:00Z')), 'Sunday night');
+    assert.equal(afterDarkNightLabel(new Date('2026-10-25T13:00:00Z')), 'Monday night');
+    assert.equal(afterDarkNightLabel(new Date('2026-06-27T14:00:00Z')), 'Sunday night');
+    for (const missing of [null, undefined, '2026-10-25', new Date(NaN)]) assert.equal(afterDarkNightLabel(missing), '');
 });
 
 test("tonight's list shows one row per show, then applies the usual filters", () => {

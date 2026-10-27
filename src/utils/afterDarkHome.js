@@ -44,6 +44,12 @@ export function formatAfterDarkTime(value) {
     return `${hour % 12 || 12}${minute ? `:${String(minute).padStart(2, '0')}` : ''}${hour < 12 ? 'am' : 'pm'}`;
 }
 
+/** The evening's day comes from Melbourne, including when the device is overseas. */
+export function afterDarkNightLabel(now) {
+    if (!(now instanceof Date) || !Number.isFinite(now.getTime())) return '';
+    return `${new Intl.DateTimeFormat('en-AU', { timeZone: MELBOURNE, weekday: 'long' }).format(now)} night`;
+}
+
 /** Tonight's list: one row per show (the same gig listed twice collapses), then the usual filters. */
 export function tonightsEvents(events, options = {}) {
     return eventsTonight(dedupeEvents(events), options);
@@ -68,4 +74,19 @@ export function afterDarkTitle(event) {
     const title = typeof event?.title === 'string' ? event.title : '';
     if (event?.adultsOnly !== true) return title;
     return title.replace(/\s*[([]\s*18\s*\+[^)\]]*[)\]]\s*$/, '').trim() || title;
+}
+
+const TITLE_ACRONYMS = new Set(['DJ', 'NYE', 'AFL', 'UK', 'USA', 'MC', 'RNB', 'EDM', 'VIP']);
+
+/** Display-only: soften overwhelmingly uppercase feed titles without rewriting mixed-case branding. */
+export function displayAfterDarkTitle(title) {
+    if (typeof title !== 'string') return '';
+    const letters = [...title].filter(letter => letter.toUpperCase() !== letter.toLowerCase());
+    const uppercase = letters.filter(letter => letter === letter.toUpperCase()).length;
+    if (!letters.length || uppercase / letters.length < 0.8) return title;
+    return title.replace(/\s+~\s+/g, ', ').replace(/\p{L}[\p{L}\p{N}'’]*/gu, word => {
+        const [base, suffix = ''] = word.split(/(?=['’])/u);
+        if (TITLE_ACRONYMS.has(base.toUpperCase())) return base.toUpperCase() + suffix.toLowerCase();
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    });
 }

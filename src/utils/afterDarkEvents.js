@@ -173,54 +173,78 @@ export function eventsTonight(events, { now = new Date(), origin = null, maxKm =
     }).sort((a, b) => new Date(a.start) - new Date(b.start) || (a.distanceMetres ?? 0) - (b.distanceMetres ?? 0));
 }
 
-/**
- * Forecast for the hour an event starts, from the app's Open-Meteo hourly block
- * (Melbourne-wide, so it is labelled a city forecast). Null without data, never a guess.
- */
-export function showtimeWeather(event, weather, { timeZone = MELBOURNE } = {}) {
+function showtimeForecastIndex(event, weather, timeZone) {
     const hourly = weather?.hourly;
-    if (!event?.start || !hourly || !Array.isArray(hourly.time) || weather.source === 'demo' || weather.unavailable) return null;
+    if (!event?.start || !hourly || !Array.isArray(hourly.time) || weather.source === 'demo' || weather.unavailable) return -1;
     const start = new Date(event.start);
-    if (!Number.isFinite(start.getTime())) return null;
+    if (!Number.isFinite(start.getTime())) return -1;
     const target = venueTimeParts(start, timeZone);
-    const index = hourly.time.findIndex(time => {
+    return hourly.time.findIndex(time => {
         const instant = parseVenueDateTime(time, timeZone);
         if (!instant) return false;
         const p = venueTimeParts(instant, timeZone);
         return p.date === target.date && p.hour === target.hour;
     });
+}
+
+const WET_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99]);
+
+function wetShowtime(weather, index) {
+    if (!weather || weather.source === 'demo' || weather.unavailable || weather.error) return false;
+    if (index < 0) return false;
+    const hourly = weather.hourly;
+    return (finite(hourly.precipitation_probability?.[index]) ?? 0) >= 50
+        || (finite(hourly.precipitation?.[index]) ?? 0) > 0
+        || WET_CODES.has(finite(hourly.weather_code_raw?.[index] ?? hourly.weather_code?.[index] ?? hourly.weathercode?.[index]));
+}
+
+/**
+ * Forecast for the hour an event starts, from the app's Open-Meteo hourly block
+ * (Melbourne-wide, so it is labelled a city forecast). Null without data, never a guess.
+ */
+export function showtimeWeather(event, weather, { timeZone = MELBOURNE } = {}) {
+    const index = showtimeForecastIndex(event, weather, timeZone);
     if (index < 0) return null;
+    const hourly = weather.hourly;
     const pick = key => finite(hourly[key]?.[index]);
     const temp = pick('temperature_2m'), feels = pick('apparent_temperature');
     const rain = pick('precipitation_probability'), wind = pick('wind_speed_10m') ?? pick('windspeed_10m');
     if (temp === null || rain === null || wind === null) return null;
-    const parts = [`${Math.round(temp)}°`, rain >= 30 ? `${Math.round(rain)}% chance of rain` : 'dry', windWord(wind).toLowerCase()];
+    const isWet = wetShowtime(weather, index);
+    const parts = [`${Math.round(temp)}°`, rain >= 30 ? `${Math.round(rain)}% chance of rain` : isWet ? 'wet at showtime' : 'dry', windWord(wind).toLowerCase()];
     let advice = null;
     if (event.exposure === 'outdoor') {
         if (rain >= 50) advice = 'Rain likely: bring a jacket or pick an indoor plan';
         else if ((feels ?? temp) < 12 || wind >= 30) advice = 'Cold and exposed: bring a jacket';
     }
-    return { temp, feels, rain, wind, line: parts.join(' · '), advice };
+    return { temp, feels, rain, wind, line: parts.join(' · '), advice, isWet };
 }
 
 const WARMTH_SHORT = { fireplace: 'Fireplace', heater: 'Outdoor heaters', 'indoor-warmth': 'Warm indoor space' };
 
-/** Venues with declared warmth near an event, nearest first. */
-export function warmPairings(event, venues, { maxMetres = 500, limit = 2 } = {}) {
+/** Declared warmth near a show, nearest first; wet evenings use indoor warmth only. */
+export function warmPairings(event, venues, { maxMetres = 500, limit = 2, weather = null, forecast = null } = {}) {
     if (finite(event?.lat) === null || finite(event?.lng) === null) return [];
+    const rainingNow = weather && weather.source !== 'demo' && !weather.unavailable && !weather.error
+        && ((finite(weather.precipitation) ?? 0) > 0 || /rain|drizzle|thunder/i.test(String(weather.weather?.[0]?.main ?? '')));
+    const wet = rainingNow || (typeof forecast?.isWet === 'boolean' ? forecast.isWet
+        : wetShowtime(weather, showtimeForecastIndex(event, weather, MELBOURNE)));
     return (Array.isArray(venues) ? venues : []).flatMap(venue => {
         const lat = finite(venue?.lat), lng = finite(venue?.lng);
         if (lat === null || lng === null) return [];
         // Pair with somewhere else: an event's own venue is not its "nearby" warm spot.
         if (event.venueId != null && String(venue.id) === String(event.venueId)) return [];
-        const warmth = warmthForVenue(venue);
+        const outdoorFire = /\b(?:outdoor|outside|garden|terrace)\b/i.test(String(venue.heating ?? ''));
+        const warmth = warmthForVenue(venue).filter(item => !wet
+            || item.icon === 'indoor-warmth' || item.icon === 'fireplace' && !outdoorFire);
         if (!warmth.length) return [];
         const metres = distanceMetres(event, { lat, lng });
         if (metres > maxMetres) return [];
         const name = venue.venueName ?? venue.name ?? '';
         const rounded = Math.round(metres / 10) * 10;
         return [{ id: venue.id, name, distanceMetres: rounded, warmth,
-            line: `${WARMTH_SHORT[warmth[0].icon] ?? warmth[0].text} at ${name}, ${rounded} m away` }];
+            line: wet ? `Warm and dry before the show: ${name}, ${rounded} m away`
+                : `${WARMTH_SHORT[warmth[0].icon] ?? warmth[0].text} at ${name}, ${rounded} m away` }];
     }).sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, limit);
 }
 

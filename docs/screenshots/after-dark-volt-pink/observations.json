@@ -1,0 +1,243 @@
+{
+  "contrast": [
+    {
+      "foreground": "#F7F7F5",
+      "background": "#26282B",
+      "ratio": 13.78,
+      "sample": "Sun"
+    },
+    {
+      "foreground": "#1A1C05",
+      "background": "#E4EF5A",
+      "ratio": 13.85,
+      "sample": "After Dark"
+    },
+    {
+      "foreground": "#E4EF5A",
+      "background": "#18191B",
+      "ratio": 14.07,
+      "sample": "Sunday night"
+    },
+    {
+      "foreground": "#F7F7F5",
+      "background": "#18191B",
+      "ratio": 16.4,
+      "sample": "Tonight nearby"
+    },
+    {
+      "foreground": "#B9BCC2",
+      "background": "#18191B",
+      "ratio": 9.24,
+      "sample": "Walk times from Flinders St Station"
+    },
+    {
+      "foreground": "#E4EF5A",
+      "background": "#26282B",
+      "ratio": 11.82,
+      "sample": "6"
+    },
+    {
+      "foreground": "#FF7DB5",
+      "background": "#26282B",
+      "ratio": 6.23,
+      "sample": "Live music"
+    },
+    {
+      "foreground": "#B9BCC2",
+      "background": "#26282B",
+      "ratio": 7.77,
+      "sample": "6"
+    },
+    {
+      "foreground": "#FFC6DE",
+      "background": "#3A2230",
+      "ratio": 9.91,
+      "sample": "Warm and dry before the show: The Lantern, 30 m away"
+    },
+    {
+      "foreground": "#B9BCC2",
+      "background": "#121314",
+      "ratio": 9.77,
+      "sample": "Events from Ticketmaster"
+    },
+    {
+      "foreground": "#F7F7F5",
+      "background": "#121314",
+      "ratio": 17.34,
+      "sample": "No shows listed near here tonight."
+    }
+  ],
+  "cases": [
+    {
+      "width": 390,
+      "height": 844,
+      "kind": "events",
+      "requests": [
+        {
+          "lat": -37.8183,
+          "lng": 144.9671,
+          "radius": "3"
+        }
+      ],
+      "measured": {
+        "horizontalOverflow": false,
+        "panelOverflow": false,
+        "flatIcons": 0,
+        "smallControls": [],
+        "firstShowTop": 366,
+        "firstTitleTop": 411,
+        "origin": "Walk times from Flinders St Station",
+        "panelBackground": "rgb(18, 19, 20)"
+      },
+      "errors": []
+    },
+    {
+      "width": 390,
+      "kind": "filters-focus",
+      "focus": {
+        "width": "2px",
+        "style": "solid"
+      }
+    },
+    {
+      "width": 390,
+      "kind": "near-me-denied",
+      "hint": "Location off · showing Melbourne"
+    },
+    {
+      "width": 390,
+      "kind": "tickets-keyboard",
+      "newTab": true,
+      "intercepted": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "kind": "empty",
+      "requests": [
+        {
+          "lat": -37.8183,
+          "lng": 144.9671,
+          "radius": "3"
+        }
+      ],
+      "measured": {
+        "horizontalOverflow": false,
+        "panelOverflow": false,
+        "flatIcons": 0,
+        "smallControls": [],
+        "firstShowTop": null,
+        "firstTitleTop": null,
+        "origin": "Walk times from Flinders St Station",
+        "panelBackground": "rgb(18, 19, 20)"
+      },
+      "errors": []
+    },
+    {
+      "width": 390,
+      "kind": "empty-cosy",
+      "mode": "sun",
+      "cosyFilter": true
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "kind": "events",
+      "requests": [
+        {
+          "lat": -37.8183,
+          "lng": 144.9671,
+          "radius": "3"
+        }
+      ],
+      "measured": {
+        "horizontalOverflow": false,
+        "panelOverflow": false,
+        "flatIcons": 0,
+        "smallControls": [],
+        "firstShowTop": 327,
+        "firstTitleTop": 370,
+        "origin": "Walk times from Flinders St Station",
+        "panelBackground": "rgb(18, 19, 20)"
+      },
+      "errors": []
+    },
+    {
+      "width": 320,
+      "kind": "filters-focus",
+      "focus": {
+        "width": "2px",
+        "style": "solid"
+      }
+    },
+    {
+      "width": 320,
+      "kind": "near-me-denied",
+      "hint": "Location off · showing Melbourne"
+    },
+    {
+      "width": 320,
+      "kind": "tickets-keyboard",
+      "newTab": true,
+      "intercepted": true
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "kind": "empty",
+      "requests": [
+        {
+          "lat": -37.8183,
+          "lng": 144.9671,
+          "radius": "3"
+        }
+      ],
+      "measured": {
+        "horizontalOverflow": false,
+        "panelOverflow": false,
+        "flatIcons": 0,
+        "smallControls": [],
+        "firstShowTop": null,
+        "firstTitleTop": null,
+        "origin": "Walk times from Flinders St Station",
+        "panelBackground": "rgb(18, 19, 20)"
+      },
+      "errors": []
+    },
+    {
+      "width": 320,
+      "kind": "empty-cosy",
+      "mode": "sun",
+      "cosyFilter": true
+    },
+    {
+      "kind": "peek-sun",
+      "darkPeek": "rgb(24, 25, 27)",
+      "sunPeek": "rgb(255, 255, 255)",
+      "errors": []
+    },
+    {
+      "kind": "desktop",
+      "width": 1280,
+      "height": 900,
+      "requests": [
+        {
+          "lat": -37.8183,
+          "lng": 144.9671,
+          "radius": "3"
+        }
+      ],
+      "measured": {
+        "horizontalOverflow": false,
+        "panelOverflow": false,
+        "flatIcons": 0,
+        "smallControls": [],
+        "firstShowTop": 410,
+        "firstTitleTop": 455,
+        "origin": "Walk times from Flinders St Station",
+        "panelBackground": "rgb(18, 19, 20)"
+      },
+      "errors": []
+    }
+  ]
+}
