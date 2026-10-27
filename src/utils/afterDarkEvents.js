@@ -214,7 +214,7 @@ export function showtimeWeather(event, weather, { timeZone = MELBOURNE } = {}) {
     const parts = [`${Math.round(temp)}°`, rain >= 30 ? `${Math.round(rain)}% chance of rain` : isWet ? 'wet at showtime' : 'dry', windWord(wind).toLowerCase()];
     let advice = null;
     if (event.exposure === 'outdoor') {
-        if (rain >= 50) advice = 'Rain likely: bring a jacket or pick an indoor plan';
+        if (rain >= 50) advice = 'Bring a jacket or pick an indoor plan';
         else if ((feels ?? temp) < 12 || wind >= 30) advice = 'Cold and exposed: bring a jacket';
     }
     return { temp, feels, rain, wind, line: parts.join(' · '), advice, isWet };
@@ -243,8 +243,8 @@ export function warmPairings(event, venues, { maxMetres = 500, limit = 2, weathe
         const name = venue.venueName ?? venue.name ?? '';
         const rounded = Math.round(metres / 10) * 10;
         return [{ id: venue.id, name, distanceMetres: rounded, warmth,
-            line: wet ? `Warm and dry before the show: ${name}, ${rounded} m away`
-                : `${WARMTH_SHORT[warmth[0].icon] ?? warmth[0].text} at ${name}, ${rounded} m away` }];
+            line: wet ? `Warm and dry before the show: ${name}, ${rounded}\u00a0m away`
+                : `${WARMTH_SHORT[warmth[0].icon] ?? warmth[0].text} at ${name}, ${rounded}\u00a0m away` }];
     }).sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, limit);
 }
 

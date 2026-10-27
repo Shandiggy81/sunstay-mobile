@@ -23,18 +23,18 @@ function EventRow({ event, weather, venues }) {
                         <span>{category.label}{event.venueName && <> · {event.venueName}</>}</span>
                     </p>
                     <h4>{title}</h4>
-                    {(event.walkMinutes != null || forecast?.isWet) && <p className="ss-after-dark-when">
-                        {event.walkMinutes != null && <span>{event.walkMinutes} min walk</span>}
-                        {forecast?.isWet && <>{event.walkMinutes != null && ' · '}{forecast.rain >= 50 ? 'rain likely at showtime' : 'wet at showtime'}</>}
+                    {event.walkMinutes != null && <p className="ss-after-dark-when">
+                        {`${event.walkMinutes}\u00a0min walk`}
                     </p>}
                 </div>
             </div>
             {forecast && <div className="ss-after-dark-forecast">
                 <p>{forecast.line} <span>· City forecast at showtime</span></p>
+                {forecast.advice && <p>{forecast.advice}</p>}
             </div>}
-            {(pairing || forecast?.advice) && <p className="ss-after-dark-pairing">
+            {pairing && <p className="ss-after-dark-pairing">
                 <ClayIcon name="indoor-warmth" size={28} />
-                <span>{pairing?.line}{pairing && forecast?.advice && <br />}{forecast?.advice}</span>
+                <span>{pairing.line}</span>
             </p>}
             {(event.adultsOnly || price || event.ticketUrl) && <div className="ss-after-dark-event-footer">
                 <div className="ss-after-dark-event-facts">

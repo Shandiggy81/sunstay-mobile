@@ -1547,7 +1547,7 @@ const AppContent = () => {
                             ) : null}
                             </>}
                         </span>
-                        <p className="ss-discovery-context">{homeMode === 'after-dark' ? 'Events within 3 km' : experienceContext}</p>
+                        <p className="ss-discovery-context">{homeMode === 'after-dark' ? 'Events within 3\u00a0km' : experienceContext}</p>
                         <p className="ss-discovery-source">{homeMode === 'after-dark' ? 'Events from Ticketmaster' : dataLabel}</p>
                         {homeMode === 'sun' && <ChevronUp size={14} className="ss-home-peek-chevron" />}
                     </motion.div>
