@@ -1289,7 +1289,7 @@ const AppContent = () => {
 
                 <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
                     {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
-                    <aside className="ss-sidebar hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96">
+                    <aside className={`ss-sidebar ${homeMode === 'after-dark' ? 'ss-sidebar--after-dark' : ''} hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96`}>
                         <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                         {homeMode === 'after-dark' ? (!isMobile && afterDarkPanel) : <>
                         <div className="px-3 pt-2"><PropertyFilterPills activeFilters={activeFilters} onToggle={handleFilterToggle} /></div>
@@ -1521,7 +1521,7 @@ const AppContent = () => {
                 {/* Hidden while Filters is open: the fixed bar sat on top of the
                     sheet's "Show N venues" button and swallowed the tap. */}
                 {!mobileMapExpanded && !venueCardOpen && !mobileFilterOpen && (
-                    <div className="ss-home-sheet-peek">
+                    <div className={`ss-home-sheet-peek ${homeMode === 'after-dark' ? 'ss-home-sheet-peek--after-dark' : ''}`}>
                     <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                     <motion.div
                         role="button" tabIndex={0} aria-label={homeMode === 'after-dark' ? "Show tonight's events" : 'Show venue list'} aria-expanded={sheetExpanded}
@@ -1549,7 +1549,7 @@ const AppContent = () => {
                         </span>
                         <p className="ss-discovery-context">{homeMode === 'after-dark' ? 'Events within 3 km' : experienceContext}</p>
                         <p className="ss-discovery-source">{homeMode === 'after-dark' ? 'Events from Ticketmaster' : dataLabel}</p>
-                        <ChevronUp size={14} className="ss-home-peek-chevron" />
+                        {homeMode === 'sun' && <ChevronUp size={14} className="ss-home-peek-chevron" />}
                     </motion.div>
                     </div>
                 )}
@@ -1572,10 +1572,7 @@ const AppContent = () => {
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
                                     <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
-                                    {homeMode === 'after-dark' ? (
-                                        <><h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="night" size={30} />Tonight</h3>
-                                        <p>Within 3 km</p></>
-                                    ) : <>
+                                    {homeMode === 'sun' && <>
                                     <h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="sun" size={30} />Venues</h3>
                                     <p className="inline-flex items-center gap-2">
                                         {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} results`}

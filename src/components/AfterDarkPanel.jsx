@@ -1,42 +1,40 @@
 import React, { useMemo, useState } from 'react';
-import { Locate } from 'lucide-react';
 import ClayIcon from './common/ClayIcon';
 import { EVENT_CATEGORIES, showtimeWeather, warmPairings } from '../utils/afterDarkEvents.js';
-import { afterDarkPriceLabel, afterDarkTitle, formatAfterDarkTime, tonightsEvents } from '../utils/afterDarkHome.js';
+import { afterDarkNightLabel, afterDarkPriceLabel, afterDarkTitle, displayAfterDarkTitle, formatAfterDarkTime, tonightsEvents } from '../utils/afterDarkHome.js';
 import { useMinuteNow } from '../hooks/useCafeRowSun.js';
 import './AfterDarkPanel.css';
 
 function EventRow({ event, weather, venues }) {
     const category = EVENT_CATEGORIES[event.category];
     const forecast = showtimeWeather(event, weather);
-    const pairing = warmPairings(event, venues)[0];
+    const pairing = warmPairings(event, venues, { weather, forecast })[0];
     const price = afterDarkPriceLabel(event);
-    const title = afterDarkTitle(event);
+    const title = displayAfterDarkTitle(afterDarkTitle(event));
+    const time = formatAfterDarkTime(event.start);
     return (
         <article className="ss-after-dark-event" aria-label={title}>
             <div className="ss-after-dark-event-head">
-                <span className="ss-after-dark-event-icon"><ClayIcon name={category.icon} size={38} /></span>
+                <time className="ss-after-dark-time" dateTime={event.start} title="Melbourne time" aria-label={time}>
+                    <span>{time.replace(/(am|pm)$/, '')}</span><small>{time.slice(-2).toUpperCase()}</small>
+                </time>
                 <div className="ss-after-dark-event-title">
-                    <p className="ss-after-dark-category">{category.label}</p>
-                    <h4>{title}</h4>
-                    <p className="ss-after-dark-when">
-                        <time dateTime={event.start} title="Melbourne time">{formatAfterDarkTime(event.start)}</time>
-                        {event.walkMinutes != null && <span> · {event.walkMinutes} min walk</span>}
+                    <p className="ss-after-dark-category"><ClayIcon name={category.icon} size={25} />
+                        <span>{category.label}{event.venueName && <> · {event.venueName}</>}</span>
                     </p>
-                    {event.venueName && <p className="ss-after-dark-venue">{event.venueName}</p>}
+                    <h4>{title}</h4>
+                    {(event.walkMinutes != null || forecast?.isWet) && <p className="ss-after-dark-when">
+                        {event.walkMinutes != null && <span>{event.walkMinutes} min walk</span>}
+                        {forecast?.isWet && <>{event.walkMinutes != null && ' · '}{forecast.rain >= 50 ? 'rain likely at showtime' : 'wet at showtime'}</>}
+                    </p>}
                 </div>
             </div>
             {forecast && <div className="ss-after-dark-forecast">
-                <ClayIcon name="thermometer" size={25} />
-                <div>
-                    <p>{forecast.line}</p>
-                    <span>City forecast at showtime</span>
-                    {forecast.advice && <p className="ss-after-dark-advice">{forecast.advice}</p>}
-                </div>
+                <p>{forecast.line} <span>· City forecast at showtime</span></p>
             </div>}
-            {pairing && <p className="ss-after-dark-pairing">
-                <ClayIcon name={pairing.warmth[0].icon} size={27} />
-                <span>{pairing.line}</span>
+            {(pairing || forecast?.advice) && <p className="ss-after-dark-pairing">
+                <ClayIcon name="indoor-warmth" size={28} />
+                <span>{pairing?.line}{pairing && forecast?.advice && <br />}{forecast?.advice}</span>
             </p>}
             {(event.adultsOnly || price || event.ticketUrl) && <div className="ss-after-dark-event-footer">
                 <div className="ss-after-dark-event-facts">
@@ -64,6 +62,17 @@ export default function AfterDarkPanel({ origin, venues, weather, state, onRetry
     return (
         <section className="ss-after-dark-panel" aria-label="Tonight's events"
             onPointerDownCapture={event => event.stopPropagation()}>
+            <header className="ss-after-dark-header">
+                <ClayIcon name="night" size={52} />
+                <div className="ss-after-dark-heading">
+                    <p className="ss-after-dark-eyebrow">{afterDarkNightLabel(new Date(now))}</p>
+                    <h3>Tonight nearby</h3>
+                </div>
+                {onLocate && origin.kind !== 'location' && <button type="button" className="ss-after-dark-locate"
+                    onClick={onLocate} disabled={locating}>
+                    <ClayIcon name="map-pin" size={23} />Near me
+                </button>}
+            </header>
             <div className="ss-after-dark-filters">
                 <div className="ss-after-dark-categories" role="group" aria-label="Event category">
                     <button type="button" aria-pressed={category === null} onClick={() => setCategory(null)}>
@@ -73,18 +82,11 @@ export default function AfterDarkPanel({ origin, venues, weather, state, onRetry
                         aria-pressed={category === key} onClick={() => setCategory(key)}>
                         <ClayIcon name={item.icon} size={25} />{item.label}
                     </button>)}
-                </div>
-                <div className="ss-after-dark-filter-meta">
                     <button type="button" className="ss-after-dark-free" aria-pressed={freeOnly}
                         onClick={() => setFreeOnly(value => !value)}>Free</button>
-                    <p className="ss-after-dark-source">Events from Ticketmaster{updated && <> · updated <time dateTime={state.fetchedAt} title="Melbourne time">{updated}</time></>}</p>
                 </div>
                 <div className="ss-after-dark-origin-row">
                     <p className="ss-after-dark-origin" role="status">{locating ? 'Finding you…' : locateHint ?? origin.label}</p>
-                    {onLocate && origin.kind !== 'location' && <button type="button" className="ss-after-dark-locate"
-                        onClick={onLocate} disabled={locating}>
-                        <Locate size={16} strokeWidth={2.4} aria-hidden="true" />Use my location
-                    </button>}
                 </div>
             </div>
             <div className="ss-after-dark-results" aria-busy={loading}>
@@ -104,6 +106,7 @@ export default function AfterDarkPanel({ origin, venues, weather, state, onRetry
                 </div> : <div className="ss-after-dark-event-list">
                     {events.map(event => <EventRow key={event.id} event={event} weather={weather} venues={venues} />)}
                 </div>}
+                <p className="ss-after-dark-source">Events from Ticketmaster{updated && <> · updated <time dateTime={state.fetchedAt} title="Melbourne time">{updated}</time></>}</p>
             </div>
         </section>
     );

@@ -154,6 +154,16 @@ test('showtime weather is null without a matching hour or with fallback weather'
     assert.equal(showtimeWeather(approved(), null), null);
 });
 
+test('wet hourly readings never display dry when the precipitation probability is low', () => {
+    for (const readings of [{ weather_code: [0, 61, 0] }, { precipitation: [0, .1, 0] }]) {
+        const forecast = showtimeWeather(approved(), hourly({ precipitation_probability: [0, 10, 0], ...readings }));
+        assert.equal(forecast.isWet, true);
+        assert.equal(forecast.line, '14° · wet at showtime · windy');
+    }
+    const possible = showtimeWeather(approved(), hourly({ precipitation_probability: [0, 30, 0], weather_code: [0, 61, 0] }));
+    assert.equal(possible.line, '14° · 30% chance of rain · windy', 'known probabilities at 30% and above remain visible');
+});
+
 test('warm pairings: declared warmth only, nearest first, within the walk', () => {
     const event = approved();
     const venues = [
@@ -168,6 +178,63 @@ test('warm pairings: declared warmth only, nearest first, within the walk', () =
     assert.equal(pairs[0].line, `Outdoor heaters at Heater Bar, ${pairs[0].distanceMetres} m away`);
     assert.match(pairs[1].line, /^Fireplace at Fireside Pub, \d+0 m away$/);
     assert.deepEqual(warmPairings({}, venues), []);
+});
+
+const pairingVenues = () => [
+    { id: 'outdoor', venueName: 'Heater Garden', tags: ['Heaters', 'Beer Garden'], lat: -37.812, lng: 144.965 },
+    { id: 'mixed', venueName: 'Indoor Lounge', tags: ['Heaters', 'Indoor Warmth'], lat: -37.8122, lng: 144.965 },
+    { id: 'fire', venueName: 'Fireside Pub', heating: 'fireplace', lat: -37.8124, lng: 144.965 },
+    { id: 'outside-fire', venueName: 'Terrace Fire', heating: 'outdoor fireplace', lat: -37.8121, lng: 144.965 },
+    { id: 'pit', venueName: 'Fire Pit Garden', tags: ['Fire Pit', 'Beer Garden'], lat: -37.812, lng: 144.965 },
+];
+
+test('a wet show excludes outdoor warmth, even when it is closer, and strips outdoor amenities from mixed venues', () => {
+    const weather = hourly({ precipitation_probability: [10, 50, 60] });
+    const forecast = showtimeWeather(approved(), weather);
+    assert.equal(forecast.isWet, true);
+    const pairs = warmPairings(approved(), pairingVenues(), { weather, forecast });
+    assert.deepEqual(pairs.map(pair => pair.id), ['mixed', 'fire']);
+    assert.deepEqual(pairs[0].warmth, [{ icon: 'indoor-warmth', text: 'Warm indoor space' }]);
+    assert.deepEqual(pairs[1].warmth, [{ icon: 'fireplace', text: 'Fireplace inside' }]);
+    assert.equal(pairs[0].line, `Warm and dry before the show: Indoor Lounge, ${pairs[0].distanceMetres} m away`);
+    assert.deepEqual(warmPairings(approved(), [pairingVenues()[0]], { weather }), []);
+});
+
+test('wet showtime detection uses the event hour, observed hourly precipitation or wet WMO code, never another hour', () => {
+    for (const readings of [
+        { precipitation_probability: [80, 50, 20] },
+        { precipitation: [0, .1, 0] },
+        { weather_code: [0, 61, 0] },
+        { weather_code_raw: [0, 95, 0], weather_code: [0, 0, 0] },
+    ]) {
+        const weather = hourly(readings);
+        assert.equal(showtimeWeather(approved(), weather).isWet, true);
+        assert.deepEqual(warmPairings(approved(), pairingVenues(), { weather }).map(pair => pair.id), ['mixed', 'fire']);
+    }
+    const dry = hourly({ precipitation_probability: [100, 49, 100], precipitation: [.5, 0, .5], weather_code: [61, 0, 61] });
+    assert.equal(showtimeWeather(approved(), dry).isWet, false);
+    assert.deepEqual(warmPairings(approved(), pairingVenues(), { weather: dry }), warmPairings(approved(), pairingVenues()));
+});
+
+test('rain now keeps pairings indoors without claiming rain at a dry showtime', () => {
+    for (const current of [{ precipitation: .2 }, { weather: [{ main: 'Rain' }] }, { weather: [{ main: 'Drizzle' }] }]) {
+        const weather = { ...hourly(), ...current };
+        const forecast = showtimeWeather(approved(), weather);
+        assert.equal(forecast.isWet, false);
+        assert.deepEqual(warmPairings(approved(), pairingVenues(), { weather, forecast }).map(pair => pair.id), ['mixed', 'fire']);
+    }
+});
+
+test('dry or missing forecast keeps existing pairings; partial wet data still prevents outdoor tips', () => {
+    const venues = pairingVenues();
+    const before = warmPairings(approved(), venues);
+    assert.deepEqual(warmPairings(approved(), venues, { weather: hourly() }), before);
+    for (const weather of [null, {}, { ...hourly(), source: 'demo', precipitation: 1 }, { ...hourly(), unavailable: true, precipitation: 1 }]) {
+        assert.deepEqual(warmPairings(approved(), venues, { weather }), before);
+    }
+    const partial = hourly({ temperature_2m: [null, null, null], precipitation_probability: [10, 80, 20] });
+    assert.equal(showtimeWeather(approved(), partial), null);
+    assert.deepEqual(warmPairings(approved(), venues, { weather: partial }).map(pair => pair.id), ['mixed', 'fire']);
 });
 
 test('distanceMetres is symmetric and roughly right', () => {
