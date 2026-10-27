@@ -20,6 +20,7 @@ import { parseXweatherCredentials } from '../../utils/xweatherKey';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
 import { sunLightFor } from '../../utils/mapSunLight';
+import { mapLightMode, standardLightsForPreset } from '../../utils/mapLightMode.js';
 import { MAPBOX_TOKEN, MAP_STYLE, INITIAL_VIEW_STATE, MAX_BOUNDS } from '../../config/mapConfig';
 import { useWeather } from '../../context/WeatherContext';
 import { useMicroclimateActions, useMicroclimateState } from '../../context/MicroclimateContext';
@@ -532,7 +533,7 @@ function computeSunLight(minutes, lat, lng) {
 // stays interactive. A full lights+shadows pass runs once on settle. Score
 // preview commits only on pointer-up / cancel / blur / keyup — never the
 // live scrub path.
-function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes = null }) {
+function TimeOfDayLight({ mapRef, mapLoaded, generation, mapGenerationRef, staleGenerationsRef, nightMode = false, isVenueSelected = false, todMinutes = null }) {
     const { weather, error: weatherError, unavailable: weatherUnavailable, setScorePreviewMinutes } = useWeather();
     // Writer-only: publishing the scrub position re-renders the microclimate
     // readouts, not this component or the map.
@@ -552,6 +553,14 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     const panPausedRef = useRef(false);
     const publishTodRef = useRef(null);
     const rangeRef = useRef(null);
+    const standardLightsRef = useRef(null);
+    const nightModeRef = useRef(nightMode);
+    useLayoutEffect(() => { nightModeRef.current = nightMode; }, [nightMode]);
+    const lightMode = useCallback(() => mapLightMode({
+        nightMode: nightModeRef.current, mapLoaded, generation,
+        currentGeneration: mapGenerationRef.current,
+        stale: staleGenerationsRef.current.has(generation),
+    }), [mapLoaded, generation, mapGenerationRef, staleGenerationsRef]);
     // Re-read Melbourne time each minute so "Now" and the label stay honest
     // in a long session.
     const [nowMinutes, setNowMinutes] = useState(() => melbourneMinutesNow());
@@ -567,6 +576,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     }, [setTodMinutes]);
 
     const applyLight = useCallback((mins, { castShadows = true } = {}) => {
+        if (!lightMode().customLights) return;
         const map = mapRef.current;
         if (!map || typeof map.setLights !== 'function') return;
         if (!map.isStyleLoaded || !map.isStyleLoaded()) return;
@@ -599,7 +609,7 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
         } catch (e) {
             console.warn('[VenueMap] setLights failed:', e?.message);
         }
-    }, [mapRef]);
+    }, [mapRef, lightMode]);
 
     const cancelPendingLight = useCallback(() => {
         if (lightTimerRef.current != null) {
@@ -645,13 +655,34 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
     }, [mapRef]);
 
     useEffect(() => {
-        if (!mapLoaded) return undefined;
+        const mode = lightMode();
+        if (!mode.preset) return undefined;
         const map = mapRef.current;
+        if (!map) return undefined;
+        const mobile = typeof navigator !== 'undefined'
+            && (navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || ''));
+        try {
+            // 3.17 setLights mutates imported lights by type. Restore their
+            // original config expressions so Standard can own night lighting.
+            if (standardLightsRef.current?.map !== map) {
+                const lights = map.getLights();
+                standardLightsRef.current = { map, lights: standardLightsForPreset(lights) };
+            }
+            if (!mode.customLights && standardLightsRef.current.lights) {
+                map.setLights(standardLightsForPreset(standardLightsRef.current.lights, mobile));
+            }
+            map.setConfigProperty('basemap', 'lightPreset', mode.preset);
+        } catch (e) {
+            console.warn('[VenueMap] light preset failed:', e?.message);
+        }
+        if (mobile) suppressMobileGpuLayers(map);
         applyLight(minutesRef.current);
         // Mapbox Standard finishes wiring its own style/config lights shortly
         // after 'load'; re-apply once the map settles so our sun isn't overwritten.
         if (map && typeof map.once === 'function') {
-            const reapply = () => applyLight(minutesRef.current);
+            const reapply = () => {
+                if (mapRef.current === map) applyLight(minutesRef.current);
+            };
             map.once('idle', reapply);
             return () => {
                 cancelPendingLight();
@@ -663,9 +694,9 @@ function TimeOfDayLight({ mapRef, mapLoaded, isVenueSelected = false, todMinutes
             cancelPendingLight();
             resumeMapPan();
         };
-        // Only (re)apply the baseline light when the map finishes loading.
+        // Reapply on a loaded generation or ownership change, never by remounting the map.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mapLoaded, applyLight, cancelPendingLight, resumeMapPan]);
+    }, [mapLoaded, nightMode, lightMode, applyLight, cancelPendingLight, resumeMapPan]);
 
     useEffect(() => () => {
         cancelPendingLight();
@@ -808,6 +839,7 @@ const VenueMap = forwardRef(({
     cozyWeatherActive = false,  // true when weather is cold/rainy
     cozyFilterActive  = false,  // true when user has 'Cozy' filter selected
     isNight           = false,  // sun is down at the map's time: pins show a moon, not 0
+    nightMode         = false,  // After Dark owns Standard's basemap lighting, independently of pins
     filtersControl    = null,   // Filters FAB — stacked above TOD, layout only
     searchedArea      = null,   // bounds the list is narrowed to, or null
     onSearchArea      = null,   // (bounds) => void — "Search this area" pill
@@ -2232,7 +2264,9 @@ const VenueMap = forwardRef(({
                             {filtersControl}
                         </div>
                     ) : null}
-                    <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} isVenueSelected={!!selectedVenue} todMinutes={todMinutes} />
+                    <TimeOfDayLight mapRef={map} mapLoaded={mapLoaded} generation={recovery.generation}
+                        mapGenerationRef={mapGenerationRef} staleGenerationsRef={staleGenerationsRef} nightMode={nightMode}
+                        isVenueSelected={!!selectedVenue} todMinutes={todMinutes} />
                 </div>
             </div>
 

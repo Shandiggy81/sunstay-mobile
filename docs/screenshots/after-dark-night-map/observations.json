@@ -1,0 +1,43 @@
+[
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "mapboxTokenAvailable": false,
+    "basemapVisualVerified": false,
+    "modeSequence": [
+      "sun",
+      "after-dark",
+      "sun"
+    ],
+    "selectedMinutesBefore": 720,
+    "preservedMinutesAfter": 720,
+    "sliderMinutesAfterKeyboard": 730,
+    "displayedTime": "12:10 PM",
+    "eventsRequests": [
+      {
+        "lat": -37.8183,
+        "lng": 144.9671,
+        "radius": "3"
+      }
+    ],
+    "horizontalOverflow": false,
+    "errors": []
+  },
+  {
+    "kind": "isolated actual TimeOfDayLight with fake Mapbox API",
+    "visual": false,
+    "sunWrites": true,
+    "nightRestoresStandard": true,
+    "nightBlocksQueuedAndSliderLights": true,
+    "returnToSunWrites": true,
+    "returnUsesLatestSunPosition": true,
+    "latestSliderMinutes": 740,
+    "retiredCallbacksIgnored": true,
+    "resumedNightFreshSnapshot": true,
+    "staleGenerationIgnored": true,
+    "unloadedGenerationWaits": true,
+    "mobileGpuSuppression": true
+  }
+]

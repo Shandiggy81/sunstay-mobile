@@ -1395,6 +1395,7 @@ const AppContent = () => {
                                         cozyWeatherActive={cozyWeatherActive}
                                         cozyFilterActive={cozyFilterActive}
                                         isNight={cityNight}
+                                        nightMode={homeMode === 'after-dark'}
                                         isExpanded={mobileMapExpanded}
                                         searchedArea={areaBounds}
                                         onSearchArea={setAreaBounds}
