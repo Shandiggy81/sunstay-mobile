@@ -1,0 +1,66 @@
+[
+  {
+    "phase": "before",
+    "width": 390,
+    "height": 844,
+    "checks": [
+      {
+        "rainMentions": 2,
+        "distance": "30 m",
+        "distanceRects": 2,
+        "when": "6 min walk · rain likely at showtime"
+      },
+      {
+        "rainMentions": 2,
+        "distance": "30 m",
+        "distanceRects": 2,
+        "when": "6 min walk · rain likely at showtime"
+      },
+      {
+        "rainMentions": 2,
+        "distance": "30 m",
+        "distanceRects": 2,
+        "when": "6 min walk · rain likely at showtime"
+      },
+      {
+        "rainMentions": 2,
+        "distance": "30 m",
+        "distanceRects": 2,
+        "when": "6 min walk · rain likely at showtime"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "width": 320,
+    "height": 568,
+    "checks": [
+      {
+        "rainMentions": 2,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk · rain likely at showtime"
+      },
+      {
+        "rainMentions": 2,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk · rain likely at showtime"
+      },
+      {
+        "rainMentions": 2,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk · rain likely at showtime"
+      },
+      {
+        "rainMentions": 2,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk · rain likely at showtime"
+      }
+    ],
+    "errors": []
+  }
+]

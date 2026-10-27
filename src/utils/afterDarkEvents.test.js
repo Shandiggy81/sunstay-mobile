@@ -144,7 +144,8 @@ test('showtime weather reads the event start hour', () => {
     assert.equal(outdoor.advice, 'Cold and exposed: bring a jacket');
     const wet = showtimeWeather(approved({ exposure: 'outdoor', start: '2026-10-22T10:00:00.000Z' }), hourly());
     assert.equal(wet.line, '13° · 60% chance of rain · breezy');
-    assert.match(wet.advice, /^Rain likely/);
+    assert.equal(wet.advice, 'Bring a jacket or pick an indoor plan');
+    assert.equal(`${wet.line} ${wet.advice}`.match(/rain/gi).length, 1, 'outdoor rain advice does not repeat the forecast');
 });
 
 test('showtime weather is null without a matching hour or with fallback weather', () => {
@@ -175,8 +176,8 @@ test('warm pairings: declared warmth only, nearest first, within the walk', () =
     ];
     const pairs = warmPairings(event, venues);
     assert.deepEqual(pairs.map(p => p.id), ['b', 'a']);
-    assert.equal(pairs[0].line, `Outdoor heaters at Heater Bar, ${pairs[0].distanceMetres} m away`);
-    assert.match(pairs[1].line, /^Fireplace at Fireside Pub, \d+0 m away$/);
+    assert.equal(pairs[0].line, `Outdoor heaters at Heater Bar, ${pairs[0].distanceMetres}\u00a0m away`);
+    assert.match(pairs[1].line, /^Fireplace at Fireside Pub, \d+0\u00a0m away$/);
     assert.deepEqual(warmPairings({}, venues), []);
 });
 
@@ -196,7 +197,7 @@ test('a wet show excludes outdoor warmth, even when it is closer, and strips out
     assert.deepEqual(pairs.map(pair => pair.id), ['mixed', 'fire']);
     assert.deepEqual(pairs[0].warmth, [{ icon: 'indoor-warmth', text: 'Warm indoor space' }]);
     assert.deepEqual(pairs[1].warmth, [{ icon: 'fireplace', text: 'Fireplace inside' }]);
-    assert.equal(pairs[0].line, `Warm and dry before the show: Indoor Lounge, ${pairs[0].distanceMetres} m away`);
+    assert.equal(pairs[0].line, `Warm and dry before the show: Indoor Lounge, ${pairs[0].distanceMetres}\u00a0m away`);
     assert.deepEqual(warmPairings(approved(), [pairingVenues()[0]], { weather }), []);
 });
 

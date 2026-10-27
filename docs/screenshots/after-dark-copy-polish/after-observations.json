@@ -1,0 +1,66 @@
+[
+  {
+    "phase": "after",
+    "width": 390,
+    "height": 844,
+    "checks": [
+      {
+        "rainMentions": 1,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk"
+      },
+      {
+        "rainMentions": 1,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk"
+      },
+      {
+        "rainMentions": 1,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk"
+      },
+      {
+        "rainMentions": 1,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "phase": "after",
+    "width": 320,
+    "height": 568,
+    "checks": [
+      {
+        "rainMentions": 1,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk"
+      },
+      {
+        "rainMentions": 1,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk"
+      },
+      {
+        "rainMentions": 1,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk"
+      },
+      {
+        "rainMentions": 1,
+        "distance": "30 m",
+        "distanceRects": 1,
+        "when": "6 min walk"
+      }
+    ],
+    "errors": []
+  }
+]
