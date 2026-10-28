@@ -19,8 +19,8 @@
 .ss-map-first-home .ss-map-time-chip[aria-pressed=true] > span { background: #fff0b7; color: var(--color-ink); border-color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
 /* The expanded list stops below the chip row, so its header and sort chip are never covered. */
 .ss-map-first-home .ss-mobile-sheet { max-height: calc(100dvh - var(--home-chips-bottom) - 8px); }
-.ss-map-first-home .ss-mobile-sheet-head .ss-discovery-context { flex-basis: 100%; margin-top: 4px; color: #475569; font-size: 11px; line-height: 14px; font-weight: 600; }
-.ss-map-first-home .ss-mobile-sheet-head .ss-discovery-source { flex-basis: 100%; margin: 0; color: #64748b; font-size: 10px; line-height: 13px; font-weight: 500; }
+.ss-map-first-home .ss-mobile-sheet-head .ss-discovery-context { flex-basis: 100%; margin-top: 4px; color: #475569; font-size: 12px; line-height: 16px; font-weight: 600; }
+.ss-map-first-home .ss-mobile-sheet-head .ss-discovery-source { flex-basis: 100%; margin: 0; color: #64748b; font-size: 12px; line-height: 16px; font-weight: 500; }
 /* Map-only overlays have nothing to act on while the list covers the map. */
 .ss-map-first-home--list-open .ss-map-search-area, .ss-map-first-home--list-open .ss-map-caption { visibility: hidden; }
 
@@ -46,15 +46,13 @@
 .ss-map-first-home .ss-mobile-sheet-handle { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; min-height: var(--home-peek-height); padding: 16px 28px calc(8px + env(safe-area-inset-bottom, 0px)) 16px; text-align: left; touch-action: none; }
 .ss-map-first-home .ss-home-peek-headline { display: block; color: var(--color-ink); font-size: 15px; font-weight: 800; letter-spacing: -.3px; line-height: 22px; }
 .ss-map-first-home .ss-home-peek-headline > span { font-size: inherit; font-weight: inherit; }
-.ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-context { color: #475569; font-size: 10px; line-height: 13px; font-weight: 600; }
-.ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-source { margin: 0; color: #64748b; font-size: 10px; line-height: 13px; font-weight: 500; }
+.ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-context { color: #475569; font-size: 12px; line-height: 16px; font-weight: 600; }
+.ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-source { margin: 0; color: #64748b; font-size: 12px; line-height: 16px; font-weight: 500; }
 .ss-home-peek-chevron { position: absolute; right: 14px; top: 22px; }
 .ss-mobile-sheet-handle:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -3px; }
 
 @media (max-width: 359px) {
   .ss-map-first-home .ss-home-peek-headline { font-size: 13px; }
-  .ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-context,
-  .ss-map-first-home .ss-mobile-sheet-handle .ss-discovery-source { font-size: 9px; }
 }
 @media (min-width: 1024px) {
   .ss-map-first-home .ss-sidebar { padding-top: 160px; border-radius: 0; }
