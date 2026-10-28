@@ -29,6 +29,7 @@ import {
   VenueOfferingsList,
   VenueStatRow,
   VibeSection,
+  AccessSection,
   formatScore,
   scoreTone,
   SECTION_TITLE,
@@ -52,6 +53,7 @@ import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, isNightAt, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
 import { forecastKindAt } from '../utils/venueFilters';
 import { scoreDisplayState } from '../utils/scoreDisplay.js';
+import { venueAccessFacts } from '../utils/venueAccess.js';
 import { venueOfferings } from '../utils/venueOfferings';
 import { tonightFeel } from '../utils/tonightFeel.js';
 import { keyAmenities } from '../utils/venueAmenities';
@@ -785,6 +787,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                   </ConditionsGrid>
 
                   <VenueOfferingsList key={venue?.id} offerings={offerings} liveNotes={liveNotes} />
+                  <AccessSection access={venueAccessFacts(venue)} />
 
                   <AboutAndHours description={description} hours={hoursView} />
                   <VenueSourceNote note={venueSourceNote(venue)} />

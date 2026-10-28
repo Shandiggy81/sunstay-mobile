@@ -5,6 +5,7 @@ import DataBadge from './DataBadge.jsx';
 import VenueIcon from './common/VenueIcon';
 import LiveSunTimeline from './LiveSunTimeline';
 import { OFFERINGS_PREVIEW } from '../utils/venueOfferings';
+import { accessSourceLine } from '../utils/venueAccess.js';
 import { PHOTO_COMING_SOON_MESSAGE } from '../utils/demoDeadEnds';
 
 const PHOTO_NOTICE_MS = 4500;
@@ -313,6 +314,39 @@ export function VenueOfferingsList({ offerings, liveNotes = [] }) {
           <span className="sr-only">{showAll ? '' : ` (${hidden} more)`}</span>
         </button>
       ) : null}
+    </section>
+  );
+}
+
+// Getting in and around: only stated facts; unknown says so plainly.
+export function AccessSection({ access }) {
+  if (!access) return null;
+  const { facts } = access;
+  return (
+    <section aria-labelledby="access-heading" className="flex flex-col gap-1">
+      <h3 id="access-heading" className={`${SECTION_TITLE} mb-1`}>Getting in and around</h3>
+      {facts.length ? (
+        <>
+          <ul className="flex flex-col">
+            {facts.map((fact) => {
+              return (
+                <li key={fact.key} className="flex min-h-[52px] items-center gap-4 py-1">
+                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${fact.tone === 'heads-up' ? 'bg-amber-50' : 'bg-emerald-50'}`} aria-hidden="true">
+                    <ClayIcon name={fact.icon} size={34} />
+                  </span>
+                  <span className="text-[16px] font-medium text-slate-800">
+                    {fact.tone === 'heads-up' ? <span className="sr-only">Heads-up: </span> : null}
+                    {fact.text}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[12px] font-medium leading-snug text-slate-600">{accessSourceLine(access)}</p>
+        </>
+      ) : (
+        <p className="text-[15px] leading-relaxed text-slate-700">Steps, lifts and toilets aren't confirmed for this venue yet. Worth a quick call before you go.</p>
+      )}
     </section>
   );
 }
