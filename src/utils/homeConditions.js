@@ -16,10 +16,11 @@ export const WET_PROBABILITY = 60;
 export const COLD_FEELS_LIKE = 10;
 export const WINDY_KMH = 30;
 export const WINDY_GUSTS_KMH = 50;
+export const GREY_CLOUD_PCT = 85;
 
 const WET_MAINS = new Set(['Rain', 'Drizzle', 'Thunderstorm']);
 
-/** @returns {'wet'|'cold'|'windy'|'fair'|null} */
+/** @returns {'wet'|'cold'|'windy'|'grey'|'fair'|null} */
 export function homeConditions(weather) {
     if (!weather || weather.source === 'demo' || weather.unavailable || weather.error) return null;
     const precipitation = finiteOrNull(weather.precipitation);
@@ -33,6 +34,9 @@ export function homeConditions(weather) {
     if ((precipitation ?? 0) >= WET_PRECIP_MM || (probability ?? 0) >= WET_PROBABILITY || WET_MAINS.has(main)) return 'wet';
     if (feels != null && feels <= COLD_FEELS_LIKE) return 'cold';
     if ((wind ?? 0) >= WINDY_KMH || (gusts ?? 0) >= WINDY_GUSTS_KMH) return 'windy';
+    // A dull daytime sky: "0 in full sun" is true but reads like bad news.
+    const cloud = finiteOrNull(weather.cloudCoverPct ?? weather.clouds?.all);
+    if (weather.isDay !== false && ((cloud ?? 0) >= GREY_CLOUD_PCT || main === 'Fog')) return 'grey';
     return 'fair';
 }
 
@@ -87,12 +91,14 @@ export function rankForConditions(venues, kind) {
  * existing sun clause. Counts only venues with declared comfort facts.
  */
 export function conditionsClause(venues, kind) {
-    if (kind !== 'wet' && kind !== 'cold' && kind !== 'windy') return null;
-    const n = (Array.isArray(venues) ? venues : []).filter(venue => comfortTier(venue, kind) > 0).length;
+    if (!['wet', 'cold', 'windy', 'grey'].includes(kind)) return null;
+    // A grey day keeps the sun order but counts the same cosy venues as a wet one.
+    const countKind = kind === 'grey' ? 'wet' : kind;
+    const n = (Array.isArray(venues) ? venues : []).filter(venue => comfortTier(venue, countKind) > 0).length;
     // "Rain about" is true whether it is falling now or likely this hour.
-    const lead = { wet: 'rain about', cold: 'chilly out', windy: 'windy' }[kind];
+    const lead = { wet: 'rain about', cold: 'chilly out', windy: 'windy', grey: 'overcast' }[kind];
     if (n === 0) return lead;
-    const what = { wet: 'cosy and dry', cold: 'with heating', windy: 'sheltered' }[kind];
+    const what = { wet: 'cosy and dry', cold: 'with heating', windy: 'sheltered', grey: 'cosy' }[kind];
     return `${lead} · ${n.toLocaleString('en-AU')} ${what}`;
 }
 

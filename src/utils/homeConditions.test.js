@@ -22,6 +22,13 @@ test('conditions: real weather only, wet beats cold beats windy', () => {
     assert.equal(homeConditions(wx({ windGusts: 55 })), 'windy');
     // A sunny, mild, still day is fair even with today's cold morning behind it.
     assert.equal(homeConditions(wx({ apparentTemp: 21, weather: [{ main: 'Clear' }] })), 'fair');
+    // Grey: a dull daytime sky, below wet, cold and windy; never at night.
+    assert.equal(homeConditions(wx({ cloudCoverPct: 90 })), 'grey');
+    assert.equal(homeConditions(wx({ cloudCoverPct: 84 })), 'fair');
+    assert.equal(homeConditions(wx({ weather: [{ main: 'Fog' }] })), 'grey');
+    assert.equal(homeConditions(wx({ cloudCoverPct: 100, isDay: false })), 'fair');
+    assert.equal(homeConditions(wx({ cloudCoverPct: 100, precipitation: 1 })), 'wet');
+    assert.equal(homeConditions(wx({ cloudCoverPct: 100, apparentTemp: 8 })), 'cold');
 });
 
 const fire = { id: 'fire', heating: 'fireplace' };
@@ -57,6 +64,7 @@ test('tiers: outdoor heaters warm you but do not keep you dry', () => {
     assert.equal(comfortTier(covered, 'cold'), 0);
     assert.equal(comfortTier(windbreak, 'windy'), 1);
     assert.equal(comfortTier(fire, 'fair'), 0);
+    assert.equal(comfortTier(fire, 'grey'), 0, 'grey keeps the sun order');
     assert.equal(comfortTier(fire, null), 0);
 });
 
@@ -78,6 +86,8 @@ test('clause is honest about what is declared', () => {
     assert.equal(conditionsClause(all, 'cold'), 'chilly out · 3 with heating');
     assert.equal(conditionsClause([windbreak, plain], 'windy'), 'windy · 1 sheltered');
     assert.equal(conditionsClause([plain], 'wet'), 'rain about');
+    assert.equal(conditionsClause(all, 'grey'), 'overcast · 3 cosy');
+    assert.equal(conditionsClause([plain], 'grey'), 'overcast');
     assert.equal(conditionsClause(all, 'fair'), null);
     assert.equal(conditionsClause(all, null), null);
     const many = Array.from({ length: 1200 }, (_, i) => ({ id: i, heating: 'fireplace' }));
@@ -91,5 +101,6 @@ test('sort chip names the comfort order only when it applies', async () => {
     assert.equal(comfortSortLabel([windbreak], 'windy'), 'Sheltered first');
     assert.equal(comfortSortLabel([plain, heaters], 'wet'), null);
     assert.equal(comfortSortLabel([fire], 'fair'), null);
+    assert.equal(comfortSortLabel([fire], 'grey'), null);
     assert.equal(comfortSortLabel([fire], null), null);
 });
