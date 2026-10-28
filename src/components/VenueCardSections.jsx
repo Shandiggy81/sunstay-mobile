@@ -6,6 +6,7 @@ import VenueIcon from './common/VenueIcon';
 import LiveSunTimeline from './LiveSunTimeline';
 import { OFFERINGS_PREVIEW } from '../utils/venueOfferings';
 import { accessSourceLine } from '../utils/venueAccess.js';
+import { PUBLIC_TOILET_CREDIT, publicToiletHours, publicToiletLine } from '../utils/publicToilets.js';
 import { PHOTO_COMING_SOON_MESSAGE } from '../utils/demoDeadEnds';
 
 const PHOTO_NOTICE_MS = 4500;
@@ -319,9 +320,24 @@ export function VenueOfferingsList({ offerings, liveNotes = [] }) {
 }
 
 // Getting in and around: only stated facts; unknown says so plainly.
-export function AccessSection({ access }) {
+export function AccessSection({ access, publicToilet = null }) {
   if (!access) return null;
   const { facts } = access;
+  const toiletRow = publicToilet ? (
+    <li className="flex min-h-[52px] items-center gap-4 py-1">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50" aria-hidden="true">
+        <ClayIcon name="toilet" size={34} />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="text-[16px] font-medium text-slate-800">{publicToiletLine(publicToilet)}</span>
+        {publicToiletHours(publicToilet.hours) ? <span className="text-[13px] font-medium text-slate-600">{publicToiletHours(publicToilet.hours)}</span> : null}
+        <a href={publicToilet.url} target="_blank" rel="noopener noreferrer"
+          className="inline-flex min-h-[44px] items-center text-[13px] font-semibold text-slate-700 underline underline-offset-2">
+          {publicToilet.name} on the Toilet Map
+        </a>
+      </span>
+    </li>
+  ) : null;
   return (
     <section aria-labelledby="access-heading" className="flex flex-col gap-1">
       <h3 id="access-heading" className={`${SECTION_TITLE} mb-1`}>Getting in and around</h3>
@@ -341,12 +357,17 @@ export function AccessSection({ access }) {
                 </li>
               );
             })}
+            {toiletRow}
           </ul>
           <p className="text-[12px] font-medium leading-snug text-slate-600">{accessSourceLine(access)}</p>
         </>
       ) : (
-        <p className="text-[15px] leading-relaxed text-slate-700">Steps, lifts and toilets aren't confirmed for this venue yet. Worth a quick call before you go.</p>
+        <>
+          <p className="text-[15px] leading-relaxed text-slate-700">Steps, lifts and toilets aren't confirmed for this venue yet. Worth a quick call before you go.</p>
+          {toiletRow ? <ul className="flex flex-col">{toiletRow}</ul> : null}
+        </>
       )}
+      {publicToilet ? <p className="text-[11px] font-medium leading-snug text-slate-500">{PUBLIC_TOILET_CREDIT}</p> : null}
     </section>
   );
 }
