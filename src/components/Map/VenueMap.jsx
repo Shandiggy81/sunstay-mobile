@@ -125,9 +125,14 @@ function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyF
     // Cozy filter is a user intent overlay, not a weather recompute.
     if (cozyFilterActive) {
         const live = liveVenueFeatures?.[venue.id] || {};
-        if (live.fireplaceOn || venue.fireplaceOn) return 'heater';
-        if (live.heatersOn || live.roofClosed || venue.hasCozy) return 'cozy';
+        if (live.fireplaceOn === true) return 'heater';
+        if (live.heatersOn === true || live.roofClosed === true || venue.hasCozy) return 'cozy';
     }
+
+    // A fire or heaters the venue switched on now is fresher than any modelled
+    // sun reading, so it wins: the pin shows the flame.
+    const ownerWarmth = venueFeaturePinState(venue, liveVenueFeatures?.[venue.id]);
+    if (ownerWarmth) return ownerWarmth;
 
     // Cached RPC profile wins: marker colour comes from effective_sun /
     // sun_hour_fraction / effective_wind, never from client weather APIs.

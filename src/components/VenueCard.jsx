@@ -54,6 +54,7 @@ import { hourlyStrip, isNightAt, sunSentence, venueFeelsLike, venueSunForecast }
 import { forecastKindAt } from '../utils/venueFilters';
 import { scoreDisplayState } from '../utils/scoreDisplay.js';
 import { venueAccessFacts } from '../utils/venueAccess.js';
+import { liveWarmthNote } from '../utils/venueFeaturePin.js';
 import { usePublicAccessibleToilet } from '../hooks/usePublicAccessibleToilet.js';
 import { venueOfferings } from '../utils/venueOfferings';
 import { tonightFeel } from '../utils/tonightFeel.js';
@@ -540,10 +541,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const offerings = useMemo(() => venueOfferings(venue), [venue]);
   const amenities = useMemo(() => keyAmenities(venue), [venue]);
   const liveFeaturesForVenue = venue?.id ? liveVenueFeatures?.[venue.id] : null;
-  const liveNotes = [
-    liveFeaturesForVenue?.fireplaceOn ? 'Fireplace on now' : null,
-    !liveFeaturesForVenue?.fireplaceOn && liveFeaturesForVenue?.heatersOn ? 'Outdoor heaters on now' : null,
-  ].filter(Boolean);
+  const liveNote = liveWarmthNote(liveFeaturesForVenue);
 
   // Room details come from the venue itself. The old catalogue
   // (src/data/venues.js) is not looked up by name: its ids never match ours,
@@ -695,6 +693,12 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                         Show on map
                       </button>
                     ) : null}
+                    {liveNote ? (
+                      <div role="status" className="flex items-center gap-3 rounded-2xl bg-amber-50 px-3 py-2.5">
+                        <ClayIcon name="fireplace" size={32} />
+                        <span className="text-[15px] font-semibold text-amber-900">{liveNote}<span className="block text-[12px] font-medium text-amber-800">Set by the venue</span></span>
+                      </div>
+                    ) : null}
                     <div className="flex flex-col gap-2.5">
                       <p className="text-[12px] font-semibold text-slate-600">Today · sun &amp; weather estimates · {venueTimeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>
                       <VenueStatRow
@@ -788,7 +792,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     />
                   </ConditionsGrid>
 
-                  <VenueOfferingsList key={venue?.id} offerings={offerings} liveNotes={liveNotes} />
+                  <VenueOfferingsList key={venue?.id} offerings={offerings} />
                   <AccessSection access={venueAccessFacts(venue)} publicToilet={publicToilet} />
 
                   <AboutAndHours description={description} hours={hoursView} />
