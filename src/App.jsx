@@ -44,7 +44,7 @@ import {
 import { useVenues } from './hooks/useVenues';
 import { findHotelSunReportVenue, hotelSunReportUrl, readHotelSunReportId } from './utils/hotelSunReportRoute.js';
 import { MAPBOX_TOKEN, MAX_BOUNDS } from './config/mapConfig';
-import { needsPlaceLookup, parsePlaceResponse, parseSearchQuery, placeCountLabel, placeLookupUrl, venueMatchesSearch, venuesNearPlace } from './utils/locationSearch';
+import { needsPlaceLookup, parsePlaceResponse, parseSearchQuery, placeCountLabel, placeLookupUrl, searchMatchMode, venueMatchesSearch, venuesNearPlace } from './utils/locationSearch';
 import { pullRefreshStatus, refreshFailureVisible } from './utils/pullRefreshStatus';
 import { sheetDragCompositing } from './utils/sheetDragCompositing';
 import {
@@ -678,10 +678,9 @@ const AppContent = () => {
     const settledSearchQuery = useDebouncedValue(searchQuery, SEARCH_DEBOUNCE_MS);
     // Search by name, type, suburb or postcode ("South Yarra", "3141", "CBD").
     const parsedQuery = useMemo(() => parseSearchQuery(settledSearchQuery), [settledSearchQuery]);
-    const searchTextMatches = useMemo(
-        () => (parsedQuery.raw ? venues.filter(v => venueMatchesSearch(v, parsedQuery, venueTypeLabel)).length : 0),
-        [venues, parsedQuery]
-    );
+    // As typed first; when nothing matches, close spellings ("wonderlnad").
+    const searchMatch = useMemo(() => searchMatchMode(venues, parsedQuery, venueTypeLabel), [venues, parsedQuery]);
+    const searchTextMatches = searchMatch.count;
     // A place we have no venues in yet ("Brighton", "3186") is looked up with
     // Mapbox and answered with the venues nearest to it.
     const [searchPlace, setSearchPlace] = useState(null);
@@ -878,11 +877,11 @@ const AppContent = () => {
 
             if (nearPlace) {
                 if (!nearPlace.ids.has(String(venue.id))) return false;
-            } else if (!venueMatchesSearch(venue, parsedQuery, venueTypeLabel)) return false;
+            } else if (!venueMatchesSearch(venue, parsedQuery, venueTypeLabel, { fuzzy: searchMatch.fuzzy })) return false;
 
             return true;
         });
-    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, parsedQuery, nearPlace, microById, listTodMinutes, sunnyForecastKind, wantedSunMoments, sunMomentsById]);
+    }, [venues, activeFilters, cozyFilterActive, sunnyFilterActive, liveVenueFeatures, parsedQuery, searchMatch.fuzzy, nearPlace, microById, listTodMinutes, sunnyForecastKind, wantedSunMoments, sunMomentsById]);
 
     // "Search this area" narrows only the list to the map area the user
     // searched. Pins, filter fitBounds and the microclimate fetch still use

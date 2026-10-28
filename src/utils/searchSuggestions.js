@@ -1,10 +1,13 @@
 import { normaliseName } from './venueNameMatch.js';
+import { foldSearchText, searchWords, wordsNear } from './searchText.js';
 
 /**
  * Type-ahead suggestions for the top search bar: venues by name first, then
  * suburbs. Ranking for a venue name (lower is better):
  *   0 exact · 1 starts with the query · 2 every query word starts a name word
  *   · 3 contains the query. Suburb-only matches become place rows instead.
+ * When nothing matches as typed, names and suburbs a typo away are offered
+ * instead (rank 4), so "wonderlnad" still suggests Wonderland Bar.
  */
 export const MAX_VENUE_SUGGESTIONS = 6;
 export const MAX_PLACE_SUGGESTIONS = 2;
@@ -47,6 +50,23 @@ export function searchSuggestions(rawQuery, venues, { typeLabel = () => '' } = {
             const entry = suburbs.get(suburbKey) ?? { label: suburb, count: 0 };
             entry.count += 1;
             suburbs.set(suburbKey, entry);
+        }
+    }
+    const folded = foldSearchText(rawQuery);
+    if (ranked.length === 0 && suburbs.size === 0 && folded.length >= 4) {
+        const typed = searchWords(folded);
+        for (const venue of venues) {
+            const displayName = String(venue?.venueName ?? venue?.name ?? '').trim();
+            if (displayName && wordsNear(typed, searchWords(foldSearchText(displayName)))) {
+                ranked.push({ venue, rank: 4, displayName, normal: normaliseName(displayName) });
+            }
+            const suburb = String(venue?.suburb ?? '').trim();
+            if (suburb && wordsNear(typed, searchWords(foldSearchText(suburb)))) {
+                const key = normaliseName(suburb);
+                const entry = suburbs.get(key) ?? { label: suburb, count: 0 };
+                entry.count += 1;
+                suburbs.set(key, entry);
+            }
         }
     }
     ranked.sort((a, b) => a.rank - b.rank || a.normal.length - b.normal.length || a.displayName.localeCompare(b.displayName));

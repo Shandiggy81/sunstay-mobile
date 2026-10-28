@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     needsPlaceLookup, NEARBY_RADII_M, parsePlaceResponse, parseSearchQuery, placeCountLabel, placeVenuesInText,
-    placeLookupUrl, venueMatchesSearch, venuePostcode, venuesNearPlace,
+    placeLookupUrl, searchMatchMode, venueMatchesSearch, venuePostcode, venuesNearPlace,
 } from './locationSearch.js';
 
 const v = (id, extra) => ({ id, lat: -37.8, lng: 144.96, ...extra });
@@ -147,5 +147,35 @@ describe('placeVenuesInText', () => {
     it('caps the list', () => {
         const many = Array.from({ length: 30 }, (_, i) => v(`c${i}`, { suburb: 'CBD' }));
         assert.equal(placeVenuesInText('cbd', many, 15).venues.length, 15);
+    });
+});
+
+describe('forgiving search', () => {
+    const grilld = v('g', { venueName: "Grill'd (QV)", suburb: 'CBD', typeLabel: 'Restaurant' });
+    const mork = v('m', { venueName: 'Mörk Chocolate Brew House', suburb: 'North Melbourne' });
+    const williams = v('w', { venueName: 'Williams Bar & Café', suburb: 'Fitzroy', typeLabel: 'Cocktail & wine bar' });
+    const wonderland = v('wl', { venueName: 'Wonderland Bar', suburb: 'Windsor' });
+    const all = [grilld, mork, williams, wonderland];
+    const hits = (q, opts) => all.filter(x => venueMatchesSearch(x, parseSearchQuery(q), undefined, opts)).map(x => x.id);
+
+    it('ignores apostrophes (including the curly ones iOS types), accents and "&"', () => {
+        assert.deepEqual(hits('grilld'), ['g']);
+        assert.deepEqual(hits('Grill’d'), ['g']);
+        assert.deepEqual(hits('mork'), ['m']);
+        assert.deepEqual(hits('bar and cafe'), ['w']);
+        assert.deepEqual(hits('wine bar'), ['w'], 'the type label shown on the list row counts too');
+    });
+
+    it('falls back to close spellings only when nothing matches as typed', () => {
+        const mode = q => searchMatchMode(all, parseSearchQuery(q));
+        assert.deepEqual(mode('wonderland'), { fuzzy: false, count: 1 });
+        assert.deepEqual(mode('wonderlnad'), { fuzzy: true, count: 1 });
+        assert.deepEqual(hits('wonderlnad', { fuzzy: true }), ['wl']);
+        assert.deepEqual(mode('fitzory'), { fuzzy: true, count: 1 });
+        assert.deepEqual(mode('brighton'), { fuzzy: false, count: 0 }, 'a real place with no venues still goes to the place lookup');
+        assert.equal(needsPlaceLookup(parseSearchQuery('brighton'), mode('brighton').count), true);
+        assert.deepEqual(mode('wnd'), { fuzzy: false, count: 0 }, 'too short to guess');
+        assert.deepEqual(mode('3999'), { fuzzy: false, count: 0 });
+        assert.deepEqual(mode(''), { fuzzy: false, count: 0 });
     });
 });
