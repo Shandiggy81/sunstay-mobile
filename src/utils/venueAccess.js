@@ -10,8 +10,10 @@ import { normaliseTag } from './venueOfferings.js';
  * columns but a "Wheelchair Accessible" tag gets that one line, labelled as a
  * listing tag rather than a checked fact.
  *
+ * `icon` is a clay icon name (src/assets/clay).
+ *
  * @returns {{
- *   facts: Array<{ key: string, icon: 'step-free'|'steps'|'lift'|'toilet', text: string, tone: 'good'|'heads-up' }>,
+ *   facts: Array<{ key: string, icon: 'ramp'|'stairs'|'lift'|'toilet'|'wheelchair', text: string, tone: 'good'|'heads-up' }>,
  *   source: 'venue'|'sunstay_visit'|'tag'|null,
  *   verifiedAt: string|null,
  * }}
@@ -24,9 +26,9 @@ export function venueAccessFacts(venue) {
 
     const stepFree = bool(venue?.access_step_free_entry);
     const steps = finiteOrNull(venue?.access_entry_steps);
-    if (stepFree === true || steps === 0) add('entry', 'step-free', 'Step-free entry', 'good');
-    else if (steps != null && steps > 0) add('entry', 'steps', `${steps} ${steps === 1 ? 'step' : 'steps'} at the entry`, 'heads-up');
-    else if (stepFree === false) add('entry', 'steps', 'Steps at the entry', 'heads-up');
+    if (stepFree === true || steps === 0) add('entry', 'ramp', 'Step-free entry', 'good');
+    else if (steps != null && steps > 0) add('entry', 'stairs', `${steps} ${steps === 1 ? 'step' : 'steps'} at the entry`, 'heads-up');
+    else if (stepFree === false) add('entry', 'stairs', 'Steps at the entry', 'heads-up');
 
     const lift = bool(venue?.access_lift);
     const liftFloors = text(venue?.access_lift_floors);
@@ -35,12 +37,12 @@ export function venueAccessFacts(venue) {
     else if (liftFloors) add('lift', 'lift', `Lift to ${liftFloors}`, 'good');
 
     const stairsOnly = text(venue?.access_stairs_only_areas);
-    if (stairsOnly) add('stairs-only', 'steps', `Stairs only to: ${stairsOnly}`, 'heads-up');
+    if (stairsOnly) add('stairs-only', 'stairs', `Stairs only to: ${stairsOnly}`, 'heads-up');
 
     const accessibleToilet = bool(venue?.access_accessible_toilet);
     const accessibleFloor = text(venue?.access_accessible_toilet_floor);
-    if (accessibleToilet === true) add('accessible-toilet', 'toilet', accessibleFloor ? `Accessible toilet (${accessibleFloor})` : 'Accessible toilet', 'good');
-    else if (accessibleToilet === false) add('accessible-toilet', 'toilet', 'No accessible toilet', 'heads-up');
+    if (accessibleToilet === true) add('accessible-toilet', 'wheelchair', accessibleFloor ? `Accessible toilet (${accessibleFloor})` : 'Accessible toilet', 'good');
+    else if (accessibleToilet === false) add('accessible-toilet', 'wheelchair', 'No accessible toilet', 'heads-up');
 
     const level = ['same floor', 'upstairs', 'downstairs'].includes(venue?.access_toilet_level) ? venue.access_toilet_level : null;
     const metres = finiteOrNull(venue?.access_toilet_distance_m);
@@ -56,7 +58,7 @@ export function venueAccessFacts(venue) {
     if (!declared) {
         const tags = Array.isArray(venue?.tags) ? venue.tags.map(normaliseTag) : [];
         if (tags.some(tag => tag === 'wheelchair accessible' || tag === 'step free')) {
-            return { facts: [{ key: 'tag', icon: 'step-free', text: 'Listed as wheelchair accessible', tone: 'good' }], source: 'tag', verifiedAt: null };
+            return { facts: [{ key: 'tag', icon: 'wheelchair', text: 'Listed as wheelchair accessible', tone: 'good' }], source: 'tag', verifiedAt: null };
         }
         return { facts: [], source: null, verifiedAt: null };
     }

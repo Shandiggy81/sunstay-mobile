@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Share2, Heart, ChevronRight, Footprints, ArrowUpDown, Toilet } from 'lucide-react';
+import { X, Share2, Heart, ChevronRight } from 'lucide-react';
 import ClayIcon from './common/ClayIcon';
 import DataBadge from './DataBadge.jsx';
 import VenueIcon from './common/VenueIcon';
@@ -319,7 +319,6 @@ export function VenueOfferingsList({ offerings, liveNotes = [] }) {
 }
 
 // Getting in and around: only stated facts; unknown says so plainly.
-const ACCESS_ICONS = { steps: Footprints, lift: ArrowUpDown, toilet: Toilet };
 export function AccessSection({ access }) {
   if (!access) return null;
   const { facts } = access;
@@ -330,11 +329,10 @@ export function AccessSection({ access }) {
         <>
           <ul className="flex flex-col">
             {facts.map((fact) => {
-              const Icon = ACCESS_ICONS[fact.icon];
               return (
-                <li key={fact.key} className="flex min-h-[48px] items-center gap-4 py-1">
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${fact.tone === 'heads-up' ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`} aria-hidden="true">
-                    {Icon ? <Icon size={20} strokeWidth={2.2} /> : <ClayIcon name="wheelchair" size={30} />}
+                <li key={fact.key} className="flex min-h-[52px] items-center gap-4 py-1">
+                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${fact.tone === 'heads-up' ? 'bg-amber-50' : 'bg-emerald-50'}`} aria-hidden="true">
+                    <ClayIcon name={fact.icon} size={34} />
                   </span>
                   <span className="text-[16px] font-medium text-slate-800">
                     {fact.tone === 'heads-up' ? <span className="sr-only">Heads-up: </span> : null}
