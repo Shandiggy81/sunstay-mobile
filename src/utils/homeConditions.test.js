@@ -26,6 +26,8 @@ test('conditions: real weather only, wet beats cold beats windy', () => {
     assert.equal(homeConditions(wx({ cloudCoverPct: 90 })), 'grey');
     assert.equal(homeConditions(wx({ cloudCoverPct: 84 })), 'fair');
     assert.equal(homeConditions(wx({ weather: [{ main: 'Fog' }] })), 'grey');
+    assert.equal(homeConditions(wx({ cloudCoverPct: 70, weather: [{ main: 'Clouds', description: 'overcast' }] })), 'grey', 'agrees with the Overcast pill');
+    assert.equal(homeConditions(wx({ cloudCoverPct: 70, weather: [{ main: 'Clouds', description: 'partly cloudy' }] })), 'fair');
     assert.equal(homeConditions(wx({ cloudCoverPct: 100, isDay: false })), 'fair');
     assert.equal(homeConditions(wx({ cloudCoverPct: 100, precipitation: 1 })), 'wet');
     assert.equal(homeConditions(wx({ cloudCoverPct: 100, apparentTemp: 8 })), 'cold');

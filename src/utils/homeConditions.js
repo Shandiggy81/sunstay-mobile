@@ -35,8 +35,11 @@ export function homeConditions(weather) {
     if (feels != null && feels <= COLD_FEELS_LIKE) return 'cold';
     if ((wind ?? 0) >= WINDY_KMH || (gusts ?? 0) >= WINDY_GUSTS_KMH) return 'windy';
     // A dull daytime sky: "0 in full sun" is true but reads like bad news.
+    // The overcast code is the one the weather pill shows (already adjusted for
+    // how much sunlight gets through), so the headline agrees with the pill.
     const cloud = finiteOrNull(weather.cloudCoverPct ?? weather.clouds?.all);
-    if (weather.isDay !== false && ((cloud ?? 0) >= GREY_CLOUD_PCT || main === 'Fog')) return 'grey';
+    const overcast = weather.weather?.[0]?.description === 'overcast';
+    if (weather.isDay !== false && (overcast || (cloud ?? 0) >= GREY_CLOUD_PCT || main === 'Fog')) return 'grey';
     return 'fair';
 }
 
