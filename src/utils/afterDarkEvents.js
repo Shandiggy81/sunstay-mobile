@@ -16,6 +16,7 @@ import { windWord } from './venueConditionChips.js';
 import { warmthForVenue } from './tonightFeel.js';
 
 const MELBOURNE = 'Australia/Melbourne';
+export const AFTER_DARK_START_HOUR = 17;
 
 export const EVENT_CATEGORIES = Object.freeze({
     'live-music': { label: 'Live music', icon: 'live-music' },
@@ -157,7 +158,12 @@ export function distanceMetres(a, b) {
  * given, sorted by start time then distance. Walking time assumes 80 m a minute.
  */
 export function eventsTonight(events, { now = new Date(), origin = null, maxKm = 2, categories = null, freeOnly = false } = {}) {
-    const { from, to } = tonightWindow(now);
+    const { from: graceStart, to } = tonightWindow(now);
+    // The night's date precedes its 5am end by one calendar day, including across DST.
+    const [y, m, d] = venueTimeParts(to, MELBOURNE).date.split('-').map(Number);
+    const nightDate = new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+    const eveningStart = venueTimeAt(nightDate, AFTER_DARK_START_HOUR, MELBOURNE);
+    const from = new Date(Math.max(graceStart.getTime(), eveningStart.getTime()));
     const wanted = Array.isArray(categories) && categories.length ? new Set(categories) : null;
     const hasOrigin = origin && finite(origin.lat) !== null && finite(origin.lng) !== null;
     return (Array.isArray(events) ? events : []).flatMap(event => {

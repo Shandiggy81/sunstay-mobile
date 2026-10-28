@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    distanceMetres, eventsTonight, fetchEventsTonight, normaliseTicketmasterEvent, normaliseTicketmasterResponse,
+    AFTER_DARK_START_HOUR, distanceMetres, eventsTonight, fetchEventsTonight, normaliseTicketmasterEvent, normaliseTicketmasterResponse,
     showtimeWeather, ticketmasterCategory, ticketmasterSearchParams, tonightWindow, warmPairings,
 } from './afterDarkEvents.js';
 
@@ -104,6 +104,40 @@ test('search params cover tonight around the stay', () => {
 });
 
 const approved = (over = {}) => ({ ...normaliseTicketmasterEvent(tm(), { status: 'approved' }), ...over });
+
+// Explicit offsets keep the expectations independent of the venue-time helpers.
+for (const { date, previousDate, offset, earlyOffset } of [
+    { date: '2026-06-10', previousDate: '2026-06-09', offset: '+10:00', earlyOffset: '+10:00' },
+    { date: '2026-10-04', previousDate: '2026-10-03', offset: '+11:00', earlyOffset: '+10:00' }, // DST starts at 2am.
+]) {
+    const instant = (time, zone = offset, day = date) => `${day}T${time}:00${zone}`;
+    const listed = (now, starts) => eventsTonight(starts.map(start => approved({ id: start, start })),
+        { now: new Date(now) }).map(event => event.start);
+
+    test(`10:45am excludes a 1pm matinee but includes a 7pm show (${date})`, () => {
+        assert.equal(AFTER_DARK_START_HOUR, 17);
+        const now = new Date(instant('10:45'));
+        assert.deepEqual(listed(now, [instant('13:00'), instant('19:00')]), [instant('19:00')]);
+        assert.equal(tonightWindow(now).from.getTime(), now.getTime() - 30 * 60_000);
+        assert.equal(ticketmasterSearchParams({ ...CBD, now }).get('startDateTime'), now.toISOString().replace('.000Z', 'Z'));
+    });
+
+    test(`5:20pm retains the 5pm show within grace and excludes 4pm (${date})`, () => {
+        assert.deepEqual(listed(instant('17:20'), [instant('16:00'), instant('17:00')]), [instant('17:00')]);
+    });
+
+    test(`11:30pm retains 11:10pm but excludes 9pm and keeps the exact grace boundary (${date})`, () => {
+        assert.deepEqual(listed(instant('23:30'), [instant('21:00'), instant('22:59'), instant('23:00'), instant('23:10')]),
+            [instant('23:00'), instant('23:10')]);
+    });
+
+    test(`1am uses the previous night, retains 1:30am and excludes afternoon/5am shows (${date})`, () => {
+        const early = time => instant(time, earlyOffset);
+        assert.deepEqual(listed(early('01:00'), [instant('13:00', earlyOffset, previousDate),
+            instant('16:00', earlyOffset, previousDate), early('00:29'), early('00:30'), early('01:30'), instant('05:00'), instant('19:00')]),
+            [early('00:30'), early('01:30')]);
+    });
+}
 
 test('eventsTonight: approved, tonight, nearby, sorted by start then distance', () => {
     const now = new Date('2026-10-22T03:00:00Z'); // 2pm
