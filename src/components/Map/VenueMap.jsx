@@ -5,7 +5,7 @@ import React, {
 import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
 import { Layers, Check, Search } from 'lucide-react';
-import { clusterSize, sunPinView } from '../../utils/sunPin';
+import { clusterSize, pinHitHeight, sunPinView } from '../../utils/sunPin';
 import { clayPinUrlFor, clayPinUrls } from '../../utils/clayVenuePins';
 import { mapMomentBadge } from '../../utils/mapMomentBadge.js';
 import {
@@ -375,7 +375,8 @@ function createMarkerEl(view) {
 
 function createClusterMarkerEl(count, momentView) {
     const el = document.createElement('div');
-    el.style.cssText = 'display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;';
+    // Bubble at the bottom of a hit box that stays 44 px on screen when tilted (pinHitHeight).
+    el.style.cssText = 'display:flex;align-items:flex-end;justify-content:center;min-width:44px;min-height:var(--ss-pin-hit-height,44px);cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;';
     const inner = document.createElement('div');
     inner.className = 'ss-cluster-inner';
     inner.style.cssText = [
@@ -1290,6 +1291,15 @@ const VenueMap = forwardRef(({
                 // the map reports loaded — no legacy setLight() needed here.
                 map.current.dragRotate.disable();
                 map.current.touchZoomRotate.disableRotation();
+                // Pins and clusters tilt with the map, so their hit boxes grow
+                // with the pitch to stay 44 px tall on screen (two-finger drag
+                // can still change the pitch).
+                const syncPinHitHeight = () => {
+                    if (disposed || !map.current || !isCurrent()) return;
+                    mapContainer.current?.style.setProperty('--ss-pin-hit-height', `${pinHitHeight(map.current.getPitch())}px`);
+                };
+                syncPinHitHeight();
+                map.current.on('pitchend', syncPinHitHeight);
                 if (reason === 'resume') {
                     mapGenerationRef.current = generation;
                     mapInitLockRef.current = false;

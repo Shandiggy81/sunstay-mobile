@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SUN_PIN_TIERS, clusterSize, sunPinView, sunTier } from './sunPin.js';
+import { PIN_TOUCH_PX, SUN_PIN_TIERS, clusterSize, pinHitHeight, sunPinView, sunTier } from './sunPin.js';
 
 describe('sunTier', () => {
     it('buckets the sun score', () => {
@@ -137,5 +137,24 @@ describe('clusterSize', () => {
         assert.equal(sunPinView({ score: 0 }).scoreText, '0', 'daytime is unchanged');
         assert.equal(sunPinView({ pinKey: 'heater', score: 0, night: true }).scoreText, '🔥', 'heaters still show at night');
         assert.equal(sunPinView({ score: null, night: true }).scoreText, '', 'no score, no claim');
+    });
+});
+
+describe('pinHitHeight', () => {
+    it('keeps a tilted pin 44 px tall on screen', () => {
+        for (const pitch of [0, 20, 45, 55, 60]) {
+            const onScreen = pinHitHeight(pitch) * Math.cos(pitch * Math.PI / 180);
+            assert.ok(onScreen >= PIN_TOUCH_PX - 1e-9 && onScreen < PIN_TOUCH_PX + 1, `${pitch}°: ${onScreen}`);
+        }
+        assert.equal(pinHitHeight(0), 44);
+        assert.equal(pinHitHeight(45), 63);
+    });
+    it('caps steep pitches and ignores bad input', () => {
+        assert.equal(pinHitHeight(80), 96);
+        assert.equal(pinHitHeight(89), 96);
+        assert.equal(pinHitHeight(120), 96);
+        assert.equal(pinHitHeight(-10), 44);
+        assert.equal(pinHitHeight(undefined), 44);
+        assert.equal(pinHitHeight(Number.NaN), 44);
     });
 });

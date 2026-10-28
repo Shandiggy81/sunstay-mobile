@@ -64,6 +64,18 @@ export function sunPinView({ pinKey = 'default', score = null, emoji = null, ico
     };
 }
 
+/**
+ * Map pins lie on the tilted map plane (pitchAlignment 'map'), so a box
+ * `h` px tall shows h·cos(pitch) px tall on screen: 44 px is ~31 px at the
+ * default 45°. This is the box height that keeps 44 px on screen, capped for
+ * steep pitches. The extra height is transparent space above the pin.
+ */
+export const PIN_TOUCH_PX = 44;
+export function pinHitHeight(pitch, { max = 96 } = {}) {
+    const degrees = Number.isFinite(pitch) ? Math.min(Math.max(pitch, 0), 89) : 0;
+    return Math.min(max, Math.ceil(PIN_TOUCH_PX / Math.cos(degrees * Math.PI / 180) - 1e-9));
+}
+
 /** Cluster bubbles grow a little with the count so busy areas read as busy. */
 export function clusterSize(count) {
     const n = Number.isFinite(count) && count > 0 ? count : 1;

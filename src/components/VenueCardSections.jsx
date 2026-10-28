@@ -234,7 +234,8 @@ export function HourByHour({ items }) {
   return (
     <section aria-labelledby="hour-by-hour-heading" className="flex flex-col gap-2">
       <h3 id="hour-by-hour-heading" className={SECTION_TITLE}>Hour by hour</h3>
-      <div className="-mx-5 overflow-x-auto overscroll-x-contain px-3 scrollbar-hide">
+      <div className="-mx-5 overflow-x-auto overscroll-x-contain px-3 scrollbar-hide rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-600"
+        tabIndex={0} role="group" aria-label="Hour by hour forecast, scrolls sideways">
         <ol className="flex min-w-max">
           {items.map((item) => (
             <li
