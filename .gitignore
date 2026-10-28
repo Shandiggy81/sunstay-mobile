@@ -17,6 +17,7 @@ test-results/
 
 # Build & CI artifacts — never commit these
 *.txt
+!public/robots.txt
 *.json.bak
 build_output*
 deploy_output*

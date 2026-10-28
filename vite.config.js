@@ -1,10 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { preconnectTags } from './src/utils/preconnect.js'
+
+// Adds <link rel="preconnect"> for Mapbox and Supabase (src/utils/preconnect.js).
+function preconnect() {
+    let env = {}
+    return {
+        name: 'sunstay-preconnect',
+        configResolved(config) { env = config.env },
+        transformIndexHtml: () => preconnectTags(env),
+    }
+}
 
 export default defineConfig({
     base: '/',
     envPrefix: ['VITE_'],
-    plugins: [react()],
+    plugins: [react(), preconnect()],
     server: {
         port: 5173,
         open: true,
