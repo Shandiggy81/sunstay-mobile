@@ -328,6 +328,7 @@ function repaintVenueMarker(record) {
         ...sunPinView({
             pinKey: record.pinKey, score: record.score, emoji: record.emoji, iconUrl: record.iconUrl,
             selected: record.selected, highlighted: Boolean(record.highlighted), night: Boolean(record.night),
+            nightMode: Boolean(record.nightMode),
         }),
         momentBadge: record.momentBadge,
         venueName: record.venueName,
@@ -972,6 +973,8 @@ const VenueMap = forwardRef(({
     useEffect(() => { cozyFilterActiveRef.current = cozyFilterActive; }, [cozyFilterActive]);
     const isNightRef = useRef(isNight);
     useEffect(() => { isNightRef.current = isNight; }, [isNight]);
+    const nightModeRef = useRef(nightMode);
+    useEffect(() => { nightModeRef.current = nightMode; }, [nightMode]);
 
     const placeUserMarker = useCallback((lng, lat) => {
         const mapInst = map.current;
@@ -1847,8 +1850,9 @@ const VenueMap = forwardRef(({
                     const momentBadge = mapMomentBadge(venueId, activeSunMoment, sunMomentsById);
                     const venueName = String(venue.venueName || venue.name || venue.title || 'Venue');
                     const night = Boolean(isNightRef.current);
+                    const afterDark = Boolean(nightModeRef.current);
                     const view = {
-                        ...sunPinView({ pinKey, score, emoji, iconUrl, selected, highlighted, night }),
+                        ...sunPinView({ pinKey, score, emoji, iconUrl, selected, highlighted, night, nightMode: afterDark }),
                         momentBadge, venueName,
                     };
                     specs.push({
@@ -1858,7 +1862,7 @@ const VenueMap = forwardRef(({
                                 || existing.emoji !== emoji || existing.iconUrl !== iconUrl
                                 || existing.momentBadge !== momentBadge || existing.venueName !== venueName
                                 || existing.selected !== selected || Boolean(existing.highlighted) !== highlighted
-                                || Boolean(existing.night) !== night) {
+                                || Boolean(existing.night) !== night || Boolean(existing.nightMode) !== afterDark) {
                                 paintMarkerEl(existing.el, view);
                                 existing.pinKey = pinKey;
                                 existing.score = score;
@@ -1869,6 +1873,7 @@ const VenueMap = forwardRef(({
                                 existing.momentBadge = momentBadge;
                                 existing.venueName = venueName;
                                 existing.night = night;
+                                existing.nightMode = afterDark;
                             }
                         },
                         create() {
@@ -1893,7 +1898,7 @@ const VenueMap = forwardRef(({
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(instance);
-                            return { marker, el, pinKey, score, emoji, iconUrl, selected, highlighted, night, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
+                            return { marker, el, pinKey, score, emoji, iconUrl, selected, highlighted, night, nightMode: afterDark, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
                         },
                     });
                 }
@@ -1962,7 +1967,7 @@ const VenueMap = forwardRef(({
                 markersRef.current = {};
             }
         };
-    }, [mapLoaded, recovery.generation, weather, weatherUnavailable, liveKey, cozyFilterActive, isNight, weatherColorFn, calculateSunScore, microById, clusterTodMinutes, activeSunMoment, sunMomentsById]);
+    }, [mapLoaded, recovery.generation, weather, weatherUnavailable, liveKey, cozyFilterActive, isNight, nightMode, weatherColorFn, calculateSunScore, microById, clusterTodMinutes, activeSunMoment, sunMomentsById]);
 
     // ── viewport bbox → microclimate fetch ──────────────────────────
     // Reported on settle rather than on every move frame; the hook debounces

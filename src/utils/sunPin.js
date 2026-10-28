@@ -3,7 +3,7 @@
  * a sunflower fill so the sunniest venues stand out at a glance; a venue
  * condition (heaters on, cozy, rain, cold, windy) shows its marker in place of
  * the number, which the partner preview relies on to show a status change.
- * The numeric score always stays in the accessible label.
+ * The numeric score stays in the accessible label except in After Dark mode.
  *
  * Pure, so the look of every pin state is testable without a map.
  */
@@ -33,20 +33,20 @@ export function sunTier(score) {
 }
 
 /**
- * @param {{ pinKey?: string, score?: number|null, emoji?: string|null, iconUrl?: string|null, selected?: boolean, highlighted?: boolean, night?: boolean }} input
+ * @param {{ pinKey?: string, score?: number|null, emoji?: string|null, iconUrl?: string|null, selected?: boolean, highlighted?: boolean, night?: boolean, nightMode?: boolean }} input
  *   night: the sun is down at the map's time; the pin shows a moon, not 0.
  *   iconUrl: the venue's clay pin image (utils/clayVenuePins); the pin shows
  *   it in place of the emoji, which stays as the fallback if it fails to load.
  *   highlighted: the list row for this venue is hovered or focused (list ↔ map
  *   pairing). It raises the pin above every other, the selected one included.
  */
-export function sunPinView({ pinKey = 'default', score = null, emoji = null, iconUrl = null, selected = false, highlighted = false, night = false } = {}) {
+export function sunPinView({ pinKey = 'default', score = null, emoji = null, iconUrl = null, selected = false, highlighted = false, night = false, nightMode = false } = {}) {
     const n = Number.isFinite(score) ? Math.round(score) : null;
     const tier = selected ? 'selected' : sunTier(n);
     const style = SUN_PIN_TIERS[tier];
     const icon = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : '📍';
     // After dark every score is 0, which reads like a bad venue: show a moon instead.
-    const scoreText = n == null ? '' : CONDITION_GLYPHS[pinKey] ?? (night ? '🌙' : String(n));
+    const scoreText = n == null ? '' : CONDITION_GLYPHS[pinKey] ?? (night || nightMode ? '🌙' : String(n));
     return {
         tier,
         icon,
@@ -55,7 +55,7 @@ export function sunPinView({ pinKey = 'default', score = null, emoji = null, ico
         bg: style.bg,
         border: style.border,
         text: style.text,
-        label: n == null ? 'Sun score unknown' : night ? `After dark. Sun score ${n}` : `Sun score ${n}`,
+        label: nightMode ? 'After dark' : n == null ? 'Sun score unknown' : night ? `After dark. Sun score ${n}` : `Sun score ${n}`,
         // A selected or highlighted pin also gets a ring, so the cue is a
         // shape and not colour alone; highlighted also grows a little.
         ring: Boolean(selected || highlighted),
