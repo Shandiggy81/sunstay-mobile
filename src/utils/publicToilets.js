@@ -52,3 +52,12 @@ export function publicToiletLine(toilet) {
     const extras = [toilet.keyRequired && 'MLAK key', toilet.changingPlaces && 'Changing Places', toilet.paid && 'paid'].filter(Boolean);
     return `Accessible public toilet about ${m}\u00a0m away${extras.length ? ` · ${extras.join(' · ')}` : ''}`;
 }
+
+/** "Hours: 9am-5pm", "Open 24 hours", "Hours vary", or null. */
+export function publicToiletHours(hours) {
+    const text = typeof hours === 'string' ? hours.trim() : '';
+    if (!text) return null;
+    if (/^variable/i.test(text)) return 'Hours vary';
+    if (/^24 ?hours$/i.test(text)) return 'Open 24 hours';
+    return `Hours: ${text}`;
+}

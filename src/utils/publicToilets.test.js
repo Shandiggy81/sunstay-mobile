@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { nearestAccessibleToilet, publicToiletLine, PUBLIC_TOILET_CREDIT } from './publicToilets.js';
+import { nearestAccessibleToilet, publicToiletHours, publicToiletLine, PUBLIC_TOILET_CREDIT } from './publicToilets.js';
 import { parseCsv } from './csv.js';
 
 const rows = [
@@ -49,4 +49,12 @@ test('CSV parser handles quotes, commas, doubled quotes and CRLF', () => {
         { a: '1', b: 'x, y', c: 'say "hi"' },
         { a: '2', b: 'line\nbreak', c: '' },
     ]);
+});
+
+test('hours read naturally', () => {
+    assert.equal(publicToiletHours('Variable hours'), 'Hours vary');
+    assert.equal(publicToiletHours('24 hours'), 'Open 24 hours');
+    assert.equal(publicToiletHours('9am-5pm'), 'Hours: 9am-5pm');
+    assert.equal(publicToiletHours(''), null);
+    assert.equal(publicToiletHours(undefined), null);
 });
