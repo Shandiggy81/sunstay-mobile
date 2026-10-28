@@ -55,6 +55,7 @@ import { forecastKindAt } from '../utils/venueFilters';
 import { scoreDisplayState } from '../utils/scoreDisplay.js';
 import { venueAccessFacts } from '../utils/venueAccess.js';
 import { liveWarmthNote } from '../utils/venueFeaturePin.js';
+import { venueShareMessage, venueShareUrl } from '../utils/venueLink.js';
 import { usePublicAccessibleToilet } from '../hooks/usePublicAccessibleToilet.js';
 import { venueOfferings } from '../utils/venueOfferings';
 import { tonightFeel } from '../utils/tonightFeel.js';
@@ -252,12 +253,16 @@ function useVenueShare(venue) {
     if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
   }, []);
 
+  // Share SunStay's own link to this venue (?venue=<id>), so the person it's
+  // sent to lands on the venue in SunStay, not on the venue's website.
+  const venueId = venue?.id;
   const share = useCallback(async () => {
-    if (!websiteUrl) return;
-    const title = venue?.name || venue?.venueName || '';
+    if (venueId == null || typeof window === 'undefined') return;
+    const url = venueShareUrl(window.location.href, venueId);
+    const { title, text } = venueShareMessage(venue);
     try {
       if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-        await navigator.share({ title, text: 'Check out this spot on Sunstay!', url: websiteUrl });
+        await navigator.share({ title, text, url });
         return;
       }
     } catch (err) {
@@ -265,17 +270,17 @@ function useVenueShare(venue) {
     }
     try {
       if (typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function') {
-        await navigator.clipboard.writeText(websiteUrl);
-        setShareLabel('Copied!');
+        await navigator.clipboard.writeText(url);
+        setShareLabel('Link copied');
         if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
         copiedTimerRef.current = setTimeout(() => setShareLabel('Share'), 2000);
       }
     } catch {
       // Soft fail when clipboard is unavailable.
     }
-  }, [websiteUrl, venue?.name, venue?.venueName]);
+  }, [venueId, venue]);
 
-  return { share, shareLabel, canShare: Boolean(websiteUrl), websiteUrl };
+  return { share, shareLabel, canShare: venueId != null, websiteUrl };
 }
 
 // Saved venues live on this device only; there is no account to sync them to.
@@ -329,7 +334,7 @@ const footerPrimaryClass =
   `${footerActionClass} flex-[1.5] bg-amber-500 text-slate-950 shadow-[0_2px_10px_rgba(245,158,11,0.35)]`;
 
 function VenueCardFooterActions({ venue, canNavigate, share }) {
-  const { share: handleShare, shareLabel, websiteUrl } = share;
+  const { share: handleShare, shareLabel, websiteUrl, canShare } = share;
   const destLat = Number(venue?.lat);
   const destLng = Number(venue?.lng);
   const directionsUrl = canNavigate
@@ -365,9 +370,9 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
       <button
         type="button"
         onClick={handleShare}
-        disabled={!websiteUrl}
+        disabled={!canShare}
         className={`${footerSecondaryClass} disabled:pointer-events-none disabled:opacity-40`}
-        aria-label={shareLabel === 'Copied!' ? 'Copied!' : 'Share venue'}
+        aria-label={shareLabel === 'Share' ? 'Share venue' : shareLabel}
       >
         <Share2 size={15} aria-hidden="true" />
         {shareLabel}

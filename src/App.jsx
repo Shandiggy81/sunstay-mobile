@@ -10,6 +10,7 @@ import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { scoreDisplayState } from './utils/scoreDisplay.js';
 import { liveWarmthNote } from './utils/venueFeaturePin.js';
+import { readVenueLinkId, resolveVenueLink, venueLinkUrl, venueUrlChange } from './utils/venueLink.js';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
 import { homesEmptyState, includeNonStayResults } from './utils/propertyResults.js';
 import { FOOD_TYPE_FILTERS, isFoodTypeFilter, matchesFoodTypeFilters } from './utils/venueFoodType';
@@ -548,7 +549,7 @@ VenueChip.displayName = 'VenueChip';
 
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
-    const [splashDone, setSplashDone] = useState(() => readHotelSunReportId(window.location.search) !== null || hasSeenSplash());
+    const [splashDone, setSplashDone] = useState(() => readHotelSunReportId(window.location.search) !== null || readVenueLinkId(window.location.search) !== null || hasSeenSplash());
     const { weather, loading: weatherLoading, calculateSunScore, previewMinutes } = useWeather();
     const { venues, refetch, isRefreshing, isLoading: venuesLoading, source: venueSource, error: venueError } = useVenues();
     // Let useVenues start its live lookup before declaring a shared ID missing.
@@ -1053,6 +1054,55 @@ const AppContent = () => {
         setSelectedVenue(null);
         setVenueCardLowered(false);
         setVenueSheetDragging(false);
+    }, []);
+
+    // Shareable venue links (?venue=<id>, utils/venueLink.js): a link opens
+    // that card once the live venue list is in; the address bar follows the
+    // open card, and the phone's back gesture closes it.
+    const [linkVenueId, setLinkVenueId] = useState(() => readVenueLinkId(window.location.search));
+    const venueLink = useMemo(
+        () => resolveVenueLink({ id: linkVenueId, venues, loading: venuesLoading, lookupStarted: venueLookupStarted }),
+        [linkVenueId, venues, venuesLoading, venueLookupStarted],
+    );
+    useEffect(() => {
+        if (venueLink.status === 'found') {
+            handleVenueSelect(venueLink.venue);
+            setLinkVenueId(null);
+        } else if (venueLink.status === 'missing') {
+            window.history.replaceState(window.history.state, '', venueLinkUrl(window.location.href, null));
+            setLinkVenueId(null);
+        }
+    }, [venueLink, handleVenueSelect]);
+    const selectedVenueId = selectedVenue?.id ?? null;
+    useEffect(() => {
+        if (linkVenueId) return; // a shared link is still opening; keep its ?venue
+        const change = venueUrlChange({
+            href: window.location.href,
+            openId: selectedVenueId,
+            cardEntry: Boolean(window.history.state?.venueCardEntry),
+        });
+        if (!change) return;
+        if (change.action === 'push') window.history.pushState({ ...window.history.state, venueCardEntry: true }, '', change.url);
+        else if (change.action === 'replace') window.history.replaceState(window.history.state, '', change.url);
+        else window.history.back();
+    }, [selectedVenueId, linkVenueId]);
+    const venuesRef = useRef(venues);
+    useEffect(() => { venuesRef.current = venues; }, [venues]);
+    useEffect(() => {
+        const syncCardFromUrl = () => {
+            const id = readVenueLinkId(window.location.search);
+            if (!id) {
+                setSelectedVenue(null);
+                setVenueCardLowered(false);
+                setVenueSheetDragging(false);
+                return;
+            }
+            setSelectedVenue(prev => (prev && String(prev.id) === id)
+                ? prev
+                : venuesRef.current.find(v => String(v.id) === id) ?? prev);
+        };
+        window.addEventListener('popstate', syncCardFromUrl);
+        return () => window.removeEventListener('popstate', syncCardFromUrl);
     }, []);
 
     const handleCenterOnMap = useCallback((venue) => {

@@ -81,7 +81,7 @@ export function VenueHero({
             onClick={onShare}
             disabled={!canShare}
             className={`${roundButton} disabled:opacity-50`}
-            aria-label={shareLabel === 'Copied!' ? 'Link copied' : 'Share venue'}
+            aria-label={shareLabel === 'Share' ? 'Share venue' : shareLabel}
           >
             <Share2 size={18} strokeWidth={2.25} />
           </button>
