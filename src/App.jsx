@@ -1352,7 +1352,7 @@ const AppContent = () => {
                     isChatOpen={isChatOpen} onSunnyClick={toggleChat}
                 />}
 
-                <div className={`ss-home-chip-layer ${venueCardOpen ? 'ss-home-chip-layer--hidden' : ''}`}>
+                <div className={`ss-home-chip-layer ${venueCardOpen ? 'ss-home-chip-layer--hidden' : ''}`} role="region" aria-label="Preview time and quick picks">
                     <div className="ss-home-chip-row">
                         <span id="explore-time-controls" />
                         <span className="ss-home-chip-divider" aria-hidden="true" />
@@ -1598,7 +1598,8 @@ const AppContent = () => {
                 {/* Hidden while Filters is open: the fixed bar sat on top of the
                     sheet's "Show N venues" button and swallowed the tap. */}
                 {!mobileMapExpanded && !venueCardOpen && !mobileFilterOpen && (
-                    <div className={`ss-home-sheet-peek ${homeMode === 'after-dark' ? 'ss-home-sheet-peek--after-dark' : ''}`}>
+                    <div className={`ss-home-sheet-peek ${homeMode === 'after-dark' ? 'ss-home-sheet-peek--after-dark' : ''}`}
+                        role="region" aria-label={homeMode === 'after-dark' ? "Tonight's events" : 'Venues'}>
                     <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                     <motion.div
                         role="button" tabIndex={0} aria-label={homeMode === 'after-dark' ? "Show tonight's events" : 'Show venue list'} aria-expanded={sheetExpanded}
