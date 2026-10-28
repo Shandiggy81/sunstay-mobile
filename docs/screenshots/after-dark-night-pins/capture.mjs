@@ -1,5 +1,5 @@
 // Browser-only fixture checks. All external requests are fulfilled or blocked.
-// Run from the repository root: node docs/screenshots/after-dark-map-space/capture.mjs after
+// Run from the repository root: node docs/screenshots/after-dark-night-pins/capture.mjs after
 import assert from 'node:assert/strict';
 import {pinProbePlugin} from './pin-probe.mjs';
 import fs from 'node:fs/promises';
