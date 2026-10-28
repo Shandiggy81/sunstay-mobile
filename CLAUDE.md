@@ -114,6 +114,11 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - `VITE_OPENWEATHER_KEY` — OpenWeatherMap cloud tile layer on the map
 - `VITE_OPENAQ_API_KEY`, `VITE_OPENUV_API_KEY`, `VITE_TOMORROW_API_KEY` — optional detail-card data
 - Keyless: Open-Meteo forecast and air quality.
+- Netlify Edge Function `netlify/edge-functions/venue-preview.js` (logic and tests in
+  `src/utils/venuePreviewMeta.js`): for crawler user agents only, it fills a `/?venue=<id>` link's
+  title and description from Supabase so link previews name the venue. It reads `VITE_SUPABASE_URL`
+  and `VITE_SUPABASE_ANON_KEY` at runtime, so those Netlify variables need the Functions scope;
+  without them, or on any error, crawlers get the general card.
 - Stripe: Not currently verified in the repository.
 - Airtable: Not currently verified in the repository (mentioned only in a code comment in `src/data/demoVenues.js`).
 - Supabase Auth in the main app: Not currently verified in the repository.
