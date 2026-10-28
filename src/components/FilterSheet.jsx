@@ -32,6 +32,14 @@ const FilterSheet = ({
     const safeActiveFilters = Array.isArray(activeFilters) ? activeFilters : [];
     const safeCustomFilters = Array.isArray(customFilters) ? customFilters : [];
 
+    // Escape closes the sheet, like the other dialogs.
+    React.useEffect(() => {
+        if (!isOpen) return undefined;
+        const onKeyDown = event => { if (event.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [isOpen, onClose]);
+
     // Let the overlay's z-index apply above the venue list, outside .ss-main.
     return createPortal(
         <AnimatePresence>
@@ -50,9 +58,10 @@ const FilterSheet = ({
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                         className="ss-filter-sheet"
+                        role="dialog" aria-labelledby="ss-filter-sheet-title"
                     >
                         <div className="ss-filter-sheet-head">
-                            <h3>Filters</h3>
+                            <h3 id="ss-filter-sheet-title">Filters</h3>
                             {safeActiveFilters.length > 0 && (
                                 <button type="button" onClick={onClearAll} className="ss-filter-sheet-clear">Clear all</button>
                             )}

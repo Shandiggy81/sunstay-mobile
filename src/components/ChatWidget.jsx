@@ -470,7 +470,8 @@ const ChatWidget = ({
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
           className="fixed bottom-24 right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
         >
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col" style={{ maxHeight: '85dvh' }}>
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col" style={{ maxHeight: '85dvh' }}
+            role="dialog" aria-labelledby="ss-sunny-chat-title">
 
             {/* ── Header ── */}
             <div className={`bg-gradient-to-r ${mood.gradient} px-5 py-4 flex items-center justify-between flex-shrink-0`}>
@@ -489,7 +490,7 @@ const ChatWidget = ({
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-white font-black text-base tracking-tight leading-none mb-1">Sunny · Weather Guide</h3>
+                  <h3 id="ss-sunny-chat-title" className="text-white font-black text-base tracking-tight leading-none mb-1">Sunny · Weather Guide</h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse border border-white/20"></span>
                     <span className="text-white/90 text-xs font-bold uppercase tracking-widest">{mood.label}</span>
@@ -516,7 +517,8 @@ const ChatWidget = ({
             )}
 
             {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white min-h-0">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white min-h-0"
+              role="log" aria-label="Conversation with Sunny">
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}

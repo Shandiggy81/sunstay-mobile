@@ -54,7 +54,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
     const summary = headerWeatherSummary(weather, { windView, comfort });
 
     return (
-        <motion.div
+        <motion.header
             initial={reducedMotion ? false : { y: -16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={reducedMotion ? { duration: 0 } : { duration: 0.2 }}
@@ -64,7 +64,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
                 <img src={headerLogo} alt="Sunstay" width={LOGO_W} height={LOGO_H}
                     draggable={false} decoding="async" className="ss-map-first-brand" />
                 <div className="ss-map-first-search-column">
-                    <div className="ss-map-first-search-pill">
+                    <div className="ss-map-first-search-pill" role="search">
                         <Search size={16} aria-hidden="true" className="ss-map-first-search-icon" />
                         <input type="text" inputMode="search" aria-label="Search venues" placeholder="Find me a sunny spot…"
                             role="combobox" aria-autocomplete="list" aria-expanded={showSuggestions} aria-controls={listboxId}
@@ -135,7 +135,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
                     </div>)}
                 </dl>
             ) : null}
-        </motion.div>
+        </motion.header>
     );
 };
 
