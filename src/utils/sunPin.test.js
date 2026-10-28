@@ -10,6 +10,27 @@ describe('sunTier', () => {
 });
 
 describe('sunPinView', () => {
+    it('After Dark hides scores in visible and accessible text, across pin states', () => {
+        for (const score of [0, 38, 50, 90, null, NaN]) {
+            for (const pinKey of ['default', 'heater', 'cozy', 'rain', 'cold', 'windy']) {
+                for (const selected of [false, true]) {
+                    const view = sunPinView({ score, pinKey, selected, highlighted: true, nightMode: true });
+                    assert.doesNotMatch(view.scoreText, /\d/);
+                    assert.equal(view.label, 'After dark');
+                }
+            }
+        }
+        assert.equal(sunPinView({ score: 50, nightMode: true }).scoreText, '🌙');
+        assert.equal(sunPinView({ score: 50, pinKey: 'heater', nightMode: true }).scoreText, '🔥');
+    });
+
+    it('explicit Sun mode is identical to existing behavior, including natural night and selection', () => {
+        for (const score of [0, 38, 50, 90, null]) for (const night of [false, true]) {
+            const input = { score, night, selected: true, iconUrl: '/coffee.webp' };
+            assert.deepEqual(sunPinView({ ...input, nightMode: false }), sunPinView(input));
+        }
+    });
+
     it('shows the venue icon and the same rounded score as its accessible label', () => {
         const v = sunPinView({ score: 91.6, emoji: '🍺' });
         assert.equal(v.tier, 'full');
