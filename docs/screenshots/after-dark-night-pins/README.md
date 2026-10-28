@@ -35,6 +35,6 @@ verified here; the pin renderer's pixel equality was verified directly.
 
 Run `node docs/screenshots/after-dark-night-pins/capture.mjs after` from the repo
 root (local port 5220, `/usr/bin/chromium`, overridable with
-`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`). The baseline `before` run used main before
-editing. The Vite plugin exports private renderer functions only for the test
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`). The `before` test-server transform uses the original renderer and helper from
+base `5904162` for a reproducible baseline. The Vite plugin exports private renderer functions only for the test
 server; production exports are unchanged. No merge or deployment performed.
