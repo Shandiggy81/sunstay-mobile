@@ -48,7 +48,7 @@ async function openFilters(page) {
 test('app loads and the venue list opens', async ({ page }) => {
   await openList(page);
   await expect(count(page)).toHaveText(/^[1-9]\d* results$/);
-  await expect(page.getByRole('textbox', { name: 'Search venues', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Search venues', exact: true })).toBeVisible();
 });
 
 test('Filters sits above the expanded list and its buttons receive taps', async ({ page }, testInfo) => {
