@@ -15,7 +15,7 @@ function EventRow({ event, weather, venues }) {
     return (
         <article className="ss-after-dark-event" aria-label={title}>
             <div className="ss-after-dark-event-head">
-                <time className="ss-after-dark-time" dateTime={event.start} title="Melbourne time" aria-label={time}>
+                <time className="ss-after-dark-time" dateTime={event.start} title="Melbourne time">
                     <span>{time.replace(/(am|pm)$/, '')}</span><small>{time.slice(-2).toUpperCase()}</small>
                 </time>
                 <div className="ss-after-dark-event-title">

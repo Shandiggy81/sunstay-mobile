@@ -1,7 +1,8 @@
 /* Presentation only: marker ownership, positioning and selection stay in VenueMap. */
 .ss-sun-pin {
   min-width: 44px;
-  min-height: 44px;
+  /* Set from the map pitch in VenueMap (pinHitHeight) so the tilted pin stays 44px tall on screen. */
+  min-height: var(--ss-pin-hit-height, 44px);
   justify-content: flex-end;
 }
 
