@@ -10,6 +10,11 @@ export default defineConfig({
         open: true,
     },
     publicDir: 'public',
+    // Netlify build context and commit for Sentry (src/utils/sentryEnvironment.js).
+    define: {
+        __NETLIFY_CONTEXT__: JSON.stringify(process.env.CONTEXT ?? ''),
+        __COMMIT_REF__: JSON.stringify(process.env.COMMIT_REF ?? ''),
+    },
     build: {
         rollupOptions: {
             output: {
