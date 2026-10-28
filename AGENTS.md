@@ -140,3 +140,14 @@ header says what happened: `venue`, `not-found`, `unavailable` or `unconfigured`
 curl -s -A 'facebookexternalhit/1.1' -D - 'https://sunstayglobal30.netlify.app/?venue=dv-01' \
   | grep -iE 'x-sunstay-link-preview|og:title'
 ```
+
+## Accessibility scan
+
+Inject axe-core into a deploy preview with Playwright at 390×844, after removing
+the Netlify drawer (`[data-netlify-deploy-id], iframe[title="Netlify Drawer"]`).
+Run it with the tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` and
+`best-practice`. Since #271 the result is **0 violations** on home, list, venue
+card, Filters, After Dark and the Sunny chat, so treat any new one as a
+regression. Color-contrast "needs review" items come from translucent layers
+and are expected. Map pins should measure at least 44 px tall on screen after
+the camera flies in at 45° pitch (`getBoundingClientRect` on `.ss-sun-pin`).

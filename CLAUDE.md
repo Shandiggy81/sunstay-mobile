@@ -39,7 +39,14 @@ JavaScript/JSX. npm with `package-lock.json`. Hosted on Netlify (`netlify.toml`,
 - `index.html` → `src/main.jsx`: Sentry init → `watchSessionCrashes` → `<App/>` in `StrictMode`.
 - `src/App.jsx`: `WeatherProvider` > `MicroclimateProvider` > `AppErrorBoundary` > `AppContent`,
   with `NetworkErrorModal` alongside. No router; panels and sheets are toggled with React state.
-  `FilterSheet` and `OwnerDashboard` are loaded with `React.lazy`. Venue lists use `react-virtuoso`.
+  `FilterSheet`, `OwnerDashboard`, `HotelSunReport` and `VenueMap` are loaded with `React.lazy`.
+  VenueMap (and mapbox-gl, ~450 KB gzipped) is kept out of the startup bundle so the top bar, sheet
+  and list paint first; App's map calls are all optional (`mapRef.current?.…`). Venue lists use `react-virtuoso`.
+- Search: `src/utils/searchText.js` folds case, accents, straight and curly apostrophes, "&" and
+  punctuation for both the suggestions (`searchSuggestions.js`) and the list (`venueMatchesSearch`).
+  `searchMatchMode` matches as typed, and allows typo matches only when nothing matches as typed. A
+  suburb with fewer than 10 venues of its own also runs the Mapbox place lookup, so the list shows
+  the venues near it.
 - State: React state and props, plus `WeatherContext` (Open-Meteo, Melbourne CBD, localStorage cache)
   and `MicroclimateContext`. No Redux/Zustand/React Query.
 - Venues: `useVenues` starts with `src/data/demoVenues.js` and replaces it with Supabase `venues`
@@ -70,10 +77,17 @@ Read this section and the helpers below before editing the map.
   5 s cooldown; a second context loss locks the session. A resume creates a new generation and
   restores the camera with `jumpTo`.
 - `MapErrorBoundary` is separate: it catches React render errors and retries once after 3 s.
+- Pins and clusters are map-aligned, so they tilt with the pitch. Their hit boxes use
+  `--ss-pin-hit-height` from `pinHitHeight(pitch)` (`src/utils/sunPin.js`), set on load and `pitchend`,
+  which keeps them 44 px tall on screen.
 
 ## Monitoring
 - `@sentry/react` is initialised in `src/main.jsx`. It sends only when `VITE_SENTRY_DSN` is set;
   otherwise a placeholder DSN keeps it disabled. Global error and unhandled-rejection handlers are on.
+- Sentry `environment` is Netlify's build `CONTEXT` (`production`, `deploy-preview`, `branch-deploy`),
+  and `release` is `sunstay@<commit>`. Both come through the Vite `define` constants
+  `__NETLIFY_CONTEXT__` and `__COMMIT_REF__` (`src/utils/sentryEnvironment.js`). Local and e2e builds
+  use Vite's mode. Filter issues to `environment:production` for real users.
 - `src/utils/sessionCrashWatch.js` keeps a sessionStorage flag (`ss-session-open`) that is cleared on
   `pagehide`. On the next load, a leftover flag is reported to Sentry: `foreground` as a fatal
   "Abnormal Session Termination (Possible Jetsam Kill)", `background` as an info "Background tab evicted".
@@ -119,6 +133,10 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
   title and description from Supabase so link previews name the venue. It reads `VITE_SUPABASE_URL`
   and `VITE_SUPABASE_ANON_KEY` at runtime, so those Netlify variables need the Functions scope;
   without them, or on any error, crawlers get the general card.
+- Startup hints: a small plugin in `vite.config.js` (`src/utils/preconnect.js`) adds
+  `<link rel="preconnect">` for api.mapbox.com and the `VITE_SUPABASE_URL` origin. `netlify.toml`
+  caches hashed `/assets/*.{js,css,png,jpg,webp,woff2,woff}` as immutable. `public/robots.txt` is
+  committed through a `!public/robots.txt` exception to `.gitignore`'s `*.txt` rule.
 - Stripe: Not currently verified in the repository.
 - Airtable: Not currently verified in the repository (mentioned only in a code comment in `src/data/demoVenues.js`).
 - Supabase Auth in the main app: Not currently verified in the repository.
