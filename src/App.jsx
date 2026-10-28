@@ -9,6 +9,7 @@ import { lookupMicroclimateEntry, markerScoreFromMicroclimate, readMicroclimate 
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { scoreDisplayState } from './utils/scoreDisplay.js';
+import { liveWarmthNote } from './utils/venueFeaturePin.js';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
 import { homesEmptyState, includeNonStayResults } from './utils/propertyResults.js';
 import { FOOD_TYPE_FILTERS, isFoodTypeFilter, matchesFoodTypeFilters } from './utils/venueFoodType';
@@ -213,7 +214,7 @@ const CafeRowSunGraph = memo(function CafeRowSunGraph({ sun }) {
     );
 });
 
-const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys, isHighlighted = false, onVenueHover, horizon = null, isNight = false, isRain = false }) => {
+const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys, isHighlighted = false, onVenueHover, horizon = null, isNight = false, isRain = false, liveNote = null }) => {
     // Read from context: the list never passed this prop, so venues without a
     // microclimate profile showed no badge.
     const { calculateSunScore, unavailable: weatherUnavailableFlag, error: weatherError } = useWeather();
@@ -299,7 +300,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             onPointerLeave={unhover('pointer')}
             onFocus={hover('focus')}
             onBlur={unhover('blur')}
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? (badgeState === 'night' ? ' Sun score not shown after dark.' : badgeState === 'rain' ? ' Sun score not shown while it rains.' : ` Sun score ${sunstayScore} out of 100.`) : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''}${liveNote ? ` ${liveNote}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? (badgeState === 'night' ? ' Sun score not shown after dark.' : badgeState === 'rain' ? ' Sun score not shown while it rains.' : ` Sun score ${sunstayScore} out of 100.`) : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
             className={`ss-venue-list-card ${!isStay ? 'ss-explore-row' : ''} ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
             id={`venue-list-${venue.id}`}
         >
@@ -347,6 +348,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                     {rowSun ? <span className="ss-vlc-sun-text">{cafeSunLine}<small>At the venue point · clear day</small></span> : <span className="ss-vlc-sun-text ss-vlc-sun-text--pending" />}
                 </div>
             )}
+            {liveNote && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name="fireplace" size={22} />{liveNote}</p>}
             {momentMatch && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={momentMatch.icon} size={22} />{momentMatch.text}</p>}
             {!(stayMoment && isStay) && visibleChips.length > 0 && (
                 <ul className="ss-vlc-chips" aria-hidden="true">
@@ -403,7 +405,7 @@ const LiveVenueList = memo(function LiveVenueList({
     onLoadMore,
     stayMoment, comparedIds = [], onCompare,
     activeFilters, sunMomentsById,
-    highlightedVenueId = null, onVenueHover, sunHorizons = null, isNight = false, isRain = false,
+    highlightedVenueId = null, onVenueHover, sunHorizons = null, isNight = false, isRain = false, liveVenueFeatures = null,
 }) {
     if (venues.length === 0) {
         return (
@@ -452,6 +454,7 @@ const LiveVenueList = memo(function LiveVenueList({
                             horizon={sunHorizons?.get(String(venue.id)) ?? null}
                             isNight={isNight}
                             isRain={isRain}
+                            liveNote={liveWarmthNote(liveVenueFeatures?.[venue.id])}
                         />
                     </div>
                 )}
@@ -1379,6 +1382,7 @@ const AppContent = () => {
                                         sunHorizons={sunHorizons}
                                         isNight={cityNight}
                                         isRain={cityRain}
+                                        liveVenueFeatures={liveVenueFeatures}
                                         weather={weather}
                                         activeFilters={activeFilters}
                                         sunMomentsById={sunMomentsById}
@@ -1653,6 +1657,7 @@ const AppContent = () => {
                                             sunHorizons={sunHorizons}
                                             isNight={cityNight}
                                             isRain={cityRain}
+                                            liveVenueFeatures={liveVenueFeatures}
                                             weather={weather}
                                             activeFilters={activeFilters}
                                             sunMomentsById={sunMomentsById}

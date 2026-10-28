@@ -5,11 +5,11 @@ import { X } from 'lucide-react';
 import FohWeatherWidget from './FohWeatherWidget.jsx';
 import PartnerSunToday from './PartnerSunToday.jsx';
 import ClayIcon from './common/ClayIcon.jsx';
+import { ownerSwitchDefaults } from '../utils/venueFeaturePin.js';
 import { partnerStatusGroups, partnerSunHint, partnerTagIcon, partnerTagSuggestions, partnerType } from '../utils/partnerVenueControls.js';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABELS = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
-const booleanFromVenue = (value, fallback) => typeof value === 'boolean' ? value : !!fallback;
 const PREVIEW_NOTE = 'Preview updated on this device';
 
 function StatusTile({ label, icon, value, onChange }) {
@@ -42,13 +42,9 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     // Tags from the last "Preview tags", kept on this device; they drive the switches below.
     const [previewedTags, setPreviewedTags] = useState(null);
     const live = liveVenueFeatures?.[venueId] ?? {};
-    const [status, setStatus] = useState(() => ({
-        sunshineNow: booleanFromVenue(live.sunshineNow, venue.sunshineNow),
-        heatersOn: booleanFromVenue(live.heatersOn, booleanFromVenue(venue.heatersOn, venue.hasHeaters)),
-        fireplaceOn: booleanFromVenue(live.fireplaceOn, booleanFromVenue(venue.fireplaceOn, venue.hasFireplace)),
-        hasUmbrellas: booleanFromVenue(live.hasUmbrellas, venue.hasUmbrellas),
-        hasWindProtection: booleanFromVenue(live.hasWindProtection, venue.hasWindProtection),
-    }));
+    // Live switches start from what was set on this device only: owning a
+    // fireplace doesn't mean it's lit, and stored row values aren't live.
+    const [status, setStatus] = useState(() => ownerSwitchDefaults(live));
     const groups = partnerStatusGroups(venue, previewedTags);
     const sunHint = partnerSunHint(venue, previewedTags);
     const suggestions = partnerTagSuggestions(venue);
