@@ -20,7 +20,6 @@ import { DEFAULT_TIME_ZONE, venueLocalDate } from './utils/balconySunEngine';
 import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
 import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
-import VenueMap from './components/Map/VenueMap';
 import AfterDarkPanel from './components/AfterDarkPanel.jsx';
 import HomeSheetMode from './components/HomeSheetMode.jsx';
 import { useAfterDarkEvents } from './hooks/useAfterDarkEvents.js';
@@ -88,6 +87,11 @@ import { rowSunAxis, rowSunLine } from './utils/cafeRowSun.js';
 import { isHoverPointer, isKeyboardFocus, nextHighlightedVenueId, sameVenueId } from './utils/listMapPairing.js';
 import { ROW_SUN_FAILED, setCafeRowSunScrolling, useCafeRowSun, useMinuteNow } from './hooks/useCafeRowSun.js';
 
+// Mapbox GL is ~450 KB gzipped. Loading the map as its own chunk lets the top
+// bar, sheet and list paint while it downloads, instead of the whole app
+// waiting for it. The download starts on the first render (the map mounts
+// under the splash), and a failed download stays inside MapErrorBoundary.
+const VenueMap = lazy(() => import('./components/Map/VenueMap'));
 const FilterSheet = lazy(() => import('./components/FilterSheet'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
 const HotelSunReport = lazy(() => import('./components/HotelSunReport.jsx'));
@@ -1454,7 +1458,7 @@ const AppContent = () => {
                             onPointerCancelCapture={endPreviewMapGesture}
                         >
                             <MapErrorBoundary>
-                                <Suspense fallback={<div className="p-4 text-center">Loading map...</div>}>
+                                <Suspense fallback={<div className="ss-map-loading" role="status">Loading map…</div>}>
                                     <VenueMap
                                         ref={mapRef}
                                         venues={venues}

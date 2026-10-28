@@ -3201,6 +3201,18 @@ body,
   position: relative;
 }
 
+/* Shown while the lazy-loaded map chunk downloads (App.jsx). */
+.ss-map-loading {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 /* ── MapView internal ──────────────────────────────────── */
 
 .ss-mapview-root {
