@@ -42,3 +42,20 @@
   for = "/assets/*.jpg"
 [headers.values]
   Cache-Control = "public, max-age=31536000, immutable"
+
+# Clay icons (webp) and the Plus Jakarta Sans files (@fontsource) are hashed
+# too. Without these rules every visit revalidated ~90 icons and 6 fonts.
+[[headers]]
+  for = "/assets/*.webp"
+[headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.woff2"
+[headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.woff"
+[headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"

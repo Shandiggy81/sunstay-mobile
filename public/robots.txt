@@ -1,0 +1,3 @@
+# SunStay is public: crawlers are welcome.
+User-agent: *
+Allow: /
