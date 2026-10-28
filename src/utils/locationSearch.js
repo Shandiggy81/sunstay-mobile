@@ -5,6 +5,7 @@
  * venues.
  */
 import { MAX_BOUNDS } from '../config/mapBounds.js';
+import { foldSearchText, searchWords, wordsNear } from './searchText.js';
 
 // Victorian street postcodes (3000–3999). PO-box ranges (8000s) aren't used in venue addresses.
 const POSTCODE = /\b(3\d{3})\b/g;
@@ -39,22 +40,47 @@ export function parseSearchQuery(raw) {
 /**
  * Does the venue match the search? A postcode matches the venue's postcode
  * (or, with suburb text too, either one). City aliases match CBD venues.
- * Other text matches the name, suburb or venue type, as before.
+ * Other text matches the name, suburb or venue type. Text is folded first
+ * (src/utils/searchText.js), so "grilld", "Grill’d" (iOS's curly apostrophe),
+ * "mork" and "bar and cafe" match "Grill'd", "Mörk" and "Bar & Café".
+ * With `fuzzy`, words may be a typo away from the name or suburb instead
+ * (searchMatchMode turns that on only when nothing matches as typed).
  *
  * @param {object} venue
  * @param {ReturnType<typeof parseSearchQuery>} q
  * @param {(vibe: string) => string} [typeLabel] maps a vibe to its display label
+ * @param {{ fuzzy?: boolean }} [options]
  */
-export function venueMatchesSearch(venue, q, typeLabel = (v) => v) {
+export function venueMatchesSearch(venue, q, typeLabel = (v) => v, { fuzzy = false } = {}) {
     if (!q || (!q.text && !q.postcode)) return true;
-    const suburb = String(venue?.suburb ?? '').toLowerCase();
+    const suburb = foldSearchText(venue?.suburb);
     if (q.postcode && venuePostcode(venue) === q.postcode) return true;
-    const name = String(venue?.name ?? venue?.venueName ?? '').toLowerCase();
-    if (q.city) return suburb === 'cbd' || (suburb === 'melbourne' && venuePostcode(venue) === '3000') || name.includes(q.text);
-    if (!q.text) return false;
+    const name = foldSearchText(venue?.name ?? venue?.venueName);
+    const text = foldSearchText(q.text);
+    if (q.city) return suburb === 'cbd' || (suburb === 'melbourne' && venuePostcode(venue) === '3000') || (text !== '' && name.includes(text));
+    if (!text) return false;
+    if (fuzzy) {
+        const words = searchWords(text);
+        return wordsNear(words, searchWords(name)) || wordsNear(words, searchWords(suburb));
+    }
     const vibeRaw = venue?.vibe ?? '';
-    const vibe = `${vibeRaw} ${typeLabel(vibeRaw) ?? ''}`.toLowerCase();
-    return name.includes(q.text) || suburb.includes(q.text) || vibe.includes(q.text);
+    const type = foldSearchText(`${vibeRaw} ${typeLabel(vibeRaw) ?? ''} ${venue?.typeLabel ?? ''}`);
+    return name.includes(text) || suburb.includes(text) || type.includes(text);
+}
+
+/**
+ * How the list should match a search: as typed, or, when nothing matches as
+ * typed, by close spelling ("wonderlnad", "fitzory"). Postcodes, the city
+ * and searches under 4 letters are only ever matched as typed.
+ *
+ * @returns {{ fuzzy: boolean, count: number }}
+ */
+export function searchMatchMode(venues, q, typeLabel = (v) => v) {
+    if (!q?.raw || !Array.isArray(venues)) return { fuzzy: false, count: 0 };
+    const exact = venues.filter(v => venueMatchesSearch(v, q, typeLabel)).length;
+    if (exact > 0 || q.postcode || q.city || foldSearchText(q.text).length < 4) return { fuzzy: false, count: exact };
+    const near = venues.filter(v => venueMatchesSearch(v, q, typeLabel, { fuzzy: true })).length;
+    return { fuzzy: near > 0, count: near };
 }
 
 /**

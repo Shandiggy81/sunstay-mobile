@@ -52,3 +52,18 @@ test('caps at six venues and drops exact duplicates', () => {
     const dupes = [{ id: 'a', venueName: 'Same Bar', suburb: 'Carlton' }, { id: 'b', venueName: 'Same Bar', suburb: 'Carlton' }];
     assert.equal(searchSuggestions('same', dupes).venues.length, 1);
 });
+
+test('typos still find the venue or suburb, but only when nothing matches as typed', () => {
+    const venues = [
+        { id: 'wl', venueName: 'Wonderland Bar', suburb: 'Windsor' },
+        { id: 'ws', venueName: 'Wonder sushi Melbourne', suburb: 'CBD' },
+        { id: 'pb', venueName: 'Pond Bar', suburb: 'Fitzroy' },
+        { id: 'os', venueName: 'The Osborne Rooftop & Bar', suburb: 'South Yarra' },
+    ];
+    const names = q => searchSuggestions(q, venues).venues.map(row => row.name);
+    assert.deepEqual(names('wonderlnad'), ['Wonderland Bar']);
+    assert.deepEqual(names('osbourne'), ['The Osborne Rooftop & Bar']);
+    assert.deepEqual(names('wond'), ['Wonderland Bar', 'Wonder sushi Melbourne'], 'exact matches win; no "Pond Bar"');
+    assert.deepEqual(searchSuggestions('fitzory', venues).places, [{ label: 'Fitzroy', count: 1 }]);
+    assert.deepEqual(names('xyzq'), []);
+});
