@@ -58,7 +58,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
             initial={reducedMotion ? false : { y: -16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={reducedMotion ? { duration: 0 } : { duration: 0.2 }}
-            className="ss-explore-topbar ss-map-first-topbar"
+            className={`ss-explore-topbar ss-map-first-topbar ${showSuggestions ? 'ss-map-first-topbar--suggesting' : ''}`}
         >
             <div className="ss-map-first-topbar-row">
                 <img src={headerLogo} alt="Sunstay" width={LOGO_W} height={LOGO_H}
