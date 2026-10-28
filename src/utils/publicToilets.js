@@ -50,5 +50,5 @@ export function publicToiletLine(toilet) {
     if (!toilet) return null;
     const m = toilet.metres < 50 ? Math.max(10, Math.round(toilet.metres / 10) * 10) : Math.round(toilet.metres / 50) * 50;
     const extras = [toilet.keyRequired && 'MLAK key', toilet.changingPlaces && 'Changing Places', toilet.paid && 'paid'].filter(Boolean);
-    return `Accessible public toilet about ${m} m away${extras.length ? ` · ${extras.join(' · ')}` : ''}`;
+    return `Accessible public toilet about ${m}\u00a0m away${extras.length ? ` · ${extras.join(' · ')}` : ''}`;
 }

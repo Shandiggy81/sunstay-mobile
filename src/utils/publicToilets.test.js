@@ -25,11 +25,11 @@ test('nearest accessible toilet within 500 m, with its facilities', () => {
 
 test('line rounds for walking and names the key and Changing Places', () => {
     assert.equal(publicToiletLine(null), null);
-    assert.equal(publicToiletLine({ metres: 17 }), 'Accessible public toilet about 20 m away');
-    assert.equal(publicToiletLine({ metres: 4 }), 'Accessible public toilet about 10 m away');
+    assert.equal(publicToiletLine({ metres: 17 }), 'Accessible public toilet about 20\u00a0m away');
+    assert.equal(publicToiletLine({ metres: 4 }), 'Accessible public toilet about 10\u00a0m away');
     assert.equal(publicToiletLine({ metres: 128, keyRequired: true, changingPlaces: true }),
-        'Accessible public toilet about 150 m away · MLAK key · Changing Places');
-    assert.equal(publicToiletLine({ metres: 310, paid: true }), 'Accessible public toilet about 300 m away · paid');
+        'Accessible public toilet about 150\u00a0m away · MLAK key · Changing Places');
+    assert.equal(publicToiletLine({ metres: 310, paid: true }), 'Accessible public toilet about 300\u00a0m away · paid');
     assert.match(PUBLIC_TOILET_CREDIT, /CC BY 3\.0 AU/);
 });
 

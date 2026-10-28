@@ -330,9 +330,10 @@ export function AccessSection({ access, publicToilet = null }) {
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="text-[16px] font-medium text-slate-800">{publicToiletLine(publicToilet)}</span>
+        {publicToilet.hours ? <span className="text-[13px] font-medium text-slate-600">Hours: {publicToilet.hours}</span> : null}
         <a href={publicToilet.url} target="_blank" rel="noopener noreferrer"
-          className="inline-flex min-h-[44px] items-center text-[13px] font-semibold text-slate-600 underline underline-offset-2">
-          {publicToilet.name}{publicToilet.hours ? ` · ${publicToilet.hours}` : ''}
+          className="inline-flex min-h-[44px] items-center text-[13px] font-semibold text-slate-700 underline underline-offset-2">
+          {publicToilet.name} on the Toilet Map
         </a>
       </span>
     </li>
