@@ -23,11 +23,11 @@
 .ss-app-root .ss-experience-options::-webkit-scrollbar { display: none; }
 .ss-app-root .ss-experience-options > button { flex: 1 0 164px; min-height: 62px; gap: 7px; padding: 9px 13px 9px 9px; border: 1px solid #f0e4ce; border-radius: 999px; background: white; color: var(--color-ink); box-shadow: 0 4px 12px rgba(120,80,20,.07); }
 .ss-app-root .ss-experience-options strong { font-size: 13px; font-weight: 800; }
-.ss-app-root .ss-experience-options small { margin-top: 2px; color: #64748b; font-size: 10px; }
+.ss-app-root .ss-experience-options small { margin-top: 2px; color: #64748b; font-size: 12px; }
 .ss-app-root .ss-experience-options > button[aria-pressed=true] { border-color: var(--color-accent); background: #fff0b7; color: var(--color-ink); box-shadow: 0 0 0 1px var(--color-accent), 0 6px 18px rgba(120,80,20,.1); }
 .ss-app-root .ss-experience-clear { border-radius: 999px; background: #fff3cf; }
-.ss-app-root .ss-experience-finder .ss-discovery-context { font-size: 11px; }
-.ss-app-root .ss-experience-finder .ss-discovery-source { font-size: 10px; }
+.ss-app-root .ss-experience-finder .ss-discovery-context { font-size: 12px; }
+.ss-app-root .ss-experience-finder .ss-discovery-source { font-size: 12px; }
 
 @media (max-width: 380px) {
   .ss-explore-topbar-row { gap: 7px; padding: 8px 12px; }

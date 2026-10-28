@@ -1,5 +1,5 @@
 #explore-time-controls, .ss-map-time-shortcuts { display: inline-flex; align-items: center; flex-shrink: 0; gap: 5px; }
-.ss-map-time-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 44px; padding: 0; flex-shrink: 0; border: 0; border-radius: 999px; background: transparent; color: var(--color-ink); font-size: 11px; font-weight: 700; touch-action: manipulation; }
+.ss-map-time-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 44px; padding: 0; flex-shrink: 0; border: 0; border-radius: 999px; background: transparent; color: var(--color-ink); font-size: 12px; font-weight: 700; touch-action: manipulation; }
 .ss-map-time-chip > span { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 34px; padding: 0 12px; border: 1px solid #eee2cc; border-radius: 999px; background: white; }
 .ss-map-time-chip[aria-pressed=true] > span { border-color: var(--color-ink); background: var(--color-ink); color: white; }
 .ss-map-time-chip:disabled { color: #64748b; opacity: .6; cursor: default; }
