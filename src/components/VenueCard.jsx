@@ -50,6 +50,8 @@ import { venueStatTiles } from '../utils/venueStatTiles.js';
 import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
 import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, isNightAt, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
+import { forecastKindAt } from '../utils/venueFilters';
+import { scoreDisplayState } from '../utils/scoreDisplay.js';
 import { venueOfferings } from '../utils/venueOfferings';
 import { tonightFeel } from '../utils/tonightFeel.js';
 import { keyAmenities } from '../utils/venueAmenities';
@@ -497,6 +499,9 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const nowIcon = hours[0]?.icon ?? weatherIconName(null, { isNight: !forecast.isSunUp });
   // Sun down at the score's time (the scrubber, like the list): show "Night", not 0.
   const nightAtScoreTime = isNightAt(forecast, todMinutes);
+  // Raining at the score's time: the direct-sun number is near 0, so say "Rain".
+  const skyAtScoreTime = forecastKindAt(forecast, todMinutes);
+  const scoreState = scoreDisplayState({ isNight: nightAtScoreTime, skyKind: skyAtScoreTime });
 
   const temp = finite(liveWeather?.main?.temp);
   // Sheltered feels-like at this venue: the same number as its list row.
@@ -632,10 +637,10 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             <span className="min-w-0 flex-1 truncate text-[17px] font-extrabold tracking-[-0.01em] text-slate-900">{displayName}</span>
             <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 py-1 pl-1.5 pr-3">
               <ClayIcon name={nowIcon} size={24} />
-              <span className={`text-[16px] font-extrabold tabular-nums ${!overviewScore.loading && nightAtScoreTime ? 'text-slate-700' : scoreTone(score)}`}>
-                {overviewScore.loading ? '…' : nightAtScoreTime ? 'Night' : formatScore(score)}
+              <span className={`text-[16px] font-extrabold tabular-nums ${!overviewScore.loading && scoreState !== 'score' ? 'text-slate-700' : scoreTone(score)}`}>
+                {overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}
               </span>
-              <span className="sr-only">{!overviewScore.loading && nightAtScoreTime ? 'Sun score not shown after dark' : 'Sun score'}</span>
+              <span className="sr-only">{overviewScore.loading ? 'Sun score' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
             </span>
           </div>
 
@@ -689,7 +694,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     <div className="flex flex-col gap-2.5">
                       <p className="text-[12px] font-semibold text-slate-600">Today · sun &amp; weather estimates · {venueTimeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>
                       <VenueStatRow
-                        tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary, isNight: nightAtScoreTime })}
+                        tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary, isNight: nightAtScoreTime, skyKindAtScore: skyAtScoreTime })}
                         sunny={(outdoorSummary?.kind ?? forecast.now?.kind) === 'sun'}
                       />
                       {sunSection !== 'today' ? (
