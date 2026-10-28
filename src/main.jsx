@@ -13,6 +13,7 @@ import './styles/weather-bg.css'
 import './styles/quick-pills.css'
 import App from './App.jsx'
 import { watchSessionCrashes } from './utils/sessionCrashWatch.js'
+import { sentryEnvironment, sentryRelease } from './utils/sentryEnvironment.js'
 
 // Public client DSN. Set VITE_SENTRY_DSN, or replace this placeholder.
 // The placeholder stays disabled so it does not send. A real DSN turns on
@@ -23,7 +24,9 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN || SENTRY_DSN_PLACEHOLDER
 Sentry.init({
     dsn: sentryDsn,
     enabled: sentryDsn !== SENTRY_DSN_PLACEHOLDER,
-    environment: import.meta.env.MODE,
+    // Deploy previews and branch deploys report under their own environment.
+    environment: sentryEnvironment(__NETLIFY_CONTEXT__, import.meta.env.MODE),
+    release: sentryRelease(__COMMIT_REF__),
     integrations: [
         Sentry.globalHandlersIntegration({
             onerror: true,
