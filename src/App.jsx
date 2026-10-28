@@ -1,6 +1,7 @@
 import './components/ExplorePresentation.css';
 import './components/MapFirstHome.css';
 import { homeSunClause, mapHomeSummary } from './utils/mapHomeSummary.js';
+import { comfortSortLabel, conditionsClause, homeConditions, rankForConditions } from './utils/homeConditions.js';
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
@@ -892,13 +893,18 @@ const AppContent = () => {
     const rankedStays = useMemo(() => staysActive ? listVenues.flatMap(venue => rankStays([venue], { moment: stayMoment, date: /^\d{4}-/.test(stayDate ?? '') ? stayDate : quickStayDate(stayDate || 'today', new Date(), venue.timeZone ?? venue.timezone ?? 'Australia/Melbourne') })).sort(compareStayRank) : [], [staysActive, listVenues, stayMoment, stayDate]);
     const comparisonVenues = useMemo(() => rankedStays.filter(v => comparedIds.includes(v.id)), [rankedStays, comparedIds]);
     const stayPicker = staysActive ? <StaySunPicker moment={stayMoment} date={stayDate} onMoment={setStayMoment} onDate={setStayDate} compareCount={comparisonVenues.length} onCompare={event => { compareTriggerRef.current = event.currentTarget; setCompareOpen(true); }} /> : null;
+    // Wet, cold or windy right now: venues with declared warmth or shelter lead,
+    // sun order within each tier. Fine weather, Stays and an explicit Sunny
+    // filter keep the pure sun order.
+    const homeCondition = useMemo(() => homeConditions(weather), [weather]);
+    const listCondition = staysActive || sunnyFilterActive ? null : homeCondition;
     const sortedVenues = useMemo(
-        () => staysActive ? includeNonStayResults(listVenues, rankedStays) : sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
+        () => staysActive ? includeNonStayResults(listVenues, rankedStays) : rankForConditions(sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
             byId: microById,
             todMinutes: listTodMinutes,
             calculateSunScore,
-        })),
-        [staysActive, rankedStays, listVenues, calculateSunScore, previewMinutes, microById, listTodMinutes]
+        })), listCondition),
+        [staysActive, rankedStays, listVenues, calculateSunScore, previewMinutes, microById, listTodMinutes, listCondition]
     );
     const resultIdentity = useMemo(() => venueResultIdentity(sortedVenues), [sortedVenues]);
     const [visibleVenueCount, setVisibleVenueCount] = useState(INITIAL_VISIBLE_VENUES);
@@ -961,6 +967,11 @@ const AppContent = () => {
     const homeSummary = useMemo(() => mapHomeSummary(listVenues.map(venue => venueDisplayScore(venue, {
         byId: microById, todMinutes: listTodMinutes, calculateSunScore,
     }))), [listVenues, microById, listTodMinutes, calculateSunScore]);
+    // A wet, cold or windy day says so (with the count of declared comfy
+    // venues) instead of "0 in full sun".
+    const conditionClause = useMemo(() => conditionsClause(listVenues, listCondition), [listVenues, listCondition]);
+    const comfortSort = useMemo(() => comfortSortLabel(listVenues, listCondition), [listVenues, listCondition]);
+    const homeClause = conditionClause ?? homeSunClause(homeSummary, cityNight ? 'night' : null);
     const peekDragged = useRef(false);
     const showAllChip = (className) => (
         <button
@@ -1538,7 +1549,7 @@ const AppContent = () => {
                         <span className="ss-home-peek-headline">
                             {homeMode === 'after-dark' ? "Tonight's events" : <>
                             {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} venues`}
-                            {homeSunClause(homeSummary, cityNight ? 'night' : null) && <span> · {homeSunClause(homeSummary, cityNight ? 'night' : null)}</span>}
+                            {homeClause && <span> · {homeClause}</span>}
                             {areaBounds ? showAllChip('-my-3') : null}
                             {ENABLE_MANUAL_VENUE_REFRESH ? (
                                 <VenueRefreshButton
@@ -1585,7 +1596,7 @@ const AppContent = () => {
                                             />
                                         ) : null}
                                     </p>
-                                    {!staysActive && <span className="ss-explore-sort"><ClayIcon name="sun" size={18} />Sunniest first</span>}
+                                    {!staysActive && <span className="ss-explore-sort">{comfortSort ? <><ClayIcon name="indoor-warmth" size={18} />{comfortSort}</> : <><ClayIcon name="sun" size={18} />Sunniest first</>}</span>}
                                     {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
                                     {!isRefreshing && refreshFailureVisible(refreshStatus) ? (
                                         <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
