@@ -1298,6 +1298,7 @@ const AppContent = () => {
                 {!venueCardOpen && <TopBar
                     weather={weather} onFiltersOpen={openMobileFilters} comfort={comfort}
                     searchQuery={searchQuery} onSearchChange={setSearchQuery}
+                    onSearchSubmit={() => { setPreviewVenue(null); if (isMobile) setMobileSheetState('expanded'); }}
                     isChatOpen={isChatOpen} onSunnyClick={toggleChat}
                 />}
 
@@ -1562,7 +1563,7 @@ const AppContent = () => {
                         <div className="ss-mobile-sheet-grab" />
                         <span className="ss-home-peek-headline">
                             {homeMode === 'after-dark' ? "Tonight's events" : <>
-                            {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} venues`}
+                            {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} ${matchingCount === 1 ? 'venue' : 'venues'}`}
                             {homeClause && <span> · {homeClause}</span>}
                             {areaBounds ? showAllChip('-my-3') : null}
                             {ENABLE_MANUAL_VENUE_REFRESH ? (
@@ -1601,7 +1602,7 @@ const AppContent = () => {
                                     {homeMode === 'sun' && <>
                                     <h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="sun" size={30} />Venues</h3>
                                     <p className="inline-flex items-center gap-2">
-                                        {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount} results`}
+                                        {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} ${matchingCount === 1 ? 'result' : 'results'}`}
                                         {areaBounds ? showAllChip('-my-3') : null}
                                         {ENABLE_MANUAL_VENUE_REFRESH ? (
                                             <VenueRefreshButton

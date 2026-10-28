@@ -15,7 +15,7 @@ const LOGO_W = 251;
 const LOGO_H = 192;
 
 /** Floating map controls; all weather, search and Sunny behavior remains shared. */
-const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchChange, isChatOpen, onSunnyClick, selectedVenue }) => {
+const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchChange, onSearchSubmit, isChatOpen, onSunnyClick, selectedVenue }) => {
     const [open, setOpen] = useState(false);
     const reducedMotion = useReducedMotion();
     const detailsId = useId();
@@ -38,6 +38,10 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
                         <Search size={16} aria-hidden="true" className="ss-map-first-search-icon" />
                         <input type="text" inputMode="search" aria-label="Search venues" placeholder="Find me a sunny spot…"
                             value={searchQuery} onChange={event => onSearchChange?.(event.target.value)}
+                            onKeyDown={event => {
+                                // The keyboard's Search key shows the results and drops the keyboard.
+                                if (event.key === 'Enter' && searchQuery.trim()) { event.preventDefault(); event.currentTarget.blur(); onSearchSubmit?.(); }
+                            }}
                             autoComplete="off" spellCheck={false} enterKeyHint="search" />
                         {searchQuery && <button type="button" aria-label="Clear search"
                             className="ss-map-first-search-clear" onClick={() => onSearchChange?.('')}><X size={16} /></button>}
