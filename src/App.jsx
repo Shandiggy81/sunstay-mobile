@@ -277,8 +277,6 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     );
 
     const isStay = isStayVenue(venue);
-    const [photoFailed, setPhotoFailed] = useState(false);
-    const photo = !isStay && [venue.image_url, venue.image].find(value => typeof value === 'string' && value.trim());
 
     // `typeLabel` and `vibe` are both nullable in the venues table, so the
     // subtitle is joined from present parts only — never " · Fitzroy".
@@ -305,14 +303,15 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             className={`ss-venue-list-card ${!isStay ? 'ss-explore-row' : ''} ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
             id={`venue-list-${venue.id}`}
         >
+            {/* The clay icon, never the venue's photo: photos are full-size images
+                hotlinked from venue and media sites (up to 600 KB each for a 64px
+                square) and some aren't the venue's own. The card shows the photo. */}
             <div className="ss-vlc-icon" aria-hidden="true">
-                {photo && !photoFailed ? (
-                    <img src={photo.trim()} alt="" loading="lazy" decoding="async" onError={() => setPhotoFailed(true)} />
-                ) : <VenueIcon icon={venueIcon(venue)} size={isStay ? 36 : 48} />}
+                <VenueIcon icon={venueIcon(venue)} size={isStay ? 36 : 48} />
             </div>
             <div className="ss-vlc-body">
                 <div className="ss-vlc-name">{venue.venueName}</div>
-                {subtitle ? <div className="ss-vlc-sub">{!isStay && <VenueIcon icon={venueIcon(venue)} size={20} />}{subtitle}</div> : null}
+                {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
             </div>
             <div className="ss-vlc-right">
                 {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
