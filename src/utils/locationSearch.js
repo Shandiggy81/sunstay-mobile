@@ -68,19 +68,52 @@ export function venueMatchesSearch(venue, q, typeLabel = (v) => v, { fuzzy = fal
     return name.includes(text) || suburb.includes(text) || type.includes(text);
 }
 
+/** A suburb with fewer venues of its own than this also lists what's near it. */
+export const FEW_VENUES_IN_SUBURB = 10;
+
 /**
  * How the list should match a search: as typed, or, when nothing matches as
  * typed, by close spelling ("wonderlnad", "fitzory"). Postcodes, the city
  * and searches under 4 letters are only ever matched as typed.
  *
- * @returns {{ fuzzy: boolean, count: number }}
+ * `suburb` is set when the search names a suburb with only a few venues of
+ * its own (Fitzroy, outside the City of Melbourne data, has 6). The list then
+ * shows the venues near it, like a place with none (Brighton) does.
+ *
+ * @returns {{ fuzzy: boolean, count: number, suburb: string|null }}
  */
 export function searchMatchMode(venues, q, typeLabel = (v) => v) {
-    if (!q?.raw || !Array.isArray(venues)) return { fuzzy: false, count: 0 };
+    if (!q?.raw || !Array.isArray(venues)) return { fuzzy: false, count: 0, suburb: null };
+    const text = foldSearchText(q.text);
     const exact = venues.filter(v => venueMatchesSearch(v, q, typeLabel)).length;
-    if (exact > 0 || q.postcode || q.city || foldSearchText(q.text).length < 4) return { fuzzy: false, count: exact };
-    const near = venues.filter(v => venueMatchesSearch(v, q, typeLabel, { fuzzy: true })).length;
-    return { fuzzy: near > 0, count: near };
+    let fuzzy = false;
+    let count = exact;
+    if (exact === 0 && !q.postcode && !q.city && text.length >= 4) {
+        count = venues.filter(v => venueMatchesSearch(v, q, typeLabel, { fuzzy: true })).length;
+        fuzzy = count > 0;
+    }
+    const suburb = q.postcode || q.city ? null : smallSuburbNamed(venues, text, fuzzy);
+    return { fuzzy, count, suburb };
+}
+
+/** The suburb a search names ("fitzroy", or "fitzory" when guessing), if it has only a few venues. */
+function smallSuburbNamed(venues, text, fuzzy) {
+    if (!text) return null;
+    const words = searchWords(text);
+    const found = new Map();
+    for (const venue of venues) {
+        const label = String(venue?.suburb ?? '').trim();
+        const folded = foldSearchText(label);
+        if (!folded) continue;
+        const named = folded === text
+            || (fuzzy && searchWords(folded).length === words.length && wordsNear(words, searchWords(folded)));
+        if (!named) continue;
+        const entry = found.get(folded) ?? { label, count: 0 };
+        entry.count += 1;
+        found.set(folded, entry);
+    }
+    const best = [...found.values()].sort((a, b) => b.count - a.count)[0];
+    return best && best.count < FEW_VENUES_IN_SUBURB ? best.label : null;
 }
 
 /**
@@ -88,8 +121,10 @@ export function searchMatchMode(venues, q, typeLabel = (v) => v) {
  * looks like a place: a postcode, or 3+ letters of words (no digits other
  * than a postcode).
  */
-export function needsPlaceLookup(q, matchCount) {
-    if (matchCount > 0 || !q) return false;
+export function needsPlaceLookup(q, matchCount, { suburb = null } = {}) {
+    if (!q) return false;
+    if (suburb) return true; // a suburb with only a few venues: show what's near it
+    if (matchCount > 0) return false;
     if (q.postcode) return true;
     return /^[a-z][a-z .'-]{2,}$/.test(q.text) && !q.city;
 }

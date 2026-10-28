@@ -681,16 +681,18 @@ const AppContent = () => {
     // As typed first; when nothing matches, close spellings ("wonderlnad").
     const searchMatch = useMemo(() => searchMatchMode(venues, parsedQuery, venueTypeLabel), [venues, parsedQuery]);
     const searchTextMatches = searchMatch.count;
-    // A place we have no venues in yet ("Brighton", "3186") is looked up with
-    // Mapbox and answered with the venues nearest to it.
+    // A place we have no venues in yet ("Brighton", "3186"), or a suburb with
+    // only a few ("Fitzroy"), is looked up with Mapbox and answered with the
+    // venues nearest to it.
     const [searchPlace, setSearchPlace] = useState(null);
     const placeForQuery = searchPlace && searchPlace.query === parsedQuery.raw ? searchPlace : null;
     useEffect(() => {
-        if (placeForQuery || !needsPlaceLookup(parsedQuery, searchTextMatches)) return undefined;
+        if (placeForQuery || !needsPlaceLookup(parsedQuery, searchTextMatches, { suburb: searchMatch.suburb })) return undefined;
         if (!MAPBOX_TOKEN.startsWith('pk.')) return undefined;
         const controller = new AbortController();
         const query = parsedQuery.raw;
-        fetch(placeLookupUrl(query, MAPBOX_TOKEN), { signal: controller.signal })
+        // A small suburb is looked up by its own name, so "fitzory" lands on Fitzroy.
+        fetch(placeLookupUrl(searchMatch.suburb ?? query, MAPBOX_TOKEN), { signal: controller.signal })
             .then(res => (res.ok ? res.json() : null))
             .then(json => {
                 const place = parsePlaceResponse(json);
@@ -698,7 +700,7 @@ const AppContent = () => {
             })
             .catch(() => {});
         return () => controller.abort();
-    }, [parsedQuery, searchTextMatches, placeForQuery]);
+    }, [parsedQuery, searchTextMatches, searchMatch.suburb, placeForQuery]);
     const nearPlace = useMemo(
         () => (placeForQuery ? venuesNearPlace(venues, placeForQuery) : null),
         [venues, placeForQuery]

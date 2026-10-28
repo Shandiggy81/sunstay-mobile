@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     needsPlaceLookup, NEARBY_RADII_M, parsePlaceResponse, parseSearchQuery, placeCountLabel, placeVenuesInText,
-    placeLookupUrl, searchMatchMode, venueMatchesSearch, venuePostcode, venuesNearPlace,
+    placeLookupUrl, searchMatchMode, venueMatchesSearch, venuePostcode, venuesNearPlace, FEW_VENUES_IN_SUBURB,
 } from './locationSearch.js';
 
 const v = (id, extra) => ({ id, lat: -37.8, lng: 144.96, ...extra });
@@ -168,14 +168,38 @@ describe('forgiving search', () => {
 
     it('falls back to close spellings only when nothing matches as typed', () => {
         const mode = q => searchMatchMode(all, parseSearchQuery(q));
-        assert.deepEqual(mode('wonderland'), { fuzzy: false, count: 1 });
-        assert.deepEqual(mode('wonderlnad'), { fuzzy: true, count: 1 });
+        assert.deepEqual(mode('wonderland'), { fuzzy: false, count: 1, suburb: null });
+        assert.deepEqual(mode('wonderlnad'), { fuzzy: true, count: 1, suburb: null });
         assert.deepEqual(hits('wonderlnad', { fuzzy: true }), ['wl']);
-        assert.deepEqual(mode('fitzory'), { fuzzy: true, count: 1 });
-        assert.deepEqual(mode('brighton'), { fuzzy: false, count: 0 }, 'a real place with no venues still goes to the place lookup');
+        assert.deepEqual(mode('fitzory'), { fuzzy: true, count: 1, suburb: 'Fitzroy' });
+        assert.deepEqual(mode('brighton'), { fuzzy: false, count: 0, suburb: null }, 'a real place with no venues still goes to the place lookup');
         assert.equal(needsPlaceLookup(parseSearchQuery('brighton'), mode('brighton').count), true);
-        assert.deepEqual(mode('wnd'), { fuzzy: false, count: 0 }, 'too short to guess');
-        assert.deepEqual(mode('3999'), { fuzzy: false, count: 0 });
-        assert.deepEqual(mode(''), { fuzzy: false, count: 0 });
+        assert.deepEqual(mode('wnd'), { fuzzy: false, count: 0, suburb: null }, 'too short to guess');
+        assert.deepEqual(mode('3999'), { fuzzy: false, count: 0, suburb: null });
+        assert.deepEqual(mode(''), { fuzzy: false, count: 0, suburb: null });
+    });
+});
+
+describe('small suburbs show what is near them', () => {
+    const inFitzroy = Array.from({ length: 6 }, (_, i) => v(`f${i}`, { venueName: `Fitz Spot ${i}`, suburb: 'Fitzroy' }));
+    const inCarlton = Array.from({ length: 12 }, (_, i) => v(`c${i}`, { venueName: `Carlton Spot ${i}`, suburb: 'Carlton' }));
+    const all = [...inFitzroy, ...inCarlton, v('wl', { venueName: 'Wonderland Bar', suburb: 'Windsor' })];
+    const mode = q => searchMatchMode(all, parseSearchQuery(q));
+
+    it('names the suburb when it has only a few venues', () => {
+        assert.equal(mode('Fitzroy').suburb, 'Fitzroy');
+        assert.equal(mode('fitzory').suburb, 'Fitzroy', 'a typo of the suburb counts');
+        assert.equal(mode('fitzroy 3065').suburb, null, 'postcodes match as typed');
+        assert.equal(mode('Carlton').suburb, null, '12 venues of its own is plenty');
+        assert.equal(mode('fitz').suburb, null, 'only the whole suburb name');
+        assert.equal(mode('wonderland').suburb, null);
+        assert.equal(FEW_VENUES_IN_SUBURB, 10);
+    });
+
+    it('looks the suburb up even though it has matches', () => {
+        const q = parseSearchQuery('Fitzroy');
+        assert.equal(needsPlaceLookup(q, mode('Fitzroy').count, { suburb: mode('Fitzroy').suburb }), true);
+        assert.equal(needsPlaceLookup(parseSearchQuery('Carlton'), mode('Carlton').count, { suburb: mode('Carlton').suburb }), false);
+        assert.equal(needsPlaceLookup(parseSearchQuery('wonderland'), 1), false);
     });
 });
