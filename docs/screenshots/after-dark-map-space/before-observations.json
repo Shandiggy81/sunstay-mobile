@@ -1,0 +1,174 @@
+[
+  {
+    "phase": "before",
+    "width": 390,
+    "height": 844,
+    "mode": "after-dark",
+    "measured": {
+      "sheet": {
+        "top": 134.1953582763672,
+        "height": 708.953125
+      },
+      "sheetCss": "708.953px",
+      "overflow": false,
+      "results": {
+        "clientHeight": 490,
+        "scrollHeight": 1148,
+        "overflowY": "auto",
+        "paddingBottom": "16px"
+      },
+      "first": {
+        "timeVisible": true,
+        "titleVisible": true
+      },
+      "controls": [
+        {
+          "label": "14\u00b0 Rain showers",
+          "visible": true,
+          "hit": true,
+          "width": 138.78125,
+          "height": 44,
+          "top": 60,
+          "bottom": 104
+        },
+        {
+          "label": "Locate Me",
+          "visible": true,
+          "hit": false,
+          "width": 44,
+          "height": 44,
+          "top": 627,
+          "bottom": 671
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "width": 375,
+    "height": 667,
+    "mode": "after-dark",
+    "measured": {
+      "sheet": {
+        "top": 107.11085510253906,
+        "height": 559
+      },
+      "sheetCss": "559px",
+      "overflow": false,
+      "results": {
+        "clientHeight": 341,
+        "scrollHeight": 1148,
+        "overflowY": "auto",
+        "paddingBottom": "16px"
+      },
+      "first": {
+        "timeVisible": true,
+        "titleVisible": true
+      },
+      "controls": [
+        {
+          "label": "14\u00b0 Rain showers",
+          "visible": true,
+          "hit": true,
+          "width": 138.78125,
+          "height": 44,
+          "top": 60,
+          "bottom": 104
+        },
+        {
+          "label": "Locate Me",
+          "visible": true,
+          "hit": false,
+          "width": 44,
+          "height": 44,
+          "top": 450,
+          "bottom": 494
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "width": 320,
+    "height": 568,
+    "mode": "after-dark",
+    "measured": {
+      "sheet": {
+        "top": 99.38186645507812,
+        "height": 467.9999694824219
+      },
+      "sheetCss": "468px",
+      "overflow": false,
+      "results": {
+        "clientHeight": 254,
+        "scrollHeight": 1220,
+        "overflowY": "auto",
+        "paddingBottom": "16px"
+      },
+      "first": {
+        "timeVisible": true,
+        "titleVisible": true
+      },
+      "controls": [
+        {
+          "label": "14\u00b0 Rain showers",
+          "visible": true,
+          "hit": true,
+          "width": 138.78125,
+          "height": 44,
+          "top": 60,
+          "bottom": 104
+        },
+        {
+          "label": "Locate Me",
+          "visible": true,
+          "hit": false,
+          "width": 44,
+          "height": 44,
+          "top": 351,
+          "bottom": 395
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "width": 390,
+    "height": 844,
+    "mode": "sun",
+    "measured": {
+      "sheet": {
+        "top": 135.046875,
+        "height": 708.953125
+      },
+      "sheetCss": "708.953px",
+      "overflow": false,
+      "results": null,
+      "first": null,
+      "controls": [
+        {
+          "label": "14\u00b0 Rain showers",
+          "visible": true,
+          "hit": true,
+          "width": 138.78125,
+          "height": 44,
+          "top": 60,
+          "bottom": 104
+        },
+        {
+          "label": "Locate Me",
+          "visible": true,
+          "hit": false,
+          "width": 44,
+          "height": 44,
+          "top": 627,
+          "bottom": 671
+        }
+      ]
+    },
+    "errors": []
+  }
+]

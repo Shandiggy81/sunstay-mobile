@@ -1,0 +1,241 @@
+[
+  {
+    "phase": "after",
+    "width": 390,
+    "height": 844,
+    "mode": "after-dark",
+    "interactions": {
+      "overlayVisibility": [
+        {
+          "className": "ss-map-layer-controls",
+          "visibility": "hidden"
+        },
+        {
+          "className": "mapboxgl-ctrl-top-right",
+          "visibility": "hidden"
+        },
+        {
+          "className": "ss-map-search-area",
+          "visibility": "hidden"
+        }
+      ],
+      "weatherDetails": {
+        "top": 160,
+        "bottom": 233,
+        "height": 73,
+        "overflow": "visible"
+      },
+      "scrollTop": 220,
+      "dragCollapseAndHandleExpand": true
+    },
+    "errors": [],
+    "measured": {
+      "sheet": {
+        "top": 303.84375,
+        "height": 540.15625
+      },
+      "sheetCss": "540.156px",
+      "overflow": false,
+      "results": {
+        "clientHeight": 322,
+        "scrollHeight": 1148,
+        "overflowY": "auto",
+        "paddingBottom": "16px"
+      },
+      "first": {
+        "timeVisible": true,
+        "titleVisible": true
+      },
+      "controls": [
+        {
+          "label": "14° Rain showers",
+          "visible": true,
+          "hit": true,
+          "width": 138.78125,
+          "height": 44,
+          "top": 60,
+          "bottom": 104
+        },
+        {
+          "label": "Locate Me",
+          "visible": false,
+          "hit": false,
+          "width": 44,
+          "height": 44,
+          "top": 627,
+          "bottom": 671
+        }
+      ]
+    }
+  },
+  {
+    "phase": "after",
+    "width": 375,
+    "height": 667,
+    "mode": "after-dark",
+    "interactions": {
+      "overlayVisibility": [
+        {
+          "className": "ss-map-layer-controls",
+          "visibility": "hidden"
+        },
+        {
+          "className": "mapboxgl-ctrl-top-right",
+          "visibility": "hidden"
+        },
+        {
+          "className": "ss-map-search-area",
+          "visibility": "hidden"
+        }
+      ],
+      "weatherDetails": {
+        "top": 160,
+        "bottom": 233,
+        "height": 73,
+        "overflow": "visible"
+      },
+      "scrollTop": 220,
+      "dragCollapseAndHandleExpand": true
+    },
+    "errors": [],
+    "measured": {
+      "sheet": {
+        "top": 108,
+        "height": 559
+      },
+      "sheetCss": "559px",
+      "overflow": false,
+      "results": {
+        "clientHeight": 341,
+        "scrollHeight": 1148,
+        "overflowY": "auto",
+        "paddingBottom": "16px"
+      },
+      "first": {
+        "timeVisible": true,
+        "titleVisible": true
+      },
+      "controls": [
+        {
+          "label": "14° Rain showers",
+          "visible": true,
+          "hit": true,
+          "width": 138.78125,
+          "height": 44,
+          "top": 60,
+          "bottom": 104
+        },
+        {
+          "label": "Locate Me",
+          "visible": false,
+          "hit": false,
+          "width": 44,
+          "height": 44,
+          "top": 450,
+          "bottom": 494
+        }
+      ]
+    }
+  },
+  {
+    "phase": "after",
+    "width": 320,
+    "height": 568,
+    "mode": "after-dark",
+    "interactions": {
+      "overlayVisibility": [
+        {
+          "className": "ss-map-layer-controls",
+          "visibility": "hidden"
+        },
+        {
+          "className": "mapboxgl-ctrl-top-right",
+          "visibility": "hidden"
+        },
+        {
+          "className": "ss-map-search-area",
+          "visibility": "hidden"
+        }
+      ],
+      "weatherHiddenForShortScreen": true,
+      "scrollTop": 220,
+      "dragCollapseAndHandleExpand": true
+    },
+    "errors": [],
+    "measured": {
+      "sheet": {
+        "top": 100,
+        "height": 468
+      },
+      "sheetCss": "468px",
+      "overflow": false,
+      "results": {
+        "clientHeight": 254,
+        "scrollHeight": 1220,
+        "overflowY": "auto",
+        "paddingBottom": "16px"
+      },
+      "first": {
+        "timeVisible": true,
+        "titleVisible": true
+      },
+      "controls": [
+        {
+          "label": "14° Rain showers",
+          "visible": false,
+          "hit": false,
+          "width": 138.78125,
+          "height": 44,
+          "top": 60,
+          "bottom": 104
+        },
+        {
+          "label": "Locate Me",
+          "visible": false,
+          "hit": false,
+          "width": 44,
+          "height": 44,
+          "top": 351,
+          "bottom": 395
+        }
+      ]
+    }
+  },
+  {
+    "phase": "after",
+    "width": 390,
+    "height": 844,
+    "mode": "sun",
+    "errors": [],
+    "measured": {
+      "sheet": {
+        "top": 135.046875,
+        "height": 708.953125
+      },
+      "sheetCss": "708.953px",
+      "overflow": false,
+      "results": null,
+      "first": null,
+      "controls": [
+        {
+          "label": "14° Rain showers",
+          "visible": true,
+          "hit": true,
+          "width": 138.78125,
+          "height": 44,
+          "top": 60,
+          "bottom": 104
+        },
+        {
+          "label": "Locate Me",
+          "visible": true,
+          "hit": false,
+          "width": 44,
+          "height": 44,
+          "top": 627,
+          "bottom": 671
+        }
+      ]
+    }
+  }
+]
