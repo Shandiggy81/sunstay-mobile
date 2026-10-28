@@ -54,6 +54,7 @@ import { hourlyStrip, isNightAt, sunSentence, venueFeelsLike, venueSunForecast }
 import { forecastKindAt } from '../utils/venueFilters';
 import { scoreDisplayState } from '../utils/scoreDisplay.js';
 import { venueAccessFacts } from '../utils/venueAccess.js';
+import { usePublicAccessibleToilet } from '../hooks/usePublicAccessibleToilet.js';
 import { venueOfferings } from '../utils/venueOfferings';
 import { tonightFeel } from '../utils/tonightFeel.js';
 import { keyAmenities } from '../utils/venueAmenities';
@@ -501,6 +502,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const nowIcon = hours[0]?.icon ?? weatherIconName(null, { isNight: !forecast.isSunUp });
   // Sun down at the score's time (the scrubber, like the list): show "Night", not 0.
   const nightAtScoreTime = isNightAt(forecast, todMinutes);
+  const publicToilet = usePublicAccessibleToilet(venue);
   // Raining at the score's time: the direct-sun number is near 0, so say "Rain".
   const skyAtScoreTime = forecastKindAt(forecast, todMinutes);
   const scoreState = scoreDisplayState({ isNight: nightAtScoreTime, skyKind: skyAtScoreTime });
@@ -787,7 +789,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                   </ConditionsGrid>
 
                   <VenueOfferingsList key={venue?.id} offerings={offerings} liveNotes={liveNotes} />
-                  <AccessSection access={venueAccessFacts(venue)} />
+                  <AccessSection access={venueAccessFacts(venue)} publicToilet={publicToilet} />
 
                   <AboutAndHours description={description} hours={hoursView} />
                   <VenueSourceNote note={venueSourceNote(venue)} />
