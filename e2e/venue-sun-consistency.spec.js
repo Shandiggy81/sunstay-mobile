@@ -49,7 +49,9 @@ async function openVenue(page, { defaultMode = 'Sun' } = {}) {
   await expect(modes.getByRole('button', { name: defaultMode, exact: true })).toHaveAttribute('aria-pressed', 'true');
   if (defaultMode !== 'Sun') await modes.getByRole('button', { name: 'Sun', exact: true }).click();
   await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Search venues', exact: true }).fill(VENUE);
+  await page.getByRole('combobox', { name: 'Search venues', exact: true }).fill(VENUE);
+  // Enter (the keyboard's Search key) closes the suggestions and shows the list.
+  await page.getByRole('combobox', { name: 'Search venues', exact: true }).press('Enter');
   await page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: / }).filter({ hasText: VENUE }).first().tap();
   await expect(page.getByRole('heading', { level: 2, name: VENUE, exact: true })).toBeVisible();
   return page.getByRole('article', { name: VENUE });
