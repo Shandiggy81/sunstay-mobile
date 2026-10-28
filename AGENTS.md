@@ -131,3 +131,12 @@ Netlify's default for static assets is `max-age=0, must-revalidate`. Hashed
 `netlify.toml` so the offline modal can still paint Brucey from cache. The
 match is by extension so a missing path (SPA-rewritten to `index.html`) is
 not cached as an image.
+
+Venue link previews (`netlify/edge-functions/venue-preview.js`) only run for
+crawler user agents, so check them by sending one. The `x-sunstay-link-preview`
+header says what happened: `venue`, `not-found`, `unavailable` or `unconfigured`.
+
+```bash
+curl -s -A 'facebookexternalhit/1.1' -D - 'https://sunstayglobal30.netlify.app/?venue=dv-01' \
+  | grep -iE 'x-sunstay-link-preview|og:title'
+```
