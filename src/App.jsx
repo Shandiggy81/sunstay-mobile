@@ -1643,6 +1643,7 @@ const AppContent = () => {
                             <motion.div
                                 {...sheetMotionProps}
                                 className={sheetClassName}
+                                role="region" aria-label={homeMode === 'after-dark' ? "Tonight's events list" : 'Venue list'}
                                 data-sheet-dragging={sheetDragging ? '1' : '0'}
                                 data-sheet-will-change={sheetDrag.willChange}
                                 data-sheet-backdrop={sheetDrag.backdropFilter}
