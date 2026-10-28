@@ -28,6 +28,16 @@
 .ss-sunny-compact-tooltip { position: absolute; right: 0; top: calc(100% + 98px); width: 240px; max-width: calc(100vw - 104px); padding: 12px 14px; border: 1px solid #f0e4ce; border-radius: 20px; background: white; color: var(--color-ink); box-shadow: 0 6px 18px rgba(120,80,20,.14); pointer-events: none; }
 .ss-sunny-compact-tooltip p { margin: 0; font-size: 12px; font-weight: 700; line-height: 1.45; }
 .ss-sunny-compact-tooltip > span { position: absolute; top: -6px; right: 16px; width: 10px; height: 10px; border-left: 1px solid #f0e4ce; border-top: 1px solid #f0e4ce; background: white; transform: rotate(45deg); }
+/* Type-ahead under the search bar: above the time chips and list (topbar z 41). */
+.ss-search-suggestions { position: absolute; top: 56px; left: 0; right: 0; margin: 0; padding: 6px; list-style: none; border: 1px solid #f0e4ce; border-radius: 20px; background: white; box-shadow: 0 10px 28px rgba(120,80,20,.18); pointer-events: auto; max-height: min(60vh, 440px); overflow-y: auto; overscroll-behavior: contain; }
+.ss-search-suggestion { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 10px; border-radius: 14px; cursor: pointer; color: var(--color-ink); touch-action: manipulation; }
+.ss-search-suggestion:hover, .ss-search-suggestion--active { background: #fff6e0; }
+.ss-search-suggestion-icon { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 12px; background: #fff8e8; color: #9a6a1a; }
+.ss-search-suggestion-text { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.ss-search-suggestion-text strong { overflow: hidden; font-size: 15px; font-weight: 700; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.ss-search-suggestion-text small { overflow: hidden; color: #64748b; font-size: 12px; font-weight: 500; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.ss-search-suggestion--all { min-height: 44px; border-top: 1px solid #f3eadb; border-radius: 0 0 14px 14px; color: #92400e; }
+.ss-search-suggestion--all strong { font-size: 14px; }
 @media (min-width: 1024px) { .ss-map-first-topbar.ss-explore-topbar { max-width: 660px; right: auto; width: calc(100% - 32px); } }
 @media (max-width: 359px) {
   .ss-map-first-search-icon { display: none; }

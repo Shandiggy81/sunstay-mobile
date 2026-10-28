@@ -1299,6 +1299,7 @@ const AppContent = () => {
                     weather={weather} onFiltersOpen={openMobileFilters} comfort={comfort}
                     searchQuery={searchQuery} onSearchChange={setSearchQuery}
                     onSearchSubmit={() => { setPreviewVenue(null); if (isMobile) setMobileSheetState('expanded'); }}
+                    venues={venues} onSuggestionSelect={handleVenueSelect}
                     isChatOpen={isChatOpen} onSunnyClick={toggleChat}
                 />}
 
