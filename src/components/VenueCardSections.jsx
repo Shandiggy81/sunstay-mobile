@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PARTNER_PREVIEW_NOTE } from '../utils/partnerTools.js';
+import { formatHappyHourRange } from '../utils/happyHour.js';
 import ScoreRing from './common/ScoreRing.jsx';
 import { X, Share2, Heart, ChevronRight } from 'lucide-react';
 import ClayIcon from './common/ClayIcon';
@@ -426,7 +427,7 @@ export function HappyHourSection({ happyHour, fromPartnerPreview = false }) {
       {happyHour.start && happyHour.end ? (
         <p className="text-[14px] font-medium tabular-nums text-slate-700">
           {Array.isArray(happyHour.days) && happyHour.days.length ? `${happyHour.days.join(', ')} · ` : ''}
-          {happyHour.start} – {happyHour.end}
+          {formatHappyHourRange(happyHour.start, happyHour.end)}
         </p>
       ) : null}
       {fromPartnerPreview ? <p className="text-[12px] font-medium text-slate-600">{PARTNER_PREVIEW_NOTE}</p> : null}

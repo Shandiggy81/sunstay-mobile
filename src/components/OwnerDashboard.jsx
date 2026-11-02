@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import FohWeatherWidget from './FohWeatherWidget.jsx';
 import PartnerSunToday from './PartnerSunToday.jsx';
+import PartnerToolsEditor from './PartnerToolsEditor.jsx';
 import ClayIcon from './common/ClayIcon.jsx';
 import { ownerSwitchDefaults } from '../utils/venueFeaturePin.js';
 import { partnerStatusGroups, partnerSunHint, partnerTagIcon, partnerTagSuggestions, partnerType } from '../utils/partnerVenueControls.js';
@@ -92,7 +93,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     return createPortal(<div className="ss-partner-overlay" onClick={onClose} onKeyDown={event => {
         if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
         if (event.key === 'Tab') {
-            const controls = [...panelRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), a[href]')];
+            const controls = [...panelRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]')];
             const first = controls[0], last = controls.at(-1);
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -139,6 +140,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                     </div>}
                     <p role="status" className="ss-partner-save-status">{hoursStatus}</p>
                 </section>
+                <PartnerToolsEditor venueId={venueId} />
                 <section className="ss-partner-card" aria-labelledby="partner-tags-heading">
                     <div className="ss-partner-section-heading"><ClayIcon name="sparkles" size={40} /><div><h3 id="partner-tags-heading">Your venue’s tags</h3><p>{activeTags.length}/8 tags · preview only</p></div></div>
                     <div className="ss-partner-tags">{activeTags.map(tag => <button type="button" key={tag} aria-label={`Remove ${tag}`} onClick={() => setActiveTags(tags => tags.filter(value => value !== tag))}>

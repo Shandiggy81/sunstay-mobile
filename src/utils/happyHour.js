@@ -4,6 +4,20 @@
  * and formats the offer for display.
  */
 const DAY_MAP = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Compact wall-clock range for guests, e.g. 4–6pm or 11:30am–1pm. */
+export function formatHappyHourRange(start, end) {
+  const clock = value => {
+    if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return null;
+    const [hour, minute] = value.split(':');
+    const suffix = Number(hour) >= 12 ? 'pm' : 'am';
+    return { label: `${Number(hour) % 12 || 12}${minute === '00' ? '' : `:${minute}`}`, suffix };
+  };
+  const from = clock(start), to = clock(end);
+  if (!from || !to) return '';
+  return `${from.label}${from.suffix === to.suffix ? '' : from.suffix}–${to.label}${to.suffix}`;
+}
+
 /**
  * Check if happy hour is active right now for a venue.
  * @param {object} happyHour - { days, start, end, deal }
