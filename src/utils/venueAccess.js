@@ -54,7 +54,7 @@ export function venueAccessFacts(venue) {
     }
 
     const declared = facts.length > 0;
-    const source = ['venue', 'sunstay_visit'].includes(venue?.access_source) ? venue.access_source : null;
+    const source = ['venue', 'sunstay_visit', 'partner_preview'].includes(venue?.access_source) ? venue.access_source : null;
     if (!declared) {
         const tags = Array.isArray(venue?.tags) ? venue.tags.map(normaliseTag) : [];
         if (tags.some(tag => tag === 'wheelchair accessible' || tag === 'step free')) {
@@ -70,6 +70,7 @@ export function venueAccessFacts(venue) {
 /** "Confirmed by the venue, Oct 2026", "Checked by SunStay, Oct 2026", or a plain fallback. */
 export function accessSourceLine({ source, verifiedAt }, { timeZone = 'Australia/Melbourne' } = {}) {
     if (source === 'tag') return 'From the venue listing, not yet confirmed';
+    if (source === 'partner_preview') return 'From the partner preview on this device';
     const who = source === 'venue' ? 'Confirmed by the venue' : source === 'sunstay_visit' ? 'Checked by SunStay' : 'Venue access details';
     if (!verifiedAt) return who;
     const when = new Intl.DateTimeFormat('en-AU', { timeZone, month: 'short', year: 'numeric' }).format(new Date(verifiedAt));

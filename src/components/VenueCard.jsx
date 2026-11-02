@@ -21,6 +21,7 @@ import {
   VenueSourceNote,
   ConditionsGrid,
   HappyHourSection,
+  PartnerExtrasSection,
   HourByHour,
   TodaysSun,
   TonightFeelSection,
@@ -58,6 +59,8 @@ import { venueAccessFacts } from '../utils/venueAccess.js';
 import { liveWarmthNote } from '../utils/venueFeaturePin.js';
 import { venueShareMessage, venueShareUrl } from '../utils/venueLink.js';
 import { usePublicAccessibleToilet } from '../hooks/usePublicAccessibleToilet.js';
+import { usePartnerTools } from '../hooks/usePartnerTools.js';
+import { outdoorChips, partnerClock, upcomingPartnerEvents, withPartnerAccess } from '../utils/partnerTools.js';
 import { venueOfferings } from '../utils/venueOfferings';
 import { tonightFeel } from '../utils/tonightFeel.js';
 import { keyAmenities } from '../utils/venueAmenities';
@@ -580,7 +583,13 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const outdoorSummary = sunSection === 'moments' || sunSection === 'cafe'
     ? outdoorSunSummary({ daily: outdoorDay, forecast, now, timeZone: venueTimeZone })
     : null;
-  const happyHour = verifiedHappyHour(venue);
+  // Partner preview data (this device only) fills in what the listing lacks, labelled as such.
+  const { tools: partnerTools } = usePartnerTools(venue?.id);
+  const verifiedHH = verifiedHappyHour(venue);
+  const happyHour = verifiedHH ?? partnerTools?.happyHour ?? null;
+  const partnerClockNow = partnerClock(now, venueTimeZone);
+  const partnerEvents = upcomingPartnerEvents(partnerTools?.events, partnerClockNow);
+  const partnerOutdoor = outdoorChips(partnerTools?.outdoor);
   const hoursView = venueHoursView(venue);
   const description = [venue?.venue_description, venue?.description, venue?.about]
     .find((d) => typeof d === 'string' && d.trim())?.trim() ?? null;
@@ -803,11 +812,12 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                   </ConditionsGrid>
 
                   <VenueOfferingsList key={venue?.id} offerings={offerings} />
-                  <AccessSection access={venueAccessFacts(venue)} publicToilet={publicToilet} />
+                  <AccessSection access={venueAccessFacts(withPartnerAccess(venue, partnerTools))} publicToilet={publicToilet} />
 
                   <AboutAndHours description={description} hours={hoursView} />
                   <VenueSourceNote note={venueSourceNote(venue)} />
-                  <HappyHourSection happyHour={happyHour} />
+                  <HappyHourSection happyHour={happyHour} fromPartnerPreview={!verifiedHH && Boolean(happyHour)} />
+                  <PartnerExtrasSection events={partnerEvents} outdoor={partnerOutdoor} />
                   <VibeSection onManage={handleManage} venueName={displayName} />
                 </div>
               </VenueDetailErrorBoundary>

@@ -66,3 +66,10 @@ test('every fact icon is a clay icon in the set', async () => {
         .concat(venueAccessFacts({ access_step_free_entry: true }).facts, venueAccessFacts({ tags: ['Wheelchair Accessible'] }).facts);
     for (const fact of all) assert.ok(clay.has(fact.icon), `${fact.icon} missing from src/assets/clay`);
 });
+
+test('partner preview access facts say where they came from', async () => {
+    const { venueAccessFacts: facts, accessSourceLine: line } = await import('./venueAccess.js');
+    const access = facts({ access_lift: true, access_source: 'partner_preview', access_verified_at: '2026-11-03T00:00:00Z' });
+    assert.equal(access.source, 'partner_preview');
+    assert.equal(line(access), 'From the partner preview on this device');
+});
