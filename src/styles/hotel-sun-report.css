@@ -73,14 +73,27 @@
 .ss-sun-report__total p { color: #475569; font-size: 12px; font-weight: 600; line-height: 1.6; }
 .ss-sun-report__total .ss-sun-report__duration { color: #0f172a; font-size: 30px; font-weight: 800; line-height: 1.25; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
 .ss-sun-report__chart { margin: 22px 0 0; }
-.ss-sun-report__chart figcaption > p { margin-top: 3px; color: #475569; font-size: 10px; line-height: 1.6; }
-.ss-sun-report .ss-sun-report__months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; margin-top: 14px; }
-.ss-sun-report__months li { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 7px; }
-.ss-sun-report__month-hours { color: #334155; font-size: 10px; font-weight: 700; line-height: 1.5; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.ss-sun-report__bar-track { display: flex; align-items: flex-end; width: 100%; height: 78px; border-bottom: 1px solid #cbd5e1; border-radius: 5px 5px 0 0; background: #f8fafc; }
-.ss-sun-report__bar { display: block; width: 100%; min-height: 2px; border-radius: 5px 5px 0 0; background: #cbd5e1; }
-.ss-sun-report__bar--sunny { background: linear-gradient(90deg, #f59e0b, #fbbf24); box-shadow: inset -2px 0 2px rgb(146 64 14 / 10%); }
-.ss-sun-report__month-label { color: #475569; font-size: 10px; font-weight: 700; line-height: 1.5; }
+.ss-sun-report__chart figcaption > p { margin-top: 3px; color: #475569; font-size: 12px; line-height: 1.6; }
+/* Sun through the year: a smooth amber area (utils/yearSunChart), like the daily sun graph. */
+.ss-year-chart { margin-top: 12px; border: 1px solid #fde68a; border-radius: 20px; padding: 30px 12px 10px; background: linear-gradient(180deg, #f0f9ff 0%, #fffbeb 100%); }
+.ss-year-chart__plot { position: relative; height: 132px; }
+.ss-year-chart__plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.ss-year-chart__grid { stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 3 4; }
+.ss-year-chart__baseline { stroke: #d6c7a8; stroke-width: 1.5; }
+.ss-year-chart__line { fill: none; stroke: #d97706; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.ss-year-chart__now-line { stroke: #0f172a; stroke-width: 1.5; stroke-dasharray: 3 3; }
+.ss-year-chart__tick { position: absolute; left: 0; transform: translateY(-115%); color: #64748b; font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.ss-year-chart__dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border: 2px solid #fff; border-radius: 50%; background: #d97706; box-shadow: 0 1px 4px rgb(120 80 20 / 30%); }
+.ss-year-chart__dot--now { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: #0f172a; }
+.ss-year-chart__dot--least { background: #94a3b8; }
+.ss-year-chart__callout { position: absolute; transform: translate(-50%, calc(-100% - 9px)); border-radius: 999px; padding: 3px 8px; background: #fff; color: #92400e; font-size: 12px; font-weight: 800; line-height: 1.3; white-space: nowrap; box-shadow: 0 2px 8px rgb(120 80 20 / 14%); font-variant-numeric: tabular-nums; }
+.ss-year-chart__callout--now { background: #0f172a; color: #fff; }
+.ss-year-chart__callout--least { color: #475569; }
+.ss-year-chart__callout--start { transform: translate(-14%, calc(-100% - 9px)); }
+.ss-year-chart__callout--end { transform: translate(-86%, calc(-100% - 9px)); }
+.ss-sun-report .ss-year-chart__months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); margin-top: 8px; }
+.ss-year-chart__months li { color: #475569; font-size: 12px; font-weight: 700; line-height: 1.5; text-align: center; }
+.ss-year-chart__months li.ss-year-chart__month--now { color: #0f172a; font-weight: 800; }
 .ss-sun-report__sunniest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; font-size: 12px; }
 .ss-sun-report__sunniest > span { display: inline-flex; align-items: center; gap: 5px; color: #475569; font-weight: 700; }
 .ss-sun-report__sunniest ul { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -113,8 +126,7 @@
   .ss-sun-report__moment { padding: 10px; }
   .ss-sun-report__moment strong { font-size: 12px; }
   .ss-sun-report__moment small { font-size: 10px; }
-  .ss-sun-report__month-hours, .ss-sun-report__month-label { font-size: 12px; }
-  .ss-sun-report__bar-track { height: 100px; }
+  .ss-year-chart__plot { height: 160px; }
   .ss-sun-report__summary ul { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 }
 
@@ -138,8 +150,9 @@
   .ss-sun-report__total .ss-sun-report__duration { font-size: 25px; }
   .ss-sun-report__total > img { width: 50px !important; height: 50px !important; }
   .ss-sun-report__chart { break-inside: avoid; margin-top: 14px; }
-  .ss-sun-report__bar-track { height: 65px; }
-  .ss-sun-report__month-hours, .ss-sun-report__month-label { font-size: 10px; }
+  .ss-year-chart { padding: 24px 8px 6px; background: #fff; }
+  .ss-year-chart__plot { height: 90px; }
+  .ss-year-chart__months li, .ss-year-chart__tick, .ss-year-chart__callout { font-size: 9px; }
   .ss-sun-report__sunniest { margin-top: 12px; }
   .ss-sun-report__seasons { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
   .ss-sun-report__moment { padding: 7px; }
