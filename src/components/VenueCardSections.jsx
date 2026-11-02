@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PARTNER_PREVIEW_NOTE } from '../utils/partnerTools.js';
 import ScoreRing from './common/ScoreRing.jsx';
 import { X, Share2, Heart, ChevronRight } from 'lucide-react';
 import ClayIcon from './common/ClayIcon';
@@ -416,11 +417,11 @@ export function VenueSourceNote({ note }) {
   );
 }
 
-export function HappyHourSection({ happyHour }) {
+export function HappyHourSection({ happyHour, fromPartnerPreview = false }) {
   if (!happyHour) return null;
   return (
     <section aria-labelledby="happy-hour-heading" className="flex flex-col gap-2 rounded-3xl bg-amber-50 p-4">
-      <h3 id="happy-hour-heading" className="text-[17px] font-extrabold text-slate-900">Happy hour</h3>
+      <h3 id="happy-hour-heading" className="text-[17px] font-extrabold text-slate-900">{happyHour.start ? 'Happy hour' : 'Specials'}</h3>
       {happyHour.deal ? <p className="text-[15px] font-semibold text-slate-800">{happyHour.deal}</p> : null}
       {happyHour.start && happyHour.end ? (
         <p className="text-[14px] font-medium tabular-nums text-slate-700">
@@ -428,6 +429,40 @@ export function HappyHourSection({ happyHour }) {
           {happyHour.start} – {happyHour.end}
         </p>
       ) : null}
+      {fromPartnerPreview ? <p className="text-[12px] font-medium text-slate-600">{PARTNER_PREVIEW_NOTE}</p> : null}
+    </section>
+  );
+}
+
+// Tonight's events and the outdoor setup, from the partner preview (this device only).
+export function PartnerExtrasSection({ events = [], outdoor = [] }) {
+  if (!events.length && !outdoor.length) return null;
+  return (
+    <section aria-labelledby="partner-extras-heading" className="flex flex-col gap-3 rounded-3xl border border-slate-900/[0.08] bg-white p-4">
+      <h3 id="partner-extras-heading" className={SECTION_TITLE}>{events.length ? 'On here' : 'Outdoor setup'}</h3>
+      {events.length ? (
+        <ul className="flex flex-col gap-2">
+          {events.map((event) => (
+            <li key={event.id} className="flex min-h-[52px] items-center gap-3">
+              <ClayIcon name={event.icon} size={36} />
+              <span className="flex min-w-0 flex-col">
+                <span className="text-[16px] font-bold text-slate-900">{event.title}</span>
+                <span className="text-[13px] font-semibold tabular-nums text-amber-800">{event.when} · {event.kindLabel}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {outdoor.length ? (
+        <ul className="flex flex-wrap gap-2" aria-label="Outdoor setup">
+          {outdoor.map((chip) => (
+            <li key={chip.key} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 py-1 pl-1.5 pr-3 text-[13px] font-semibold text-slate-800">
+              <ClayIcon name={chip.icon} size={22} />{chip.label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="text-[12px] font-medium text-slate-600">{PARTNER_PREVIEW_NOTE}</p>
     </section>
   );
 }
