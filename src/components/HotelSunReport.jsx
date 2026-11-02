@@ -5,7 +5,58 @@ import ClayIcon from './common/ClayIcon.jsx';
 import { DEFAULT_TIME_ZONE, formatGuestDate, venueLocalDate } from '../utils/balconySunEngine.js';
 import { buildStaySunReport } from '../utils/stayRoomTypes.js';
 import { hotelSunReportUrl } from '../utils/hotelSunReportRoute.js';
+import { formatHours, yearSunChart } from '../utils/yearSunChart.js';
 import '../styles/hotel-sun-report.css';
+
+function melbourneNow(timeZone = DEFAULT_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-AU', { timeZone, year: 'numeric', month: 'numeric' }).formatToParts(new Date());
+  const get = type => Number(parts.find(part => part.type === type)?.value);
+  return { year: get('year'), month: get('month') };
+}
+
+/** Smooth amber area of monthly sun hours, like the app's daily sun graph (utils/yearSunChart). */
+function YearSunChart({ monthly, year }) {
+  const gradientId = useId();
+  const now = melbourneNow();
+  const chart = yearSunChart(monthly, { currentMonth: now.year === Number(year) ? now.month : null });
+  if (!chart) return null;
+  const nowPoint = chart.callouts.find(c => c.kind === 'now');
+  const edge = x => (x < 12 ? 'ss-year-chart__callout--start' : x > 88 ? 'ss-year-chart__callout--end' : '');
+  return (
+    <div className="ss-year-chart">
+      <div className="ss-year-chart__plot">
+        <svg viewBox={`0 0 ${chart.width} ${chart.height}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#fbbf24" stopOpacity="0.95" />
+              <stop offset="1" stopColor="#fde68a" stopOpacity="0.35" />
+            </linearGradient>
+          </defs>
+          {chart.ticks.map(tick => <line key={tick.hours} x1="0" x2={chart.width} y1={tick.y} y2={tick.y} className="ss-year-chart__grid" vectorEffect="non-scaling-stroke" />)}
+          <path d={chart.area} fill={`url(#${gradientId})`} />
+          <path d={chart.line} className="ss-year-chart__line" vectorEffect="non-scaling-stroke" />
+          {nowPoint && <line x1={nowPoint.x} x2={nowPoint.x} y1={nowPoint.y} y2={chart.baseline} className="ss-year-chart__now-line" vectorEffect="non-scaling-stroke" />}
+          <line x1="0" x2={chart.width} y1={chart.baseline} y2={chart.baseline} className="ss-year-chart__baseline" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {chart.ticks.map(tick => <span key={tick.hours} className="ss-year-chart__tick" style={{ top: `${tick.yPercent}%` }} aria-hidden="true">{tick.label}</span>)}
+        {chart.callouts.map(c => (
+          <React.Fragment key={c.month}>
+            <span className={`ss-year-chart__dot ss-year-chart__dot--${c.kind}`} style={{ left: `${c.xPercent}%`, top: `${c.yPercent}%` }} aria-hidden="true" />
+            <span className={`ss-year-chart__callout ss-year-chart__callout--${c.kind} ${edge(c.xPercent)}`} style={{ left: `${c.xPercent}%`, top: `${c.yPercent}%` }} aria-hidden="true">{c.text}</span>
+          </React.Fragment>
+        ))}
+      </div>
+      <ol className="ss-year-chart__months" aria-label="Monthly direct sun in hours">
+        {chart.points.map(p => (
+          <li key={p.month} className={p.month === nowPoint?.month ? 'ss-year-chart__month--now' : undefined}
+            aria-label={`${p.label}: ${formatHours(p.hours).replace('h', '')} hours of direct sun`}>
+            <span aria-hidden="true">{p.label}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 function RoomReport({ room, year }) {
   const titleId = useId();
@@ -32,17 +83,7 @@ function RoomReport({ room, year }) {
               <h3>Sun through the year</h3>
               <p>Hours of direct sun · 15th of each month, {year}</p>
             </figcaption>
-            <ol className="ss-sun-report__months" aria-label="Monthly direct sun in hours">
-              {room.monthly.map(month => (
-                <li key={month.month} aria-label={`${month.label}: ${month.hours} hours of direct sun`}>
-                  <span className="ss-sun-report__month-hours" aria-hidden="true">{month.hours}</span>
-                  <span className="ss-sun-report__bar-track" aria-hidden="true">
-                    <span className={`ss-sun-report__bar${month.totalMinutes > 0 ? ' ss-sun-report__bar--sunny' : ''}`} style={{ height: `${month.barPercent}%` }} />
-                  </span>
-                  <span className="ss-sun-report__month-label" aria-hidden="true">{month.label}</span>
-                </li>
-              ))}
-            </ol>
+            <YearSunChart monthly={room.monthly} year={year} />
           </figure>
 
           <div className="ss-sun-report__sunniest">
