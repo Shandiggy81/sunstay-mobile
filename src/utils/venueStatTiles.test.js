@@ -15,7 +15,7 @@ test('four tiles show forecast words, sheltered wind, temperature and score', ()
     { label: 'Sun now', icon: 'sun', value: 'Sun until 3pm' },
     { label: 'Wind here', icon: 'windsock', value: wind.text, note: `${wind.kmh} km/h` },
     { label: 'Feels like', icon: 'jacket', value: '15°' },
-    { label: 'Sun score', icon: 'sun', value: '83', note: 'out of 100' },
+    { label: 'Sun score', icon: 'sun', ring: 83, value: 'Great sun', note: '83 out of 100' },
   ]);
 });
 
@@ -35,7 +35,8 @@ test('missing data and loading scores never fabricate weather or numbers', () =>
   assert.equal(tiles[1].note, null);
   assert.equal(tiles[2].value, '–');
   assert.equal(tiles[3].value, '–');
-  assert.equal(venueStatTiles({ score: 0 })[3].value, '0');
+  assert.equal(venueStatTiles({ score: 0 })[3].value, 'No direct sun');
+  assert.equal(venueStatTiles({ score: 0 })[3].ring, 0);
   assert.equal(venueStatTiles({ scoreLoading: true })[3].value, '…');
 });
 
@@ -56,7 +57,8 @@ test('rain and cloud are the sky, not the sun; rain hides the sun score', () => 
   assert.deepEqual(rain[3], { label: 'Sun score', icon: 'rain', value: 'Raining', note: 'no direct sun' });
   const cloud = venueStatTiles({ forecast: { ...forecast, now: { kind: 'cloud' } }, score: 40, skyKindAtScore: 'cloud' });
   assert.deepEqual(cloud[0], { label: 'Right now', icon: 'cloud', value: 'Cloudy' });
-  assert.equal(cloud[3].value, '40');
+  assert.equal(cloud[3].value, 'Some sun');
+  assert.equal(cloud[3].ring, 40);
   // The building-shaded summary's own kind wins over the city forecast.
   const shadedSummary = venueStatTiles({ forecast: { ...forecast, now: { kind: 'rain' } }, sunNow: { kind: 'rain', statText: 'Rain now' } });
   assert.equal(shadedSummary[0].label, 'Right now');

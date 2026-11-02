@@ -1,4 +1,5 @@
 import { feelsLikeIconName, forecastKindIconName } from './clayIcons.js';
+import { scoreBand } from './scoreRing.js';
 import { sunStatText } from './venueSun.js';
 import { windChip } from './venueConditionChips.js';
 import { scoreDisplayState } from './scoreDisplay.js';
@@ -27,6 +28,9 @@ export function venueStatTiles({ venue, weather, forecast, score, scoreLoading, 
       ? { label: 'Sun score', icon: 'night', value: 'After dark', note: 'back at sunrise' }
       : !scoreLoading && scoreState === 'rain'
       ? { label: 'Sun score', icon: 'rain', value: 'Raining', note: 'no direct sun' }
-      : { label: 'Sun score', icon: 'sun', value: scoreLoading ? '…' : Number.isFinite(score) ? String(Math.round(score)) : '–', note: 'out of 100' },
+      : scoreLoading || !Number.isFinite(score)
+      ? { label: 'Sun score', icon: 'sun', value: scoreLoading ? '…' : '–', note: 'out of 100' }
+      // The ring shows the number; the words say what it means.
+      : { label: 'Sun score', icon: 'sun', ring: Math.round(score), value: scoreBand(score), note: `${Math.round(score)} out of 100` },
   ];
 }

@@ -21,6 +21,7 @@ import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMoment
 import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
 import AfterDarkPanel from './components/AfterDarkPanel.jsx';
+import ScoreRing from './components/common/ScoreRing.jsx';
 import HomeSheetMode from './components/HomeSheetMode.jsx';
 import { useAfterDarkEvents } from './hooks/useAfterDarkEvents.js';
 import { afterDarkOrigin, resolveAfterDarkMode } from './utils/afterDarkHome.js';
@@ -326,14 +327,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                         <span>{badgeState === 'rain' ? 'Rain' : 'Night'}</span>
                     </div>
                 ) : (
-                    <div
-                        className="ss-vlc-badge"
-                        style={{ background: scoreVisual.color + '1f', color: scoreVisual.text }}
-                        title={`Sun score: ${sunstayScore}/100`}
-                    >
-                        <ClayIcon name="sun" size={18} />
-                        <span>{sunstayScore}</span>
-                    </div>
+                    <ScoreRing score={sunstayScore} size={40} className="ss-vlc-score-ring" />
                 ))}
                 {isStay && venue.nightlyPriceDemo ? (
                     <div className="ss-vlc-temp !bg-emerald-50 !text-emerald-700 !border-emerald-100 px-2 rounded-lg">

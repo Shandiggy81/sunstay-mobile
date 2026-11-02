@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
 import { Layers, Check, Search } from 'lucide-react';
 import { clusterSize, pinHitHeight, sunPinView } from '../../utils/sunPin';
+import { scoreRingBackground, scoreRingTone } from '../../utils/scoreRing.js';
 import { clayPinUrlFor, clayPinUrls } from '../../utils/clayVenuePins';
 import { mapMomentBadge } from '../../utils/mapMomentBadge.js';
 import {
@@ -315,6 +316,7 @@ function paintMarkerEl(el, view) {
     paintMomentBadge(bubble, view.momentBadge);
     score.textContent = view.scoreText;
     score.style.display = view.scoreText ? '' : 'none';
+    paintPinScoreRing(score, view);
     tail.innerHTML = PIN_TAIL_SVG(view.bg, view.border);
     el.setAttribute('aria-label', view.momentBadge
         ? `${view.venueName}, ${view.momentBadge.label}, ${view.label}`
@@ -325,6 +327,28 @@ function paintMarkerEl(el, view) {
     bubble.style.outline = view.ring ? '2.5px solid #0f172a' : '';
     bubble.style.outlineOffset = view.ring ? '2px' : '';
     bubble.style.transform = view.raised ? 'scale(1.08)' : '';
+}
+
+// A numeric score sits in a mini ring meter, so "64" on a pin reads as a
+// score out of 100, not a temperature. Condition glyphs and the moon don't.
+const PIN_RING_PX = 28;
+function paintPinScoreRing(scoreEl, view) {
+    const ringed = /^\d+$/.test(view.scoreText ?? '');
+    const s = scoreEl.style;
+    if (!ringed) {
+        s.width = s.height = s.background = s.borderRadius = s.fontSize = s.justifyContent = s.color = '';
+        if (s.display !== 'none') s.display = '';
+        return;
+    }
+    const n = Number(view.scoreText);
+    s.display = 'inline-flex';
+    s.alignItems = 'center';
+    s.justifyContent = 'center';
+    s.width = s.height = `${PIN_RING_PX}px`;
+    s.borderRadius = '50%';
+    s.fontSize = '11.5px';
+    s.color = scoreRingTone(n).text;
+    s.background = scoreRingBackground(n, { size: PIN_RING_PX, stroke: 3, inner: view.bg });
 }
 
 /** Repaint an existing venue pin from its record after a selection or highlight change. */
