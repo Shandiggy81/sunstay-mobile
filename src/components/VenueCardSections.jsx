@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ScoreRing from './common/ScoreRing.jsx';
 import { X, Share2, Heart, ChevronRight } from 'lucide-react';
 import ClayIcon from './common/ClayIcon';
 import DataBadge from './DataBadge.jsx';
@@ -172,7 +173,9 @@ export function VenueStatRow({ tiles, sunny }) {
             ? 'border-amber-200 bg-amber-50 shadow-[0_4px_14px_rgba(245,158,11,0.10),inset_0_2px_0_rgba(255,255,255,0.8)]'
             : 'border-slate-200 bg-slate-50 shadow-[0_4px_14px_rgba(15,23,42,0.06),inset_0_2px_0_rgba(255,255,255,0.8)]'}`}
         >
-          <ClayIcon name={tile.icon} size={44} className="drop-shadow-sm" />
+          {Number.isFinite(tile.ring)
+            ? <ScoreRing score={tile.ring} size={44} stroke={4.5} inner={sunny ? '#fffbeb' : '#f8fafc'} />
+            : <ClayIcon name={tile.icon} size={44} className="drop-shadow-sm" />}
           <dt className="text-[12px] font-semibold text-slate-600">{tile.label}</dt>
           <dd className="text-[17px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900 tabular-nums">
             {tile.value}

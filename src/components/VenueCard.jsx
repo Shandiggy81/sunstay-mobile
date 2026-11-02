@@ -48,6 +48,7 @@ import { resolveOverviewScore } from '../utils/resolveOverviewScore';
 import { errorBoundaryRemountKey, resetVenueDetailScroller, venueOverlayPresenceKey } from '../utils/venueDetailTabs';
 import { feelsLikeIconName, venueIcon, weatherIconName } from '../utils/clayIcons';
 import { venueStatTiles } from '../utils/venueStatTiles.js';
+import ScoreRing from './common/ScoreRing.jsx';
 import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
 import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, isNightAt, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
@@ -642,13 +643,17 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
               <X size={19} strokeWidth={2.5} />
             </button>
             <span className="min-w-0 flex-1 truncate text-[17px] font-extrabold tracking-[-0.01em] text-slate-900">{displayName}</span>
-            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 py-1 pl-1.5 pr-3">
-              <ClayIcon name={nowIcon} size={24} />
-              <span className={`text-[16px] font-extrabold tabular-nums ${!overviewScore.loading && scoreState !== 'score' ? 'text-slate-700' : scoreTone(score)}`}>
-                {overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}
+            {!overviewScore.loading && scoreState === 'score' && Number.isFinite(score) ? (
+              <ScoreRing score={score} size={38} />
+            ) : (
+              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 py-1 pl-1.5 pr-3">
+                <ClayIcon name={nowIcon} size={24} />
+                <span className="text-[16px] font-extrabold tabular-nums text-slate-700">
+                  {overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}
+                </span>
+                <span className="sr-only">{overviewScore.loading ? 'Sun score' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
               </span>
-              <span className="sr-only">{overviewScore.loading ? 'Sun score' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
-            </span>
+            )}
           </div>
 
           <div
