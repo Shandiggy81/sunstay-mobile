@@ -91,6 +91,9 @@
 .ss-year-chart__callout--least { color: #475569; }
 .ss-year-chart__callout--start { transform: translate(-14%, calc(-100% - 9px)); }
 .ss-year-chart__callout--end { transform: translate(-86%, calc(-100% - 9px)); }
+.ss-year-chart__callout--below { transform: translate(-50%, 9px); }
+.ss-year-chart__callout--below.ss-year-chart__callout--start { transform: translate(-14%, 9px); }
+.ss-year-chart__callout--below.ss-year-chart__callout--end { transform: translate(-86%, 9px); }
 .ss-sun-report .ss-year-chart__months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); margin-top: 8px; }
 .ss-year-chart__months li { color: #475569; font-size: 12px; font-weight: 700; line-height: 1.5; text-align: center; }
 .ss-year-chart__months li.ss-year-chart__month--now { color: #0f172a; font-weight: 800; }

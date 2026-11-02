@@ -28,7 +28,7 @@ test('points sit in month columns and inside the chart', () => {
 
 test('calls out now, the sunniest and the least sunny month', () => {
     const chart = yearSunChart(monthly, { currentMonth: 11 });
-    assert.deepEqual(chart.callouts.map(c => [c.label, c.kind, c.text]), [['Nov', 'now', 'Now · 7.6h'], ['Mar', 'most', '7.7h'], ['Jun', 'least', '3.3h']]);
+    assert.deepEqual(chart.callouts.map(c => [c.label, c.kind, c.text, c.placement]), [['Nov', 'now', 'Now · 7.6h', 'above'], ['Mar', 'most', '7.7h', 'above'], ['Jun', 'least', '3.3h', 'below']]);
     assert.deepEqual(yearSunChart(monthly, { currentMonth: 3 }).callouts.map(c => c.label), ['Mar', 'Jun'], 'no repeat when now is the peak');
     const shaded = yearSunChart(monthly.map(m => ({ ...m, hours: 0 })));
     assert.deepEqual(shaded.callouts, []);
@@ -41,4 +41,14 @@ test('the curve never dips below the baseline or above the peak', () => {
     assert.ok(Math.max(...ys) <= 100 && Math.min(...ys) >= 10, ys.join(','));
     assert.equal(formatHours(7.25), '7.3h');
     assert.equal(formatHours(3), '3h');
+});
+
+test('call-outs next to "Now" never overlap it', () => {
+    // Pullman East Melbourne's north side: peak in Oct, now Nov, low in Dec.
+    const hours = [8.5, 9.9, 10.5, 10.4, 9.1, 8.7, 9.0, 9.9, 10.6, 11.2, 9.7, 7.7];
+    const chart = yearSunChart(hours.map((h, i) => ({ month: i + 1, label: LABELS[i], hours: h })), { currentMonth: 11 });
+    const above = chart.callouts.filter(c => c.placement === 'above');
+    for (const a of above) for (const b of above) if (a !== b) assert.ok(Math.abs(a.month - b.month) > 1, `${a.label}/${b.label}`);
+    assert.equal(chart.callouts[0].text, 'Now · 9.7h');
+    assert.ok(!chart.callouts.some(c => c.label === 'Oct'), 'the Oct peak next to Now loses its label');
 });

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ClayIcon from './common/ClayIcon';
 import SunDayTimeline from './SunDayTimeline.jsx';
+import SunWindowsGraph from './SunWindowsGraph.jsx';
+import { cardSunWindows } from '../utils/sunWindowsCard.js';
 import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
 
 const SKY = Object.freeze({
@@ -33,17 +35,23 @@ function formatDuration(minutes) {
  */
 export default function SunMomentsPanel({ daily, summary, timeZone, now, label = 'direct sun', dayLabel = 'today' }) {
   const total = summary?.totalMinutes ?? 0;
+  // The same sun-on-a-hill graph as the cafe and partner views. The flat bar
+  // is only a fallback when the day can't be read.
+  const sun = useMemo(() => cardSunWindows(daily), [daily]);
   return (
     <div className="flex flex-col gap-3">
       <div className="relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white px-4 pb-1 pt-4">
-        <ClayIcon name={total > 0 ? 'sun' : 'shaded'} size={84} className="pointer-events-none absolute -right-3 -top-3 drop-shadow-sm" />
-        <p className="pr-20 text-[32px] font-extrabold leading-none tracking-[-0.02em] text-slate-900 tabular-nums">
+        {/* The graph has its own smiling sun; the corner icon only marks a shaded day. */}
+        {!(sun && total > 0) && <ClayIcon name={total > 0 ? 'sun' : 'shaded'} size={84} className="pointer-events-none absolute -right-3 -top-3 drop-shadow-sm" />}
+        <p className={`${sun && total > 0 ? '' : 'pr-20 '}text-[32px] font-extrabold leading-none tracking-[-0.02em] text-slate-900 tabular-nums`}>
           {total > 0 ? formatDuration(total) : 'In the shade'}
         </p>
         <p className="mt-1.5 pr-20 text-[13px] font-semibold text-slate-600">
           {total > 0 ? `of ${label} ${dayLabel}` : `No ${label} ${dayLabel}`}
         </p>
-        <SunDayTimeline daily={daily} timeZone={timeZone} now={now} label={label} />
+        {sun
+          ? <div className="mb-3 mt-3"><SunWindowsGraph {...sun} now={now} showSummary={false} /></div>
+          : <SunDayTimeline daily={daily} timeZone={timeZone} now={now} label={label} />}
       </div>
 
       <ul className="grid grid-cols-2 gap-2" aria-label="Sun moments">

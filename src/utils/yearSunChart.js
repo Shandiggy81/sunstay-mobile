@@ -66,10 +66,17 @@ export function yearSunChart(monthly, { currentMonth = null } = {}) {
     const least = sunny.length > 1 ? points.reduce((a, b) => (b.hours < a.hours ? b : a)) : null;
     const now = points.find(p => p.month === currentMonth) ?? null;
     // Called-out values: now, the sunniest and the least sunny month, once each.
+    // Labels sit above their dot, except the least sunny month's, which sits
+    // below unless it is near the baseline. A label is dropped when a label on
+    // the same side is within one month of it, so they never overlap.
     const callouts = [];
-    if (now) callouts.push({ ...now, kind: 'now', text: `Now · ${formatHours(now.hours)}` });
+    const place = (p, kind) => (kind === 'least' && (p.y - YEAR_CHART.top) / (height - top - bottom) < 0.6 ? 'below' : 'above');
+    const clashes = (p, placement) => callouts.some(c => c.placement === placement && Math.abs(c.month - p.month) <= 1);
+    if (now) callouts.push({ ...now, kind: 'now', placement: 'above', text: `Now · ${formatHours(now.hours)}` });
     for (const [p, kind] of [[most, 'most'], [least, 'least']]) {
-        if (p && p.month !== now?.month && !callouts.some(c => c.month === p.month)) callouts.push({ ...p, kind, text: formatHours(p.hours) });
+        if (!p || callouts.some(c => c.month === p.month)) continue;
+        const placement = place(p, kind);
+        if (!clashes(p, placement)) callouts.push({ ...p, kind, placement, text: formatHours(p.hours) });
     }
     return { width, height, baseline, line, area, points, ticks, callouts, maxHours };
 }
