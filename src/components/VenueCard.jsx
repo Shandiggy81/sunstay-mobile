@@ -803,7 +803,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                   <AboutAndHours description={description} hours={hoursView} />
                   <VenueSourceNote note={venueSourceNote(venue)} />
                   <HappyHourSection happyHour={happyHour} />
-                  <VibeSection onManage={handleManage} />
+                  <VibeSection onManage={handleManage} venueName={displayName} />
                 </div>
               </VenueDetailErrorBoundary>
             </div>

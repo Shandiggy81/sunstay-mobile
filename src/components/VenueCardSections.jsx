@@ -430,7 +430,7 @@ export function HappyHourSection({ happyHour }) {
 }
 
 // ── 9. Vibe + manage link ───────────────────────────────────
-export function VibeSection({ onManage }) {
+export function VibeSection({ onManage, venueName }) {
   const [photoNotice, setPhotoNotice] = useState(false);
   useEffect(() => {
     if (!photoNotice) return undefined;
@@ -465,14 +465,34 @@ export function VibeSection({ onManage }) {
       </section>
 
       {onManage ? (
-        <button
-          type="button"
-          onClick={onManage}
-          className="mx-auto flex min-h-11 items-center gap-1 rounded-xl px-3 text-[13px] font-medium text-slate-600 underline underline-offset-2 active:bg-slate-900/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-        >
-          Manage this partner venue
-          <ChevronRight size={14} aria-hidden="true" />
-        </button>
+        // A proper partner entry, set apart from the guest sections, rather than a small underlined link.
+        <section aria-labelledby="partner-entry-heading" className="flex flex-col gap-3 rounded-3xl border border-dashed border-amber-300 bg-gradient-to-br from-amber-50 via-white to-white p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(120,80,20,0.10)]">
+              <ClayIcon name="house" size={44} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[12px] font-bold uppercase tracking-[0.08em] text-amber-800">For venue partners</p>
+              <h3 id="partner-entry-heading" className="text-[17px] font-extrabold leading-snug tracking-[-0.01em] text-slate-900">
+                Run {venueName || 'this venue'}?
+              </h3>
+            </div>
+          </div>
+          <ul className="flex flex-col gap-1.5 text-[14px] font-medium text-slate-700">
+            <li className="flex items-center gap-2"><ClayIcon name="sun" size={22} />Your sun through the day</li>
+            <li className="flex items-center gap-2"><ClayIcon name="fireplace" size={22} />Fireplace and heater switches on your pin</li>
+            <li className="flex items-center gap-2"><ClayIcon name="clock" size={22} />Service hours and live status</li>
+          </ul>
+          <button
+            type="button"
+            onClick={onManage}
+            className="flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-900/10 bg-slate-900 text-[15px] font-bold text-white transition-transform duration-150 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+          >
+            Open partner preview
+            <ChevronRight size={17} aria-hidden="true" />
+          </button>
+          <p className="text-center text-[12px] font-medium text-slate-500">Preview only: changes stay on this device for now.</p>
+        </section>
       ) : null}
     </>
   );
