@@ -1,0 +1,24 @@
+/* Device-local partner forms share the preview's warm cards and amber actions. */
+.ss-partner-tools-card form { display: flex; flex-direction: column; gap: 12px; }
+.ss-partner-tools-card label { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: #475569; font-size: 12px; font-weight: 700; }
+.ss-partner-tools-card select { width: 100%; min-width: 0; min-height: 44px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 12px; background: white; color: var(--color-ink); font-size: 12px; }
+.ss-partner-tools-card select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.ss-partner-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ss-partner-form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ss-partner-form-actions .ss-partner-button { min-width: 64px; }
+.ss-partner-days, .ss-partner-choice, .ss-partner-event-fields { min-width: 0; }
+.ss-partner-days legend, .ss-partner-choice legend, .ss-partner-event-fields legend { margin-bottom: 6px; color: #475569; font-size: 12px; font-weight: 700; }
+.ss-partner-days > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.ss-partner-days button, .ss-partner-choice button { min-width: 44px; min-height: 44px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 12px; background: var(--color-surface); color: #475569; font-size: 12px; font-weight: 700; }
+.ss-partner-days button[aria-pressed=true], .ss-partner-choice button[aria-pressed=true] { background: #fef3c7; border-color: var(--color-accent); color: #78350f; }
+.ss-partner-choice > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.ss-partner-choice button { flex: 1; }
+.ss-partner-event-fields { display: flex; flex-direction: column; gap: 12px; }
+.ss-partner-event-fields:disabled { opacity: .6; }
+.ss-partner-events { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 16px; }
+.ss-partner-events li { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e2e8f0; border-radius: 16px; background: var(--color-surface); }
+.ss-partner-events li > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ss-partner-events strong { display: block; color: var(--color-ink); font-size: 14px; }
+.ss-partner-events span, .ss-partner-events time { display: block; color: #475569; font-size: 12px; }
+.ss-partner-remove { display: flex; flex-shrink: 0; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: 12px; background: white; color: #475569; }
+.ss-partner-form-error { color: #991b1b; font-size: 12px; line-height: 1.5; }
