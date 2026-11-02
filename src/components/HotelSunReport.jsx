@@ -42,7 +42,7 @@ function YearSunChart({ monthly, year }) {
         {chart.callouts.map(c => (
           <React.Fragment key={c.month}>
             <span className={`ss-year-chart__dot ss-year-chart__dot--${c.kind}`} style={{ left: `${c.xPercent}%`, top: `${c.yPercent}%` }} aria-hidden="true" />
-            <span className={`ss-year-chart__callout ss-year-chart__callout--${c.kind} ${edge(c.xPercent)}`} style={{ left: `${c.xPercent}%`, top: `${c.yPercent}%` }} aria-hidden="true">{c.text}</span>
+            <span className={`ss-year-chart__callout ss-year-chart__callout--${c.kind} ss-year-chart__callout--${c.placement} ${edge(c.xPercent)}`} style={{ left: `${c.xPercent}%`, top: `${c.yPercent}%` }} aria-hidden="true">{c.text}</span>
           </React.Fragment>
         ))}
       </div>
