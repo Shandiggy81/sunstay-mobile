@@ -28,11 +28,46 @@ test('points sit in month columns and inside the chart', () => {
 
 test('calls out now, the sunniest and the least sunny month', () => {
     const chart = yearSunChart(monthly, { currentMonth: 11 });
-    assert.deepEqual(chart.callouts.map(c => [c.label, c.kind, c.text, c.placement]), [['Nov', 'now', 'Now · 7.6h', 'above'], ['Mar', 'most', '7.7h', 'above'], ['Jun', 'least', '3.3h', 'below']]);
-    assert.deepEqual(yearSunChart(monthly, { currentMonth: 3 }).callouts.map(c => c.label), ['Mar', 'Jun'], 'no repeat when now is the peak');
+    assert.deepEqual(chart.callouts.map(c => [c.label, c.kind, c.text, c.placement]), [['Nov', 'now', 'Now · 7.6h', 'above'], ['Mar', 'most', '7.7h', 'sun'], ['Jun', 'least', '3.3h', 'below']]);
+    const nowAtPeak = yearSunChart(monthly, { currentMonth: 3 }).callouts;
+    assert.deepEqual(nowAtPeak.map(c => [c.label, c.placement]), [['Mar', 'sun'], ['Jun', 'below']], 'no repeat when now is the peak');
     const shaded = yearSunChart(monthly.map(m => ({ ...m, hours: 0 })));
     assert.deepEqual(shaded.callouts, []);
     assert.equal(yearSunChart([]), null);
+});
+
+test('the clay sun sits on the sunniest month, kept inside the chart', () => {
+    assert.deepEqual(yearSunChart(monthly).sun, { kind: 'sun', month: 3, xPercent: 20.8, yPercent: yearSunChart(monthly).points[2].yPercent });
+    const january = yearSunChart(monthly.map(m => ({ ...m, hours: m.month === 1 ? 9 : 2 }))).sun;
+    assert.equal(january.month, 1);
+    assert.equal(january.xPercent, 8, 'clamped so the icon is not cut off at the edge');
+    const flat = yearSunChart(monthly.map(m => ({ ...m, hours: 5 }))).sun;
+    assert.ok([6, 7].includes(flat.month), 'a tie keeps the sun mid-year');
+    const none = yearSunChart(monthly.map(m => ({ ...m, hours: 0 }))).sun;
+    assert.equal(none.kind, 'shaded');
+    assert.equal(none.xPercent, 50);
+});
+
+test('rooms in one report can share an axis', () => {
+    const low = monthly.map(m => ({ ...m, hours: m.hours / 3 }));
+    assert.equal(yearSunChart(low).maxHours, 4, 'on its own, the axis fits the room');
+    const shared = yearSunChart(low, { maxHours: 7.7 });
+    assert.equal(shared.maxHours, 8);
+    assert.deepEqual(shared.ticks.map(t => t.label), ['8h', '4h']);
+    assert.equal(yearSunChart(monthly, { maxHours: 2 }).maxHours, 8, 'a smaller shared value never cuts a room off');
+    assert.equal(yearSunChart(monthly, { maxHours: NaN }).maxHours, 8);
+});
+
+test('labels near the sun move out from under it', () => {
+    // Peak in Mar; Feb and Apr are within two months, so their labels go below or are dropped.
+    const hours = [6, 7, 9, 7.5, 5, 3, 2.5, 3, 4, 5, 5.5, 6];
+    const chart = yearSunChart(hours.map((h, i) => ({ month: i + 1, label: LABELS[i], hours: h })), { currentMonth: 4 });
+    const now = chart.callouts.find(c => c.kind === 'now');
+    assert.equal(now.placement, 'below', 'now, next to the sun, sits under its dot');
+    assert.ok(!chart.callouts.some(c => c.kind === 'most'), 'the peak label next to a below "Now" is dropped, not overlapped');
+    for (const c of chart.callouts) {
+        if (c.placement === 'above') assert.ok(Math.abs(c.month - chart.sun.month) > 2, `${c.label} would sit under the sun`);
+    }
 });
 
 test('the curve never dips below the baseline or above the peak', () => {

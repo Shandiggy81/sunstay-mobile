@@ -15,10 +15,10 @@ function melbourneNow(timeZone = DEFAULT_TIME_ZONE) {
 }
 
 /** Smooth amber area of monthly sun hours, like the app's daily sun graph (utils/yearSunChart). */
-function YearSunChart({ monthly, year }) {
+function YearSunChart({ monthly, year, sharedMax }) {
   const gradientId = useId();
   const now = melbourneNow();
-  const chart = yearSunChart(monthly, { currentMonth: now.year === Number(year) ? now.month : null });
+  const chart = yearSunChart(monthly, { currentMonth: now.year === Number(year) ? now.month : null, maxHours: sharedMax });
   if (!chart) return null;
   const nowPoint = chart.callouts.find(c => c.kind === 'now');
   const edge = x => (x < 12 ? 'ss-year-chart__callout--start' : x > 88 ? 'ss-year-chart__callout--end' : '');
@@ -28,23 +28,30 @@ function YearSunChart({ monthly, year }) {
         <svg viewBox={`0 0 ${chart.width} ${chart.height}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#fbbf24" stopOpacity="0.95" />
-              <stop offset="1" stopColor="#fde68a" stopOpacity="0.35" />
+              <stop offset="0" stopColor="var(--color-amber-200)" />
+              <stop offset="1" stopColor="var(--color-accent)" />
             </linearGradient>
           </defs>
           {chart.ticks.map(tick => <line key={tick.hours} x1="0" x2={chart.width} y1={tick.y} y2={tick.y} className="ss-year-chart__grid" vectorEffect="non-scaling-stroke" />)}
           <path d={chart.area} fill={`url(#${gradientId})`} />
-          <path d={chart.line} className="ss-year-chart__line" vectorEffect="non-scaling-stroke" />
           {nowPoint && <line x1={nowPoint.x} x2={nowPoint.x} y1={nowPoint.y} y2={chart.baseline} className="ss-year-chart__now-line" vectorEffect="non-scaling-stroke" />}
           <line x1="0" x2={chart.width} y1={chart.baseline} y2={chart.baseline} className="ss-year-chart__baseline" vectorEffect="non-scaling-stroke" />
         </svg>
         {chart.ticks.map(tick => <span key={tick.hours} className="ss-year-chart__tick" style={{ top: `${tick.yPercent}%` }} aria-hidden="true">{tick.label}</span>)}
-        {chart.callouts.map(c => (
-          <React.Fragment key={c.month}>
-            <span className={`ss-year-chart__dot ss-year-chart__dot--${c.kind}`} style={{ left: `${c.xPercent}%`, top: `${c.yPercent}%` }} aria-hidden="true" />
-            <span className={`ss-year-chart__callout ss-year-chart__callout--${c.kind} ss-year-chart__callout--${c.placement} ${edge(c.xPercent)}`} style={{ left: `${c.xPercent}%`, top: `${c.yPercent}%` }} aria-hidden="true">{c.text}</span>
-          </React.Fragment>
-        ))}
+        {/* The clay sun on the sunniest month, like the daily graph's peak; shaded when there is no direct sun all year. */}
+        <span className={`ss-year-chart__sun ss-year-chart__sun--${chart.sun.kind}`} style={{ left: `${chart.sun.xPercent}%`, top: `${chart.sun.yPercent}%` }} aria-hidden="true">
+          <ClayIcon name={chart.sun.kind === 'sun' ? 'sun' : 'shaded'} size={44} />
+        </span>
+        {chart.callouts.map(c => {
+          const onSun = c.placement === 'sun';
+          const x = onSun ? chart.sun.xPercent : c.xPercent;
+          return (
+            <React.Fragment key={c.month}>
+              {!onSun && <span className={`ss-year-chart__dot ss-year-chart__dot--${c.kind}`} style={{ left: `${c.xPercent}%`, top: `${c.yPercent}%` }} aria-hidden="true" />}
+              <span className={`ss-year-chart__callout ss-year-chart__callout--${c.kind} ss-year-chart__callout--${c.placement} ${edge(x)}`} style={{ left: `${x}%`, top: `${c.yPercent}%` }} aria-hidden="true">{c.text}</span>
+            </React.Fragment>
+          );
+        })}
       </div>
       <ol className="ss-year-chart__months" aria-label="Monthly direct sun in hours">
         {chart.points.map(p => (
@@ -58,7 +65,10 @@ function YearSunChart({ monthly, year }) {
   );
 }
 
-function RoomReport({ room, year }) {
+/** The sunniest month across every room, so all of a report's year charts share one axis. */
+const reportMaxHours = rooms => Math.max(0, ...rooms.flatMap(room => (room.monthly ?? []).map(m => m.hours)).filter(Number.isFinite));
+
+function RoomReport({ room, year, sharedMax }) {
   const titleId = useId();
   return (
     <article className="ss-sun-report__room rounded-3xl" aria-labelledby={titleId}>
@@ -83,7 +93,7 @@ function RoomReport({ room, year }) {
               <h3>Sun through the year</h3>
               <p>Hours of direct sun · 15th of each month, {year}</p>
             </figcaption>
-            <YearSunChart monthly={room.monthly} year={year} />
+            <YearSunChart monthly={room.monthly} year={year} sharedMax={sharedMax} />
           </figure>
 
           <div className="ss-sun-report__sunniest">
@@ -257,7 +267,7 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
           : failed ? <p className="ss-sun-report__notice" role="alert">We could not calculate this sun report. Go back and try opening it again.</p>
           : report && <>
             <p className="ss-sun-report__explanation">See when direct sun is estimated to reach each {facadeSides ? 'side of the building' : 'room type'}. These are sun-path and building estimates, not a weather forecast; cloud, curtains and unrecorded obstructions can change the sun you experience.</p>
-            {report.rooms.length ? <div className="ss-sun-report__rooms">{report.rooms.map(room => <RoomReport key={room.id} room={room} year={report.year} />)}</div>
+            {report.rooms.length ? <div className="ss-sun-report__rooms">{report.rooms.map(room => <RoomReport key={room.id} room={room} year={report.year} sharedMax={reportMaxHours(report.rooms)} />)}</div>
               : <p className="ss-sun-report__notice">Sun by side of the building is not available for this hotel yet.</p>}
 
             {report.rooms.some(room => room.totalMinutes != null) && report.summary.length > 0 && <section className="ss-sun-report__summary rounded-3xl" aria-labelledby={`${titleId}-summary`}>

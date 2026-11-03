@@ -80,13 +80,14 @@
 .ss-year-chart__plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .ss-year-chart__grid { stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 3 4; }
 .ss-year-chart__baseline { stroke: #d6c7a8; stroke-width: 1.5; }
-.ss-year-chart__line { fill: none; stroke: #d97706; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.ss-year-chart__sun { position: absolute; z-index: 1; display: block; width: 44px; height: 44px; line-height: 0; transform: translate(-50%, -62%); pointer-events: none; }
+.ss-year-chart__sun--shaded { transform: translate(-50%, -50%); }
 .ss-year-chart__now-line { stroke: #0f172a; stroke-width: 1.5; stroke-dasharray: 3 3; }
 .ss-year-chart__tick { position: absolute; left: 0; transform: translateY(-115%); color: #64748b; font-size: 12px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
 .ss-year-chart__dot { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border: 2px solid #fff; border-radius: 50%; background: #d97706; box-shadow: 0 1px 4px rgb(120 80 20 / 30%); }
 .ss-year-chart__dot--now { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: #0f172a; }
 .ss-year-chart__dot--least { background: #94a3b8; }
-.ss-year-chart__callout { position: absolute; transform: translate(-50%, calc(-100% - 9px)); border-radius: 999px; padding: 3px 8px; background: #fff; color: #92400e; font-size: 12px; font-weight: 800; line-height: 1.3; white-space: nowrap; box-shadow: 0 2px 8px rgb(120 80 20 / 14%); font-variant-numeric: tabular-nums; }
+.ss-year-chart__callout { position: absolute; z-index: 2; transform: translate(-50%, calc(-100% - 9px)); border-radius: 999px; padding: 3px 8px; background: #fff; color: #92400e; font-size: 12px; font-weight: 800; line-height: 1.3; white-space: nowrap; box-shadow: 0 2px 8px rgb(120 80 20 / 14%); font-variant-numeric: tabular-nums; }
 .ss-year-chart__callout--now { background: #0f172a; color: #fff; }
 .ss-year-chart__callout--least { color: #475569; }
 .ss-year-chart__callout--start { transform: translate(-14%, calc(-100% - 9px)); }
@@ -94,6 +95,9 @@
 .ss-year-chart__callout--below { transform: translate(-50%, 9px); }
 .ss-year-chart__callout--below.ss-year-chart__callout--start { transform: translate(-14%, 9px); }
 .ss-year-chart__callout--below.ss-year-chart__callout--end { transform: translate(-86%, 9px); }
+.ss-year-chart__callout--sun { transform: translate(-50%, 20px); }
+.ss-year-chart__callout--sun.ss-year-chart__callout--start { transform: translate(-14%, 20px); }
+.ss-year-chart__callout--sun.ss-year-chart__callout--end { transform: translate(-86%, 20px); }
 .ss-sun-report .ss-year-chart__months { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); margin-top: 8px; }
 .ss-year-chart__months li { color: #475569; font-size: 12px; font-weight: 700; line-height: 1.5; text-align: center; }
 .ss-year-chart__months li.ss-year-chart__month--now { color: #0f172a; font-weight: 800; }
