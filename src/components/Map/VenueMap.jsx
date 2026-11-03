@@ -18,6 +18,7 @@ import sunsetBadgeUrl from '../../assets/clay/cocktail.webp';
 import { areaPromptNeeded } from '../../utils/searchArea';
 import { filterRefitNeeded } from '../../utils/filterRefit';
 import { parseXweatherCredentials } from '../../utils/xweatherKey';
+import { whenControllerReady } from '../../utils/mapsglReady.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import SunCalc from 'suncalc';
 import { sunLightFor } from '../../utils/mapSunLight';
@@ -2159,6 +2160,9 @@ const VenueMap = forwardRef(({
                     });
                 }
                 if (!controllerRef.current || cancelled) return;
+                // The SDK finishes loading after construction; adding a layer before then throws.
+                const controller = await whenControllerReady(controllerRef.current);
+                if (cancelled || map.current !== instance || controllerRef.current !== controller) return;
                 if (showRadar && !radarLayerAddedRef.current) {
                     controllerRef.current.addWeatherLayer('radar');
                     radarLayerAddedRef.current = true;
