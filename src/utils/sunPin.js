@@ -1,22 +1,24 @@
 /**
- * Map pins show the venue's own icon and the rounded sun score. Full sun gets
- * a sunflower fill so the sunniest venues stand out at a glance; a venue
- * condition (heaters on, cozy, rain, cold, windy) shows its marker in place of
- * the number, which the partner preview relies on to show a status change.
- * The numeric score stays in the accessible label except in After Dark mode.
+ * Map pins show the venue's own clay icon, large and on its own: the pin's
+ * colour carries the sun level (a sunflower fill for full sun, a gold edge for
+ * part sun, a grey edge for low), and the score number lives in the list and
+ * on the card. A venue condition (heaters on, cozy, rain, cold, windy) still
+ * shows its marker beside the icon, which the partner preview relies on to
+ * show a status change, and night shows a moon. The numeric score stays in
+ * the accessible label except in After Dark mode.
  *
  * Pure, so the look of every pin state is testable without a map.
  */
 
 export const SUN_PIN_TIERS = Object.freeze({
-    full:     { bg: '#FFE7A3', border: '#f59e0b', text: '#0f172a' },
-    part:     { bg: '#ffffff', border: '#f59e0b', text: '#0f172a' },
+    full:     { bg: '#FFE7A3', border: '#fbbf24', text: '#0f172a' },
+    part:     { bg: '#ffffff', border: '#fbbf24', text: '#0f172a' },
     low:      { bg: '#ffffff', border: '#d6d3ce', text: '#475569' },
     unknown:  { bg: '#ffffff', border: '#d6d3ce', text: '#475569' },
-    selected: { bg: '#ffffff', border: '#f59e0b', text: '#0f172a' },
+    selected: { bg: '#ffffff', border: '#fbbf24', text: '#0f172a' },
 });
 
-// Conditions show their marker instead of the number, for idle and selected pins.
+// Conditions show their marker beside the icon, for idle and selected pins.
 const CONDITION_GLYPHS = Object.freeze({
     heater: '🔥',
     cozy: '🛋️',
@@ -45,8 +47,8 @@ export function sunPinView({ pinKey = 'default', score = null, emoji = null, ico
     const tier = selected ? 'selected' : sunTier(n);
     const style = SUN_PIN_TIERS[tier];
     const icon = typeof emoji === 'string' && emoji.trim() ? emoji.trim() : '📍';
-    // After dark every score is 0, which reads like a bad venue: show a moon instead.
-    const scoreText = n == null ? '' : CONDITION_GLYPHS[pinKey] ?? (night || nightMode ? '🌙' : String(n));
+    // No number on the pin: only a condition marker, or a moon after dark (every score is 0 then).
+    const scoreText = n == null ? '' : CONDITION_GLYPHS[pinKey] ?? (night || nightMode ? '🌙' : '');
     return {
         tier,
         icon,

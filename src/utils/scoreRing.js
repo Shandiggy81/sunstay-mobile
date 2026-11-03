@@ -14,8 +14,9 @@ export function clampScore(score) {
 export function scoreRingTone(score) {
     const n = clampScore(score);
     if (n == null) return { fill: '#cbd5e1', text: '#475569' };
-    if (n >= 75) return { fill: '#f59e0b', text: '#92400e' };
-    if (n >= 50) return { fill: '#fbbf24', text: '#92400e' };
+    // Golds that match the clay sun, not the accent orange.
+    if (n >= 75) return { fill: '#fbbf24', text: '#92400e' };
+    if (n >= 50) return { fill: '#fcd34d', text: '#92400e' };
     return { fill: '#94a3b8', text: '#334155' };
 }
 
