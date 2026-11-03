@@ -31,12 +31,12 @@ const test = base.extend({
 
 const list = page => page.locator('.ss-mobile-sheet');
 const sheet = page => page.locator('.ss-filter-sheet');
-const count = page => list(page).locator('.ss-mobile-sheet-head p').filter({ hasText: /^\d+ results$/ });
+const count = page => list(page).locator('.ss-mobile-sheet-head .ss-home-count');
 const rows = page => list(page).getByRole('button', { name: /^Venue: / });
 
 async function openList(page) {
   await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
-  await expect(list(page).getByRole('heading', { name: 'Venues', exact: true })).toBeVisible();
+  await expect(list(page).locator('#mobile-discovery-results')).toBeVisible();
   await expect(rows(page).first()).toBeVisible();
 }
 
@@ -47,7 +47,7 @@ async function openFilters(page) {
 
 test('app loads and the venue list opens', async ({ page }) => {
   await openList(page);
-  await expect(count(page)).toHaveText(/^[1-9]\d* results$/);
+  await expect(count(page)).toHaveText(/^[1-9]\d* venues?$/);
   await expect(page.getByRole('combobox', { name: 'Search venues', exact: true })).toBeVisible();
 });
 
@@ -82,8 +82,8 @@ test('Cafe narrows the venue count and Clear all restores it', async ({ page }) 
   expect(cafeTotal).toBeLessThan(total);
   await show.tap();
   await expect(sheet(page)).toBeHidden();
-  await expect(count(page)).toHaveText(`${cafeTotal} results`);
-  await expect(list(page).locator('.ss-mobile-sheet-search').getByRole('button', { name: /Cafe/ })).toBeVisible();
+  await expect(count(page)).toHaveText(`${cafeTotal} ${cafeTotal === 1 ? 'venue' : 'venues'}`);
+  await expect(list(page).locator('.ss-home-list-chips').getByRole('button', { name: /Cafe/ })).toBeVisible();
   await expect(rows(page).first().locator('.ss-vlc-sub')).toContainText(/cafe/i);
   await openFilters(page);
   await sheet(page).getByRole('button', { name: 'Clear all', exact: true }).tap();

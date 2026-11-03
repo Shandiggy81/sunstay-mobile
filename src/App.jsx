@@ -23,6 +23,9 @@ import { useSunHorizons } from './hooks/useSunHorizons';
 import AfterDarkPanel from './components/AfterDarkPanel.jsx';
 import ScoreRing from './components/common/ScoreRing.jsx';
 import HomeSheetMode from './components/HomeSheetMode.jsx';
+import HomeSheetSummary, { HomeDiscoveryInfo } from './components/HomeSheetSummary.jsx';
+import { mapCaptionProvenance } from './utils/microclimateProvenance.js';
+import { showHomeSunny } from './utils/homeChrome.js';
 import { useAfterDarkEvents } from './hooks/useAfterDarkEvents.js';
 import { afterDarkOrigin, resolveAfterDarkMode } from './utils/afterDarkHome.js';
 import MapVenuePreview from './components/MapVenuePreview';
@@ -547,7 +550,7 @@ VenueChip.displayName = 'VenueChip';
 // ═══════════════════════════════════════════════════════════════════════
 const AppContent = () => {
     const [splashDone, setSplashDone] = useState(() => readHotelSunReportId(window.location.search) !== null || readVenueLinkId(window.location.search) !== null || hasSeenSplash());
-    const { weather, loading: weatherLoading, calculateSunScore, previewMinutes } = useWeather();
+    const { weather, loading: weatherLoading, calculateSunScore, previewMinutes, dataKind, fetchedAt } = useWeather();
     const { venues, refetch, isRefreshing, isLoading: venuesLoading, source: venueSource, error: venueError } = useVenues();
     // Let useVenues start its live lookup before declaring a shared ID missing.
     const [venueLookupStarted, setVenueLookupStarted] = useState(false);
@@ -732,7 +735,7 @@ const AppContent = () => {
     // The Sunny filter reads each venue's own sun at the slider time, plus the
     // Melbourne hourly forecast for that hour (the same one the Sun Forecast
     // tab uses). UV is safety info only.
-    const { byId: microById, todMinutes: listTodMinutes } = useMicroclimateState();
+    const { byId: microById, todMinutes: listTodMinutes, viewportBbox } = useMicroclimateState();
     // Rain radar on the map, shared by the header switch and the map's layers menu.
     const [radarOn, setRadarOn] = useState(false);
     const [homeModeChoice, setHomeModeChoice] = useState(() => {
@@ -1142,6 +1145,15 @@ const AppContent = () => {
     const experienceContext = discoveryContext({ filters: activeFilters, moment: stayMoment, date: stayDate, todMinutes: listTodMinutes });
     const dataLabel = discoveryDataLabel({ source: venueSource, loading: venuesLoading, error: venueError, weather, weatherLoading });
 
+    const homeCount = areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} ${matchingCount === 1 ? 'venue' : 'venues'}`;
+    const captionBadge = useMemo(() => mapCaptionProvenance({
+        venues: filteredVenues, bbox: viewportBbox,
+        microById, todMinutes: listTodMinutes, weatherKind: dataKind, weatherFetchedAt: fetchedAt,
+    }), [filteredVenues, viewportBbox, microById, listTodMinutes, dataKind, fetchedAt]);
+    const experienceFinder = <ExperienceFinder selected={selectedExperience(activeFilters, stayMoment)} onSelect={handleExperienceSelect}
+        onClear={() => setActiveFilters(clearExperience(activeFilters))} canClear={clearExperience(activeFilters).length !== activeFilters.length} />;
+    const discoveryInfo = <HomeDiscoveryInfo experienceContext={experienceContext} dataLabel={dataLabel} captionBadge={captionBadge} cozy={cozyFilterActive} />;
+
     // The chat stays open: Sunny shows matching venues as cards to tap.
     const makeChatFilter = (filter) => () => {
         setActiveFilters([filter]);
@@ -1345,29 +1357,20 @@ const AppContent = () => {
             >
                 {/* Explore uses a solid warm surface; detail weather retains its own presentation. */}
 
-                {!venueCardOpen && <TopBar
+                <TopBar hidden={venueCardOpen} previewMinutes={listTodMinutes} now={new Date(homeNow)}
                     weather={weather} onFiltersOpen={openMobileFilters} comfort={comfort}
                     searchQuery={searchQuery} onSearchChange={setSearchQuery}
                     onSearchSubmit={() => { setPreviewVenue(null); if (isMobile) setMobileSheetState('expanded'); }}
                     venues={venues} onSuggestionSelect={handleVenueSelect}
-                    isChatOpen={isChatOpen} onSunnyClick={toggleChat}
                     radarOn={radarOn} onRadarChange={setRadarOn}
-                />}
-
-                <div className={`ss-home-chip-layer ${venueCardOpen ? 'ss-home-chip-layer--hidden' : ''}`} role="region" aria-label="Preview time and quick picks">
-                    <div className="ss-home-chip-row">
-                        <span id="explore-time-controls" />
-                        <span className="ss-home-chip-divider" aria-hidden="true" />
-                        <ExperienceFinder selected={selectedExperience(activeFilters, stayMoment)} onSelect={handleExperienceSelect}
-                            onClear={() => setActiveFilters(clearExperience(activeFilters))} canClear={clearExperience(activeFilters).length !== activeFilters.length} />
-                    </div>
-                </div>
+                />
 
                 <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
                     {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
                     <aside className={`ss-sidebar ${homeMode === 'after-dark' ? 'ss-sidebar--after-dark' : ''} hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96`}>
                         <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                         {homeMode === 'after-dark' ? (!isMobile && afterDarkPanel) : <>
+                        {experienceFinder}
                         <div className="px-3 pt-2"><PropertyFilterPills activeFilters={activeFilters} onToggle={handleFilterToggle} /></div>
                         {/* Quick-filter pills share the unified filter state. */}
                         <div className="ss-quick-filter-row flex flex-shrink-0 gap-2 px-3 py-2">
@@ -1409,6 +1412,7 @@ const AppContent = () => {
                             </span>
                         </div>
 
+                        {!isMobile && discoveryInfo}
                         {!isMobile && stayPicker}
                         {!isMobile ? (
                                 <MascotPullRefresh
@@ -1604,37 +1608,27 @@ const AppContent = () => {
                 {!mobileMapExpanded && !venueCardOpen && !mobileFilterOpen && (
                     <div className={`ss-home-sheet-peek ${homeMode === 'after-dark' ? 'ss-home-sheet-peek--after-dark' : ''}`}
                         role="region" aria-label={homeMode === 'after-dark' ? "Tonight's events" : 'Venues'}>
-                    <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                     <motion.div
-                        role="button" tabIndex={0} aria-label={homeMode === 'after-dark' ? "Show tonight's events" : 'Show venue list'} aria-expanded={sheetExpanded}
                         drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.12}
                         onPointerDown={() => { peekDragged.current = false; }}
                         onDragStart={() => { peekDragged.current = true; }}
                         onDragEnd={(_, { offset, velocity }) => { if (offset.y < -40 || velocity.y < -300) { setPreviewVenue(null); setMobileSheetState('expanded'); } }}
-                        onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); setPreviewVenue(null); setMobileSheetState('expanded'); } }}
                         className={`ss-mobile-sheet-handle ${mobileSheetState === 'expanded' ? 'ss-mobile-sheet-handle--expanded' : ''}`}
                         onClick={() => { if (peekDragged.current) { peekDragged.current = false; return; } setPreviewVenue(null); setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded'); }}
                     >
                         <div className="ss-mobile-sheet-grab" />
-                        <span className="ss-home-peek-headline">
-                            {homeMode === 'after-dark' ? "Tonight's events" : <>
-                            {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} ${matchingCount === 1 ? 'venue' : 'venues'}`}
-                            {homeClause && <span> · {homeClause}</span>}
-                            {areaBounds ? showAllChip('-my-3') : null}
-                            {ENABLE_MANUAL_VENUE_REFRESH ? (
-                                <VenueRefreshButton
-                                    onRefresh={requestRefresh}
-                                    isRefreshing={isRefreshing}
-                                />
-                            ) : null}
-                            </>}
-                        </span>
-                        <p className="ss-discovery-context">{homeMode === 'after-dark' ? 'Events within 3\u00a0km' : experienceContext}</p>
-                        <p className="ss-discovery-source">{homeMode === 'after-dark' ? 'Events from Ticketmaster' : dataLabel}</p>
-                        {homeMode === 'sun' && <ChevronUp size={14} className="ss-home-peek-chevron" />}
+                        <HomeSheetSummary mode={homeMode} onModeChange={handleHomeMode} count={homeCount} clause={homeClause}
+                            onExpand={() => { setPreviewVenue(null); setMobileSheetState('expanded'); }} />
+                        {areaBounds && homeMode === 'sun' ? showAllChip() : null}
+                        {homeMode === 'sun' && ENABLE_MANUAL_VENUE_REFRESH && <VenueRefreshButton onRefresh={requestRefresh} isRefreshing={isRefreshing} />}
+                        {homeMode === 'after-dark' ? <p className="ss-home-night-source">Events within 3 km · Events from Ticketmaster</p> : discoveryInfo}
                     </motion.div>
                     </div>
                 )}
+
+                {showHomeSunny({ chatOpen: isChatOpen, venueOpen: venueCardOpen, sheetExpanded, isMobile, filtersOpen: mobileFilterOpen }) && <button type="button" className="ss-home-sunny-fab" onClick={toggleChat} aria-label="Ask Sunny">
+                    <img src={mascotLogoImg} alt="" width={44} height={44} /><span>Ask Sunny</span>
+                </button>}
 
                 <AnimatePresence>
                     {sheetExpanded && (
@@ -1654,38 +1648,20 @@ const AppContent = () => {
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
-                                    <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
+                                    <HomeSheetSummary mode={homeMode} onModeChange={handleHomeMode} count={homeCount} clause={homeClause} />
                                     {homeMode === 'sun' && <>
-                                    <h3 id="mobile-discovery-results" tabIndex={-1}><ClayIcon name="sun" size={30} />Venues</h3>
-                                    <p className="inline-flex items-center gap-2">
-                                        {areaBounds ? areaCountLabel(matchingCount) : nearPlace ? placeCountLabel(matchingCount, placeForQuery, nearPlace.radiusM) : `${matchingCount.toLocaleString('en-AU')} ${matchingCount === 1 ? 'result' : 'results'}`}
-                                        {areaBounds ? showAllChip('-my-3') : null}
-                                        {ENABLE_MANUAL_VENUE_REFRESH ? (
-                                            <VenueRefreshButton
-                                                onRefresh={requestRefresh}
-                                                isRefreshing={isRefreshing}
-                                            />
-                                        ) : null}
-                                    </p>
-                                    {!staysActive && <span className="ss-explore-sort">{comfortSort ? <><ClayIcon name="indoor-warmth" size={18} />{comfortSort}</> : <><ClayIcon name="sun" size={18} />Sunniest first</>}</span>}
-                                    {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : null}
-                                    {!isRefreshing && refreshFailureVisible(refreshStatus) ? (
-                                        <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p>
-                                    ) : null}
-                                    {/* The peek header's context lines, shown once here while it is hidden. */}
-                                    <p className="ss-discovery-context">{experienceContext}</p>
-                                    <p className="ss-discovery-source">{dataLabel}</p>
+                                        <span id="home-list-context" className="sr-only">{experienceContext}. {dataLabel}</span>
+                                        {areaBounds ? showAllChip() : null}
+                                        {ENABLE_MANUAL_VENUE_REFRESH && <VenueRefreshButton onRefresh={requestRefresh} isRefreshing={isRefreshing} />}
+                                        {isRefreshing ? <p className="ss-venue-refresh-status">Updating…</p> : refreshFailureVisible(refreshStatus) ? <p className="ss-venue-refresh-status ss-venue-refresh-status--error">Couldn't update</p> : null}
                                     </>}
                                 </div>
                                 {homeMode === 'after-dark' ? afterDarkPanel : <>
-                                {/* Search stays in the floating top bar, which drives the same query. */}
-                                <div className="ss-mobile-sheet-search flex-shrink-0 px-4 pt-1 pb-2 flex flex-col gap-2 bg-white border-b border-gray-100" onPointerDownCapture={e => e.stopPropagation()}>
-                                    <QuickFilterChips
-                                        activeFilters={activeFilters}
-                                        onToggle={handleFilterToggle}
-                                        onClear={handleClearFilters}
-                                        showClear={activeFilters.length > 0 || Boolean(searchQuery.trim())}
-                                    />
+                                <div className="ss-home-list-chips" onPointerDownCapture={e => e.stopPropagation()}>
+                                    {!staysActive && <span className="ss-explore-sort">{comfortSort ? <><ClayIcon name="indoor-warmth" size={22} />{comfortSort}</> : <><ClayIcon name="sun" size={22} />Sunniest first</>}</span>}
+                                    {experienceFinder}
+                                    <QuickFilterChips activeFilters={activeFilters} onToggle={handleFilterToggle} onClear={handleClearFilters}
+                                        showClear={activeFilters.length > 0 || Boolean(searchQuery.trim())} />
                                 </div>
                                 {stayPicker}
                                     <MascotPullRefresh
