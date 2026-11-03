@@ -68,9 +68,9 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
                     <button type="button" onClick={() => setOpen(value => !value)} disabled={!summary.details.length}
                         aria-label={[summary.temperature, summary.condition, summary.details.length ? describeWind(windView.speedKmh) : null, summary.details.length ? windView.speedLabel : null].filter(Boolean).join(', ')}
                         aria-expanded={open} aria-controls={detailsId} className="ss-home-weather-card">
-                        <ClayIcon name={weatherClayIcon(summary.condition, { isNight: weather?.isDay === false })} size={40} />
+                        <ClayIcon name={weatherClayIcon(summary.condition, { isNight: weather?.isDay === false })} size={28} />
                         <span className="ss-home-weather-copy"><strong>{summary.temperature}</strong><span>{summary.condition}</span></span>
-                        {summary.details.length > 0 && <><span className="ss-home-weather-divider" /><ClayIcon name="windsock" size={28} />
+                        {summary.details.length > 0 && <><span className="ss-home-weather-divider" /><ClayIcon name="windsock" size={22} />
                         <span className="ss-home-wind-copy"><strong>{describeWind(windView.speedKmh) ?? 'Wind unavailable'}</strong><span>{windView.speedLabel ?? '–'}</span></span></>}
                     </button>
                     <button type="button" role="switch" aria-checked={radarOn} className="ss-home-radar" onClick={() => onRadarChange?.(!radarOn)}>

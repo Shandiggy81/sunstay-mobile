@@ -5,15 +5,16 @@
 .ss-map-first-topbar-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .ss-map-first-brand { width: 136px; height: 110px; flex-shrink: 0; object-fit: cover; border-radius: 20px; box-shadow: 0 6px 18px rgba(15,23,42,.16); }
 .ss-home-weather-column { display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: 8px; pointer-events: none; }
-.ss-home-weather-card { display: flex; align-items: center; gap: 4px; height: 58px; width: 100%; padding: 4px 6px; border: 1px solid #ece6d9; border-radius: 20px; background: white; color: var(--color-ink); text-align: left; pointer-events: auto; }
-.ss-home-weather-card > img { flex-shrink: 0; }
-.ss-home-weather-copy, .ss-home-wind-copy { display: flex; min-width: 0; flex-direction: column; }
-.ss-home-weather-copy { flex: 1; }
-.ss-home-weather-copy strong { font-size: 22px; font-weight: 800; line-height: 1.1; }
-.ss-home-weather-copy > span, .ss-home-wind-copy > span { font-size: 12px; font-weight: 600; color: #64748b; line-height: 1.15; }
-.ss-home-wind-copy { flex: 1.35; }
-.ss-home-wind-copy strong { font-size: 14px; font-weight: 800; line-height: 1.1; }
-.ss-home-weather-divider { width: 1px; height: 32px; background: #ece6d9; flex-shrink: 0; }
+.ss-home-weather-card { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-content: center; align-items: center; column-gap: 7px; row-gap: 3px; height: 58px; width: 100%; padding: 4px 12px 4px 8px; border: 1px solid #ece6d9; border-radius: 20px; background: white; color: var(--color-ink); text-align: left; pointer-events: auto; }
+.ss-home-weather-card > img { flex-shrink: 0; justify-self: center; }
+/* Two tidy rows: "16° Clear sky" over "Light breeze · 11 km/h", so long words never wrap. */
+.ss-home-weather-copy, .ss-home-wind-copy { display: flex; min-width: 0; flex-direction: row; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+.ss-home-weather-copy strong { font-size: 20px; font-weight: 800; line-height: 1.1; }
+.ss-home-weather-copy > span, .ss-home-wind-copy > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 600; color: #64748b; line-height: 1.2; }
+.ss-home-wind-copy { gap: 4px; }
+.ss-home-wind-copy strong { font-size: 13px; font-weight: 800; line-height: 1.2; }
+.ss-home-wind-copy > span::before { content: '· '; }
+.ss-home-weather-divider { display: none; }
 .ss-home-radar { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 8px; border: 1px solid #ece6d9; border-radius: 999px; background: white; font-size: 14px; font-weight: 700; color: var(--color-ink); pointer-events: auto; }
 .ss-home-radar-track { width: 40px; height: 24px; padding: 3px; border-radius: 999px; background: #cbd5e1; flex-shrink: 0; }
 .ss-home-radar-track > span { display: block; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 1px 4px #0f172a26; transition: transform .15s; }
@@ -49,5 +50,5 @@
 .ss-search-suggestion--all { min-height: 44px; border-top: 1px solid #f3eadb; border-radius: 0 0 14px 14px; color: #92400e; }
 .ss-search-suggestion--all strong { font-size: 14px; }
 @media (min-width: 1024px) { .ss-map-first-topbar.ss-explore-topbar { max-width: 660px; right: auto; width: calc(100% - 32px); } }
-@media (max-width: 359px) { .ss-map-first-brand { width: 112px; object-fit: contain; } .ss-map-first-topbar-row { gap: 8px; } .ss-home-weather-card { gap: 2px; padding: 2px; } .ss-home-weather-card > img { max-width: 28px; } .ss-map-first-search-icon { display: none; } .ss-home-search-row { gap: 8px; } .ss-map-first-search-pill { padding-left: 10px; gap: 4px; } }
+@media (max-width: 359px) { .ss-map-first-brand { width: 112px; object-fit: contain; } .ss-map-first-topbar-row { gap: 8px; } .ss-home-weather-card { column-gap: 5px; padding: 4px 8px 4px 6px; } .ss-map-first-search-icon { display: none; } .ss-home-search-row { gap: 8px; } .ss-map-first-search-pill { padding-left: 10px; gap: 4px; } }
 @media (prefers-reduced-motion: reduce) { .ss-home-radar-track > span { transition: none; } }
