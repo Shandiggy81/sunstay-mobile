@@ -876,6 +876,8 @@ const VenueMap = forwardRef(({
     searchedArea      = null,   // bounds the list is narrowed to, or null
     onSearchArea      = null,   // (bounds) => void — "Search this area" pill
     onCameraSettle    = null,   // ({ lat, lng, zoom } | null) => void
+    radarOn           = null,   // controlled rain radar (header switch); null = the layers menu owns it
+    onRadarChange     = null,   // (on: boolean) => void
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -904,7 +906,15 @@ const VenueMap = forwardRef(({
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
-    const [showRadar,    setShowRadar]    = useState(false);
+    // Rain radar: controlled by App when it passes radarOn (the header switch and
+    // the layers menu then stay in step), otherwise local to the map.
+    const [radarLocal,   setRadarLocal]   = useState(false);
+    const showRadar = typeof radarOn === 'boolean' ? radarOn : radarLocal;
+    const setShowRadar = useCallback(next => {
+        const value = typeof next === 'function' ? next(showRadar) : Boolean(next);
+        if (typeof onRadarChange === 'function') onRadarChange(value);
+        else setRadarLocal(value);
+    }, [showRadar, onRadarChange]);
     const [layersOpen,   setLayersOpen]   = useState(false);
     const [areaPrompt,   setAreaPrompt]   = useState(null); // bounds to search, or null
 

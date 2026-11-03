@@ -21,7 +21,8 @@ const LOGO_H = 192;
 /** Floating map controls; all weather, search and Sunny behavior remains shared. */
 const suggestionType = venue => venueTypeLabel(venue?.typeLabel || venue?.vibe || '');
 
-const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchChange, onSearchSubmit, venues = null, onSuggestionSelect, isChatOpen, onSunnyClick, selectedVenue }) => {
+// radarOn / onRadarChange: the rain radar switch, shared with the map's layers menu (App owns it).
+const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchChange, onSearchSubmit, venues = null, onSuggestionSelect, isChatOpen, onSunnyClick, selectedVenue, radarOn = false, onRadarChange }) => {
     const [open, setOpen] = useState(false);
     // Type-ahead: venues by name, then suburbs (utils/searchSuggestions.js).
     const [searchFocused, setSearchFocused] = useState(false);

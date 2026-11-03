@@ -733,6 +733,8 @@ const AppContent = () => {
     // Melbourne hourly forecast for that hour (the same one the Sun Forecast
     // tab uses). UV is safety info only.
     const { byId: microById, todMinutes: listTodMinutes } = useMicroclimateState();
+    // Rain radar on the map, shared by the header switch and the map's layers menu.
+    const [radarOn, setRadarOn] = useState(false);
     const [homeModeChoice, setHomeModeChoice] = useState(() => {
         try { return sessionStorage.getItem('ss-home-sheet-mode'); } catch { return null; }
     });
@@ -1349,6 +1351,7 @@ const AppContent = () => {
                     onSearchSubmit={() => { setPreviewVenue(null); if (isMobile) setMobileSheetState('expanded'); }}
                     venues={venues} onSuggestionSelect={handleVenueSelect}
                     isChatOpen={isChatOpen} onSunnyClick={toggleChat}
+                    radarOn={radarOn} onRadarChange={setRadarOn}
                 />}
 
                 <div className={`ss-home-chip-layer ${venueCardOpen ? 'ss-home-chip-layer--hidden' : ''}`} role="region" aria-label="Preview time and quick picks">
@@ -1475,6 +1478,8 @@ const AppContent = () => {
                                         searchedArea={areaBounds}
                                         onSearchArea={setAreaBounds}
                                         onCameraSettle={setEventCamera}
+                                        radarOn={radarOn}
+                                        onRadarChange={setRadarOn}
                                     />
                                 </Suspense>
                             </MapErrorBoundary>
