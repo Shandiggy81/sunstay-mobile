@@ -5,6 +5,18 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/jpeg" href="/sun-badge.jpg" />
   <link rel="manifest" href="/manifest.json" />
+  <script>
+    // Start the splash poster download alongside the app bundle, but only when
+    // the splash will show (first open this session, not a shared venue/report link).
+    try {
+      if (sessionStorage.getItem('splashShown') !== 'true' && !/[?&](venue|report)=/.test(location.search)) {
+        var l = document.createElement('link');
+        l.rel = 'preload'; l.as = 'image'; l.type = 'image/webp'; l.href = '/splash-poster-v1.webp';
+        l.setAttribute('fetchpriority', 'high');
+        document.head.appendChild(l);
+      }
+    } catch (e) {}
+  </script>
   <link rel="apple-touch-icon" href="/sunstay-logo.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description"
