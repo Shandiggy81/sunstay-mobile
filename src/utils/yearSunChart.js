@@ -39,15 +39,21 @@ export function smoothPath(points) {
     return d;
 }
 
+/** Keeps the clay sun (about 44px on a ~330px plot) inside the chart at January and December. */
+export const SUN_EDGE_PERCENT = 8;
+
 /**
  * @param {Array<{ month: number, label: string, hours: number }>} monthly
- * @param {{ currentMonth?: number|null }} [options] 1–12, marked as "Now"
+ * @param {{ currentMonth?: number|null, maxHours?: number }} [options]
+ *   currentMonth: 1–12, marked as "Now".
+ *   maxHours: the highest value across every chart shown together, so rooms
+ *   in one report share an axis and compare at a glance.
  */
-export function yearSunChart(monthly, { currentMonth = null } = {}) {
+export function yearSunChart(monthly, { currentMonth = null, maxHours: sharedMax = 0 } = {}) {
     const { width, height, top, bottom } = YEAR_CHART;
     const months = Array.isArray(monthly) ? monthly.filter(m => Number.isFinite(m?.hours)) : [];
     if (months.length === 0) return null;
-    const maxHours = niceMaxHours(Math.max(...months.map(m => m.hours)));
+    const maxHours = niceMaxHours(Math.max(...months.map(m => m.hours), Number.isFinite(sharedMax) ? sharedMax : 0));
     const column = width / months.length;
     const yFor = hours => top + (1 - Math.max(0, hours) / maxHours) * (height - top - bottom);
     const points = months.map((m, i) => ({
@@ -62,23 +68,44 @@ export function yearSunChart(monthly, { currentMonth = null } = {}) {
     const ticks = [maxHours, maxHours / 2].map(h => ({ hours: h, label: `${h}h`, y: yFor(h), yPercent: Math.round((yFor(h) / height) * 1000) / 10 }));
 
     const sunny = points.filter(p => p.hours > 0);
-    const most = sunny.length ? sunny.reduce((a, b) => (b.hours > a.hours ? b : a)) : null;
+    const peakHours = sunny.length ? Math.max(...sunny.map(p => p.hours)) : 0;
+    // The sunniest month; on a tie, the one nearest mid-year, so a flat year keeps the sun central.
+    const most = sunny.length
+        ? sunny.filter(p => p.hours === peakHours).reduce((a, b) => (Math.abs(b.month - 6.5) < Math.abs(a.month - 6.5) ? b : a))
+        : null;
     const least = sunny.length > 1 ? points.reduce((a, b) => (b.hours < a.hours ? b : a)) : null;
     const now = points.find(p => p.month === currentMonth) ?? null;
+
+    // The clay sun sits on the sunniest month, as it sits on the peak of the
+    // daily sun graph. A year with no direct sun gets the shaded icon, centred.
+    const clampX = x => Math.min(100 - SUN_EDGE_PERCENT, Math.max(SUN_EDGE_PERCENT, x));
+    const sun = most
+        ? { kind: 'sun', month: most.month, xPercent: clampX(most.xPercent), yPercent: most.yPercent }
+        : { kind: 'shaded', month: null, xPercent: 50, yPercent: Math.round(((height - bottom - 24) / height) * 1000) / 10 };
+
     // Called-out values: now, the sunniest and the least sunny month, once each.
-    // Labels sit above their dot, except the least sunny month's, which sits
-    // below unless it is near the baseline. A label is dropped when a label on
-    // the same side is within one month of it, so they never overlap.
+    // A label at the sun's month sits below the sun. Other labels sit above
+    // their dot, but move below it within two months of the sun (where the sun
+    // would cover them) or for the least sunny month, unless the point is too
+    // near the baseline. A label is dropped when a label on the same side is
+    // within one month of it, so they never overlap.
     const callouts = [];
-    const place = (p, kind) => (kind === 'least' && (p.y - YEAR_CHART.top) / (height - top - bottom) < 0.6 ? 'below' : 'above');
-    const clashes = (p, placement) => callouts.some(c => c.placement === placement && Math.abs(c.month - p.month) <= 1);
-    if (now) callouts.push({ ...now, kind: 'now', placement: 'above', text: `Now · ${formatHours(now.hours)}` });
+    const highEnough = p => (p.y - top) / (height - top - bottom) < 0.6;
+    const nearSun = p => most && p.month !== most.month && Math.abs(p.month - most.month) <= 2;
+    const place = (p, kind) => {
+        if (most && p.month === most.month) return 'sun';
+        return (kind === 'least' || nearSun(p)) && highEnough(p) ? 'below' : 'above';
+    };
+    const side = placement => (placement === 'sun' ? 'below' : placement);
+    const clashes = (p, placement) => callouts.some(c => side(c.placement) === side(placement) && Math.abs(c.month - p.month) <= 1);
+    if (now) callouts.push({ ...now, kind: 'now', placement: place(now, 'now'), text: `Now · ${formatHours(now.hours)}` });
     for (const [p, kind] of [[most, 'most'], [least, 'least']]) {
         if (!p || callouts.some(c => c.month === p.month)) continue;
         const placement = place(p, kind);
+        if (placement === 'above' && nearSun(p)) continue;
         if (!clashes(p, placement)) callouts.push({ ...p, kind, placement, text: formatHours(p.hours) });
     }
-    return { width, height, baseline, line, area, points, ticks, callouts, maxHours };
+    return { width, height, baseline, line, area, points, ticks, callouts, maxHours, sun };
 }
 
 /** "7.5h", "3h", "0h". */
