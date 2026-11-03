@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import ClayIcon from './common/ClayIcon.jsx';
 import { usePartnerTools } from '../hooks/usePartnerTools.js';
-import { EVENT_DAYS_AHEAD, EVENT_KINDS, MAX_EVENTS, PARTNER_DAYS, partnerClock } from '../utils/partnerTools.js';
+import { EVENT_DAYS_AHEAD, EVENT_KINDS, MAX_EVENTS, PARTNER_DAYS, partnerClock, upcomingPartnerEvents } from '../utils/partnerTools.js';
 import { partnerEventMaxDate, partnerHappyHourError } from '../utils/partnerToolsForm.js';
 import './PartnerToolsEditor.css';
 
@@ -42,7 +42,8 @@ export default function PartnerToolsEditor({ venueId }) {
     const [happyError, setHappyError] = useState(null);
     const { today } = partnerClock();
     const maxDate = partnerEventMaxDate(today);
-    const events = tools?.events ?? [];
+    // Keep earlier events today editable while sharing the guest card's labels.
+    const events = upcomingPartnerEvents(tools?.events, { today, nowMinutes: 0, limit: MAX_EVENTS });
 
     const edit = (section, setter, patch) => {
         setter(previous => ({ ...previous, ...patch }));
@@ -90,13 +91,13 @@ export default function PartnerToolsEditor({ venueId }) {
             <p className="ss-partner-help">{events.length}/{MAX_EVENTS} events · today to {EVENT_DAYS_AHEAD} days ahead · Melbourne time</p>
             {events.length > 0 && <ul className="ss-partner-events">{events.map(event => <li key={event.id}>
                 <ClayIcon name={EVENT_KINDS[event.kind].icon} size={32} />
-                <div><strong>{event.title}</strong><span>{EVENT_KINDS[event.kind].label}</span><time dateTime={`${event.date}T${event.start}`}>{event.date} · {event.start}</time></div>
+                <div><strong>{event.title}</strong><span>{EVENT_KINDS[event.kind].label}</span><time dateTime={`${event.date}T${event.start}`}>{event.when}</time></div>
                 <button type="button" className="ss-partner-remove" aria-label={`Remove ${event.title}`} onClick={() => save('events', events.filter(value => value.id !== event.id))}><X size={18} aria-hidden="true" /></button>
             </li>)}</ul>}
             <form onSubmit={submitEvent => {
                 submitEvent.preventDefault();
                 if (events.length >= MAX_EVENTS) return;
-                save('events', [...events, { ...event, id: crypto.randomUUID() }]);
+                save('events', [...events, { ...event, id: crypto.randomUUID?.() }]);
                 setEvent(EMPTY_EVENT);
             }}>
                 <fieldset className="ss-partner-event-fields" disabled={events.length >= MAX_EVENTS}>
