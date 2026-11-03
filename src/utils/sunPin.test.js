@@ -31,19 +31,19 @@ describe('sunPinView', () => {
         }
     });
 
-    it('shows the venue icon and the same rounded score as its accessible label', () => {
+    it('shows the venue icon alone, with the rounded score only in its accessible label', () => {
         const v = sunPinView({ score: 91.6, emoji: '🍺' });
         assert.equal(v.tier, 'full');
         assert.equal(v.icon, '🍺');
-        assert.equal(v.scoreText, '92');
+        assert.equal(v.scoreText, '');
         assert.equal(v.bg, SUN_PIN_TIERS.full.bg);
         assert.equal(v.label, 'Sun score 92');
     });
 
-    it('shows the existing numeric score for every normal score tier', () => {
+    it('never shows the number on the pin, for every score tier; the colour carries the sun level', () => {
         for (const score of [0, 12, 49, 50, 64, 74, 75, 88, 100]) {
             const view = sunPinView({ score, emoji: '🍷' });
-            assert.equal(view.scoreText, String(score));
+            assert.equal(view.scoreText, '');
             assert.equal(view.label, `Sun score ${score}`);
         }
     });
@@ -59,14 +59,18 @@ describe('sunPinView', () => {
         }
     });
 
-    it('keeps the selected pin white with the existing score across score tiers', () => {
+    it('keeps the selected pin white with no number across score tiers', () => {
         const v = sunPinView({ score: 88, emoji: '☕', selected: true });
         assert.equal(v.tier, 'selected');
         assert.equal(v.bg, '#ffffff');
         assert.equal(v.text, '#0f172a');
-        assert.equal(v.scoreText, '88');
+        assert.equal(v.scoreText, '');
         assert.equal(v.label, 'Sun score 88');
-        assert.equal(sunPinView({ score: 30, selected: true }).scoreText, '30');
+        assert.equal(sunPinView({ score: 30, selected: true }).scoreText, '');
+    });
+
+    it('uses sun gold, not the accent orange, for sunny pin edges', () => {
+        for (const tier of ['full', 'part', 'selected']) assert.equal(SUN_PIN_TIERS[tier].border, '#fbbf24', tier);
     });
 
     it('fills full-sun pins so they stand out from part-sun pins', () => {
@@ -134,7 +138,7 @@ describe('clusterSize', () => {
         const night = sunPinView({ score: 0, night: true });
         assert.equal(night.scoreText, '🌙');
         assert.equal(night.label, 'After dark. Sun score 0');
-        assert.equal(sunPinView({ score: 0 }).scoreText, '0', 'daytime is unchanged');
+        assert.equal(sunPinView({ score: 0 }).scoreText, '', 'daytime shows the icon alone');
         assert.equal(sunPinView({ pinKey: 'heater', score: 0, night: true }).scoreText, '🔥', 'heaters still show at night');
         assert.equal(sunPinView({ score: null, night: true }).scoreText, '', 'no score, no claim');
     });

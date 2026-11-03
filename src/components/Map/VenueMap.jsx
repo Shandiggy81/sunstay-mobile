@@ -244,7 +244,7 @@ const PIN_TAIL_SVG = (fill, stroke) =>
 
 // 96px clay pin icons (utils/clayVenuePins), hashed or inlined by Vite.
 const CLAY_PIN_URLS = clayPinUrls(import.meta.glob('../../assets/clay/pins/*.webp', { eager: true, import: 'default' }));
-const PIN_ICON_PX = 20;
+const PIN_ICON_PX = 30;
 // Clusters hold through this zoom; individual pins appear one level above.
 const MAP_CLUSTER_MAX_ZOOM = 16;
 const MOMENT_BADGE_URLS = { coffee: coffeeBadgeUrl, dining: lunchBadgeUrl, cocktail: sunsetBadgeUrl };
@@ -381,7 +381,7 @@ function createMarkerEl(view) {
     ].join(';');
     const icon = document.createElement('span');
     icon.className = 'ss-pin-icon';
-    icon.style.cssText = 'font-size:15px;line-height:1';
+    icon.style.cssText = 'font-size:22px;line-height:1';
     const score = document.createElement('span');
     score.className = 'ss-pin-score';
     score.style.cssText = 'font-variant-numeric:tabular-nums';
@@ -404,7 +404,7 @@ function createClusterMarkerEl(count, momentView) {
     const inner = document.createElement('div');
     inner.className = 'ss-cluster-inner';
     inner.style.cssText = [
-        'border-radius:50%', 'background:#ffffff', 'border:3px solid #f59e0b',
+        'border-radius:50%', 'background:#ffffff', 'border:3px solid #fbbf24',
         'display:flex', 'align-items:center', 'justify-content:center',
         'font:800 15px/1 "Plus Jakarta Sans",system-ui,sans-serif', 'color:#0f172a',
         'box-shadow:0 3px 10px rgba(15,23,42,0.22)', 'transition:transform 120ms ease',

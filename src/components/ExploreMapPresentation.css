@@ -7,8 +7,8 @@
 }
 
 .ss-sun-pin .ss-pin-bubble {
-  min-height: 36px !important;
-  padding: 6px 11px !important;
+  min-height: 40px !important;
+  padding: 4px 6px !important;
   border-radius: 999px !important;
   box-shadow: 0 6px 18px rgba(120, 80, 20, 0.14) !important;
   font-weight: 800 !important;
