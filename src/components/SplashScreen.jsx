@@ -1,19 +1,25 @@
 // src/components/SplashScreen.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import {
+  SPLASH_MAX_WAIT_MS, SPLASH_MIN_MS, SPLASH_POSTER_SRC, SPLASH_POSTER_VIEW_MS, splashShouldExit,
+} from '../utils/splashTiming.js';
 
-// Minimum time the splash stays visible, even if data resolves instantly —
-// prevents a jarring flash on fast networks / warm caches.
-const MIN_DISPLAY_MS = 600;
-// Hard safety cap: dismiss even if `isReady` never arrives (e.g. a stalled
-// weather fetch), so the splash can never block the app indefinitely.
-const MAX_WAIT_MS = 5000;
 // How long the exit animation runs before the parent should fully unmount us.
 const EXIT_ANIM_MS = 700;
 
+// A 24×43 pre-blurred copy of the poster (274 bytes), inlined so the screen is
+// warm and colourful from the first frame while the full poster downloads.
+// The poster is shown whole (contain); this fills the space around it on
+// phones taller or wider than the 9:16 artwork.
+const BACKDROP = 'data:image/webp;base64,UklGRgoBAABXRUJQVlA4IP4AAAAQCACdASoYACsAPrVKnkonJCKhtVQIAOAWiWwAnTLLvwhmO3Ake8zt9KEbCXWWXXMMRL5l43oJsayzfzrf1Nlk6OL8VMXWbDAAAP70Mrtetq+/8V890ydjSaZ6+WV1AEVzZ+sPNEevmgVUXosYRbJnR1KI8fWjR28xwDGPrKUmrdnzroUOz5idQvmP7MH9gy3S2Ab/DHR7B4vW3RHbpEZtUTuoGYvxXDFbA7Vq22OUCgyOHfjrIO1OVRLbB8+aJoHlNkGV5XHHgjqXjdpNA1qy9YPIFiVQimqC+mR5Yg/b/vWz5z/VdMrC7KWVKXzaex2NJDMglbKoAJJLHAAAAA==';
+
 export default function SplashScreen({ isReady = false, onComplete }) {
-  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const [minElapsed, setMinElapsed] = useState(false);
   const [forceReady, setForceReady] = useState(false);
+  const [posterLoaded, setPosterLoaded] = useState(false);
+  const [posterDone, setPosterDone] = useState(false);
   const [exiting, setExiting] = useState(false);
   // The parent passes a new onComplete each render; read it through a ref so
   // a re-render can't cancel the exit timer, and call it only once.
@@ -22,21 +28,25 @@ export default function SplashScreen({ isReady = false, onComplete }) {
   const completedRef = useRef(false);
 
   useEffect(() => {
-    const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_DISPLAY_MS);
-    const maxWaitTimer = setTimeout(() => setForceReady(true), MAX_WAIT_MS);
+    const minTimer = setTimeout(() => setMinElapsed(true), SPLASH_MIN_MS);
+    const maxWaitTimer = setTimeout(() => setForceReady(true), SPLASH_MAX_WAIT_MS);
     return () => {
       clearTimeout(minTimer);
       clearTimeout(maxWaitTimer);
     };
   }, []);
 
-  // Dismiss as soon as the app is actually ready AND the minimum floor has
-  // elapsed — whichever finishes last. Falls back to `forceReady` if the
-  // readiness signal never resolves, so this never becomes a hard blocker.
+  // Give the poster a moment on screen once it has painted.
   useEffect(() => {
-    if (exiting || !minTimeElapsed || !(isReady || forceReady)) return;
+    if (!posterLoaded) return undefined;
+    const viewTimer = setTimeout(() => setPosterDone(true), SPLASH_POSTER_VIEW_MS);
+    return () => clearTimeout(viewTimer);
+  }, [posterLoaded]);
+
+  useEffect(() => {
+    if (exiting || !splashShouldExit({ minElapsed, appReady: isReady, posterDone, forceReady })) return;
     setExiting(true);
-  }, [isReady, forceReady, minTimeElapsed, exiting]);
+  }, [isReady, forceReady, minElapsed, posterDone, exiting]);
 
   // Starting the exit used to re-run the effect above, whose cleanup cleared
   // this timer, so onComplete never ran and the "seen" flag was never saved.
@@ -58,143 +68,49 @@ export default function SplashScreen({ isReady = false, onComplete }) {
           key="splash"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.04 }}
-          transition={{ duration: 0.6 }}
+          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 1.04 }}
+          transition={{ duration: reducedMotion ? 0.2 : 0.6 }}
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 99999,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(160deg, #0D1B2A 0%, #1a2f45 50%, #0D1B2A 100%)',
             overflow: 'hidden',
+            background: `#0D1B2A url("${BACKDROP}") center / cover no-repeat`,
           }}
         >
-          {/* Ambient glow behind sun */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 0.18, scale: 1.6 }}
-            transition={{ duration: 2.2, ease: 'easeOut' }}
+          {/* Darken the blurred fill a touch so the poster's edges read clearly. */}
+          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'rgba(13, 27, 42, 0.28)' }} />
+          {/* Tapping anywhere skips the intro. */}
+          <button
+            type="button"
+            onClick={() => setExiting(true)}
+            aria-label="Skip intro"
             style={{
-              position: 'absolute',
-              width: 320,
-              height: 320,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, #FFB347 0%, #FF6B35 60%, transparent 100%)',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -68%)',
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              padding: 0, border: 0, background: 'transparent', cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
             }}
-          />
-
-          {/* Sun arc rising */}
-          <motion.div
-            initial={{ y: 40, opacity: 0, scale: 0.7 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            transition={{ duration: 1.0, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            style={{ position: 'relative', zIndex: 2, marginBottom: 28 }}
           >
-            {/* Sun circle */}
-            <motion.div
-              animate={{ boxShadow: [
-                '0 0 30px 8px rgba(255,179,71,0.3)',
-                '0 0 55px 18px rgba(255,179,71,0.55)',
-                '0 0 30px 8px rgba(255,179,71,0.3)',
-              ]}}
-              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            <motion.img
+              src={SPLASH_POSTER_SRC}
+              alt="SunStay: find your place in the sun. Shannon with Sunny, the gang and Brucey in a Melbourne laneway."
+              width={941}
+              height={1672}
+              decoding="async"
+              fetchPriority="high"
+              draggable={false}
+              onLoad={() => setPosterLoaded(true)}
+              onError={() => setPosterDone(true)}
+              initial={{ opacity: 0, scale: reducedMotion ? 1 : 1.02 }}
+              animate={posterLoaded ? { opacity: 1, scale: 1 } : { opacity: 0, scale: reducedMotion ? 1 : 1.02 }}
+              transition={{ duration: reducedMotion ? 0.2 : 0.5, ease: 'easeOut' }}
               style={{
-                width: 72,
-                height: 72,
-                borderRadius: '50%',
-                background: 'radial-gradient(circle at 38% 35%, #FFE066 0%, #FFB347 50%, #FF8C00 100%)',
+                display: 'block', width: '100%', height: '100%',
+                objectFit: 'contain', objectPosition: 'center',
+                pointerEvents: 'none', userSelect: 'none',
               }}
             />
-            {/* Sun rays */}
-            {[...Array(8)].map((_, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, scaleY: 0 }}
-                animate={{ opacity: 0.7, scaleY: 1 }}
-                transition={{ duration: 0.5, delay: 0.8 + i * 0.05 }}
-                style={{
-                  position: 'absolute',
-                  width: 3,
-                  height: 14,
-                  borderRadius: 2,
-                  background: '#FFD166',
-                  top: '50%',
-                  left: '50%',
-                  transformOrigin: '50% 46px',
-                  transform: `translate(-50%, -50%) rotate(${i * 45}deg) translateY(-46px)`,
-                }}
-              />
-            ))}
-          </motion.div>
-
-          {/* Logo / Wordmark — shown immediately with the tagline */}
-          <div style={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
-            <div style={{
-              fontSize: '2.6rem',
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              background: 'linear-gradient(135deg, #FFE066 0%, #FFB347 60%, #FF8C00 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              lineHeight: 1,
-              marginBottom: 8,
-            }}>
-              Sunstay
-            </div>
-
-            {/* Tagline */}
-            <div
-              style={{
-                fontSize: '0.92rem',
-                fontWeight: 400,
-                color: 'rgba(255,255,255,0.62)',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Book where the sun actually shines
-            </div>
-          </div>
-
-          {/* Horizon line */}
-          <motion.div
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: 1, opacity: 1 }}
-            transition={{ duration: 1.0, delay: 1.3, ease: 'easeOut' }}
-            style={{
-              position: 'absolute',
-              bottom: '28%',
-              left: 0,
-              right: 0,
-              height: 1,
-              background: 'linear-gradient(90deg, transparent 0%, rgba(255,179,71,0.3) 30%, rgba(255,179,71,0.3) 70%, transparent 100%)',
-              transformOrigin: 'center',
-            }}
-          />
-
-          {/* Bottom sub-tagline */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.7, delay: 1.6 }}
-            style={{
-              position: 'absolute',
-              bottom: '18%',
-              textAlign: 'center',
-              fontSize: '0.75rem',
-              color: 'rgba(255,255,255,0.35)',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Live weather · Real venues · Outdoor comfort
-          </motion.div>
+          </button>
         </motion.div>
       )}
     </AnimatePresence>
