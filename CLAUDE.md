@@ -183,6 +183,10 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - No component tests, lint script or typecheck script.
 - Venue data lives in several files: the app uses Supabase with `src/data/demoVenues.js` as the
   fallback; `src/data/venues.js` and `src/data/seedVenues.js` are used only by `scripts/`.
+- Rain radar verified on production 2026-11-03 (#286): the Netlify Xweather key authenticates and
+  radar tiles load. VenueMap waits for the MapsGL controller (`whenControllerReady`,
+  `src/utils/mapsglReady.js`) before adding the layer. App owns `radarOn`, shared by the
+  header switch and the map's layers menu.
 - The Xweather `Account` matches the installed SDK (@xweather/mapsgl 1.9.4,
   `constructor(id: string, secret: string, serverOverrides?)`): VenueMap calls
   `new Account(id, secret)` with the pair from `parseXweatherCredentials`, and passes it to
@@ -197,8 +201,6 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
   deployed `chat-sunny` has `verify_jwt = true`.)
 - Whether the Mapbox token is URL-restricted and whether keys from Git history have been rotated.
 - Whether `VITE_SENTRY_DSN` is set in Netlify so Sentry events are actually sent.
-- Whether Netlify's Xweather value is in `ID_SECRET` form (or the ID/SECRET pair is set) and the
-  rain radar actually draws with the real key.
 
 ### Not currently verified in the repository
 - Stripe, Airtable integration, and Supabase Auth in the main app.

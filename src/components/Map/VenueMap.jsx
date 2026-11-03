@@ -32,7 +32,7 @@ import {
     pinStateFromMicroclimate,
     markerScoreFromMicroclimate,
 } from '../../utils/microclimate';
-import { freshMicroclimateEntry, mapCaptionProvenance } from '../../utils/microclimateProvenance.js';
+import { freshMicroclimateEntry } from '../../utils/microclimateProvenance.js';
 import {
     TOD_DAY_START_MIN as DAY_START_MIN,
     TOD_DAY_END_MIN as DAY_END_MIN,
@@ -83,7 +83,6 @@ import {
 import { TOD_SCRUB_DEBOUNCE_MS } from '../../utils/todScrub';
 import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
-import DataBadge from '../DataBadge';
 import ClayIcon from '../common/ClayIcon';
 import MapTimeControls from './MapTimeControls.jsx';
 import { venueFeaturePinState } from '../../utils/venueFeaturePin.js';
@@ -876,6 +875,8 @@ const VenueMap = forwardRef(({
     searchedArea      = null,   // bounds the list is narrowed to, or null
     onSearchArea      = null,   // (bounds) => void — "Search this area" pill
     onCameraSettle    = null,   // ({ lat, lng, zoom } | null) => void
+    radarOn           = null,   // controlled rain radar (header switch); null = the layers menu owns it
+    onRadarChange     = null,   // (on: boolean) => void
 }, ref) => {
     const mapContainer     = useRef(null);
     const map              = useRef(null);
@@ -904,7 +905,15 @@ const VenueMap = forwardRef(({
 
     const [comfortMapOn, setComfortMapOn] = useState(false);
     const [cloudOn,      setCloudOn]      = useState(false);
-    const [showRadar,    setShowRadar]    = useState(false);
+    // Rain radar: controlled by App when it passes radarOn (the header switch and
+    // the layers menu then stay in step), otherwise local to the map.
+    const [radarLocal,   setRadarLocal]   = useState(false);
+    const showRadar = typeof radarOn === 'boolean' ? radarOn : radarLocal;
+    const setShowRadar = useCallback(next => {
+        const value = typeof next === 'function' ? next(showRadar) : Boolean(next);
+        if (typeof onRadarChange === 'function') onRadarChange(value);
+        else setRadarLocal(value);
+    }, [showRadar, onRadarChange]);
     const [layersOpen,   setLayersOpen]   = useState(false);
     const [areaPrompt,   setAreaPrompt]   = useState(null); // bounds to search, or null
 
@@ -914,12 +923,12 @@ const VenueMap = forwardRef(({
         || recovery.phase === 'resuming'
         || recovery.phase === 'resume-failed';
 
-    const { weather, calculateSunstayScore, calculateSunScore, unavailable: weatherUnavailable, dataKind, fetchedAt } = useWeather();
+    const { weather, calculateSunstayScore, calculateSunScore, unavailable: weatherUnavailable } = useWeather();
     const { setBbox } = useMicroclimateActions();
     // Reader: cached venues_in_bbox rows + slider minutes. Pin colour/size
     // use these fields (effective_sun, effective_wind, sun_hour_fraction)
     // rather than recomputing sun from client weather when a profile exists.
-    const { byId: microById, todMinutes, viewportBbox } = useMicroclimateState();
+    const { byId: microById, todMinutes } = useMicroclimateState();
     const clusterTodMinutes = todMinutes;
 
     const safeVenues = useMemo(
@@ -940,17 +949,6 @@ const VenueMap = forwardRef(({
         if (!Array.isArray(filteredVenueIds)) return null;
         return new Set(filteredVenueIds.map(id => String(id)));
     }, [filteredVenueIds]);
-
-    // Map caption DataBadge: microclimate age when profile pins are the
-    // on-screen majority, otherwise the client weather fetch.
-    const captionBadge = useMemo(() => mapCaptionProvenance({
-        venues: filteredIdSet ? safeVenues.filter((v) => filteredIdSet.has(String(v.id))) : safeVenues,
-        bbox: viewportBbox,
-        microById,
-        todMinutes: clusterTodMinutes,
-        weatherKind: dataKind,
-        weatherFetchedAt: fetchedAt,
-    }), [safeVenues, filteredIdSet, viewportBbox, microById, clusterTodMinutes, dataKind, fetchedAt]);
 
     const onVenueSelectRef = useRef(onVenueSelect);
     useEffect(() => { onVenueSelectRef.current = onVenueSelect; }, [onVenueSelect]);
@@ -2331,21 +2329,6 @@ const VenueMap = forwardRef(({
                             <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Loading map...</p>
                         </div>
                     )}
-                </div>
-            )}
-            {mapLoaded && !mapError && (captionBadge || cozyFilterActive) && (
-                <div className="ss-map-caption">
-                    <div className="ss-map-caption-inner" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {captionBadge && (
-                            <DataBadge
-                                kind={captionBadge.kind}
-                                updatedAt={captionBadge.updatedAt}
-                                source={captionBadge.source}
-                                size="sm"
-                            />
-                        )}
-                        {cozyFilterActive && <span className="inline-flex items-center gap-1"><ClayIcon name="indoor-warmth" size={20} />Cozy filter on</span>}
-                    </div>
                 </div>
             )}
         </div>

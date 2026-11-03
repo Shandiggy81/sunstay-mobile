@@ -1,37 +1,46 @@
-/* Floating controls leave the map interactive between the actual touch targets. */
-/* z-index 41 (the expanded list is 40) so weather details and Sunny's tip open above the list. */
+/* Solid controls over a plain white fade; wrapper gaps leave map gestures alone. */
 .ss-map-first-topbar.ss-explore-topbar { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 16px); left: 16px; right: 16px; z-index: 41; background: transparent; pointer-events: none; }
-.ss-map-first-topbar-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) 44px; align-items: start; gap: 8px; }
-.ss-map-first-brand { width: 32px; height: 32px; object-fit: contain; margin-top: 6px; border-radius: 10px; }
+.ss-map-first-topbar[hidden], .ss-home-popover-panel[hidden] { display: none; }
+.ss-map-first-topbar::before { content: ''; position: absolute; z-index: -1; inset: -16px -16px -32px; background: linear-gradient(white 0%, rgba(255,255,255,.92) 70%, rgba(255,255,255,0)); pointer-events: none; }
+.ss-map-first-topbar-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ss-map-first-brand { width: 136px; height: 110px; flex-shrink: 0; object-fit: cover; border-radius: 20px; box-shadow: 0 6px 18px rgba(15,23,42,.16); }
+.ss-home-weather-column { display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: stretch; gap: 8px; pointer-events: none; }
+.ss-home-weather-card { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-content: center; align-items: center; column-gap: 7px; row-gap: 3px; height: 58px; width: 100%; padding: 4px 12px 4px 8px; border: 1px solid #ece6d9; border-radius: 20px; background: white; color: var(--color-ink); text-align: left; pointer-events: auto; }
+.ss-home-weather-card > img { flex-shrink: 0; justify-self: center; }
+/* Two tidy rows: "16° Clear sky" over "Light breeze · 11 km/h", so long words never wrap. */
+.ss-home-weather-copy, .ss-home-wind-copy { display: flex; min-width: 0; flex-direction: row; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+.ss-home-weather-copy strong { font-size: 20px; font-weight: 800; line-height: 1.1; }
+.ss-home-weather-copy > span, .ss-home-wind-copy > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 600; color: #64748b; line-height: 1.2; }
+.ss-home-wind-copy { gap: 4px; }
+.ss-home-wind-copy strong { font-size: 13px; font-weight: 800; line-height: 1.2; }
+.ss-home-wind-copy > span::before { content: '· '; }
+.ss-home-weather-divider { display: none; }
+.ss-home-radar { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 8px; border: 1px solid #ece6d9; border-radius: 999px; background: white; font-size: 14px; font-weight: 700; color: var(--color-ink); pointer-events: auto; }
+.ss-home-radar-track { width: 40px; height: 24px; padding: 3px; border-radius: 999px; background: #cbd5e1; flex-shrink: 0; }
+.ss-home-radar-track > span { display: block; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 1px 4px #0f172a26; transition: transform .15s; }
+.ss-home-radar[aria-checked=true] .ss-home-radar-track { background: #fbbf24; }
+.ss-home-radar[aria-checked=true] .ss-home-radar-track > span { transform: translateX(16px); }
+.ss-home-search-row { display: grid; grid-template-columns: minmax(0,1fr) 56px; align-items: center; gap: 12px; margin-top: 14px; }
 .ss-map-first-search-column { min-width: 0; }
-.ss-map-first-search-pill { display: flex; align-items: center; min-width: 0; height: 48px; gap: 6px; padding: 2px 2px 2px 12px; border: 1px solid #f0e4ce; border-radius: 999px; background: white; box-shadow: 0 6px 18px rgba(120,80,20,.14); pointer-events: auto; }
+.ss-map-first-search-pill { display: flex; align-items: center; min-width: 0; height: 60px; gap: 8px; padding: 0 8px 0 14px; border: 1px solid #ece6d9; border-radius: 999px; background: white; box-shadow: 0 6px 20px rgba(15,23,42,.10); pointer-events: auto; }
 .ss-map-first-search-icon { flex-shrink: 0; color: #64748b; }
-/* 16px typed text stops iOS Safari zooming the page on focus; the placeholder keeps the compact 13px look. */
 .ss-map-first-search-pill input { min-width: 0; flex: 1; width: 100%; height: 44px; padding: 0; border: 0; outline: none; background: transparent; color: var(--color-ink); font: inherit; font-size: 16px; }
-.ss-map-first-search-pill input::placeholder { color: #64748b; font-size: 13px; }
-.ss-map-first-search-pill:focus-within { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.ss-map-first-search-pill input::placeholder { color: #64748b; font-size: 14px; }
 .ss-map-first-search-pill input::-webkit-search-cancel-button { display: none; }
 .ss-map-first-search-clear { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; color: #64748b; }
-.ss-map-first-topbar .ss-map-first-filters { width: 44px; height: 44px; min-width: 44px; padding: 0; border-radius: 50%; pointer-events: auto; }
-.ss-map-first-weather { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 4px; width: max-content; max-width: 100%; min-height: 44px; margin-top: -4px; padding: 4px 8px; border-radius: 16px; color: var(--color-ink); font-size: 12px; font-weight: 600; line-height: 1.3; pointer-events: auto; }
-.ss-map-first-weather::before { content: ''; position: absolute; inset: 6px 0; z-index: -1; border: 1px solid #f0e4ce; border-radius: 999px; background: white; box-shadow: 0 3px 12px rgba(120,80,20,.08); }
-.ss-map-first-weather > span { min-width: 0; overflow-wrap: anywhere; }
-.ss-map-first-weather strong { font-size: 12px; font-weight: 800; }
-.ss-map-first-weather > svg { flex-shrink: 0; }
-.ss-map-first-weather:focus-visible, .ss-map-first-search-clear:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-.ss-map-first-topbar .ss-map-first-weather-details { position: absolute; top: calc(100% + 56px); left: 0; right: 0; gap: 6px; margin-top: 0; padding: 0; border-radius: 20px; font-size: 12px; box-shadow: 0 6px 18px rgba(120,80,20,.14); pointer-events: none; }
-.ss-map-first-weather-details .ss-explore-weather-detail { padding: 9px; pointer-events: auto; }
-.ss-sunny-compact { position: relative; flex-shrink: 0; width: 44px; height: 44px; pointer-events: auto; }
-.ss-sunny-compact-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; overflow: hidden; border: 2px solid var(--color-accent); border-radius: 50%; background: #fff5d8; }
-.ss-sunny-compact-button img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-.ss-sunny-compact-button:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
-.ss-sunny-compact-tooltip { position: absolute; right: 0; top: calc(100% + 98px); width: 240px; max-width: calc(100vw - 104px); padding: 12px 14px; border: 1px solid #f0e4ce; border-radius: 20px; background: white; color: var(--color-ink); box-shadow: 0 6px 18px rgba(120,80,20,.14); pointer-events: none; }
-.ss-sunny-compact-tooltip p { margin: 0; font-size: 12px; font-weight: 700; line-height: 1.45; }
-.ss-sunny-compact-tooltip > span { position: absolute; top: -6px; right: 16px; width: 10px; height: 10px; border-left: 1px solid #f0e4ce; border-top: 1px solid #f0e4ce; background: white; transform: rotate(45deg); }
-/* Type-ahead under the search bar. The time chips share z 41 and come later in the page,
-   so the bar lifts above them only while suggestions are open. */
-.ss-map-first-topbar.ss-explore-topbar.ss-map-first-topbar--suggesting { z-index: 45; }
-.ss-search-suggestions { position: absolute; top: 56px; left: 0; right: 0; margin: 0; padding: 6px; list-style: none; border: 1px solid #f0e4ce; border-radius: 20px; background: white; box-shadow: 0 10px 28px rgba(120,80,20,.18); pointer-events: auto; max-height: min(60vh, 440px); overflow-y: auto; overscroll-behavior: contain; }
+.ss-map-first-topbar .ss-map-first-filters { width: 56px; height: 56px; min-width: 56px; padding: 0; border-radius: 50%; pointer-events: auto; border-color: #ece6d9; }
+.ss-home-popover { position: relative; pointer-events: auto; }
+.ss-home-popover > button { display: flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; }
+.ss-home-popover-panel { position: absolute; z-index: 50; padding: 14px; border: 1px solid #ece6d9; border-radius: 20px; background: white; color: var(--color-ink); box-shadow: 0 6px 20px rgba(15,23,42,.14); font-size: 12px; line-height: 1.6; }
+.ss-home-popover-panel p + p { margin-top: 8px; }
+.ss-home-time { position: static; border-left: 1px solid #ece6d9; padding-left: 8px; flex-shrink: 0; }
+.ss-home-time > button { font-size: 14px; font-weight: 700; max-width: 104px; }
+.ss-home-time .ss-home-popover-panel { top: calc(100% + 10px); left: 0; right: 0; }
+.ss-home-time #explore-time-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.ss-home-time .ss-map-time-shortcuts { flex-wrap: wrap; }
+.ss-map-first-topbar .ss-map-first-weather-details { position: absolute; top: 64px; right: 0; left: 0; padding: 8px; border: 1px solid #ece6d9; border-radius: 20px; background: white; box-shadow: 0 6px 18px rgba(15,23,42,.14); font-size: 12px; pointer-events: auto; }
+.ss-map-first-topbar :is(button,input):focus-visible, .ss-home-popover > button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.ss-search-suggestions { position: absolute; top: calc(100% + 8px); left: 0; right: 0; margin: 0; padding: 6px; list-style: none; border: 1px solid #ece6d9; border-radius: 20px; background: white; box-shadow: 0 10px 28px rgba(120,80,20,.18); pointer-events: auto; max-height: min(60vh,440px); overflow-y: auto; overscroll-behavior: contain; }
 .ss-search-suggestion { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 10px; border-radius: 14px; cursor: pointer; color: var(--color-ink); touch-action: manipulation; }
 .ss-search-suggestion:hover, .ss-search-suggestion--active { background: #fff6e0; }
 .ss-search-suggestion-icon { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 12px; background: #fff8e8; color: #9a6a1a; }
@@ -41,8 +50,5 @@
 .ss-search-suggestion--all { min-height: 44px; border-top: 1px solid #f3eadb; border-radius: 0 0 14px 14px; color: #92400e; }
 .ss-search-suggestion--all strong { font-size: 14px; }
 @media (min-width: 1024px) { .ss-map-first-topbar.ss-explore-topbar { max-width: 660px; right: auto; width: calc(100% - 32px); } }
-@media (max-width: 359px) {
-  .ss-map-first-search-icon { display: none; }
-  .ss-map-first-search-pill { gap: 4px; padding-left: 10px; }
-  .ss-map-first-search-pill input::placeholder { font-size: 12px; }
-}
+@media (max-width: 359px) { .ss-map-first-brand { width: 112px; object-fit: contain; } .ss-map-first-topbar-row { gap: 8px; } .ss-home-weather-card { column-gap: 5px; padding: 4px 8px 4px 6px; } .ss-map-first-search-icon { display: none; } .ss-home-search-row { gap: 8px; } .ss-map-first-search-pill { padding-left: 10px; gap: 4px; } }
+@media (prefers-reduced-motion: reduce) { .ss-home-radar-track > span { transition: none; } }

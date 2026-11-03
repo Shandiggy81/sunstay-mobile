@@ -22,12 +22,18 @@ async function boot(page, baseURL, { unavailable = false, delayedVenues = false,
         return route.abort('blockedbyclient');
     });
     await page.goto('/');
-    await expect(page.getByRole('region', { name: 'Find your kind of day', exact: true })).toBeVisible();
+    await expect(page.getByRole('img', { name: 'SunStay', exact: true })).toBeVisible();
     await expect(page.getByText(unavailable ? 'Live weather unavailable' : '23°', { exact: true }).first()).toBeVisible();
+    if (page.viewportSize().width < 1024) await openList(page);
     return { errors, venueRequest: () => venueRequest };
 }
 
 const list = page => page.locator('.ss-mobile-sheet');
+async function openList(page) {
+    const button = page.getByRole('button', { name: 'Show venue list', exact: true });
+    if (await button.isVisible()) await button.click();
+    await expect(list(page).locator('#mobile-discovery-results')).toBeVisible();
+}
 const rows = page => list(page).getByRole('button', { name: /^Venue: / });
 const PROPERTY_FIXTURES = [
     { id: 'fixture-home', venueName: 'Fixture Home', typeCategory: 'Residential', typeLabel: 'Residential', lat: -37.81, lng: 144.96, tags: [] },
@@ -36,8 +42,8 @@ const PROPERTY_FIXTURES = [
 
 test('Homes explains missing inventory and lets the user browse again', async ({ page, baseURL }, testInfo) => {
     const { errors } = await boot(page, baseURL, { venues: [PROPERTY_FIXTURES[1]] });
-    await expect(page.locator('.ss-mobile-sheet-handle .ss-discovery-source')).toContainText('Venue listings');
-    await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+    await expect(page.locator('#home-list-context')).toContainText('Venue listings');
+    await openList(page);
     await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
     await expect(list(page).getByRole('heading', { name: 'No homes in these listings', exact: true })).toBeVisible();
     await expect(list(page).getByRole('heading', { name: 'A bit too specific!', exact: true })).toHaveCount(0);
@@ -54,13 +60,13 @@ test('Homes explains missing inventory and lets the user browse again', async ({
 
 test('Homes remains visible when Stays is selected too, with matching list count', async ({ page, baseURL }, testInfo) => {
     const { errors } = await boot(page, baseURL, { venues: PROPERTY_FIXTURES });
-    await expect(page.locator('.ss-mobile-sheet-handle .ss-discovery-source')).toContainText('Venue listings');
-    await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+    await expect(page.locator('#home-list-context')).toContainText('Venue listings');
+    await openList(page);
     await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
     await expect(rows(page)).toHaveCount(1);
     await expect(rows(page).first()).toContainText('Fixture Home');
     await list(page).getByRole('button', { name: 'Stays', exact: true }).tap();
-    await expect(list(page).locator('.ss-mobile-sheet-head')).toContainText('2 results');
+    await expect(list(page).locator('.ss-mobile-sheet-head')).toContainText('2 venues');
     await expect(rows(page)).toHaveCount(2);
     await expect(rows(page).filter({ hasText: 'Fixture Home' })).toBeVisible();
     await expect(rows(page).filter({ hasText: 'Fixture Home' }).getByRole('button', { name: 'Compare', exact: true })).toHaveCount(0);
@@ -75,7 +81,7 @@ test('Homes remains visible when Stays is selected too, with matching list count
 
 test('Homes waits for listings before declaring missing inventory', async ({ page, baseURL }) => {
     const { errors, venueRequest } = await boot(page, baseURL, { delayedVenues: true });
-    await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+    await openList(page);
     await list(page).getByRole('button', { name: 'Homes', exact: true }).tap();
     await expect(list(page).getByRole('heading', { name: 'Checking for homes', exact: true })).toBeVisible();
     await expect.poll(venueRequest).toBeTruthy();
@@ -88,13 +94,13 @@ test('Homes waits for listings before declaring missing inventory', async ({ pag
 test('experience shortcuts use the existing stay/date controls and comparisons', async ({ page, baseURL }) => {
     const { errors } = await boot(page, baseURL);
     await page.getByRole('button', { name: 'Sunny stays Compare sun potential', exact: true }).tap();
-    await expect(list(page).getByRole('heading', { name: 'Venues', exact: true })).toBeVisible();
+    await expect(list(page).locator('#mobile-discovery-results')).toBeVisible();
     await expect(list(page).getByRole('button', { name: 'Stays', exact: true })).toHaveAttribute('aria-pressed', 'true');
     const picker = list(page).locator('.ss-stay-picker');
     await expect(picker.getByRole('button', { name: 'Most sun', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await picker.getByRole('button', { name: 'Choose stay date', exact: true }).tap();
     await picker.getByRole('button', { name: 'Tomorrow', exact: true }).tap();
-    await expect(list(page).locator('.ss-discovery-context')).toHaveText('Tomorrow · Tue 20 Oct · Most sun · Melbourne time');
+    await expect(list(page).locator('#home-list-context')).toContainText('Tomorrow · Tue 20 Oct · Most sun · Melbourne time');
     await rows(page).nth(0).getByRole('button', { name: 'Compare', exact: true }).tap();
     await rows(page).nth(1).getByRole('button', { name: 'Compare', exact: true }).tap();
     await picker.getByRole('button', { name: 'Compare (2/3)', exact: true }).tap();
@@ -113,7 +119,7 @@ test('future room sun uses the selected date and marks geometry as potential sun
     await picker.getByRole('button', { name: 'Choose stay date', exact: true }).tap();
     await picker.getByLabel('Pick a date', { exact: true }).fill('2026-10-22');
     await picker.getByRole('button', { name: 'Choose stay date', exact: true }).tap();
-    await expect(list(page).locator('.ss-discovery-context')).toHaveText('Thu 22 Oct · Morning coffee · Melbourne time');
+    await expect(list(page).locator('#home-list-context')).toContainText('Thu 22 Oct · Morning coffee · Melbourne time');
     await rows(page).first().tap();
     const card = page.getByRole('article');
     await expect(card).toBeVisible();
@@ -132,7 +138,7 @@ test('future room sun uses the selected date and marks geometry as potential sun
 test('keyboard presets, missing weather and empty results stay usable', async ({ page, baseURL }) => {
     const { errors } = await boot(page, baseURL, { unavailable: true });
     const finder = page.getByRole('region', { name: 'Find your kind of day', exact: true });
-    await expect(page.locator('.ss-mobile-sheet-handle').getByText(/Sample listings · forecast unavailable/)).toBeVisible();
+    await expect(page.locator('#home-list-context')).toContainText('Sample listings · forecast unavailable');
     const options = finder.getByRole('group', { name: 'Find an experience', exact: true }).getByRole('button');
     const targets = await options.evaluateAll(buttons => buttons.map(button => ({ w: button.getBoundingClientRect().width, h: button.getBoundingClientRect().height })));
     expect(targets).toHaveLength(4);
@@ -142,10 +148,10 @@ test('keyboard presets, missing weather and empty results stay usable', async ({
     await expect(options.nth(1)).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(list(page).getByRole('button', { name: 'Cozy', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(list(page).getByRole('heading', { name: 'Venues', exact: true })).toBeFocused();
+    await expect(list(page).locator('#mobile-discovery-results')).toBeFocused();
     await page.getByRole('combobox', { name: 'Search venues', exact: true }).fill('zzzz-no-such-venue');
     await expect(list(page).getByRole('button', { name: /clear filters/i })).toBeVisible();
-    await expect(list(page).locator('.ss-discovery-source')).toContainText('forecast unavailable');
+    await expect(list(page).locator('#home-list-context')).toContainText('forecast unavailable');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
     expect(errors).toEqual([]);
@@ -154,12 +160,12 @@ test('keyboard presets, missing weather and empty results stay usable', async ({
 test('loading and successful live-source states have honest labels', async ({ page, baseURL }) => {
     const { errors, venueRequest } = await boot(page, baseURL, { delayedVenues: true });
     const finder = page.getByRole('region', { name: 'Find your kind of day', exact: true });
-    await expect(page.locator('.ss-mobile-sheet-handle').getByText(/Loading listings/)).toBeVisible();
+    await expect(page.locator('#home-list-context')).toContainText('Loading listings');
     await expect.poll(venueRequest).toBeTruthy();
     await venueRequest().fulfill({ json: [{ id: 'fixture-cafe', venue_name: 'Fixture Cafe', lat: -37.81, lng: 144.96,
         typeLabel: 'Cafe', typeCategory: 'Bar', tags: ['Outdoor Seating'] }] });
-    await expect(page.locator('.ss-mobile-sheet-handle').getByText(/Venue listings · Open-Meteo forecast/)).toBeVisible();
-    await expect(page.locator('.ss-mobile-sheet-handle').getByText(/Sample listings/)).toHaveCount(0);
+    await expect(page.locator('#home-list-context')).toContainText('Venue listings · Open-Meteo forecast');
+    await expect(page.locator('#home-list-context')).not.toContainText('Sample listings');
     expect(errors).toEqual([]);
 });
 
