@@ -5,8 +5,9 @@
  * (forceReady) always wins, so the splash can never block the app.
  */
 export const SPLASH_MIN_MS = 600;
-export const SPLASH_POSTER_VIEW_MS = 1600;
-export const SPLASH_MAX_WAIT_MS = 5000;
+export const SPLASH_POSTER_VIEW_MS = 3000;
+// Room for the poster to download on a slow connection and still get its full time.
+export const SPLASH_MAX_WAIT_MS = 6500;
 
 /** Versioned so a new poster is never served stale from cache; preloaded from index.html. */
 export const SPLASH_POSTER_SRC = '/splash-poster-v1.webp';
