@@ -74,6 +74,16 @@ test('card display: access overlay, upcoming events and outdoor chips', () => {
     assert.deepEqual(shown.map(e => e.when), ['Tonight 7:30pm', 'Tomorrow 9pm', 'Fri 8pm'], 'midday trivia has finished');
     assert.equal(shown[0].icon, 'live-music');
 
+    // A bare weekday only within the coming week; from 7 days out the date is shown.
+    const later = [
+        { id: 'w6', kind: 'trivia', title: 'Six days', date: '2026-11-09', start: '19:00' },
+        { id: 'w7', kind: 'dj', title: 'A week out', date: '2026-11-10', start: '20:00' },
+        { id: 'nov', kind: 'live-music', title: 'Three weeks', date: '2026-11-21', start: '20:30' },
+        { id: 'jan', kind: 'comedy', title: 'New year', date: '2027-01-01', start: '12:00' },
+    ];
+    assert.deepEqual(upcomingPartnerEvents(later, { today, nowMinutes: 0, limit: MAX_EVENTS }).map(e => e.when),
+        ['Mon 7pm', 'Tue 10 Nov, 8pm', 'Sat 21 Nov, 8:30pm', 'Fri 1 Jan, 12pm']);
+
     assert.deepEqual(outdoorChips({ seats: 60, umbrellas: true, retractableRoof: true, dogFriendly: true }).map(c => c.label),
         ['60 outdoor seats', 'Umbrellas', 'Retractable roof', 'Dog friendly']);
     assert.deepEqual(outdoorChips(null), []);

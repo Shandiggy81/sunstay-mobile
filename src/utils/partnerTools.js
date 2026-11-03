@@ -155,18 +155,32 @@ const formatTime = hhmm => {
     return `${hour}${m === '00' ? '' : `:${m}`}${h < 12 ? 'am' : 'pm'}`;
 };
 
-/** Events to show on the card: today's from an hour ago, then the next few days ("Tonight 7:30pm", "Fri 8pm"). */
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * "Tonight 7:30pm", "Tomorrow 9pm", "Fri 8pm" within the coming week, and
+ * "Sat 21 Nov, 8pm" from a week out, so a weekday never points at the wrong week.
+ * Built by hand rather than with Intl so every browser shows the same text.
+ */
+function eventWhen(event, today) {
+    const time = formatTime(event.start);
+    if (event.date === today) return `${minutes(event.start) >= 17 * 60 ? 'Tonight' : 'Today'} ${time}`;
+    if (event.date === addDays(today, 1)) return `Tomorrow ${time}`;
+    const d = new Date(`${event.date}T12:00:00Z`);
+    const weekday = WEEKDAYS[d.getUTCDay()];
+    if (event.date <= addDays(today, 6)) return `${weekday} ${time}`;
+    return `${weekday} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}, ${time}`;
+}
+
+/** Events to show on the card: today's from an hour ago, then upcoming ones, labelled by eventWhen. */
 export function upcomingPartnerEvents(events, { today, nowMinutes, limit = 3 } = {}) {
     if (!Array.isArray(events) || !DATE.test(today ?? '')) return [];
     return events
         .filter(event => event.date > today || (event.date === today && minutes(event.start) >= (nowMinutes ?? 0) - 60))
         .slice(0, limit)
         .map(event => {
-            const day = event.date === today
-                ? (minutes(event.start) >= 17 * 60 ? 'Tonight' : 'Today')
-                : event.date === addDays(today, 1) ? 'Tomorrow'
-                : new Intl.DateTimeFormat('en-AU', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${event.date}T12:00:00Z`));
-            return { ...event, when: `${day} ${formatTime(event.start)}`, icon: EVENT_KINDS[event.kind].icon, kindLabel: EVENT_KINDS[event.kind].label };
+            return { ...event, when: eventWhen(event, today), icon: EVENT_KINDS[event.kind].icon, kindLabel: EVENT_KINDS[event.kind].label };
         });
 }
 
