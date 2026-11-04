@@ -224,3 +224,13 @@ describe('hotel Sun report venue-local dates', () => {
     }
   });
 });
+
+describe('hotel Sun report sunset', () => {
+  it('gives today’s sunset from the calculated sides, or null without one', () => {
+    const report = buildHotelSunReport(hotel([west, east]), { date: DATE });
+    assert.ok(report.sunset instanceof Date);
+    assert.equal(report.sunset.getTime(), calculateBalconySunDay(options(east)).sunset.getTime());
+    assert.equal(buildHotelSunReport(hotel([{ id: 'unknown', name: 'Unknown side' }]), { date: DATE }).sunset, null);
+    assert.equal(buildHotelSunReport(hotel([]), { date: DATE }).sunset, null);
+  });
+});
