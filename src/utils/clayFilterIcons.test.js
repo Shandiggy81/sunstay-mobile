@@ -20,18 +20,16 @@ describe('clay filter icons', () => {
 
     it('gives Brucey to pet-friendly and keeps emoji for unmapped filters', () => {
         assert.equal(clayIconName('Pet Friendly'), 'brucey');
-        assert.equal(clayIconName('Cocktails'), null);
+        assert.equal(clayIconName('unmapped-filter'), null);
         assert.equal(clayIconName('toString'), null);
     });
 
-    it('uses food clay icons and preserves the bakery, dessert and takeaway emoji', () => {
+    it('fills the remaining filter gaps with existing clay assets', () => {
         assert.equal(clayIconName('all-cafes'), 'coffee');
         assert.equal(clayIconName('all-restaurants'), 'dining');
         assert.equal(clayIconName('all-pubs'), 'pint');
         assert.equal(clayIconName('all-cocktail-bars'), 'cocktail');
-        for (const id of ['all-bakeries', 'all-desserts', 'all-takeaways']) {
-            assert.equal(clayIconName(id), null);
-        }
+        for (const filter of FILTER_CATEGORIES) assert.ok(clayIconName(filter.id), `missing clay mapping for ${filter.id}`);
     });
 
     it('builds a name → url table from a Vite glob result', () => {

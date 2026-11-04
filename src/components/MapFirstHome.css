@@ -68,6 +68,8 @@
  .ss-home-sheet-peek { display: none; }
  .ss-map-first-home { --home-controls-bottom: 24px; }
  .ss-map-first-home .ss-sidebar { width: 390px; padding-top: 214px; border-radius: 0; }
+ /* Filters is portalled to body, outside the map-first app root. */
+ body:has(.ss-map-first-home) > .ss-filter-sheet { right: auto; width: 390px; }
  .ss-map-first-home .ss-map-venue-preview { bottom: 16px; }
  .ss-home-sunny-fab { bottom: 24px; right: 80px; }
  .ss-sidebar > .ss-home-info-line { padding: 0 12px; flex-shrink: 0; }
