@@ -1,7 +1,8 @@
 import { venueSourceNote } from '../utils/venueSource';
-import React, { memo, useState, useMemo, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
+import { footerPrimaryAction, websiteHostLabel } from '../utils/venueFooterActions.js';
+import React, { memo, useState, useMemo, useRef, useId, useLayoutEffect, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { X, Wind, Globe, Navigation, ChevronDown, MapPin } from 'lucide-react';
+import { X, Wind, Globe, Navigation, ExternalLink, ChevronDown, MapPin } from 'lucide-react';
 import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
@@ -330,8 +331,17 @@ function useMinuteClock() {
 }
 
 function VenueCardFooterActions({ venue, canNavigate, share }) {
+  const captionId = useId();
   const directionsUrl = canNavigate
     ? `https://www.google.com/maps/dir/?api=1&destination=${Number(venue?.lat)},${Number(venue?.lng)}` : null;
+  if (footerPrimaryAction({ venue, websiteUrl: share.websiteUrl }) === 'website') {
+    return <div className="ss-venue-stay-footer-actions">
+      {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-stay-directions"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></a>
+        : <button type="button" disabled className="ss-venue-stay-directions" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></button>}
+      <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-property-website" aria-describedby={captionId}><Globe size={18} aria-hidden="true" />Visit property website<ExternalLink size={16} aria-hidden="true" /></a>
+      <p id={captionId}>Opens {websiteHostLabel(share.websiteUrl)}</p>
+    </div>;
+  }
   return <div className="ss-venue-footer-actions">
     {share.websiteUrl ? <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-website"><Globe size={18} aria-hidden="true" />Website</a> : null}
     {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-directions" aria-label="Get directions"><Navigation size={18} aria-hidden="true" />Get directions</a>

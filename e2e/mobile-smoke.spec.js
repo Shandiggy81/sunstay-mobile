@@ -60,7 +60,7 @@ test('Filters sits above the expanded list and its buttons receive taps', async 
   await openList(page);
   const before = await count(page).innerText();
   await openFilters(page);
-  const cafe = sheet(page).getByRole('button', { name: 'Cafe', exact: true });
+  const cafe = sheet(page).getByRole('group', { name: 'Quick picks', exact: true }).getByRole('button', { name: 'Cafe', exact: true });
   // Real taps without force or DOM clicks catch overlays swallowing interaction.
   await cafe.tap();
   await expect(cafe).toHaveAttribute('aria-pressed', 'true');
@@ -79,7 +79,7 @@ test('Cafe narrows the venue count and Clear all restores it', async ({ page }) 
   const before = await count(page).innerText();
   const total = Number.parseInt(before, 10);
   await openFilters(page);
-  await sheet(page).getByRole('button', { name: 'Cafe', exact: true }).tap();
+  await sheet(page).getByRole('group', { name: 'Quick picks', exact: true }).getByRole('button', { name: 'Cafe', exact: true }).tap();
   const show = sheet(page).getByRole('button', { name: /^Show \d+ venues?$/ });
   await expect(show).not.toHaveText(`Show ${total} venues`);
   const cafeTotal = Number.parseInt((await show.innerText()).replace('Show ', ''), 10);
@@ -92,7 +92,7 @@ test('Cafe narrows the venue count and Clear all restores it', async ({ page }) 
   await expect(rows(page).first().locator('.ss-vlc-sub')).toContainText(/cafe/i);
   await openFilters(page);
   await sheet(page).getByRole('button', { name: 'Clear all', exact: true }).tap();
-  await expect(sheet(page).getByRole('button', { name: 'Cafe', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  await expect(sheet(page).getByRole('group', { name: 'Quick picks', exact: true }).getByRole('button', { name: 'Cafe', exact: true })).toHaveAttribute('aria-pressed', 'false');
   await expect(show).toHaveText(`Show ${total} venues`);
   await show.tap();
   await expect(sheet(page)).toBeHidden();
@@ -129,4 +129,37 @@ test('venue card uses an ink directions button and opaque surfaces', async ({ pa
     return style.backdropFilter !== 'none' || (style.webkitBackdropFilter && style.webkitBackdropFilter !== 'none');
   }).map(element => element.className));
   expect(blurred, 'Venue details must use opaque surfaces without backdrop blur').toEqual([]);
+});
+
+
+test('Food & drink rows share selection with Quick picks and summarize it when collapsed', async ({ page }) => {
+  await openFilters(page);
+  const food = sheet(page).getByRole('button', { name: /^Food & drink/ });
+  await food.tap();
+  const panel = sheet(page).locator('#ss-filter-group-food-drink');
+  await expect(panel.getByRole('heading', { name: 'Type of place', exact: true })).toBeVisible();
+  await expect(panel.getByRole('heading', { name: 'On offer', exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Cafe', exact: true }).tap();
+  const quickCafe = sheet(page).getByRole('group', { name: 'Quick picks', exact: true }).getByRole('button', { name: 'Cafe', exact: true });
+  await expect(quickCafe).toHaveAttribute('aria-pressed', 'true');
+  await food.tap();
+  await expect(food).toHaveAttribute('aria-expanded', 'false');
+  await expect(food).toContainText('1 selected');
+  await sheet(page).getByRole('button', { name: 'Close filters', exact: true }).tap();
+  await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeFocused();
+  await openFilters(page);
+  await expect(food).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('a stay leads with its property website and names the external destination', async ({ page }) => {
+  await page.goto('/?venue=dv-melb-stay-08');
+  const card = page.getByRole('article', { name: 'Quest St Kilda Bayside', exact: true });
+  const website = card.getByRole('link', { name: 'Visit property website', exact: true });
+  await expect(website).toHaveAttribute('href', 'https://www.questapartments.com.au/properties/vic/st-kilda/quest-st-kilda-bayside');
+  await expect(website).toHaveAttribute('target', '_blank');
+  await expect(website).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(website).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await expect(website).toHaveAccessibleDescription('Opens questapartments.com.au');
+  await expect(card.getByText('Opens questapartments.com.au', { exact: true })).toBeVisible();
+  await expect(card.getByRole('link', { name: 'Get directions', exact: true })).toHaveCSS('color', 'rgb(146, 64, 14)');
 });
