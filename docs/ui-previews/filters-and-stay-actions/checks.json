@@ -1,0 +1,113 @@
+{
+  "viewports": [
+    {
+      "file": "filters-a",
+      "width": 390,
+      "height": 844,
+      "scroller": {
+        "height": 487,
+        "scrollHeight": 510
+      },
+      "minTouchWidth": 44,
+      "minTouchHeight": 44
+    },
+    {
+      "file": "filters-b",
+      "width": 390,
+      "height": 844,
+      "scroller": {
+        "height": 403,
+        "scrollHeight": 434
+      },
+      "minTouchWidth": 44,
+      "minTouchHeight": 44
+    },
+    {
+      "file": "stay-action",
+      "width": 390,
+      "height": 844,
+      "scroller": {
+        "height": 627,
+        "scrollHeight": 627
+      },
+      "minTouchWidth": 44,
+      "minTouchHeight": 44
+    },
+    {
+      "file": "filters-a",
+      "width": 320,
+      "height": 568,
+      "scroller": {
+        "height": 375,
+        "scrollHeight": 506
+      },
+      "minTouchWidth": 44,
+      "minTouchHeight": 44
+    },
+    {
+      "file": "filters-b",
+      "width": 320,
+      "height": 568,
+      "scroller": {
+        "height": 291,
+        "scrollHeight": 434
+      },
+      "minTouchWidth": 44,
+      "minTouchHeight": 44
+    },
+    {
+      "file": "stay-action",
+      "width": 320,
+      "height": 568,
+      "scroller": {
+        "height": 351,
+        "scrollHeight": 567
+      },
+      "minTouchWidth": 44,
+      "minTouchHeight": 44
+    }
+  ],
+  "contrast": [
+    {
+      "text": "#0f172a",
+      "background": "#ffffff",
+      "ratio": 17.85
+    },
+    {
+      "text": "#ffffff",
+      "background": "#0f172a",
+      "ratio": 17.85
+    },
+    {
+      "text": "#64748b",
+      "background": "#ffffff",
+      "ratio": 4.76
+    },
+    {
+      "text": "#64748b",
+      "background": "#fffbf3",
+      "ratio": 4.61
+    },
+    {
+      "text": "#92400e",
+      "background": "#fffbeb",
+      "ratio": 6.84
+    },
+    {
+      "text": "#92400e",
+      "background": "#ffffff",
+      "ratio": 7.09
+    },
+    {
+      "text": "#475569",
+      "background": "#ffffff",
+      "ratio": 7.58
+    },
+    {
+      "text": "#0f172a",
+      "background": "#fffbf3",
+      "ratio": 17.3
+    }
+  ],
+  "errors": []
+}

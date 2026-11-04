@@ -1,0 +1,137 @@
+{
+  "baseCommit": "0689b3a0b7c26fb7de9d9c302bce41f9c6f2346e",
+  "date": "2026-11-04",
+  "catalogue": "Repository fallback, not live production inventory",
+  "total": 56,
+  "stays": 13,
+  "selectedFilters": [
+    "all-stays"
+  ],
+  "stay": {
+    "id": "dv-melb-stay-08",
+    "name": "Quest St Kilda Bayside",
+    "type": "Serviced apartment",
+    "suburb": "St Kilda",
+    "address": "1 Eildon Road, St Kilda VIC 3182",
+    "website": "https://www.questapartments.com.au/properties/vic/st-kilda/quest-st-kilda-bayside",
+    "description": "Illustrative street-aligned facade estimates. Rooms, balcony access, floor heights and nearby shading need venue verification.",
+    "display": {
+      "mode": "facade_sides",
+      "headline": "Sun by side of the building",
+      "trustLine": "Modelled from building footprint and neighbours",
+      "entries": [
+        {
+          "id": "facade-0-2",
+          "index": 0,
+          "kind": "facade_side",
+          "title": "South-east side",
+          "displayName": "South-east side · Level 2",
+          "level": "Level 2",
+          "sunLabel": "Sun on this side",
+          "evidence": "modelled",
+          "evidenceDate": null,
+          "trustLine": "Modelled from building footprint and neighbours",
+          "evidenceLabel": "Modelled · not yet confirmed by the hotel",
+          "chip": null
+        },
+        {
+          "id": "facade-1-2",
+          "index": 1,
+          "kind": "facade_side",
+          "title": "North-west side",
+          "displayName": "North-west side · Level 2",
+          "level": "Level 2",
+          "sunLabel": "Sun on this side",
+          "evidence": "modelled",
+          "evidenceDate": null,
+          "trustLine": "Modelled from building footprint and neighbours",
+          "evidenceLabel": "Modelled · not yet confirmed by the hotel",
+          "chip": null
+        },
+        {
+          "id": "facade-2-2",
+          "index": 2,
+          "kind": "facade_side",
+          "title": "North-east side",
+          "displayName": "North-east side · Level 2",
+          "level": "Level 2",
+          "sunLabel": "Sun on this side",
+          "evidence": "modelled",
+          "evidenceDate": null,
+          "trustLine": "Modelled from building footprint and neighbours",
+          "evidenceLabel": "Modelled · not yet confirmed by the hotel",
+          "chip": null
+        }
+      ],
+      "showRoomPicker": false,
+      "bestLabel": "Sunniest side",
+      "noun": "side"
+    }
+  },
+  "groups": [
+    {
+      "id": "places",
+      "title": "Food & drink",
+      "icon": "coffee",
+      "ids": [
+        "all-cafes",
+        "all-restaurants",
+        "all-pubs",
+        "all-cocktail-bars",
+        "all-bakeries",
+        "all-desserts",
+        "all-takeaways"
+      ]
+    },
+    {
+      "id": "stays",
+      "title": "Stays & homes",
+      "icon": "house",
+      "ids": [
+        "all-stays",
+        "all-homes",
+        "Hotel",
+        "Serviced apartment",
+        "Short Stay",
+        "Balcony"
+      ]
+    },
+    {
+      "id": "comfort",
+      "title": "Sun & comfort",
+      "icon": "sun",
+      "ids": [
+        "Sunny",
+        "Cozy",
+        "Rooftop",
+        "Beer Garden",
+        "Fireplace",
+        "Views",
+        "Shaded",
+        "Indoor Warmth",
+        "Heaters",
+        "River",
+        "Afternoon Sun",
+        "Morning Sun"
+      ]
+    },
+    {
+      "id": "needs",
+      "title": "Good to know",
+      "icon": "pram",
+      "ids": [
+        "Pet Friendly",
+        "Pram Friendly",
+        "Wheelchair Accessible",
+        "Vegan",
+        "Large Groups",
+        "Smoking Area",
+        "Live Music",
+        "Craft Beer",
+        "Cocktails",
+        "Specialty Coffee",
+        "Premium"
+      ]
+    }
+  ]
+}
