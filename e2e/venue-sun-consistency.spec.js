@@ -7,6 +7,15 @@ const melbourne = (hour, minute = 0) => new Date(Date.UTC(2026, 9, 18, hour + 13
 // Buildings everywhere except the north (330°–30°): a short midday window.
 const HORIZON = Array.from({ length: 36 }, (_, i) => (i >= 33 || i < 3 ? 0 : 75));
 const VENUE = 'Wonderland Bar';
+// Rain all day, in every forecast hour and the current reading.
+const rainy = structuredClone(weather);
+Object.assign(rainy.current, { precipitation: 1.6, weather_code: 63, cloud_cover: 100 });
+for (const [key, value] of Object.entries({ precipitation_probability: 90, precipitation: 1.6, weather_code: 63, cloud_cover: 100 })) {
+  rainy.hourly[key] = rainy.hourly.time.map(() => value);
+}
+
+/** A clay icon's built URL, e.g. "/assets/rain-DkO5p8-I.webp" ("sun" doesn't match "sun-cloud-…"). */
+const clayIcon = name => new RegExp(`/${name}-[\\w-]{8}\\.webp$`);
 
 /** "1h 28m" / "45m" / "2h" → minutes. */
 function minutes(text) {
@@ -14,7 +23,7 @@ function minutes(text) {
   return Number(m?.[1] ?? 0) * 60 + Number(m?.[2] ?? 0);
 }
 
-async function boot(page, baseURL, now, { horizon = null } = {}) {
+async function boot(page, baseURL, now, { horizon = null, forecast = weather } = {}) {
   const errors = [];
   const seen = { supabase: 0, horizon: 0, realSupabase: 0 };
   page.on('pageerror', error => errors.push(error.message));
@@ -23,7 +32,7 @@ async function boot(page, baseURL, now, { horizon = null } = {}) {
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.origin === baseURL) return route.continue();
-    if (url.origin === 'https://api.open-meteo.com' && url.pathname === '/v1/forecast') return route.fulfill({ json: weather });
+    if (url.origin === 'https://api.open-meteo.com' && url.pathname === '/v1/forecast') return route.fulfill({ json: forecast });
     if (url.hostname.endsWith('.supabase.co')) seen.realSupabase += 1;
     if (url.origin === FAKE_SUPABASE_URL) {
       seen.supabase += 1;
@@ -62,16 +71,17 @@ async function expectFitsPhone(page) {
   expect(width).toBeLessThanOrEqual(390);
 }
 
-for (const [label, now, sunNow, defaultMode] of [
-  ['midday', melbourne(11), /^Sun until|^Sun returns|^Shaded now|^No more sun/, 'Sun'],
-  ['before sunrise', melbourne(5), /^Sun up /, 'After Dark'],
-  ['after sunset', melbourne(21), /^Sun has set$/, 'After Dark'],
+for (const [label, now, sunNow, defaultMode, icon] of [
+  ['midday', melbourne(11), /^Sun until|^Sun returns|^Shaded now|^No more sun/, 'Sun', 'sun'],
+  ['before sunrise', melbourne(5), /^Sun up /, 'After Dark', 'night'],
+  ['after sunset', melbourne(21), /^Sun has set$/, 'After Dark', 'night'],
 ]) {
   test(`outdoor venue card sun text is consistent at 390×844 (${label})`, async ({ page, baseURL }, testInfo) => {
     const { errors } = await boot(page, baseURL, now);
     const card = await openVenue(page, { defaultMode });
     const tile = card.getByLabel('Current venue conditions').locator('dd');
     await expect(tile).toHaveText(sunNow);
+    await expect(tile.locator('img')).toHaveAttribute('src', clayIcon(icon));
     const text = await card.innerText();
     const left = [...text.matchAll(/(\d+h(?: \d+m)?|\d+m) of direct sun left today/g)].map(m => minutes(m[1]));
     const totals = [...text.matchAll(/(?:of today's|had about|Expect about) (\d+h(?: \d+m)?|\d+m)/g)].map(m => minutes(m[1]));
@@ -83,6 +93,22 @@ for (const [label, now, sunNow, defaultMode] of [
     expect(errors, 'Unhandled browser errors').toEqual([]);
   });
 }
+
+test('the sun headline shows rain, not a sun, when it is raining at 390×844', async ({ page, baseURL }, testInfo) => {
+  const { errors } = await boot(page, baseURL, melbourne(11), { forecast: rainy });
+  const card = await openVenue(page);
+  const headline = card.getByLabel('Current venue conditions').locator('dd');
+  await expect(headline).toHaveText('Raining');
+  await expect(headline.locator('img')).toHaveAttribute('src', clayIcon('rain'));
+  await expectFitsPhone(page);
+  // Let the card finish sliding up and fading in before the screenshot.
+  await expect(card).toHaveCSS('transform', 'none');
+  await expect(card.locator('xpath=..')).toHaveCSS('opacity', '1');
+  const shot = testInfo.outputPath('venue-sun-rain-390.png');
+  await page.screenshot({ path: shot });
+  await testInfo.attach(`${VENUE} in rain at 390×844`, { path: shot, contentType: 'image/png' });
+  expect(errors, 'Unhandled browser errors').toEqual([]);
+});
 
 test('Sun moments card: remaining never exceeds the venue total at 390×844', async ({ page, baseURL }, testInfo) => {
   const { errors, seen } = await boot(page, baseURL, melbourne(11), { horizon: HORIZON });
