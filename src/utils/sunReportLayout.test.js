@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    bestSideRows, defaultOpenSideId, hourRangeText, momentWindowText,
+    bestSideRows, defaultOpenSideId, hourRangeText, momentWindowText, reportTrustText,
     seasonTable, sharedEvidence, sideRows, sunniestMonthsText,
 } from './sunReportLayout.js';
 import { buildHotelSunReport } from './hotelSunReport.js';
+import { FACADE_TRUST_LINE, MODELLED_ROOM_TRUST_LINE } from './stayRoomTypes.js';
 
 const MELBOURNE = 'Australia/Melbourne';
 // 7:58pm in Melbourne (UTC+11) on 4 Nov 2026.
@@ -106,6 +107,21 @@ test('the evidence line shows once only when every side shares it', () => {
     assert.equal(sharedEvidence([modelled, confirmed]), null);
     assert.equal(sharedEvidence([modelled, {}]), null);
     assert.equal(sharedEvidence([]), null);
+});
+
+test('the header says once how far the sun data is confirmed', () => {
+    const modelled = who => ({ display: { chip: null, evidenceLabel: `Modelled · not yet confirmed by the ${who}` } });
+    const confirmed = { display: { chip: 'Confirmed by the hotel', evidenceLabel: 'Confirmed by the hotel' } };
+    const facade = rooms => ({ display: { trustLine: FACADE_TRUST_LINE }, rooms });
+    assert.equal(reportTrustText(facade([modelled('hotel'), modelled('hotel')])),
+        'Modelled from building footprint and neighbours · not yet confirmed by the hotel');
+    assert.equal(reportTrustText(facade([modelled('owner')])),
+        'Modelled from building footprint and neighbours · not yet confirmed by the owner');
+    assert.equal(reportTrustText({ display: { trustLine: MODELLED_ROOM_TRUST_LINE }, rooms: [modelled('hotel')] }),
+        'Modelled · not yet confirmed by the hotel');
+    assert.equal(reportTrustText(facade([confirmed, confirmed])), 'Confirmed by the hotel');
+    assert.equal(reportTrustText(facade([confirmed, modelled('hotel')])), FACADE_TRUST_LINE, 'mixed: each side shows its own');
+    assert.equal(reportTrustText({ display: { trustLine: null }, rooms: [confirmed, modelled('hotel')] }), null);
 });
 
 test('works on a real report: sunniest side first, sunset window from today', () => {

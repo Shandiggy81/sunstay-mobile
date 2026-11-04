@@ -1,5 +1,6 @@
 import { SUN_MOMENTS } from './sunMoments.js';
 import { venueHour } from './venueTime.js';
+import { FACADE_TRUST_LINE } from './stayRoomTypes.js';
 
 /**
  * Layout data for the decluttered sun report: the best side for each moment
@@ -133,4 +134,23 @@ export function sharedEvidence(rooms) {
     const labels = (Array.isArray(rooms) ? rooms : []).map(room => room?.display?.chip ?? room?.display?.evidenceLabel ?? null);
     if (!labels.length || labels.some(label => !label)) return null;
     return labels.every(label => label === labels[0]) ? labels[0] : null;
+}
+
+const MODELLED_PREFIX = 'Modelled · ';
+
+/**
+ * The header's one trust line. Every side of a facade report still modelled:
+ * "Modelled from building footprint and neighbours · not yet confirmed by the
+ * hotel". Every side sharing other evidence: that evidence ("Confirmed by the
+ * hotel"). Sides that differ: the report's trust line alone (null in a mixed
+ * room-type report), and each side shows its own evidence.
+ */
+export function reportTrustText(report) {
+    const trustLine = report?.display?.trustLine ?? null;
+    const shared = sharedEvidence(report?.rooms);
+    if (!shared) return trustLine;
+    if (shared.startsWith(MODELLED_PREFIX) && trustLine === FACADE_TRUST_LINE) {
+        return `${trustLine} · ${shared.slice(MODELLED_PREFIX.length)}`;
+    }
+    return shared;
 }
