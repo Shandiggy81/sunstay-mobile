@@ -10,7 +10,7 @@ import { stayRoomTypesDisplay } from '../utils/stayRoomTypes.js';
 import SunMomentsPanel from './SunMomentsPanel.jsx';
 import CafeSunSection, { CafeSunMonths, CafeSunFacts } from './CafeSunSection.jsx';
 import { useVenueSunProfile } from '../hooks/useVenueSunProfile';
-import { isCafeVenue } from '../utils/cafeCardTiles.js';
+import { cafeCardTiles, isCafeVenue } from '../utils/cafeCardTiles.js';
 import { cardSunWindows, forecastForSunWindows, rainDuringSun, roundedSunDay } from '../utils/sunWindowsCard.js';
 import { outdoorSunDay, roomsBySunToday, sunMomentsFromDay } from '../utils/sunMoments.js';
 import { outdoorSunSummary } from '../utils/outdoorSunSummary.js';
@@ -61,7 +61,7 @@ import { venueShareMessage, venueShareUrl } from '../utils/venueLink.js';
 import { usePublicAccessibleToilet } from '../hooks/usePublicAccessibleToilet.js';
 import { usePartnerTools } from '../hooks/usePartnerTools.js';
 import { outdoorChips, partnerClock, upcomingPartnerEvents, withPartnerAccess } from '../utils/partnerTools.js';
-import { venueOfferings } from '../utils/venueOfferings';
+import { offeringsBesideCafeFacts, venueOfferings } from '../utils/venueOfferings';
 import { tonightFeel } from '../utils/tonightFeel.js';
 import { sunSourceConfidence } from '../utils/sunSourceConfidence.js';
 import { getBadgeDisplayText, getBadgeState } from '../utils/dataBadgeState.js';
@@ -528,7 +528,9 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
 
   const statTiles = venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary, isNight: nightAtScoreTime, skyKindAtScore: skyAtScoreTime });
   const cardSun = outdoorDay ? cardSunWindows(outdoorDay) : null;
-  const rain = isHotelOrStay ? null : rainDuringSun({ forecast: liveWeather ? forecast : null, sun: cardSun });
+  // Stay cards can show another date's rooms, so today's rain only goes on outdoor sun cards.
+  const rain = sunSection === 'stay' ? null : rainDuringSun({ forecast: liveWeather ? forecast : null, sun: cardSun });
+  const cafeFactKeys = sunSection === 'cafe' ? cafeCardTiles(venue, { microclimate: microclimateEntry, now }).map((tile) => tile.key) : [];
   const sky = forecastForSunWindows({ forecast: liveWeather ? forecast : null, sun: cardSun });
   const sunSource = sunSourceConfidence({ horizon: sunHorizon, geometryConfidence: geometryConfidence ?? microclimateEntry?.geometry_confidence ?? null, dataSource: venue?.data_source });
   const forecastLabel = getBadgeDisplayText(getBadgeState({ kind: 'forecast', updatedAt: weatherFetchedAt, now })).visibleLabel;
@@ -713,7 +715,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     <h3 id="good-to-know-heading" className={SECTION_TITLE}>Good to know</h3>
                     {description ? <p className="ss-venue-description">{description}</p> : null}
                     {sunSection === 'cafe' ? <CafeSunFacts venue={venue} microclimateEntry={microclimateEntry} now={now} /> : null}
-                    <VenueOfferingsList key={venue?.id} offerings={offerings} amenities={amenities} />
+                    <VenueOfferingsList key={venue?.id} offerings={offeringsBesideCafeFacts(offerings, cafeFactKeys)} amenities={amenities} />
                     {address || (onCenter && hasValidCoordinates) ? <div className="ss-venue-fact"><MapPin size={22} aria-hidden="true" /><span>{address ?? displayName}</span>
                       {onCenter && hasValidCoordinates ? <button type="button" onClick={() => onCenter(venue)} className="ss-venue-text-action">Map</button>
                         : mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action">Map</a> : null}
