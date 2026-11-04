@@ -43,6 +43,9 @@ async function openList(page) {
 async function openFilters(page) {
   await page.getByRole('button', { name: 'Filters', exact: true }).click();
   await expect(sheet(page).getByRole('heading', { name: 'Filters', exact: true })).toBeVisible();
+  // Wait for the slide-up to finish (~400 ms): a tap aimed mid-slide can land on
+  // the 44 px pill below the one meant (Beer garden under Cafe).
+  await expect(sheet(page)).toHaveCSS('transform', 'none');
 }
 
 test('app loads and the venue list opens', async ({ page }) => {
@@ -79,7 +82,9 @@ test('Cafe narrows the venue count and Clear all restores it', async ({ page }) 
   const before = await count(page).innerText();
   const total = Number.parseInt(before, 10);
   await openFilters(page);
-  await sheet(page).getByRole('group', { name: 'Quick picks', exact: true }).getByRole('button', { name: 'Cafe', exact: true }).tap();
+  const quickCafe = sheet(page).getByRole('group', { name: 'Quick picks', exact: true }).getByRole('button', { name: 'Cafe', exact: true });
+  await quickCafe.tap();
+  await expect(quickCafe).toHaveAttribute('aria-pressed', 'true');
   const show = sheet(page).getByRole('button', { name: /^Show \d+ venues?$/ });
   await expect(show).not.toHaveText(`Show ${total} venues`);
   const cafeTotal = Number.parseInt((await show.innerText()).replace('Show ', ''), 10);
