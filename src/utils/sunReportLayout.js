@@ -49,16 +49,33 @@ export function momentWindowText(key, { sunset = null, timeZone } = {}) {
 }
 
 /**
+ * The level every side shares ("Level 2"), or null when sides differ or one
+ * has none. The report then says it once instead of on every side's name.
+ */
+export function sharedSideLevel(rooms) {
+    const list = Array.isArray(rooms) ? rooms : [];
+    const levels = list.map(room => room?.display?.level ?? null);
+    return levels.length && levels[0] && levels.every(level => level === levels[0]) ? levels[0] : null;
+}
+
+/** Full side name → its name without the shared level ("North-west side · Level 2" → "North-west side"). */
+function shortNames(rooms) {
+    if (!sharedSideLevel(rooms)) return new Map();
+    return new Map(rooms.filter(room => room?.name && room.display?.title).map(room => [room.name, room.display.title]));
+}
+
+/**
  * "Best side today": every moment with its window and the side with the most
  * direct sun then, from the report's summary. `side` is null when no side
- * gets direct sun at that time today.
+ * gets direct sun at that time today, and drops a level every side shares.
  */
 export function bestSideRows(report) {
     const summary = Array.isArray(report?.summary) ? report.summary : [];
+    const short = shortNames(report?.rooms);
     return summary.map(({ key, title, icon, roomName }) => ({
         key, title, icon,
         window: momentWindowText(key, { sunset: report.sunset, timeZone: report.timeZone }),
-        side: roomName ?? null,
+        side: roomName == null ? null : short.get(roomName) ?? roomName,
     }));
 }
 
@@ -69,13 +86,14 @@ export function bestSideRows(report) {
  */
 export function sideRows(rooms) {
     const list = Array.isArray(rooms) ? rooms : [];
+    const short = shortNames(list);
     const minutesOf = room => (!room?.error && Number.isFinite(room?.totalMinutes) ? room.totalMinutes : null);
     const max = Math.max(0, ...list.map(room => minutesOf(room) ?? 0));
     return list.map(room => {
         const minutes = minutesOf(room);
         return {
             id: room?.id ?? null,
-            name: room?.name ?? '',
+            name: short.get(room?.name) ?? room?.name ?? '',
             durationText: room?.durationText ?? 'Unavailable',
             totalMinutes: minutes,
             share: minutes == null ? null : max > 0 ? minutes / max : 0,
@@ -144,6 +162,18 @@ export function reportWords(mode) {
     return mode === STAY_SUN_MODES.ROOM_TYPES
         ? { best: 'Best room today', list: 'Each room type', unit: 'room type' }
         : { best: 'Best side today', list: 'Each side of the building', unit: 'side' };
+}
+
+/**
+ * The subtitle under the sides list: "Direct sun today, measured at level 2.
+ * Tap a side for its year and seasons." The level appears only when every
+ * side shares it (their names then leave it out).
+ */
+export function sidesSubtitle(report) {
+    const { unit } = reportWords(report?.display?.mode);
+    const level = sharedSideLevel(report?.rooms);
+    const today = level ? `Direct sun today, measured at ${level.replace(/^Level\b/, 'level')}.` : 'Direct sun today.';
+    return `${today} Tap a ${unit} for its year and seasons.`;
 }
 
 const MODELLED_PREFIX = 'Modelled · ';

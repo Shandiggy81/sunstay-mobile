@@ -5,7 +5,7 @@ import ClayIcon from './common/ClayIcon.jsx';
 import { DEFAULT_TIME_ZONE, formatGuestDate, venueLocalDate } from '../utils/balconySunEngine.js';
 import { buildStaySunReport } from '../utils/stayRoomTypes.js';
 import { hotelSunReportUrl } from '../utils/hotelSunReportRoute.js';
-import { bestSideRows, sideRows, defaultOpenSideId, sunniestMonthsText, seasonTable, sharedEvidence, reportTrustText, reportWords } from '../utils/sunReportLayout.js';
+import { bestSideRows, sideRows, sidesSubtitle, defaultOpenSideId, sunniestMonthsText, seasonTable, sharedEvidence, reportTrustText, reportWords } from '../utils/sunReportLayout.js';
 import { formatHours, yearSunChart } from '../utils/yearSunChart.js';
 import '../styles/hotel-sun-report.css';
 
@@ -280,7 +280,7 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
             </section>}
             {report.rooms.length ? <section className="ss-sun-report__sides" aria-labelledby={`${titleId}-sides`}>
               <h2 id={`${titleId}-sides`}>{words.list}</h2>
-              <p className="ss-sun-report__section-subtitle">Direct sun today. Tap a {words.unit} for its year and seasons.</p>
+              <p className="ss-sun-report__section-subtitle">{sidesSubtitle(report)}</p>
               {sideRows(report.rooms).map((side, index) => <RoomReport key={side.id} side={side} room={report.rooms[index]} year={report.year}
                 sharedMax={reportMaxHours(report.rooms)} initiallyOpen={side.id === firstOpenSide} showEvidence={evidence === null} />)}
             </section> : <p className="ss-sun-report__notice">Sun by side of the building is not available for this hotel yet.</p>}

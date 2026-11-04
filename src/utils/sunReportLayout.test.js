@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     bestSideRows, defaultOpenSideId, hourRangeText, momentWindowText, reportTrustText, reportWords,
-    seasonTable, sharedEvidence, sideRows, sunniestMonthsText,
+    seasonTable, sharedEvidence, sharedSideLevel, sideRows, sidesSubtitle, sunniestMonthsText,
 } from './sunReportLayout.js';
 import { buildHotelSunReport } from './hotelSunReport.js';
 import { FACADE_TRUST_LINE, MODELLED_ROOM_TRUST_LINE } from './stayRoomTypes.js';
@@ -128,6 +128,34 @@ test('room-type reports talk about room types, facade reports about sides', () =
     assert.deepEqual(reportWords('room_types'), { best: 'Best room today', list: 'Each room type', unit: 'room type' });
     assert.deepEqual(reportWords('facade_sides'), { best: 'Best side today', list: 'Each side of the building', unit: 'side' });
     assert.deepEqual(reportWords(undefined), reportWords('facade_sides'), 'no report yet: the facade wording');
+});
+
+test('a level every side shares is said once, not on every name', () => {
+    const side = (title, level, minutes) => ({
+        id: title, name: level ? `${title} · ${level}` : title, durationText: `${minutes}m`, totalMinutes: minutes,
+        display: { title, level },
+    });
+    const rooms = [side('North-west side', 'Level 2', 521), side('North-east side', 'Level 2', 470)];
+    assert.equal(sharedSideLevel(rooms), 'Level 2');
+    assert.deepEqual(sideRows(rooms).map(row => row.name), ['North-west side', 'North-east side']);
+    const report = {
+        rooms, timeZone: MELBOURNE, sunset: SUNSET, display: { mode: 'facade_sides' },
+        summary: [
+            { key: 'coffee', title: 'Morning coffee', icon: 'coffee', roomName: 'North-east side · Level 2' },
+            { key: 'sunset', title: 'Sunset drinks', icon: 'cocktail', roomName: null },
+        ],
+    };
+    assert.deepEqual(bestSideRows(report).map(row => row.side), ['North-east side', null]);
+    assert.equal(sidesSubtitle(report), 'Direct sun today, measured at level 2. Tap a side for its year and seasons.');
+
+    // Different levels, or a side without one: every name keeps its level.
+    const mixed = [side('North-west side', 'Level 2', 521), side('North-east side', 'Level 9', 470)];
+    assert.equal(sharedSideLevel(mixed), null);
+    assert.deepEqual(sideRows(mixed).map(row => row.name), ['North-west side · Level 2', 'North-east side · Level 9']);
+    assert.equal(sharedSideLevel([side('North-west side', 'Level 2', 521), side('North-east side', null, 470)]), null);
+    assert.equal(sidesSubtitle({ rooms: mixed, display: { mode: 'facade_sides' } }), 'Direct sun today. Tap a side for its year and seasons.');
+    assert.equal(sidesSubtitle({ rooms: [], display: { mode: 'room_types' } }), 'Direct sun today. Tap a room type for its year and seasons.');
+    assert.equal(sharedSideLevel(undefined), null);
 });
 
 test('works on a real report: sunniest side first, sunset window from today', () => {
