@@ -105,3 +105,15 @@ export function venueOfferings(venue) {
     known.sort((a, b) => a.order - b.order);
     return [...known.map(({ order, ...rest }) => rest), ...unknown];
 }
+
+/**
+ * Offerings to list beside a café's facts: "Outdoor seating" is left out when
+ * the facts already show the outdoor tables with a seat count.
+ *
+ * @param {ReturnType<typeof venueOfferings>} offerings
+ * @param {string[]} factKeys  cafeCardTiles() keys shown on the card
+ */
+export function offeringsBesideCafeFacts(offerings, factKeys = []) {
+    if (!Array.isArray(offerings) || !factKeys.includes('outdoor-tables')) return offerings;
+    return offerings.filter((row) => row.key !== 'outdoor seating');
+}

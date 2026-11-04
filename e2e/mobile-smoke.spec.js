@@ -115,3 +115,18 @@ test('a list row opens VenueCard and closing it returns to venue browsing', asyn
   await expect(count(page)).toHaveText(before);
   await expect(rows(page).filter({ hasText: name }).first()).toBeVisible();
 });
+
+
+test('venue card uses an ink directions button and opaque surfaces', async ({ page }) => {
+  await openList(page);
+  const row = rows(page).first();
+  const name = await row.locator('.ss-vlc-name').innerText();
+  await row.tap();
+  const card = page.getByRole('article', { name, exact: true });
+  await expect(card.getByRole('link', { name: 'Get directions', exact: true })).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  const blurred = await card.locator('*').evaluateAll(elements => elements.filter(element => {
+    const style = getComputedStyle(element);
+    return style.backdropFilter !== 'none' || (style.webkitBackdropFilter && style.webkitBackdropFilter !== 'none');
+  }).map(element => element.className));
+  expect(blurred, 'Venue details must use opaque surfaces without backdrop blur').toEqual([]);
+});

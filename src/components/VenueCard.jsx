@@ -1,17 +1,17 @@
 import { venueSourceNote } from '../utils/venueSource';
 import React, { memo, useState, useMemo, useRef, useLayoutEffect, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { X, Wind, ExternalLink, Navigation, Share2, ChevronDown, Crosshair } from 'lucide-react';
+import { X, Wind, Globe, Navigation, ChevronDown, MapPin } from 'lucide-react';
 import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
 import RoomSunCard from './RoomSunCard';
 import { stayRoomTypesDisplay } from '../utils/stayRoomTypes.js';
 import SunMomentsPanel from './SunMomentsPanel.jsx';
-import CafeSunSection from './CafeSunSection.jsx';
+import CafeSunSection, { CafeSunMonths, CafeSunFacts } from './CafeSunSection.jsx';
 import { useVenueSunProfile } from '../hooks/useVenueSunProfile';
-import { isCafeVenue } from '../utils/cafeCardTiles.js';
-import { roundedSunDay } from '../utils/sunWindowsCard.js';
+import { cafeCardTiles, isCafeVenue } from '../utils/cafeCardTiles.js';
+import { cardSunWindows, forecastForSunWindows, rainDuringSun, roundedSunDay } from '../utils/sunWindowsCard.js';
 import { outdoorSunDay, roomsBySunToday, sunMomentsFromDay } from '../utils/sunMoments.js';
 import { outdoorSunSummary } from '../utils/outdoorSunSummary.js';
 import { DEFAULT_TIME_ZONE, venueLocalDate } from '../utils/balconySunEngine.js';
@@ -19,7 +19,6 @@ import ClayIcon from './common/ClayIcon';
 import {
   AboutAndHours,
   VenueSourceNote,
-  ConditionsGrid,
   HappyHourSection,
   PartnerExtrasSection,
   HourByHour,
@@ -28,11 +27,12 @@ import {
   VenueHero,
   VenueInfoHeader,
   VenueOfferingsList,
-  VenueStatRow,
+  VenueSunNow,
+  VenueWeatherNow,
+  VenueSunCaption,
   VibeSection,
   AccessSection,
   formatScore,
-  scoreTone,
   SECTION_TITLE,
 } from './VenueCardSections';
 import { useOpenAQ } from '../hooks/useOpenAQ';
@@ -47,7 +47,7 @@ import { formatHour } from '../utils/sunForecastState';
 import { canUsePointerTilt } from '../utils/canUsePointerTilt';
 import { resolveOverviewScore } from '../utils/resolveOverviewScore';
 import { errorBoundaryRemountKey, resetVenueDetailScroller, venueOverlayPresenceKey } from '../utils/venueDetailTabs';
-import { feelsLikeIconName, venueIcon, weatherIconName } from '../utils/clayIcons';
+import { venueIcon, weatherIconName } from '../utils/clayIcons';
 import { venueStatTiles } from '../utils/venueStatTiles.js';
 import ScoreRing from './common/ScoreRing.jsx';
 import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
@@ -61,8 +61,10 @@ import { venueShareMessage, venueShareUrl } from '../utils/venueLink.js';
 import { usePublicAccessibleToilet } from '../hooks/usePublicAccessibleToilet.js';
 import { usePartnerTools } from '../hooks/usePartnerTools.js';
 import { outdoorChips, partnerClock, upcomingPartnerEvents, withPartnerAccess } from '../utils/partnerTools.js';
-import { venueOfferings } from '../utils/venueOfferings';
+import { offeringsBesideCafeFacts, venueOfferings } from '../utils/venueOfferings';
 import { tonightFeel } from '../utils/tonightFeel.js';
+import { sunSourceConfidence } from '../utils/sunSourceConfidence.js';
+import { getBadgeDisplayText, getBadgeState } from '../utils/dataBadgeState.js';
 import { keyAmenities } from '../utils/venueAmenities';
 import { venuePerfectFor } from '../utils/venuePerfectFor.js';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
@@ -70,9 +72,8 @@ import { venueTypeLabel } from '../utils/venueTypeLabel';
 
 const MICRO_LABEL = 'text-[12px] font-semibold text-slate-600';
 
-// Past this scroll offset the hero is mostly gone, so the compact header
-// takes over with the name and score.
-const COMPACT_HEADER_AT = 210;
+// Keep the name and score visible once the compact top row scrolls away.
+const COMPACT_HEADER_AT = 140;
 
 const finite = (value) => {
   const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
@@ -91,12 +92,12 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
   const isEstimate = reading.confidence != null && reading.confidence < 0.5;
 
   return (
-    <div className="rounded-2xl border border-amber-500/15 bg-gradient-to-br from-amber-50 to-white p-3.5">
+    <div className="rounded-2xl border border-amber-500/15 bg-white p-3.5">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className={MICRO_LABEL}>Microclimate at {atLabel}</span>
         {reading.isLiveSun ? (
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" aria-hidden="true" />
             Live
           </span>
         ) : null}
@@ -127,7 +128,7 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
       {(reading.windLabel || reading.comfortHint) && (
         <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
           {reading.windLabel ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/10 px-2.5 py-1 text-[12px] font-semibold text-sky-800">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-semibold text-slate-700">
               <Wind size={12} aria-hidden="true" />
               {reading.windLabel}
             </span>
@@ -194,13 +195,13 @@ const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArri
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border border-slate-900/[0.08] bg-slate-50 px-4 py-2.5 text-left text-[15px] font-semibold text-slate-800 transition-colors active:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+        className="ss-venue-more-weather"
       >
-        UV, air quality and wind comfort
+        <Wind size={22} aria-hidden="true" /><span className="flex-1">UV, air quality and wind comfort</span>
         <ChevronDown size={18} aria-hidden="true" className={`shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open ? (
-        <div id={panelId} className="flex flex-col gap-3">
+        <div id={panelId} className="ss-venue-weather-details flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2.5">
             <div className="rounded-2xl border border-slate-900/[0.08] bg-white p-3.5">
               <span className={MICRO_LABEL}>UV index</span>
@@ -328,61 +329,14 @@ function useMinuteClock() {
   return now;
 }
 
-// iOS toolbar buttons: 50px tall capsules, primary action given more width than
-// the two secondary actions so the hierarchy reads at a glance.
-const footerActionClass =
-  'flex items-center justify-center gap-1.5 min-h-[50px] px-2.5 rounded-2xl text-[13px] font-semibold leading-tight tracking-[-0.01em] text-center transition-transform duration-150 active:scale-[0.97]';
-const footerSecondaryClass =
-  `${footerActionClass} flex-1 bg-white text-slate-800 border border-slate-900/[0.08] shadow-[0_1px_2px_rgba(15,23,42,0.05)]`;
-const footerPrimaryClass =
-  `${footerActionClass} flex-[1.5] bg-amber-500 text-slate-950 shadow-[0_2px_10px_rgba(245,158,11,0.35)]`;
-
 function VenueCardFooterActions({ venue, canNavigate, share }) {
-  const { share: handleShare, shareLabel, websiteUrl, canShare } = share;
-  const destLat = Number(venue?.lat);
-  const destLng = Number(venue?.lng);
   const directionsUrl = canNavigate
-    ? `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`
-    : null;
-
-  return (
-    <div className="flex flex-row gap-2.5">
-      {websiteUrl ? (
-        <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className={footerSecondaryClass}>
-          <ExternalLink size={15} aria-hidden="true" />
-          Website
-        </a>
-      ) : (
-        <span className={`${footerSecondaryClass} pointer-events-none opacity-40`} aria-disabled="true">
-          <ExternalLink size={15} aria-hidden="true" />
-          Website
-        </span>
-      )}
-
-      {directionsUrl ? (
-        <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className={footerPrimaryClass} aria-label="Get Directions">
-          <Navigation size={15} aria-hidden="true" />
-          Get Directions
-        </a>
-      ) : (
-        <button type="button" disabled className={`${footerPrimaryClass} cursor-not-allowed opacity-40`} aria-label="Get Directions unavailable">
-          <Navigation size={15} aria-hidden="true" />
-          Get Directions
-        </button>
-      )}
-
-      <button
-        type="button"
-        onClick={handleShare}
-        disabled={!canShare}
-        className={`${footerSecondaryClass} disabled:pointer-events-none disabled:opacity-40`}
-        aria-label={shareLabel === 'Share' ? 'Share venue' : shareLabel}
-      >
-        <Share2 size={15} aria-hidden="true" />
-        {shareLabel}
-      </button>
-    </div>
-  );
+    ? `https://www.google.com/maps/dir/?api=1&destination=${Number(venue?.lat)},${Number(venue?.lng)}` : null;
+  return <div className="ss-venue-footer-actions">
+    {share.websiteUrl ? <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-website"><Globe size={18} aria-hidden="true" />Website</a> : null}
+    {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-directions" aria-label="Get directions"><Navigation size={18} aria-hidden="true" />Get directions</a>
+      : <button type="button" disabled className="ss-venue-directions" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions</button>}
+  </div>;
 }
 
 // ── Main VenueCard ────────────────────────────────────────────
@@ -476,7 +430,6 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     return [type, String(suburb ?? '').trim()].filter(Boolean).join(' · ');
   }, [safeVenue.typeLabel, vibe, suburb]);
   const icon = venueIcon(venue);
-  const venueImage = venue?.image_url ?? venue?.imageUrl ?? venue?.image ?? venue?.hero_image ?? venue?.photoUrl ?? venue?.photo ?? null;
   const address = String(venue?.address ?? venue?.full_street_address ?? '').trim() || null;
   const mapsUrl = address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : null;
   const hasValidCoordinates = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
@@ -517,31 +470,10 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const skyAtScoreTime = forecastKindAt(forecast, todMinutes);
   const scoreState = scoreDisplayState({ isNight: nightAtScoreTime, skyKind: skyAtScoreTime });
 
-  const temp = finite(liveWeather?.main?.temp);
-  // Sheltered feels-like at this venue: the same number as its list row.
+  // Sheltered feels-like and wind remain the same values as the list.
   const feelsLike = venueFeelsLike(venue, liveWeather);
   const rainChance = finite(liveWeather?.precipProbability);
   const uvIndex = finite(liveWeather?.uvi ?? liveWeather?.uvIndex);
-  const tiles = [
-    {
-      label: 'Rain chance',
-      value: rainChance != null ? `${Math.round(rainChance)}%` : '–',
-      note: rainChance != null ? 'This hour' : null,
-      icon: 'umbrella',
-    },
-    {
-      label: 'Feels like',
-      value: feelsLike != null ? `${Math.round(feelsLike)}°` : '–',
-      note: temp != null ? `Actual ${Math.round(temp)}°` : null,
-      icon: feelsLikeIconName(feelsLike),
-    },
-    {
-      label: 'Sunset',
-      value: forecast.sunsetHour != null ? formatHour(forecast.sunsetHour) : '–',
-      note: forecast.sunriseHour != null ? `Sunrise ${formatHour(forecast.sunriseHour)}` : null,
-      icon: 'sunset',
-    },
-  ];
 
   const { aqLabel } = useOpenAQ(lat, lng, { enabled: auxEnabled });
   useOpenUV(lat, lng, { enabled: auxEnabled });
@@ -594,6 +526,15 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const description = [venue?.venue_description, venue?.description, venue?.about]
     .find((d) => typeof d === 'string' && d.trim())?.trim() ?? null;
 
+  const statTiles = venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary, isNight: nightAtScoreTime, skyKindAtScore: skyAtScoreTime });
+  const cardSun = outdoorDay ? cardSunWindows(outdoorDay) : null;
+  // Stay cards can show another date's rooms, so today's rain only goes on outdoor sun cards.
+  const rain = sunSection === 'stay' ? null : rainDuringSun({ forecast: liveWeather ? forecast : null, sun: cardSun });
+  const cafeFactKeys = sunSection === 'cafe' ? cafeCardTiles(venue, { microclimate: microclimateEntry, now }).map((tile) => tile.key) : [];
+  const sky = forecastForSunWindows({ forecast: liveWeather ? forecast : null, sun: cardSun });
+  const sunSource = sunSourceConfidence({ horizon: sunHorizon, geometryConfidence: geometryConfidence ?? microclimateEntry?.geometry_confidence ?? null, dataSource: venue?.data_source });
+  const forecastLabel = getBadgeDisplayText(getBadgeState({ kind: 'forecast', updatedAt: weatherFetchedAt, now })).visibleLabel;
+
   const handleManage = setShowOwnerDashboard
     ? () => { setShowOwnerDashboard(true); setSelectedVenue?.(venue); }
     : null;
@@ -632,7 +573,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             ...(enableTilt ? { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200 } : null),
             boxShadow: '0 -8px 60px rgba(15,23,42,0.14)',
           }}
-          className="pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] bg-white font-sans"
+          className="ss-venue-detail-card pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] bg-white font-sans"
           onPointerEnter={enableTilt ? handlePointerEnter : undefined}
           onPointerMove={enableTilt ? handlePointerMove : undefined}
           onPointerLeave={enableTilt ? handlePointerLeave : undefined}
@@ -657,7 +598,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             ) : (
               <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 py-1 pl-1.5 pr-3">
                 <ClayIcon name={nowIcon} size={24} />
-                <span className="text-[16px] font-extrabold tabular-nums text-slate-700">
+                <span className="text-[14px] font-extrabold tabular-nums text-slate-700">
                   {overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}
                 </span>
                 <span className="sr-only">{overviewScore.loading ? 'Sun score' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
@@ -672,9 +613,6 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white"
           >
             <VenueHero
-              name={displayName}
-              imageUrl={venueImage}
-              icon={icon}
               onClose={onClose}
               onShare={share.share}
               shareLabel={share.shareLabel}
@@ -684,148 +622,120 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
               onDragStart={(e) => dragControls.start(e)}
             />
 
-            <div className="relative z-[1] -mt-10 rounded-t-[28px] bg-white px-5 pb-6 pt-6">
+            <div className="relative z-[1] bg-white pb-4">
               <VenueDetailErrorBoundary
                 key={errorBoundaryRemountKey(venue?.id)}
                 venueId={venue?.id}
                 onClose={onClose}
               >
-                <div className="flex flex-col gap-8">
-                  <div className="flex flex-col gap-5">
-                    <VenueInfoHeader
-                      icon={icon}
-                      name={displayName}
-                      subtitle={subtitle}
-                      websiteUrl={share.websiteUrl}
-                      address={address}
-                      mapsUrl={mapsUrl}
-                      amenities={amenities}
-                      perfectFor={sunSection === 'cafe' ? '' : venuePerfectFor(outdoorMoments)}
-                    />
-                    {onCenter && hasValidCoordinates ? (
-                      <button
-                        type="button"
-                        onClick={() => onCenter(venue)}
-                        className="-mt-2 inline-flex min-h-11 items-center gap-2 self-start rounded-full px-1 text-[14px] font-semibold text-slate-700 underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                      >
-                        <Crosshair size={16} aria-hidden="true" />
-                        Show on map
-                      </button>
+                <div className="ss-venue-card-content">
+                  <VenueInfoHeader icon={icon} name={displayName} subtitle={subtitle}>
+                    {!overviewScore.loading && scoreState === 'score' && Number.isFinite(score) ? <ScoreRing score={score} size={56} /> : <span className="ss-venue-score-state">
+                      <ClayIcon name={nowIcon} size={28} />
+                      <strong>{overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}</strong>
+                      <span className="sr-only">{overviewScore.loading ? 'Sun score loading' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
+                    </span>}
+                  </VenueInfoHeader>
+                  {liveNote ? <div role="status" className="ss-venue-live-note"><ClayIcon name="fireplace" size={28} /><span>{liveNote}<small>Set by the venue</small></span></div> : null}
+
+                  <div className="ss-venue-sun-block">
+                    <VenueSunNow tile={statTiles[0]} />
+                    <p className="ss-venue-sun-sentence">{outdoorSummary?.sentence ?? sentence}</p>
+                    {weatherUnavailable && !weatherLoading ? <p className="ss-venue-sun-caption" role="status">Live weather is unavailable right now, so the forecast below is limited.</p> : null}
+
+                    {sunSection === 'stay' ? (
+                      <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
+                        <div>
+                          <h3 id="stay-heading" className={SECTION_TITLE}>{stayDisplay?.headline ?? (venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay')}</h3>
+                          {stayDisplay?.trustLine ? <p className="mt-1 text-[12px] font-medium text-slate-500">{stayDisplay.trustLine}</p> : null}
+                        </div>
+                        {onOpenSunReport && canShowHotelSunReport(venue) ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenSunReport(venue)}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-[14px] font-bold text-amber-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
+                          >
+                            <ClayIcon name="hotel-views" size={32} />
+                            See the sun report
+                          </button>
+                        ) : null}
+                        <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
+                        {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />)}
+                      </section>
                     ) : null}
-                    {liveNote ? (
-                      <div role="status" className="flex items-center gap-3 rounded-2xl bg-amber-50 px-3 py-2.5">
-                        <ClayIcon name="fireplace" size={32} />
-                        <span className="text-[15px] font-semibold text-amber-900">{liveNote}<span className="block text-[12px] font-medium text-amber-800">Set by the venue</span></span>
-                      </div>
+
+                    {sunSection === 'today' ? (
+                      <ForecastErrorBoundary>
+                        <TodaysSun forecast={forecast} />
+                      </ForecastErrorBoundary>
                     ) : null}
-                    <div className="flex flex-col gap-2.5">
-                      <p className="text-[12px] font-semibold text-slate-600">Today · sun &amp; weather estimates · {venueTimeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>
-                      <VenueStatRow
-                        tiles={venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary, isNight: nightAtScoreTime, skyKindAtScore: skyAtScoreTime })}
-                        sunny={(outdoorSummary?.kind ?? forecast.now?.kind) === 'sun'}
-                      />
-                      {sunSection !== 'today' ? (
-                        <p className="text-[13px] font-medium leading-relaxed text-slate-600">{outdoorSummary?.sentence ?? sentence}</p>
-                      ) : null}
-                      <p className="text-[12px] font-medium text-slate-600">{venueTimeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>
-                    </div>
-                    {weatherUnavailable && !weatherLoading ? (
-                      <p className="-mt-2 text-[13px] font-medium text-slate-600" role="status">
-                        Live weather is unavailable right now, so the forecast below is limited.
-                      </p>
+
+                    {sunSection === 'moments' ? (
+                      <ForecastErrorBoundary>
+                        <section aria-labelledby="sun-moments-heading" className="flex flex-col gap-3">
+                          <h3 id="sun-moments-heading" className={SECTION_TITLE}>Sun moments today</h3>
+                          <SunMomentsPanel daily={outdoorDay} summary={outdoorMoments} timeZone={venueTimeZone} now={now} label="sun at this venue" compact />
+                        </section>
+                      </ForecastErrorBoundary>
                     ) : null}
+
+                    {sunSection === 'cafe' ? (
+                      <ForecastErrorBoundary>
+                        <CafeSunSection
+                          venue={venue}
+                          daily={outdoorDay}
+                          horizon={sunHorizon}
+                          geometryConfidence={geometryConfidence ?? microclimateEntry?.geometry_confidence ?? null}
+                          microclimateEntry={microclimateEntry}
+                          forecast={liveWeather ? forecast : null}
+                          showDetails={false}
+                          now={now}
+                          timeZone={venueTimeZone}
+                        />
+                      </ForecastErrorBoundary>
+                    ) : null}
+
+                    {sunSection !== 'cafe' ? <>
+                      <VenueSunCaption source={sunSource} buildingData={Boolean(outdoorDay)}
+                        sunrise={forecast.sunriseHour != null ? formatHour(forecast.sunriseHour) : null}
+                        sunset={forecast.sunsetHour != null ? formatHour(forecast.sunsetHour) : null}
+                        timeZoneLabel={venueTimeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'} />
+                      {sky && (sky.kind === 'cloud' || sky.kind === 'mixed') ? <p className="ss-venue-sun-caption">{sky.text}</p> : null}
+                    </> : null}
                   </div>
 
-                  {sunSection === 'stay' ? (
-                    <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
-                      <div>
-                        <h3 id="stay-heading" className={SECTION_TITLE}>{stayDisplay?.headline ?? (venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay')}</h3>
-                        {stayDisplay?.trustLine ? <p className="mt-1 text-[12px] font-medium text-slate-500">{stayDisplay.trustLine}</p> : null}
-                      </div>
-                      {onOpenSunReport && canShowHotelSunReport(venue) ? (
-                        <button
-                          type="button"
-                          onClick={() => onOpenSunReport(venue)}
-                          className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-[14px] font-bold text-amber-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
-                        >
-                          <ClayIcon name="hotel-views" size={32} />
-                          See the sun report
-                        </button>
-                      ) : null}
-                      <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
-                      {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />)}
-                    </section>
-                  ) : null}
-
-                  {sunSection === 'today' ? (
-                    <ForecastErrorBoundary>
-                      <TodaysSun forecast={forecast} sentence={sentence} />
-                    </ForecastErrorBoundary>
-                  ) : null}
-
-                  {sunSection === 'moments' ? (
-                    <ForecastErrorBoundary>
-                      <section aria-labelledby="sun-moments-heading" className="flex flex-col gap-3">
-                        <h3 id="sun-moments-heading" className={SECTION_TITLE}>Sun moments today</h3>
-                        <SunMomentsPanel daily={outdoorDay} summary={outdoorMoments} timeZone={venueTimeZone} now={now} label="sun at this venue" />
-                        <p className="text-[11px] text-slate-500">Estimated from the sun&apos;s path and the buildings around the venue (City of Melbourne / OpenStreetMap data). Sky badges use today&apos;s forecast.</p>
-                      </section>
-                    </ForecastErrorBoundary>
-                  ) : null}
-
-                  {sunSection === 'cafe' ? (
-                    <ForecastErrorBoundary>
-                      <CafeSunSection
-                        venue={venue}
-                        daily={outdoorDay}
-                        horizon={sunHorizon}
-                        geometryConfidence={geometryConfidence ?? microclimateEntry?.geometry_confidence ?? null}
-                        microclimateEntry={microclimateEntry}
-                        forecast={liveWeather ? forecast : null}
-                        weatherFetchedAt={weatherFetchedAt}
-                        now={now}
-                        timeZone={venueTimeZone}
-                      />
-                    </ForecastErrorBoundary>
-                  ) : null}
-
+                  <VenueWeatherNow tiles={statTiles} rainChance={rainChance} />
+                  {rain ? <div className="ss-venue-rain-row"><ClayIcon name="rain" size={28} /><div><p>{rain.title}</p>{rain.detail ? <p>{rain.detail}</p> : null}</div></div> : null}
+                  <ForecastErrorBoundary><HourByHour items={hours} forecastLabel={forecastLabel} /></ForecastErrorBoundary>
                   <TonightFeelSection view={tonight} />
+                  {sunSection === 'cafe' ? <CafeSunMonths venue={venue} daily={outdoorDay} horizon={sunHorizon} timeZone={venueTimeZone} /> : null}
+                  {sunSection === 'moments' && venuePerfectFor(outdoorMoments) ? <div className="ss-venue-summary-row"><ClayIcon name="sun" size={32} /><p>Best for {venuePerfectFor(outdoorMoments)}</p></div> : null}
 
-                  <ForecastErrorBoundary>
-                    <HourByHour items={hours} />
-                  </ForecastErrorBoundary>
-
-                  <ConditionsGrid tiles={tiles}>
-                    <MoreWeatherDetail
-                      open={moreOpen}
-                      onToggle={() => setMoreOpen((v) => !v)}
-                      venueId={venue?.id}
-                      uvIndex={uvIndex}
-                      aqLabel={aqLabel}
-                      rainArrivalMins={rainArrivalMins}
-                      rainArrivalLabel={rainArrivalLabel}
-                      venue={venue}
-                      microclimate={microclimate}
-                      microclimateAtLabel={microclimateAtLabel}
-                      shielding={shielding}
-                    />
-                  </ConditionsGrid>
-
-                  <VenueOfferingsList key={venue?.id} offerings={offerings} />
-                  <AccessSection access={venueAccessFacts(withPartnerAccess(venue, partnerTools))} publicToilet={publicToilet} />
-
-                  <AboutAndHours description={description} hours={hoursView} />
-                  <VenueSourceNote note={venueSourceNote(venue)} />
-                  <HappyHourSection happyHour={happyHour} fromPartnerPreview={!verifiedHH && Boolean(happyHour)} />
-                  <PartnerExtrasSection events={partnerEvents} outdoor={partnerOutdoor} />
+                  <section aria-labelledby="good-to-know-heading" className="ss-venue-good-to-know">
+                    <h3 id="good-to-know-heading" className={SECTION_TITLE}>Good to know</h3>
+                    {description ? <p className="ss-venue-description">{description}</p> : null}
+                    {sunSection === 'cafe' ? <CafeSunFacts venue={venue} microclimateEntry={microclimateEntry} now={now} /> : null}
+                    <VenueOfferingsList key={venue?.id} offerings={offeringsBesideCafeFacts(offerings, cafeFactKeys)} amenities={amenities} />
+                    {address || (onCenter && hasValidCoordinates) ? <div className="ss-venue-fact"><MapPin size={22} aria-hidden="true" /><span>{address ?? displayName}</span>
+                      {onCenter && hasValidCoordinates ? <button type="button" onClick={() => onCenter(venue)} className="ss-venue-text-action">Map</button>
+                        : mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action">Map</a> : null}
+                    </div> : null}
+                    <AboutAndHours hours={hoursView} websiteUrl={share.websiteUrl} />
+                    <AccessSection access={venueAccessFacts(withPartnerAccess(venue, partnerTools))} publicToilet={publicToilet} />
+                    <HappyHourSection happyHour={happyHour} fromPartnerPreview={!verifiedHH && Boolean(happyHour)} />
+                    <PartnerExtrasSection events={partnerEvents} outdoor={partnerOutdoor} />
+                    <MoreWeatherDetail open={moreOpen} onToggle={() => setMoreOpen(v => !v)} venueId={venue?.id} uvIndex={uvIndex} aqLabel={aqLabel}
+                      rainArrivalMins={rainArrivalMins} rainArrivalLabel={rainArrivalLabel} venue={venue} microclimate={microclimate} microclimateAtLabel={microclimateAtLabel} shielding={shielding} />
+                  </section>
                   <VibeSection onManage={handleManage} venueName={displayName} />
+                  <VenueSourceNote note={venueSourceNote(venue)} />
                 </div>
               </VenueDetailErrorBoundary>
             </div>
           </div>
 
           {/* Sticky Bottom CTA — in-flow so it cannot bleed into the TopBar */}
-          <div className="relative z-20 shrink-0 border-t border-slate-900/[0.08] bg-white/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="ss-venue-footer relative z-20 shrink-0">
             <VenueCardFooterActions venue={safeVenue} canNavigate={hasValidCoordinates} share={share} />
           </div>
         </motion.article>

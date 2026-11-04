@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ClayIcon from './common/ClayIcon';
-import DataBadge from './DataBadge';
+import { Armchair, Check, Wind } from 'lucide-react';
+import { VenueSunCaption } from './VenueCardSections.jsx';
+import { formatHour } from '../utils/sunForecastState.js';
+import { venueHour } from '../utils/venueTime.js';
 import SunWindowsGraph from './SunWindowsGraph.jsx';
 import { cardSunWindows, forecastForSunWindows } from '../utils/sunWindowsCard.js';
 import { layoutSunWindows } from '../utils/sunWindowsGraph.js';
@@ -46,97 +49,61 @@ function useSunniestMonths({ lat, lng, horizon, year, timeZone }) {
  * minute-rounded windows. Every number comes from the same `daily`, and the
  * headline is the graph's own total.
  */
+export function CafeSunMonths({ venue, daily, horizon, timeZone }) {
+  const sun = useMemo(() => cardSunWindows(daily), [daily]);
+  const bestFor = useMemo(() => bestForMoment(sun), [sun]);
+  const months = useSunniestMonths({ lat: Number(venue?.lat), lng: Number(venue?.lng), horizon, year: Number(sun?.date?.slice(0, 4)), timeZone });
+  const monthNames = Array.isArray(months) ? sunniestMonthsInOrder(months).map(monthShortName) : [];
+  if (!sun || (months !== null && !monthNames.length && !bestFor)) return null;
+  return <div className="ss-venue-summary-row" data-cafe-sunniest>
+    <ClayIcon name="sun-calendar" size={32} /><div className="min-w-0">
+      {months === null ? <p>Working out the sunniest months…</p> : monthNames.length ? <h3>Sunniest months: <span aria-label="Sunniest months">{monthNames.join(', ')}</span></h3> : null}
+      {bestFor ? <p data-cafe-best-for>{bestFor.text}</p> : null}
+      {monthNames.length ? <span className="sr-only">Calculated · average direct sun per day, sampled weekly</span> : null}
+    </div>
+  </div>;
+}
+
+export function CafeSunFacts({ venue, microclimateEntry, now }) {
+  const tiles = cafeCardTiles(venue, { microclimate: microclimateEntry, now });
+  if (!tiles.length) return null;
+  return <ul aria-label="At this café">{tiles.map(tile => {
+    const Icon = tile.key === 'outdoor-tables' ? Armchair : tile.key === 'wind-sheltered' ? Wind : Check;
+    return <li key={tile.key} data-cafe-tile={tile.key} className="ss-venue-fact">
+      <Icon size={22} aria-hidden="true" /><div><span>{tile.label}</span>
+        {tile.detail ? <p className="ss-venue-fact-detail">{tile.detail}</p> : null}
+        {tile.kind ? <span className="ss-venue-fact-source">Estimated</span> : null}
+      </div>
+    </li>;
+  })}</ul>;
+}
+
 export default function CafeSunSection({
-  venue, daily, horizon, geometryConfidence, microclimateEntry, forecast, weatherFetchedAt, now, timeZone,
+  venue, daily, horizon, geometryConfidence, microclimateEntry, forecast, now, timeZone, showDetails = true,
 }) {
   const sun = useMemo(() => cardSunWindows(daily), [daily]);
   const layout = useMemo(() => {
     if (!sun) return null;
     try { return layoutSunWindows(sun); } catch { return null; }
   }, [sun]);
-  const bestFor = useMemo(() => bestForMoment(sun), [sun]);
   const sky = useMemo(() => forecastForSunWindows({ forecast, sun }), [forecast, sun]);
   const source = sunSourceConfidence({ horizon, geometryConfidence, dataSource: venue?.data_source });
-  const tiles = cafeCardTiles(venue, { microclimate: microclimateEntry, now });
-  const months = useSunniestMonths({
-    lat: Number(venue?.lat), lng: Number(venue?.lng), horizon, year: Number(sun?.date?.slice(0, 4)), timeZone,
-  });
-
   if (!sun || !layout) return null;
-  const headline = layout.windowCount > 0 ? layout.totalLabel : 'No direct sun today';
-  const monthNames = Array.isArray(months) ? sunniestMonthsInOrder(months).map(monthShortName) : [];
 
-  return (
-    <section aria-labelledby="cafe-sun-heading" data-cafe-sun className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <h3 id="cafe-sun-heading" className="text-[22px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900">
-          Outdoor Table Sun <span aria-hidden="true" className="text-slate-400">·</span>{' '}
-          <span data-cafe-sun-total className="tabular-nums">{headline}</span>
-        </h3>
-        <p className="text-[13px] font-medium leading-snug text-slate-600">
-          on a clear day · at the venue&apos;s mapped point, buildings within 150 m
-        </p>
-        {source ? (
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <DataBadge kind={source.kind} source={source.basis} size="sm" />
-            <p data-cafe-sun-source className="text-[12px] font-medium leading-snug text-slate-600">{source.line}</p>
-          </div>
-        ) : null}
-      </div>
-
-      <SunWindowsGraph
-        {...sun}
-        now={now}
-        showSummary={false}
-        footer={<p>Awnings, umbrellas and trees aren&apos;t included, so covered tables may get less sun.</p>}
-      />
-
-      {months === null ? (
-        <p className="text-[12px] font-medium text-slate-500">Working out the sunniest months…</p>
-      ) : monthNames.length > 0 ? (
-        <div data-cafe-sunniest className="flex items-center gap-3">
-          <ClayIcon name="sun-calendar" size={56} />
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[14px] font-bold text-slate-900">Sunniest months</p>
-              <DataBadge kind="calculated" source="Average direct sun per day, sampled weekly" size="sm" />
-            </div>
-            <ul aria-label="Sunniest months" className="flex flex-wrap gap-1.5">
-              {monthNames.map((name) => (
-                <li key={name} className="rounded-full bg-amber-50 px-3 py-1 text-[13px] font-bold text-amber-900">{name}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ) : null}
-
-      {bestFor ? (
-        <p data-cafe-best-for className="flex w-full max-w-[480px] items-center gap-2 rounded-2xl bg-amber-50 px-3 py-2.5 text-[14px] font-bold leading-snug text-amber-900">
-          <ClayIcon name="sun" size={28} />
-          {bestFor.text}
-        </p>
-      ) : null}
-
-      {sky ? (
-        <div data-cafe-forecast className="flex flex-wrap items-center gap-2">
-          <DataBadge kind="forecast" updatedAt={weatherFetchedAt} source="Open-Meteo" size="sm" />
-          <p className="text-[13px] font-semibold text-slate-700">{sky.text}</p>
-        </div>
-      ) : null}
-
-      {tiles.length > 0 ? (
-        <ul aria-label="At this café" className="grid w-full max-w-[480px] grid-cols-2 gap-3">
-          {tiles.map((tile) => (
-            <li key={tile.key} data-cafe-tile={tile.key}
-              className="flex min-w-0 flex-col items-start gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-              <ClayIcon name={tile.icon} size={56} />
-              <span className="text-[14px] font-bold leading-snug text-slate-900">{tile.label}</span>
-              {tile.detail ? <span className="text-[12px] leading-snug text-slate-600">{tile.detail}</span> : null}
-              {tile.kind ? <DataBadge kind={tile.kind} size="sm" /> : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
-  );
+  return <section aria-label="Outdoor Table Sun" data-cafe-sun className="ss-cafe-sun">
+    <SunWindowsGraph {...sun} now={now} showSummary={false} className="ss-card-sun-graph" />
+    <div className="ss-venue-sun-window">
+      <ClayIcon name="sun" size={22} />
+      <span>{layout.windowCount ? layout.windows.map(w => w.rangeLabel).join(' · ') : 'No direct sun today'}</span>
+      <strong data-cafe-sun-total>{layout.windowCount ? layout.totalLabel : '0m'}</strong>
+    </div>
+    <VenueSunCaption source={source} buildingData sunrise={sun.sunrise != null ? formatHour(venueHour(sun.sunrise, timeZone)) : null}
+      sunset={sun.sunset != null ? formatHour(venueHour(sun.sunset, timeZone)) : null}
+      timeZoneLabel={timeZone === 'Australia/Melbourne' ? 'Melbourne time' : 'Venue local time'} />
+    {sky && (sky.kind === 'cloud' || sky.kind === 'mixed') ? <p data-cafe-forecast className="ss-venue-sun-caption">{sky.text}</p> : null}
+    {showDetails ? <>
+      <CafeSunMonths venue={venue} daily={daily} horizon={horizon} timeZone={timeZone} />
+      <CafeSunFacts venue={venue} microclimateEntry={microclimateEntry} now={now} />
+    </> : null}
+  </section>;
 }
