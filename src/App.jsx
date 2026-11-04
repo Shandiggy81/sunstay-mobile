@@ -17,7 +17,7 @@ import { FOOD_TYPE_FILTERS, isFoodTypeFilter, matchesFoodTypeFilters } from './u
 import { venueTypeLabel } from './utils/venueTypeLabel';
 import { filterChoiceKey } from './utils/filterRefit';
 import { DEFAULT_TIME_ZONE, venueLocalDate } from './utils/balconySunEngine';
-import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
+import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentEmptyState, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
 import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
 import AfterDarkPanel from './components/AfterDarkPanel.jsx';
@@ -999,6 +999,12 @@ const AppContent = () => {
         </button>
     );
     const homesEmpty = useMemo(() => homesEmptyState({ venues, filters: activeFilters, loading: venuesLoading }), [venues, activeFilters, venuesLoading]);
+    // A sun-moment chip that today's forecast rules out says so, instead of "too specific".
+    const momentEmpty = useMemo(
+        () => (wantedSunMoments.length ? sunMomentEmptyState({ filters: activeFilters, forecast: sunMomentForecast(weather) }) : null),
+        [wantedSunMoments, activeFilters, weather],
+    );
+    const emptyCopy = momentEmpty ?? homesEmpty;
     const listEmptyState = areaEmpty ? (
         <EmptyVenueState
             announce
@@ -1008,7 +1014,7 @@ const AppContent = () => {
             actionLabel="Show all venues"
         />
     ) : listVenues.length === 0 ? (
-        <EmptyVenueState {...homesEmpty} announce onClearFilters={() => handleClearFilters()} />
+        <EmptyVenueState {...emptyCopy} announce onClearFilters={() => handleClearFilters()} />
     ) : null;
     const stableFilteredIds = filteredVenueIds;
     // The map refits to the results only when this changes (see utils/filterRefit).
@@ -1503,7 +1509,7 @@ const AppContent = () => {
                                     {/* The card and its spring live in EmptyVenueState;
                                         the sidebar copy is the one that announces. */}
                                     <EmptyVenueState
-                                        {...homesEmpty}
+                                        {...emptyCopy}
                                         onClearFilters={handleClearFilters}
                                         className="pointer-events-auto"
                                     />

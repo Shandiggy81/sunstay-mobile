@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     activeSunMoments, cacheHorizonRows, createSunMomentsJob, chunkIds, HORIZON_BATCH_SIZE, horizonIdsToFetch, inlineSunHorizons, sameSunMomentInputs, isSunMomentFilter, momentInSun,
-    SUN_MOMENT_FILTERS, sunMomentsByVenue, venueMatchesSunMoments, venueSunMomentKeys,
+    SUN_MOMENT_FILTERS, sunMomentEmptyState, sunMomentsByVenue, venueMatchesSunMoments, venueSunMomentKeys,
 } from './sunMomentFilters.js';
+import { outdoorSunDay } from './sunMoments.js';
+import { venueHour } from './venueTime.js';
 
 const LAT = -37.8136, LNG = 144.9631;
 const open = Array(36).fill(0);
@@ -128,6 +130,51 @@ test('inlineSunHorizons keeps venues that carry a horizon, even a null one', () 
     assert.equal(map.get('2'), null);
     assert.equal(map.get('c'), null);
     assert.equal(inlineSunHorizons(null).size, 0);
+});
+
+// The CBD's sunset on NOW's date, as the forecast would carry it.
+const SUNSET_HOUR = venueHour(outdoorSunDay({ lat: LAT, lng: LNG, horizon: open, date: '2026-10-15', timeZone: 'Australia/Melbourne' }).sunset, 'Australia/Melbourne');
+const skyAt = (kindAt) => ({ ...sky(kindAt), sunsetHour: SUNSET_HOUR });
+const evening = (h) => h >= 17 && h <= 19;
+
+test('a rainy sunset explains the empty list, and no venue matches under it', () => {
+    const forecast = skyAt((h) => (evening(h) ? 'rain' : h >= 7 && h < 20 ? 'sun' : 'night'));
+    const state = sunMomentEmptyState({ filters: ['moment-sunset'], forecast });
+    assert.equal(state.badgeLabel, 'Forecast');
+    assert.equal(state.title, 'No sun forecast around sunset');
+    assert.match(state.message, /^Rain is forecast from \d{1,2}(:\d\d)?pm to \d{1,2}(:\d\d)?pm today, so no venue is likely to get sunset sun\.$/);
+    // Same forecast through the real matcher: an open-sky venue gets no sunset key.
+    const keys = sunMomentsByVenue([venue('open')], new Map([['open', open]]), { forecast, now: NOW }).get('open') ?? [];
+    assert.equal(keys.includes('sunset'), false);
+});
+
+test('one sunny hour in the moment keeps the usual empty state, and a venue can match', () => {
+    const hour = Math.floor(SUNSET_HOUR);
+    const forecast = skyAt((h) => (h === hour ? 'sun' : evening(h) ? 'rain' : h >= 7 && h < 20 ? 'sun' : 'night'));
+    assert.equal(sunMomentEmptyState({ filters: ['moment-sunset'], forecast }), null);
+    const keys = sunMomentsByVenue([venue('open')], new Map([['open', open]]), { forecast, now: NOW }).get('open') ?? [];
+    assert.equal(keys.includes('sunset'), true);
+});
+
+test('cloud, mixed skies and other moments get their own words', () => {
+    const cloud = sunMomentEmptyState({ filters: ['moment-sunset'], forecast: skyAt((h) => (evening(h) ? 'cloud' : 'sun')) });
+    assert.match(cloud.message, /^Cloud is forecast /);
+    const mixed = skyAt((h) => (h === Math.floor(SUNSET_HOUR) ? 'cloud' : evening(h) ? 'rain' : 'sun'));
+    assert.match(sunMomentEmptyState({ filters: ['moment-sunset'], forecast: mixed }).message, /^Rain and cloud are forecast /);
+    const lunch = sunMomentEmptyState({ filters: ['moment-lunch'], forecast: skyAt((h) => (h >= 12 && h <= 14 ? 'rain' : 'sun')) });
+    assert.equal(lunch.title, 'No sun forecast over lunch');
+    assert.equal(lunch.message, 'Rain is forecast from 12pm to 2:30pm today, so no venue is likely to get lunch sun.');
+});
+
+test('without a clear forecast verdict the usual empty state stays', () => {
+    const rainy = skyAt((h) => (evening(h) ? 'rain' : 'sun'));
+    assert.equal(sunMomentEmptyState({ filters: ['Rooftop'], forecast: rainy }), null);
+    assert.equal(sunMomentEmptyState({ filters: ['moment-sunset'], forecast: null }), null);
+    assert.equal(sunMomentEmptyState({ filters: ['moment-sunset'], forecast: { hasHourly: false, hours: [] } }), null);
+    // An hour with no forecast data ('day') could still let a venue match.
+    assert.equal(sunMomentEmptyState({ filters: ['moment-sunset'], forecast: skyAt((h) => (h === Math.floor(SUNSET_HOUR) ? 'day' : evening(h) ? 'rain' : 'sun')) }), null);
+    // No sunset time: the sunset moment has no window to judge.
+    assert.equal(sunMomentEmptyState({ filters: ['moment-sunset'], forecast: sky((h) => (evening(h) ? 'rain' : 'sun')) }), null);
 });
 
 test('sameSunMomentInputs reuses a result only for identical inputs on the same day', () => {
