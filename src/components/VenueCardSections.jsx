@@ -270,7 +270,7 @@ export function VibeSection({ onManage, venueName }) {
       <input aria-label="Capture the vibe" type="file" accept="image/*" capture="environment" className="sr-only" onChange={handlePhotoPicked} />
     </label>
     <p role="status" aria-live="polite" className={photoNotice ? 'ss-venue-fact-source' : 'sr-only'}>{photoNotice ? PHOTO_COMING_SOON_MESSAGE : ''}</p>
-    {onManage ? <button type="button" onClick={onManage} className="ss-venue-list-action" aria-label="Open partner preview">
+    {onManage ? <button type="button" onClick={onManage} className="ss-venue-list-action">
       <Store size={22} aria-hidden="true" /><span><strong>Run {venueName || 'this venue'}?</strong><span>Partner preview · changes stay on this device</span></span><ChevronRight size={20} aria-hidden="true" />
     </button> : null}
   </div>;
