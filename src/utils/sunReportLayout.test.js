@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    bestSideRows, defaultOpenSideId, hourRangeText, momentWindowText, reportTrustText,
+    bestSideRows, defaultOpenSideId, hourRangeText, momentWindowText, reportTrustText, reportWords,
     seasonTable, sharedEvidence, sideRows, sunniestMonthsText,
 } from './sunReportLayout.js';
 import { buildHotelSunReport } from './hotelSunReport.js';
@@ -122,6 +122,12 @@ test('the header says once how far the sun data is confirmed', () => {
     assert.equal(reportTrustText(facade([confirmed, confirmed])), 'Confirmed by the hotel');
     assert.equal(reportTrustText(facade([confirmed, modelled('hotel')])), FACADE_TRUST_LINE, 'mixed: each side shows its own');
     assert.equal(reportTrustText({ display: { trustLine: null }, rooms: [confirmed, modelled('hotel')] }), null);
+});
+
+test('room-type reports talk about room types, facade reports about sides', () => {
+    assert.deepEqual(reportWords('room_types'), { best: 'Best room today', list: 'Each room type', unit: 'room type' });
+    assert.deepEqual(reportWords('facade_sides'), { best: 'Best side today', list: 'Each side of the building', unit: 'side' });
+    assert.deepEqual(reportWords(undefined), reportWords('facade_sides'), 'no report yet: the facade wording');
 });
 
 test('works on a real report: sunniest side first, sunset window from today', () => {

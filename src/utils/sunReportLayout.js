@@ -1,6 +1,6 @@
 import { SUN_MOMENTS } from './sunMoments.js';
 import { venueHour } from './venueTime.js';
-import { FACADE_TRUST_LINE } from './stayRoomTypes.js';
+import { FACADE_TRUST_LINE, STAY_SUN_MODES } from './stayRoomTypes.js';
 
 /**
  * Layout data for the decluttered sun report: the best side for each moment
@@ -134,6 +134,16 @@ export function sharedEvidence(rooms) {
     const labels = (Array.isArray(rooms) ? rooms : []).map(room => room?.display?.chip ?? room?.display?.evidenceLabel ?? null);
     if (!labels.length || labels.some(label => !label)) return null;
     return labels.every(label => label === labels[0]) ? labels[0] : null;
+}
+
+/**
+ * Section wording for the report's mode: a room-type report lists room types
+ * ("City View King"), so it never says "side of the building".
+ */
+export function reportWords(mode) {
+    return mode === STAY_SUN_MODES.ROOM_TYPES
+        ? { best: 'Best room today', list: 'Each room type', unit: 'room type' }
+        : { best: 'Best side today', list: 'Each side of the building', unit: 'side' };
 }
 
 const MODELLED_PREFIX = 'Modelled · ';

@@ -5,7 +5,7 @@ import ClayIcon from './common/ClayIcon.jsx';
 import { DEFAULT_TIME_ZONE, formatGuestDate, venueLocalDate } from '../utils/balconySunEngine.js';
 import { buildStaySunReport } from '../utils/stayRoomTypes.js';
 import { hotelSunReportUrl } from '../utils/hotelSunReportRoute.js';
-import { bestSideRows, sideRows, defaultOpenSideId, sunniestMonthsText, seasonTable, sharedEvidence, reportTrustText } from '../utils/sunReportLayout.js';
+import { bestSideRows, sideRows, defaultOpenSideId, sunniestMonthsText, seasonTable, sharedEvidence, reportTrustText, reportWords } from '../utils/sunReportLayout.js';
 import { formatHours, yearSunChart } from '../utils/yearSunChart.js';
 import '../styles/hotel-sun-report.css';
 
@@ -210,6 +210,7 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
   const firstOpenSide = defaultOpenSideId(report?.rooms);
   const evidence = sharedEvidence(report?.rooms);
   const trustText = reportTrustText(report);
+  const words = reportWords(report?.display?.mode);
   const dateLabel = today ? formatGuestDate(`${today}T12:00:00Z`, 'UTC') : null;
 
   const share = async () => {
@@ -269,7 +270,7 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
           : failed ? <p className="ss-sun-report__notice" role="alert">We could not calculate this sun report. Go back and try opening it again.</p>
           : report && <>
             {report.rooms.some(room => room.totalMinutes != null) && report.summary.length > 0 && <section className="ss-sun-report__summary" aria-labelledby={`${titleId}-summary`}>
-              <h2 id={`${titleId}-summary`}>Best side today</h2>
+              <h2 id={`${titleId}-summary`}>{words.best}</h2>
               <p className="ss-sun-report__section-subtitle">Where direct sun reaches at each time of day.</p>
               <ul>{bestSideRows(report).map(moment => <li key={moment.key}>
                 <ClayIcon name={moment.icon} size={32} />
@@ -278,8 +279,8 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
               </li>)}</ul>
             </section>}
             {report.rooms.length ? <section className="ss-sun-report__sides" aria-labelledby={`${titleId}-sides`}>
-              <h2 id={`${titleId}-sides`}>Each side of the building</h2>
-              <p className="ss-sun-report__section-subtitle">Direct sun today. Tap a side for its year and seasons.</p>
+              <h2 id={`${titleId}-sides`}>{words.list}</h2>
+              <p className="ss-sun-report__section-subtitle">Direct sun today. Tap a {words.unit} for its year and seasons.</p>
               {sideRows(report.rooms).map((side, index) => <RoomReport key={side.id} side={side} room={report.rooms[index]} year={report.year}
                 sharedMax={reportMaxHours(report.rooms)} initiallyOpen={side.id === firstOpenSide} showEvidence={evidence === null} />)}
             </section> : <p className="ss-sun-report__notice">Sun by side of the building is not available for this hotel yet.</p>}
