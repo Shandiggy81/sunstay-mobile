@@ -65,12 +65,13 @@ export function VenueInfoHeader({ icon, name, subtitle, children }) {
   );
 }
 
-// The sun headline and weather row still read venueStatTiles' exact values.
+// The sun headline and weather row still read venueStatTiles' exact values,
+// icon included, so "Raining" or "Sun has set" never sits beside a sun.
 export function VenueSunNow({ tile }) {
   return (
     <dl aria-label="Current venue conditions" className="ss-venue-sun-now">
       <dt className="sr-only">{tile.label}</dt>
-      <dd><ClayIcon name="sun" size={32} /><span>{tile.value}</span></dd>
+      <dd><ClayIcon name={tile.icon ?? 'sun'} size={32} /><span>{tile.value}</span></dd>
     </dl>
   );
 }
