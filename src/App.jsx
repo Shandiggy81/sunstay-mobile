@@ -318,7 +318,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
         >
             {/* The clay icon, never the venue's photo: photos are full-size images
                 hotlinked from venue and media sites (up to 600 KB each for a small
-                square) and some aren't the venue's own. The card shows the photo. */}
+                square) and some aren't the venue's own. The venue card leaves them out too. */}
             <div className="ss-vlc-top">
                 <div className="ss-vlc-icon" aria-hidden="true">
                     <VenueIcon icon={venueIcon(venue)} size={40} />
