@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mapHomeSummary } from './mapHomeSummary.js';
+import { existsSync } from 'node:fs';
+import { CONDITION_CLAUSE_ICONS, homeSheetClause, mapHomeSummary } from './mapHomeSummary.js';
 
 test('home count uses the same rounded full-sun threshold as pins', () => {
     assert.deepEqual(mapHomeSummary([100, 75, 74.6, 74, 50, 0, null]), { total: 7, known: 6, fullSun: 3, partSun: 2 });
@@ -24,4 +25,31 @@ test('a patchy day leads with some sun, never "0 in full sun"', async () => {
     assert.equal(homeSunClause(mapHomeSummary([90, 60]), null), '1 in full sun', 'full sun still wins');
     assert.equal(homeSunClause(mapHomeSummary(Array(1200).fill(60)), null), '1,200 with some sun');
     assert.equal(homeSunClause(mapHomeSummary([10, 49.4]), null), 'little direct sun now');
+});
+
+test('the home sheet clause icon matches its words', () => {
+    const cosy = [{ hasCozy: true }, {}];
+    const sunny = mapHomeSummary([100, 90, 60]);
+    // The weather condition leads, day or night.
+    assert.deepEqual(homeSheetClause({ venues: cosy, condition: 'wet', summary: sunny }), { text: 'rain about · 1 cosy and dry', icon: 'rain' });
+    assert.deepEqual(homeSheetClause({ venues: cosy, condition: 'wet', summary: sunny, night: true }), { text: 'rain about · 1 cosy and dry', icon: 'rain' });
+    assert.deepEqual(homeSheetClause({ venues: [], condition: 'cold', summary: sunny }), { text: 'chilly out', icon: 'jacket' });
+    assert.deepEqual(homeSheetClause({ venues: [], condition: 'windy', summary: sunny }), { text: 'windy', icon: 'windsock' });
+    assert.deepEqual(homeSheetClause({ venues: [], condition: 'grey', summary: sunny }), { text: 'overcast', icon: 'cloud' });
+    // Fair weather falls back to the sun clause.
+    assert.deepEqual(homeSheetClause({ venues: [], condition: 'fair', summary: sunny, night: true }), { text: 'after dark', icon: 'night' });
+    assert.deepEqual(homeSheetClause({ venues: [], condition: 'fair', summary: sunny }), { text: '2 in full sun', icon: 'sun' });
+    assert.deepEqual(homeSheetClause({ venues: [], condition: null, summary: mapHomeSummary([60, 55]) }), { text: '2 with some sun', icon: 'sun-cloud' });
+    assert.deepEqual(homeSheetClause({ venues: [], condition: null, summary: mapHomeSummary([10]) }), { text: 'little direct sun now', icon: 'sun-cloud' });
+});
+
+test('no condition and no known scores: no clause and no icon', () => {
+    assert.equal(homeSheetClause({ venues: [], condition: null, summary: mapHomeSummary([null]) }), null);
+    assert.equal(homeSheetClause({ venues: [], condition: 'fair', summary: mapHomeSummary([]), night: true }), null);
+});
+
+test('every home sheet clause icon has a clay file', () => {
+    for (const icon of [...Object.values(CONDITION_CLAUSE_ICONS), 'night', 'sun', 'sun-cloud']) {
+        assert.ok(existsSync(new URL(`../assets/clay/${icon}.webp`, import.meta.url)), `missing ${icon}.webp`);
+    }
 });

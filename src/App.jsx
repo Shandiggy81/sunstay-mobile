@@ -1,7 +1,7 @@
 import './components/ExplorePresentation.css';
 import './components/MapFirstHome.css';
-import { homeSunClause, mapHomeSummary } from './utils/mapHomeSummary.js';
-import { comfortSortLabel, conditionsClause, homeConditions, rankForConditions } from './utils/homeConditions.js';
+import { homeSheetClause, mapHomeSummary } from './utils/mapHomeSummary.js';
+import { comfortSortLabel, homeConditions, rankForConditions } from './utils/homeConditions.js';
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
@@ -966,10 +966,10 @@ const AppContent = () => {
         byId: microById, todMinutes: listTodMinutes, calculateSunScore,
     }))), [listVenues, microById, listTodMinutes, calculateSunScore]);
     // A wet, cold or windy day says so (with the count of declared comfy
-    // venues) instead of "0 in full sun".
-    const conditionClause = useMemo(() => conditionsClause(listVenues, listCondition), [listVenues, listCondition]);
+    // venues) instead of "0 in full sun". The clause and its icon are picked
+    // together, so rain or night never sits beside a sun.
     const comfortSort = useMemo(() => comfortSortLabel(listVenues, listCondition), [listVenues, listCondition]);
-    const homeClause = conditionClause ?? homeSunClause(homeSummary, cityNight ? 'night' : null);
+    const homeClause = useMemo(() => homeSheetClause({ venues: listVenues, condition: listCondition, summary: homeSummary, night: cityNight }), [listVenues, listCondition, homeSummary, cityNight]);
     const peekDragged = useRef(false);
     const showAllChip = (className) => (
         <button
@@ -1605,7 +1605,7 @@ const AppContent = () => {
                         onClick={() => { if (peekDragged.current) { peekDragged.current = false; return; } setPreviewVenue(null); setMobileSheetState(prev => prev === 'expanded' ? 'peek' : 'expanded'); }}
                     >
                         <div className="ss-mobile-sheet-grab" />
-                        <HomeSheetSummary mode={homeMode} onModeChange={handleHomeMode} count={homeCount} clause={homeClause}
+                        <HomeSheetSummary mode={homeMode} onModeChange={handleHomeMode} count={homeCount} clause={homeClause?.text} clauseIcon={homeClause?.icon}
                             onExpand={() => { setPreviewVenue(null); setMobileSheetState('expanded'); }} />
                         {areaBounds && homeMode === 'sun' ? showAllChip() : null}
                         {homeMode === 'sun' && ENABLE_MANUAL_VENUE_REFRESH && <VenueRefreshButton onRefresh={requestRefresh} isRefreshing={isRefreshing} />}
@@ -1636,7 +1636,7 @@ const AppContent = () => {
                             >
                                 <div className="ss-mobile-sheet-head">
                                     <div className="ss-mobile-sheet-grab" />
-                                    <HomeSheetSummary mode={homeMode} onModeChange={handleHomeMode} count={homeCount} clause={homeClause} />
+                                    <HomeSheetSummary mode={homeMode} onModeChange={handleHomeMode} count={homeCount} clause={homeClause?.text} clauseIcon={homeClause?.icon} />
                                     {homeMode === 'sun' && <>
                                         <span id="home-list-context" className="sr-only">{experienceContext}. {dataLabel}</span>
                                         {areaBounds ? showAllChip() : null}
