@@ -7,7 +7,8 @@
  * Venues without a horizon never match.
  */
 import { DEFAULT_TIME_ZONE, venueLocalDate } from './balconySunEngine.js';
-import { outdoorSunDay, parseSunHorizon, sunMomentsFromDay } from './sunMoments.js';
+import { formatHour } from './sunForecastState.js';
+import { outdoorSunDay, parseSunHorizon, SUN_MOMENTS, sunMomentsFromDay } from './sunMoments.js';
 
 export const SUN_MOMENT_FILTERS = Object.freeze([
     { id: 'moment-coffee', moment: 'coffee', label: 'Coffee sun', icon: 'coffee' },
@@ -30,6 +31,49 @@ export function activeSunMoments(filters) {
 /** Direct sun in the moment today, under a sky that isn't cloud or rain. */
 export function momentInSun(moment) {
     return moment?.available === true && moment.sky !== 'cloud' && moment.sky !== 'rain';
+}
+
+const MOMENT_COPY = Object.freeze({
+    coffee: { when: 'over morning coffee', sun: 'coffee sun' },
+    lunch: { when: 'over lunch', sun: 'lunch sun' },
+    sunset: { when: 'around sunset', sun: 'sunset sun' },
+});
+
+/**
+ * Empty-state copy for a sun-moment filter that the forecast alone rules out:
+ * every forecast hour the moment touches today is rain or cloud, so no venue
+ * can pass momentInSun whatever its buildings. EmptyVenueState props, or null
+ * when the forecast doesn't settle it (any sun, an hour without data, no
+ * forecast), so the usual "too specific" copy stays for those.
+ *
+ * @param {object} input
+ * @param {string[]} input.filters  active filter ids
+ * @param {object|null} input.forecast  deriveSunForecast() result for today
+ */
+export function sunMomentEmptyState({ filters, forecast }) {
+    if (!forecast?.hasHourly || !Array.isArray(forecast.hours)) return null;
+    for (const key of activeSunMoments(filters)) {
+        const def = SUN_MOMENTS.find((m) => m.key === key);
+        const copy = MOMENT_COPY[key];
+        if (!def || !copy) continue;
+        const sunset = Number.isFinite(forecast.sunsetHour) ? forecast.sunsetHour : null;
+        const [from, to] = def.sunset ? (sunset == null ? [] : [sunset - 1.5, sunset]) : [def.from, def.to];
+        if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) continue;
+        const kinds = [];
+        for (let h = Math.floor(from); h < to; h += 1) {
+            const kind = forecast.hours[h]?.kind;
+            if (kind && kind !== 'night') kinds.push(kind);
+        }
+        if (!kinds.length || !kinds.every((k) => k === 'rain' || k === 'cloud')) continue;
+        const sky = kinds.every((k) => k === 'rain') ? 'Rain is' : kinds.every((k) => k === 'cloud') ? 'Cloud is' : 'Rain and cloud are';
+        return {
+            badgeLabel: 'Forecast',
+            title: `No sun forecast ${copy.when}`,
+            message: `${sky} forecast from ${formatHour(from)} to ${formatHour(to)} today, so no venue is likely to get ${copy.sun}.`,
+            actionLabel: 'Clear filters',
+        };
+    }
+    return null;
 }
 
 /**
