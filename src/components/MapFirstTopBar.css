@@ -49,6 +49,7 @@
 .ss-search-suggestion-text small { overflow: hidden; color: #64748b; font-size: 12px; font-weight: 500; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .ss-search-suggestion--all { min-height: 44px; border-top: 1px solid #f3eadb; border-radius: 0 0 14px 14px; color: #92400e; }
 .ss-search-suggestion--all strong { font-size: 14px; }
-@media (min-width: 1024px) { .ss-map-first-topbar.ss-explore-topbar { max-width: 660px; right: auto; width: calc(100% - 32px); } }
+/* Above phone widths the header keeps the 390px phone layout instead of stretching. */
+@media (min-width: 480px) { .ss-map-first-topbar.ss-explore-topbar { right: auto; width: 358px; } }
 @media (max-width: 359px) { .ss-map-first-brand { width: 112px; object-fit: contain; } .ss-map-first-topbar-row { gap: 8px; } .ss-home-weather-card { column-gap: 5px; padding: 4px 8px 4px 6px; } .ss-map-first-search-icon { display: none; } .ss-home-search-row { gap: 8px; } .ss-map-first-search-pill { padding-left: 10px; gap: 4px; } }
 @media (prefers-reduced-motion: reduce) { .ss-home-radar-track > span { transition: none; } }

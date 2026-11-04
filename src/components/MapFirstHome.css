@@ -67,11 +67,12 @@
 @media (min-width: 1024px) {
  .ss-home-sheet-peek { display: none; }
  .ss-map-first-home { --home-controls-bottom: 24px; }
- .ss-map-first-home .ss-sidebar { padding-top: 214px; border-radius: 0; }
+ .ss-map-first-home .ss-sidebar { width: 390px; padding-top: 214px; border-radius: 0; }
  .ss-map-first-home .ss-map-venue-preview { bottom: 16px; }
  .ss-home-sunny-fab { bottom: 24px; right: 80px; }
  .ss-sidebar > .ss-home-info-line { padding: 0 12px; flex-shrink: 0; }
  .ss-sidebar > .ss-home-moments { flex-shrink: 0; padding: 8px 12px; }
- .ss-sidebar .ss-experience-options { display: flex; overflow-x: auto; gap: 8px; }
- .ss-sidebar .ss-experience-options > button { flex: 0 0 164px; }
+ /* The .ss-map-first-home prefix outranks ExploreHeader.css. */
+ .ss-map-first-home .ss-sidebar .ss-experience-options { display: flex; flex-wrap: wrap; overflow: visible; gap: 8px; }
+ .ss-map-first-home .ss-sidebar .ss-experience-options > button { flex: 0 0 auto; white-space: nowrap; }
 }
