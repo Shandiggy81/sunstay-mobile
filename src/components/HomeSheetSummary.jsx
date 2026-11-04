@@ -16,7 +16,7 @@ export function HomeDiscoveryInfo({ experienceContext, dataLabel, captionBadge, 
     </div>;
 }
 
-export default function HomeSheetSummary({ mode, onModeChange, count, clause, onExpand }) {
+export default function HomeSheetSummary({ mode, onModeChange, count, clause, clauseIcon = 'sun', onExpand }) {
     const row = useRef(null);
     const peek = Boolean(onExpand);
     useLayoutEffect(() => {
@@ -31,7 +31,7 @@ export default function HomeSheetSummary({ mode, onModeChange, count, clause, on
         return () => { observer.disconnect(); home.style.removeProperty('--home-peek-height'); };
     }, [peek]);
     const copy = <><span className="ss-home-count">{mode === 'after-dark' ? "Tonight's events" : count}</span>
-        {mode === 'sun' && clause && <span className="ss-home-sun-clause"><ClayIcon name="sun" size={18} />{clause}</span>}</>;
+        {mode === 'sun' && clause && <span className="ss-home-sun-clause"><ClayIcon name={clauseIcon} size={18} />{clause}</span>}</>;
     return <div ref={row} className="ss-home-summary-row">
         {onExpand ? <button type="button" className="ss-home-summary-copy" aria-label={mode === 'after-dark' ? "Show tonight's events" : 'Show venue list'}
             onClick={event => { event.stopPropagation(); onExpand(); }}>{copy}</button>

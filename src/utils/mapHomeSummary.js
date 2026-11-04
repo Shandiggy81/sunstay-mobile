@@ -1,4 +1,5 @@
 import { sunTier } from './sunPin.js';
+import { conditionsClause } from './homeConditions.js';
 
 /** Count existing map-pin tiers; missing scores never become a sun claim. */
 export function mapHomeSummary(scores) {
@@ -25,4 +26,22 @@ export function homeSunClause(summary, forecastKind) {
     if (summary.fullSun > 0) return `${fmt(summary.fullSun)} in full sun`;
     if (summary.partSun > 0) return `${fmt(summary.partSun)} with some sun`;
     return 'little direct sun now';
+}
+
+/** Clay icon beside each weather condition's clause (homeConditions kinds). */
+export const CONDITION_CLAUSE_ICONS = Object.freeze({ wet: 'rain', cold: 'jacket', windy: 'windsock', grey: 'cloud' });
+
+/**
+ * The home sheet's clause and the clay icon beside it, picked together so the
+ * icon always matches the words: rain beside "rain about", night beside
+ * "after dark", and the sun only beside a full-sun count. A wet, cold, windy
+ * or grey condition leads; otherwise the sun clause. Null with nothing to say.
+ * @returns {{ text: string, icon: string } | null}
+ */
+export function homeSheetClause({ venues, condition, summary, night = false }) {
+    const conditionText = conditionsClause(venues, condition);
+    if (conditionText) return { text: conditionText, icon: CONDITION_CLAUSE_ICONS[condition] };
+    const text = homeSunClause(summary, night ? 'night' : null);
+    if (!text) return null;
+    return { text, icon: night ? 'night' : summary.fullSun > 0 ? 'sun' : 'sun-cloud' };
 }
