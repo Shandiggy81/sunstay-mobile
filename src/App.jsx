@@ -69,7 +69,7 @@ import { venueDisplayScore } from './utils/venueDisplayScore';
 import { isNightAt, listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
 import { venueConditionChips } from './utils/venueConditionChips';
 import { keyAmenities, venueMatchesAmenityFilter } from './utils/venueAmenities';
-import { feelsLikeIconName, venueIcon } from './utils/clayIcons';
+import { venueIcon } from './utils/clayIcons';
 import { clayIconName } from './utils/clayFilterIcons';
 import ClayIcon from './components/common/ClayIcon';
 import VenueIcon from './components/common/VenueIcon';
@@ -88,6 +88,7 @@ import SunWindowsGraph from './components/SunWindowsGraph.jsx';
 import { isCafeVenue } from './utils/cafeCardTiles.js';
 import { FILTER_COZY, FILTER_SUNNY } from './utils/filterIds.js';
 import { rowSunAxis, rowSunLine } from './utils/cafeRowSun.js';
+import { listRowSunLine } from './utils/listRowSunLine.js';
 import { isHoverPointer, isKeyboardFocus, nextHighlightedVenueId, sameVenueId } from './utils/listMapPairing.js';
 import { ROW_SUN_FAILED, setCafeRowSunScrolling, useCafeRowSun, useMinuteNow } from './hooks/useCafeRowSun.js';
 
@@ -260,6 +261,12 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     const cafeSun = Boolean(cafeHorizon) && rowSun !== ROW_SUN_FAILED;
     const cafeSunLine = cafeSun ? rowSunLine(rowSun) : null;
     const visibleChips = momentMatch || cafeSun ? chips.filter(chip => chip.key !== 'sun') : chips;
+    const sunLine = listRowSunLine({
+        rowSunLine: cafeSunLine,
+        sunText: chips.find(chip => chip.key === 'sun')?.text ?? sunStatus.text,
+        windText: chips.find(chip => chip.key === 'wind')?.text,
+        openSkyHidden: cafeSun || Boolean(momentMatch),
+    });
     const hover = (type) => (event) => {
         const wanted = type === 'focus' ? isKeyboardFocus(event.currentTarget) : isHoverPointer(event);
         if (wanted) onVenueHover?.(venue.id, 'enter');
@@ -293,9 +300,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     const subtitle = [descriptor, suburbText].filter(Boolean).join(' · ');
 
     return (
-        <motion.div
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.985 }}
+        <div
             onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                 onVenueSelect(venue);
@@ -312,60 +317,39 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             id={`venue-list-${venue.id}`}
         >
             {/* The clay icon, never the venue's photo: photos are full-size images
-                hotlinked from venue and media sites (up to 600 KB each for a 64px
-                square) and some aren't the venue's own. The card shows the photo. */}
-            <div className="ss-vlc-icon" aria-hidden="true">
-                <VenueIcon icon={venueIcon(venue)} size={isStay ? 36 : 48} />
-            </div>
-            <div className="ss-vlc-body">
-                <div className="ss-vlc-name">{venue.venueName}</div>
-                {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
-            </div>
-            <div className="ss-vlc-right">
-                {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
-                {scoreVisual && !(stayMoment && isStay) && (badgeState !== 'score' ? (
-                    // After dark every score is 0, and in rain it is near 0: both read like a bad venue.
-                    <div className="ss-vlc-badge" style={{ background: '#e2e8f0', color: '#334155' }} title={badgeState === 'rain' ? 'Raining: no direct sun' : 'After dark'}>
-                        <ClayIcon name={badgeState === 'rain' ? 'rain' : 'night'} size={18} />
-                        <span>{badgeState === 'rain' ? 'Rain' : 'Night'}</span>
-                    </div>
-                ) : (
-                    <ScoreRing score={sunstayScore} size={40} className="ss-vlc-score-ring" />
-                ))}
-                {isStay && venue.nightlyPriceDemo ? (
-                    <div className="ss-vlc-temp !bg-emerald-50 !text-emerald-700 !border-emerald-100 px-2 rounded-lg">
-                        <span className="text-[9px] font-black uppercase tracking-tighter">Stay</span>
-                    </div>
-                ) : feelsLike != null && !(stayMoment && isStay) && (
-                    <div className="ss-vlc-temp" title="Feels like">
-                        <ClayIcon name={feelsLikeIconName(feelsLike)} size={16} />
-                        <span>{feelsLike}°</span>
-                    </div>
-                )}
+                hotlinked from venue and media sites (up to 600 KB each for a small
+                square) and some aren't the venue's own. The venue card leaves them out too. */}
+            <div className="ss-vlc-top">
+                <div className="ss-vlc-icon" aria-hidden="true">
+                    <VenueIcon icon={venueIcon(venue)} size={40} />
+                </div>
+                <div className="ss-vlc-body">
+                    <div className="ss-vlc-name">{venue.venueName}</div>
+                    {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
+                    {!(stayMoment && isStay) && sunLine && <p className="ss-vlc-sun-line" aria-hidden="true" title={sunLine}>{sunLine}</p>}
+                    {liveNote && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name="fireplace" size={18} /><span>{liveNote}</span></p>}
+                    {momentMatch && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={momentMatch.icon} size={18} /><span>{momentMatch.text}</span></p>}
+                </div>
+                <div className="ss-vlc-right">
+                    {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
+                    {scoreVisual && !(stayMoment && isStay) && (badgeState !== 'score' ? (
+                        // After dark every score is 0, and in rain it is near 0: both read like a bad venue.
+                        <div className="ss-vlc-badge" style={{ background: '#e2e8f0', color: '#334155' }} title={badgeState === 'rain' ? 'Raining: no direct sun' : 'After dark'}>
+                            <ClayIcon name={badgeState === 'rain' ? 'rain' : 'night'} size={18} />
+                            <span>{badgeState === 'rain' ? 'Rain' : 'Night'}</span>
+                        </div>
+                    ) : (
+                        <ScoreRing score={sunstayScore} size={48} stroke={4} className="ss-vlc-score-ring" />
+                    ))}
+                </div>
             </div>
             {cafeSun && (
                 <div className="ss-vlc-sun" data-row-sun={rowSun ? 'ready' : 'pending'} aria-hidden="true">
                     {rowSun ? <CafeRowSunGraph sun={rowSun.sun} /> : <span className="ss-vlc-sun-graph ss-vlc-sun-graph--pending" />}
-                    {rowSun ? <span className="ss-vlc-sun-text">{cafeSunLine}<small>At the venue point · clear day</small></span> : <span className="ss-vlc-sun-text ss-vlc-sun-text--pending" />}
                 </div>
             )}
-            {liveNote && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name="fireplace" size={22} />{liveNote}</p>}
-            {momentMatch && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={momentMatch.icon} size={22} />{momentMatch.text}</p>}
-            {!(stayMoment && isStay) && visibleChips.length > 0 && (
-                <ul className="ss-vlc-chips" aria-hidden="true">
-                    {visibleChips.map(chip => (
-                        <li key={chip.key} className={`ss-vlc-chip ss-vlc-chip--${chip.tone ?? chip.key}`}>
-                            <ClayIcon name={chip.icon} size={18} />
-                            <span>{chip.key === 'sun' || chip.key === 'wind' ? 'Now: ' : ''}{chip.text}</span>
-                        </li>
-                    ))}
-                </ul>
-            )}
             {stayMoment && isStay && <div className="ss-stay-badge-row"><p className={`ss-stay-badge ${venue.minutes ? '' : 'ss-stay-badge--empty'}`} title={stayMomentBadge(venue, stayMoment)}>{stayMomentBadge(venue, stayMoment).replace(' · Estimated', '')}</p>{isEstimatedRoom(venue.bestRoom) && <span>Estimated</span>}</div>}
-            {amenities.length > 0 && <ul className="ss-vlc-amenities ss-vlc-amenities--row" aria-hidden="true">
-                {amenities.map(a => <li key={a.key} title={a.label}><ClayIcon name={a.icon} size={18} /><span>{a.short}</span></li>)}
-            </ul>}
-        </motion.div>
+        </div>
     );
 });
 VenueListCard.displayName = 'VenueListCard';
@@ -438,26 +422,24 @@ const LiveVenueList = memo(function LiveVenueList({
                 className="overscroll-contain"
                 components={(showLoadMore || safeAreaFooter) ? { Footer: VenueListFooter } : {}}
                 itemContent={(_index, venue) => (
-                    <div className="pb-2">
-                        <VenueListCard
-                            venue={venue}
-                            isSelected={selectedVenue?.id === venue.id}
-                            onVenueSelect={onVenueSelect}
-                            weather={weather}
-                            stayMoment={stayMoment}
-                            compared={comparedIds.includes(venue.id)}
-                            compareFull={comparedIds.length >= 3}
-                            onCompare={onCompare}
-                            activeFilters={activeFilters}
-                            momentKeys={sunMomentsById?.get(String(venue.id))}
-                            isHighlighted={sameVenueId(highlightedVenueId, venue.id)}
-                            onVenueHover={onVenueHover}
-                            horizon={sunHorizons?.get(String(venue.id)) ?? null}
-                            isNight={isNight}
-                            isRain={isRain}
-                            liveNote={liveWarmthNote(liveVenueFeatures?.[venue.id])}
-                        />
-                    </div>
+                    <VenueListCard
+                        venue={venue}
+                        isSelected={selectedVenue?.id === venue.id}
+                        onVenueSelect={onVenueSelect}
+                        weather={weather}
+                        stayMoment={stayMoment}
+                        compared={comparedIds.includes(venue.id)}
+                        compareFull={comparedIds.length >= 3}
+                        onCompare={onCompare}
+                        activeFilters={activeFilters}
+                        momentKeys={sunMomentsById?.get(String(venue.id))}
+                        isHighlighted={sameVenueId(highlightedVenueId, venue.id)}
+                        onVenueHover={onVenueHover}
+                        horizon={sunHorizons?.get(String(venue.id)) ?? null}
+                        isNight={isNight}
+                        isRain={isRain}
+                        liveNote={liveWarmthNote(liveVenueFeatures?.[venue.id])}
+                    />
                 )}
             />
         </div>

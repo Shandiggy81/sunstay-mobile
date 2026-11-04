@@ -9,6 +9,7 @@ export function HomeDiscoveryInfo({ experienceContext, dataLabel, captionBadge, 
     return <div className="ss-home-info-line"><span>Melbourne time · sun is modelled</span>
         <HomePopover label="About this map preview" className="ss-home-info" trigger={<Info size={18} aria-hidden="true" />}>
             <p>{experienceContext}</p><p>{dataLabel}</p>
+            <p>Sun hours on café rows are direct sun at the venue's mapped point on a clear day.</p>
             {captionBadge && <DataBadge {...captionBadge} />}
             {cozy && <p>Cozy filter on</p>}
         </HomePopover>

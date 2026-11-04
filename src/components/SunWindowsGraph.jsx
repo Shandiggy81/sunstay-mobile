@@ -33,7 +33,8 @@ export default function SunWindowsGraph({
   const graph = (
     <svg role="img" aria-label={summary} data-sun-graph={variant}
       viewBox={mini ? '0 12 360 104' : '0 -8 360 154'}
-      className="block h-auto w-full overflow-visible font-sans">
+      preserveAspectRatio={mini ? 'none' : undefined}
+      className={mini ? 'block h-full w-full font-sans' : 'block h-auto w-full overflow-visible font-sans'}>
       <defs>
         <linearGradient id={`${id}-sky`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="var(--color-sky-100)" />
@@ -76,7 +77,7 @@ export default function SunWindowsGraph({
           <ellipse cx="-3" cy="-4" rx="5" ry="3" fill="var(--color-surface)" opacity="0.35" />
         </g>
         </>}
-        <clipPath id={`${id}-band`}><rect x="0" y="12" width="360" height="104" rx="18" /></clipPath>
+        <clipPath id={`${id}-band`}><rect x="0" y="12" width="360" height="104" rx={mini ? 0 : 18} /></clipPath>
       </defs>
       <g aria-hidden="true" clipPath={`url(#${id}-band)`}>
         <rect x="0" y="12" width="360" height="104" fill={`url(#${id}-sky)`} />
@@ -93,20 +94,19 @@ export default function SunWindowsGraph({
         )}
         {marker?.withinAxis && (
           <g data-now-marker="true">
-            <path d={`M ${marker.x} 20 V 116`} stroke="var(--color-ink)" strokeWidth="1.5" strokeDasharray="4 4" />
+            <path d={`M ${marker.x} 20 V 116`} stroke="var(--color-ink)" strokeWidth="1.5" strokeDasharray="4 4" vectorEffect={mini ? 'non-scaling-stroke' : undefined} />
             <circle cx={marker.x} cy="112" r="3" fill="var(--color-ink)" stroke="var(--color-surface)" strokeWidth="1.5" />
           </g>
         )}
       </g>
-      {/* Keep the peak decorations outside the band's clip, including in the 128px list graph. */}
-      <g aria-hidden="true">
+      {/* Full-size peak decorations stay outside the SVG band's clip. */}
+      {!mini && <g aria-hidden="true">
         {!unavailable && layout.windows.map(window => {
-          // 60 SVG units is about 21px in the list row, including the asset's transparent padding.
-          // Clamp the full asset at axis edges; its maximum 63-unit height fits the existing viewBox.
-          const size = mini ? Math.max(60, window.sun.radius * 4.5) : window.sun.radius * 4.2;
+          // Clamp the full asset at axis edges; its height fits the existing viewBox.
+          const size = window.sun.radius * 4.2;
           return sunUrl ? (
             <image key={window.start} data-window-sun="true" href={sunUrl}
-              x={mini ? window.sun.x - size / 2 : Math.max(0, Math.min(360 - size, window.sun.x - size / 2))}
+              x={Math.max(0, Math.min(360 - size, window.sun.x - size / 2))}
               y={window.sun.y - size / 2} width={size} height={size}
               preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" />
           ) : (
@@ -114,7 +114,7 @@ export default function SunWindowsGraph({
               transform={`translate(${window.sun.x} ${window.sun.y}) scale(${window.sun.radius / 12})`} />
           );
         })}
-      </g>
+      </g>}
       {marker?.withinAxis && !mini && (
         <g aria-hidden="true" transform={`translate(${marker.labelX} 4)`}>
           <rect x="-21" y="-11" width="42" height="22" rx="11" fill="var(--color-ink)" />
@@ -131,7 +131,12 @@ export default function SunWindowsGraph({
     </svg>
   );
 
-  if (mini) return <div className={`w-full ${MAX_WIDTH} ${className}`}>{graph}</div>;
+  if (mini) return <div className={`w-full ${className}`} style={{ position: 'relative', height: 40, borderRadius: 12, overflow: 'hidden' }}>
+    {graph}
+    {!unavailable && sunUrl && layout.windows.map(window => <img key={window.start} data-window-sun="true" src={sunUrl} alt="" aria-hidden="true"
+      width={26} height={26} style={{ position: 'absolute', width: 26, height: 26, objectFit: 'contain', transform: 'translate(-50%, -50%)',
+        left: `clamp(13px, ${window.sun.x / 360 * 100}%, calc(100% - 13px))`, top: `clamp(13px, ${(window.sun.y - 12) / 104 * 100}%, 27px)` }} />)}
+  </div>;
 
   return (
     <section className={`w-full min-w-0 ${MAX_WIDTH} rounded-3xl border border-slate-200 bg-surface p-4 font-sans text-ink ${className}`}>

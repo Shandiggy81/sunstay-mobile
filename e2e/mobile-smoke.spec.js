@@ -49,6 +49,11 @@ test('app loads and the venue list opens', async ({ page }) => {
   await openList(page);
   await expect(count(page)).toHaveText(/^[1-9]\d* venues?$/);
   await expect(page.getByRole('combobox', { name: 'Search venues', exact: true })).toBeVisible();
+  const firstRow = rows(page).first();
+  await expect(firstRow).toHaveCSS('box-shadow', 'none');
+  await expect(firstRow).toHaveCSS('border-radius', '0px');
+  const rowTexts = await rows(page).allTextContents();
+  expect(rowTexts.every(text => !text.includes('Now:') && !text.includes('°'))).toBe(true);
 });
 
 test('Filters sits above the expanded list and its buttons receive taps', async ({ page }, testInfo) => {
