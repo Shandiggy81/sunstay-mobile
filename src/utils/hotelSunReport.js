@@ -112,5 +112,8 @@ export function buildHotelSunReport(venue, { now = new Date(), date } = {}) {
     }
     return { key, title, icon, roomName, minutes };
   });
-  return { date: localDate, timeZone, year, rooms, summary };
+  // Every side shares the hotel's location, so any calculated side gives
+  // today's sunset (the end of the sunset drinks window). Null without one.
+  const sunset = validRecords[0]?.daily?.sunset ?? null;
+  return { date: localDate, timeZone, year, rooms, summary, sunset };
 }
