@@ -70,7 +70,7 @@ for (const [label, now, sunNow, defaultMode] of [
   test(`outdoor venue card sun text is consistent at 390×844 (${label})`, async ({ page, baseURL }, testInfo) => {
     const { errors } = await boot(page, baseURL, now);
     const card = await openVenue(page, { defaultMode });
-    const tile = card.getByLabel('Current venue conditions').locator('div').filter({ hasText: 'Sun now' }).locator('dd');
+    const tile = card.getByLabel('Current venue conditions').locator('dd');
     await expect(tile).toHaveText(sunNow);
     const text = await card.innerText();
     const left = [...text.matchAll(/(\d+h(?: \d+m)?|\d+m) of direct sun left today/g)].map(m => minutes(m[1]));
@@ -104,7 +104,7 @@ test('Sun moments card: remaining never exceeds the venue total at 390×844', as
   expect(pair, 'sentence pairs remaining with the total').not.toBeNull();
   expect(minutes(pair[2])).toBe(total);
   expect(minutes(pair[1])).toBeLessThanOrEqual(total);
-  const tile = card.getByLabel('Current venue conditions').locator('div').filter({ hasText: 'Sun now' }).locator('dd');
+  const tile = card.getByLabel('Current venue conditions').locator('dd');
   await expect(tile).toHaveText(/^Sun from \d|^Sun until \d/);
 
   // Scroll only the card's own scroller (scrollIntoView would also move the
@@ -128,9 +128,9 @@ for (const timezoneId of ['Europe/London', 'America/Los_Angeles']) {
     test('valid Melbourne sun times and forecast hours with and without a horizon', async ({ page, baseURL }, testInfo) => {
       const { errors, seen } = await boot(page, baseURL, melbourne(11));
       let card = await openVenue(page);
-      const sunTile = () => card.getByLabel('Current venue conditions').locator('div').filter({ hasText: 'Sun now' }).locator('dd');
+      const sunTile = () => card.getByLabel('Current venue conditions').locator('dd');
       await expect(sunTile()).toHaveText(/^Sun until 7:\d{2}pm$/);
-      await expect(card.getByText('Melbourne time', { exact: true })).toBeVisible();
+      await expect(card.locator('.ss-venue-sun-caption').filter({ hasText: 'Melbourne time' })).toBeVisible();
       const hours = card.locator('section', { has: page.getByRole('heading', { name: 'Hour by hour', exact: true }) }).getByRole('listitem');
       await expect(hours.first()).toHaveAttribute('aria-label', /^Now: 23 degrees/);
       await expect(hours.nth(1)).toHaveAttribute('aria-label', /^12pm: 23 degrees/);

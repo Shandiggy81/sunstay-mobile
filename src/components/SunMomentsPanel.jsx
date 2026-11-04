@@ -33,16 +33,16 @@ function formatDuration(minutes) {
  * @param {Date} props.now
  * @param {string} props.label "sun on the balcony", "sun in the outdoor area", …
  */
-export default function SunMomentsPanel({ daily, summary, timeZone, now, label = 'direct sun', dayLabel = 'today' }) {
+export default function SunMomentsPanel({ daily, summary, timeZone, now, label = 'direct sun', dayLabel = 'today', compact = false }) {
   const total = summary?.totalMinutes ?? 0;
   // The same sun-on-a-hill graph as the cafe and partner views. The flat bar
   // is only a fallback when the day can't be read.
   const sun = useMemo(() => cardSunWindows(daily), [daily]);
   return (
-    <div className="flex flex-col gap-3">
-      <div className="relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white px-4 pb-1 pt-4">
+    <div className={compact ? "ss-venue-moments" : "flex flex-col gap-3"}>
+      <div className={compact ? "ss-venue-moments-summary" : "relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white px-4 pb-1 pt-4"}>
         {/* The graph has its own smiling sun; the corner icon only marks a shaded day. */}
-        {!(sun && total > 0) && <ClayIcon name={total > 0 ? 'sun' : 'shaded'} size={84} className="pointer-events-none absolute -right-3 -top-3 drop-shadow-sm" />}
+        {!compact && !(sun && total > 0) && <ClayIcon name={total > 0 ? 'sun' : 'shaded'} size={84} className="pointer-events-none absolute -right-3 -top-3 drop-shadow-sm" />}
         <p className={`${sun && total > 0 ? '' : 'pr-20 '}text-[32px] font-extrabold leading-none tracking-[-0.02em] text-slate-900 tabular-nums`}>
           {total > 0 ? formatDuration(total) : 'In the shade'}
         </p>
@@ -50,11 +50,11 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
           {total > 0 ? `of ${label} ${dayLabel}` : `No ${label} ${dayLabel}`}
         </p>
         {sun
-          ? <div className="mb-3 mt-3"><SunWindowsGraph {...sun} now={now} showSummary={false} /></div>
+          ? <div className="mb-3 mt-3"><SunWindowsGraph {...sun} now={now} showSummary={false} className={compact ? "ss-card-sun-graph ss-card-sun-graph--moments" : ""} /></div>
           : <SunDayTimeline daily={daily} timeZone={timeZone} now={now} label={label} />}
       </div>
 
-      <ul className="grid grid-cols-2 gap-2" aria-label="Sun moments">
+      <ul className={compact ? "ss-venue-moment-list" : "grid grid-cols-2 gap-2"} aria-label="Sun moments">
         {summary.moments.map((m) => {
           const sky = m.available ? SKY[m.sky] : null;
           const when = m.available
@@ -67,7 +67,7 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
                 ? 'border-amber-200/80 bg-white shadow-[0_4px_14px_rgba(245,158,11,0.10)]'
                 : 'border-slate-200/80 bg-slate-50'}`}
             >
-              <ClayIcon name={m.icon} size={44} className={m.available ? '' : 'opacity-45 grayscale'} />
+              <ClayIcon name={m.icon} size={compact ? 28 : 44} className={m.available ? '' : 'opacity-45 grayscale'} />
               <span className="text-[14px] font-extrabold leading-tight text-slate-900">{m.title}</span>
               <span className={`text-[12px] font-semibold leading-snug ${m.available ? 'text-amber-900' : 'text-slate-500'}`}>
                 {when}

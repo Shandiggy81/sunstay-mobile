@@ -1,0 +1,103 @@
+/* Detail-card layout only: list rows, partner preview and map stay independent. */
+.ss-venue-detail-card { color: #0f172a; font-size: 14px; }
+.ss-venue-detail-card button:focus-visible, .ss-venue-detail-card a:focus-visible { outline: 2px solid #92400e; outline-offset: 2px; }
+.ss-venue-toolbar { padding: 0 16px 12px; }
+.ss-venue-drag-target { height: 44px; display: flex; align-items: center; justify-content: center; cursor: grab; }
+.ss-venue-drag-target span { width: 40px; height: 5px; border-radius: 999px; background: #d9d3c7; }
+.ss-venue-toolbar-actions { display: flex; align-items: center; justify-content: space-between; }
+.ss-venue-round-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #ece6d9; border-radius: 50%; background: white; color: #0f172a; }
+.ss-venue-round-button:disabled { opacity: .5; }
+.ss-venue-info { padding: 0 16px; display: flex; align-items: center; gap: 12px; }
+.ss-venue-icon-tile { width: 64px; height: 64px; border-radius: 18px; background: #fffbeb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ss-venue-info h2 { font-size: 22px; font-weight: 800; letter-spacing: -.4px; line-height: 1.15; overflow-wrap: anywhere; }
+.ss-venue-info [role="img"] > span { font-size: 22px; }
+.ss-venue-info p { margin-top: 4px; font-size: 14px; font-weight: 500; line-height: 1.4; color: #64748b; }
+.ss-venue-score-state { width: 56px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; font-size: 14px; }
+.ss-venue-live-note { margin: 12px 16px 0; padding: 8px 12px; display: flex; align-items: center; gap: 8px; background: #fffbeb; border-radius: 16px; font-size: 14px; font-weight: 600; color: #92400e; }
+.ss-venue-live-note small { display: block; font-size: 12px; font-weight: 500; }
+.ss-venue-sun-block { display: flex; flex-direction: column; gap: 12px; padding: 20px 16px; }
+.ss-venue-sun-now dd { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 800; line-height: 1.3; }
+.ss-venue-sun-sentence, .ss-venue-description { font-size: 14px; font-weight: 500; line-height: 1.6; color: #64748b; }
+.ss-venue-sun-caption { font-size: 12px; font-weight: 500; line-height: 1.5; color: #64748b; }
+.ss-cafe-sun { display: flex; flex-direction: column; gap: 12px; }
+/* Keep the full graph SVG untouched; the card supplies its own single caption and window pill. */
+.ss-card-sun-graph { padding: 0; border: 0; border-radius: 0; background: white; }
+.ss-card-sun-graph > div:first-child, .ss-card-sun-graph > ul { display: none; }
+.ss-venue-sun-window { min-height: 44px; border: 1px solid #fcd34d; border-radius: 999px; padding: 8px 12px; background: #fffbeb; color: #92400e; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; line-height: 1.4; }
+.ss-venue-sun-window > span { flex: 1; min-width: 0; }
+.ss-venue-sun-window strong { flex-shrink: 0; font-weight: 800; }
+.ss-venue-moments-summary > p:first-of-type { font-size: 22px; padding: 0; }
+.ss-venue-moments-summary > p:nth-of-type(2) { padding: 0; }
+.ss-venue-moments-summary > img { display: none; }
+.ss-venue-moment-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.ss-venue-moment-list > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 3px 8px; border: 0; border-top: 1px solid #f1ece2; border-radius: 0; padding: 10px 0; background: white; box-shadow: none; }
+.ss-venue-moment-list > li > img { width: 28px; height: 28px; grid-row: span 2; }
+.ss-venue-moment-list > li > span { font-size: 12px; }
+.ss-venue-moment-list > li > span:first-of-type { font-size: 14px; }
+.ss-venue-moment-list > li > span:last-child { background: transparent; color: #64748b; padding: 0; }
+.ss-venue-weather-now { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 4px 16px 16px; }
+.ss-venue-weather-now > div { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 0 5px; text-align: center; }
+.ss-venue-weather-now > div + div { border-left: 1px solid #f1ece2; }
+.ss-venue-weather-now dt { font-size: 12px; font-weight: 600; color: #64748b; }
+.ss-venue-weather-now dd { font-size: 14px; font-weight: 700; }
+.ss-venue-rain-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin: 0 16px 16px; border-radius: 16px; background: #f1f5f9; }
+.ss-venue-rain-row p:first-child { font-size: 14px; font-weight: 700; }
+.ss-venue-rain-row p + p { margin-top: 3px; font-size: 12px; font-weight: 600; color: #475569; }
+.ss-venue-hourly { padding: 0 16px 14px; }
+.ss-venue-section-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px; }
+.ss-venue-section-heading > span { font-size: 12px; font-weight: 500; color: #64748b; }
+.ss-venue-hourly ol { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; padding: 10px 0; }
+.ss-venue-hourly li { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 0; border: 1px solid transparent; border-radius: 14px; font-size: 12px; font-weight: 600; color: #475569; }
+.ss-venue-hourly .ss-venue-hour--now { border-color: #fcd34d; background: #fffbeb; }
+.ss-venue-hour--now .ss-venue-hour-label { font-weight: 700; color: #92400e; }
+.ss-venue-hourly .ss-venue-hour-temp { font-size: 14px; font-weight: 700; color: #0f172a; }
+.ss-venue-summary-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-top: 1px solid #f1ece2; }
+.ss-venue-summary-row h3 { font-size: 14px; font-weight: 700; line-height: 1.4; }
+.ss-venue-summary-row p { font-size: 13px; font-weight: 500; line-height: 1.5; color: #64748b; }
+.ss-venue-good-to-know { padding: 20px 16px 0; border-top: 1px solid #f1ece2; }
+.ss-venue-good-to-know > h3 { margin-bottom: 8px; }
+.ss-venue-description { margin-bottom: 8px; }
+.ss-venue-fact { min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1ece2; font-size: 14px; font-weight: 600; line-height: 1.5; }
+.ss-venue-fact > svg { flex-shrink: 0; color: #475569; }
+.ss-venue-fact > span, .ss-venue-fact > div { min-width: 0; flex: 1; }
+.ss-venue-fact .ss-venue-fact-detail { font-size: 13px; font-weight: 500; color: #64748b; }
+.ss-venue-fact-source { font-size: 12px; font-weight: 500; line-height: 1.5; color: #64748b; }
+.ss-venue-text-action { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; font-weight: 700; color: #92400e; }
+.ss-venue-more-weather { display: flex; width: 100%; min-height: 48px; align-items: center; gap: 12px; padding: 12px 0; text-align: left; font-size: 14px; font-weight: 600; color: #475569; }
+.ss-venue-list-actions { padding: 0 16px; }
+.ss-venue-list-action { min-height: 68px; width: 100%; padding: 12px 0; display: flex; align-items: center; gap: 12px; border-top: 1px solid #f1ece2; text-align: left; cursor: pointer; }
+.ss-venue-list-action > svg { flex-shrink: 0; color: #475569; }
+.ss-venue-list-action > span { flex: 1; min-width: 0; }
+.ss-venue-list-action strong { display: block; font-size: 14px; font-weight: 700; }
+.ss-venue-list-action > span > span { display: block; font-size: 13px; font-weight: 500; color: #64748b; }
+.ss-venue-source-note { padding: 12px 16px; font-size: 12px; font-weight: 500; line-height: 1.5; color: #64748b; }
+.ss-venue-source-note a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; margin-right: 12px; text-decoration: underline; text-underline-offset: 2px; }
+.ss-venue-footer { border-top: 1px solid #f1ece2; background: white; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.ss-venue-footer-actions { display: flex; gap: 10px; }
+.ss-venue-footer-actions > a, .ss-venue-footer-actions > button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border-radius: 999px; padding: 10px 16px; font-size: 14px; font-weight: 700; }
+.ss-venue-website { border: 1px solid #e7e1d4; background: white; color: #0f172a; }
+.ss-venue-directions { flex: 1; background: #0f172a; color: white; }
+.ss-venue-directions:disabled { opacity: .4; }
+/* Apply the permitted type scale to older nested stay/detail content without altering its data. */
+.ss-venue-detail-card [class*='text-[11px]'] { font-size: 12px; }
+.ss-venue-detail-card [class*='text-[15px]'], .ss-venue-detail-card [class*='text-[16px]'] { font-size: 14px; }
+.ss-venue-detail-card [class*='text-[18px]'], .ss-venue-detail-card [class*='text-[19px]'], .ss-venue-detail-card [class*='text-[20px]'] { font-size: 17px; }
+.ss-venue-detail-card [class*='text-[26px]'], .ss-venue-detail-card [class*='text-[32px]'] { font-size: 22px; }
+.ss-venue-detail-card .ss-venue-sun-block > section[aria-labelledby='stay-heading'] { margin-top: 4px; }
+/* The optional weather drill-down uses the same type scale and neutral/gold surfaces. */
+.ss-venue-detail-card .wind-comfort-panel { border: 0; padding: 0; border-radius: 0; }
+.ss-venue-detail-card .wind-comfort-panel * { font-size: 12px; }
+.ss-venue-detail-card .wind-comfort-panel :is(.wind-section-title, .comfort-gauge-temp-number) { font-size: 17px; }
+.ss-venue-detail-card .wind-comfort-panel :is(.wind-warning-label, .wind-comfort-label) { font-size: 14px; }
+.ss-venue-detail-card .wind-comfort-panel :is(.wind-venue-note, .wind-impact-explainer, .wind-warning-badge, .wind-comfort-badge, .wind-push-card, .hourly-item-current) { background: #fffbeb; border-color: #fcd34d; color: #92400e; box-shadow: none; }
+.ss-venue-detail-card .wind-comfort-panel :is(.comfort-gauge-temp-label, .comfort-gauge-labels, .wind-warning-detail, .wind-forecast-legend, .hourly-label, .hourly-wind) { color: #64748b; }
+.ss-venue-detail-card .wind-alert-toggle { width: 44px; height: 44px; }
+.ss-venue-detail-card .wind-comfort-panel [class*='text-blue-'], .ss-venue-detail-card .wind-comfort-panel [class*='text-emerald-'] { color: #475569; }
+.ss-venue-detail-card .wind-comfort-panel [class*='bg-emerald-'] { background: #fffbeb; }
+.ss-venue-detail-card .wind-comfort-panel .rounded-xl.border { border: 0; border-bottom: 1px solid #f1ece2; border-radius: 0; }
+.ss-venue-weather-details > .grid > div, .ss-venue-weather-details > div.border { border: 0; border-radius: 0; border-bottom: 1px solid #f1ece2; box-shadow: none; padding: 12px 0; }
+.ss-venue-detail-card .wind-comfort-panel .comfort-gauge-zone { background: #cbd5e1 !important; }
+.ss-venue-detail-card .wind-comfort-panel .comfort-gauge-zone:nth-child(3) { background: #fcd34d !important; }
+.ss-venue-detail-card .wind-comfort-panel .comfort-gauge-zone:nth-child(n+4) { background: #92400e !important; }
+.ss-venue-detail-card .wind-comfort-panel :is(.wind-legend-dot, .hourly-wind-dot) { background: #64748b !important; }
+.ss-venue-detail-card .wind-comfort-panel :is(.wind-warning-dot, .wind-hour-card) { background: #fffbeb; border-color: #fcd34d; }
