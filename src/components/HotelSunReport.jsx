@@ -1,10 +1,11 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Printer, Share2 } from 'lucide-react';
+import { ArrowLeft, Printer, Share2, ChevronDown } from 'lucide-react';
 import ClayIcon from './common/ClayIcon.jsx';
 import { DEFAULT_TIME_ZONE, formatGuestDate, venueLocalDate } from '../utils/balconySunEngine.js';
 import { buildStaySunReport } from '../utils/stayRoomTypes.js';
 import { hotelSunReportUrl } from '../utils/hotelSunReportRoute.js';
+import { bestSideRows, sideRows, defaultOpenSideId, sunniestMonthsText, seasonTable, sharedEvidence, reportTrustText } from '../utils/sunReportLayout.js';
 import { formatHours, yearSunChart } from '../utils/yearSunChart.js';
 import '../styles/hotel-sun-report.css';
 
@@ -40,7 +41,7 @@ function YearSunChart({ monthly, year, sharedMax }) {
         {chart.ticks.map(tick => <span key={tick.hours} className="ss-year-chart__tick" style={{ top: `${tick.yPercent}%` }} aria-hidden="true">{tick.label}</span>)}
         {/* The clay sun on the sunniest month, like the daily graph's peak; shaded when there is no direct sun all year. */}
         <span className={`ss-year-chart__sun ss-year-chart__sun--${chart.sun.kind}`} style={{ left: `${chart.sun.xPercent}%`, top: `${chart.sun.yPercent}%` }} aria-hidden="true">
-          <ClayIcon name={chart.sun.kind === 'sun' ? 'sun' : 'shaded'} size={44} />
+          <ClayIcon name={chart.sun.kind === 'sun' ? 'sun' : 'shaded'} size={28} />
         </span>
         {chart.callouts.map(c => {
           const onSun = c.placement === 'sun';
@@ -68,57 +69,52 @@ function YearSunChart({ monthly, year, sharedMax }) {
 /** The sunniest month across every room, so all of a report's year charts share one axis. */
 const reportMaxHours = rooms => Math.max(0, ...rooms.flatMap(room => (room.monthly ?? []).map(m => m.hours)).filter(Number.isFinite));
 
-function RoomReport({ room, year, sharedMax }) {
+function RoomReport({ room, side, year, sharedMax, initiallyOpen, showEvidence }) {
   const titleId = useId();
+  const panelId = `${titleId}-panel`;
+  const [open, setOpen] = useState(initiallyOpen);
+  const table = seasonTable(room.seasons);
   return (
-    <article className="ss-sun-report__room rounded-3xl" aria-labelledby={titleId}>
-      <div className="ss-sun-report__room-heading">
-        <div className="ss-sun-report__room-icon"><ClayIcon name="hotel-views" size={44} /></div>
-        <h2 id={titleId}>{room.name}</h2>
-      </div>
-      {room.display && <p className={`ss-sun-report__trust${room.display.chip ? ' ss-sun-report__trust--confirmed' : ''}`} title={room.display.trustLine}>{room.display.chip ?? room.display.evidenceLabel}</p>}
-
-      {room.error ? <p className="ss-sun-report__notice">Sun estimates are unavailable for this {room.display?.kind === 'facade_side' ? 'side of the building' : 'room'}. Its location or bearing needs to be checked.</p> : (
-        <>
-          <div className={`ss-sun-report__total${room.totalMinutes > 0 ? ' ss-sun-report__total--sunny' : ''}`}>
-            <div>
-              <p className="ss-sun-report__duration">{room.durationText}</p>
-              <p>{room.totalMinutes > 0 ? 'of direct sun today' : 'No modelled direct sun today'}</p>
-            </div>
-            <ClayIcon name={room.totalMinutes > 0 ? 'sun' : 'shaded'} size={68} />
-          </div>
-
+    <article className="ss-sun-report__side" aria-labelledby={titleId}>
+      <button id={titleId} type="button" className="ss-sun-report__side-toggle" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>
+        <span className="ss-sun-report__side-label">
+          <span>{side.name}</span>
+          {side.share !== null && <span className="ss-sun-report__side-bar" aria-hidden="true"><span style={{ width: `${side.share * 100}%` }} /></span>}
+          {showEvidence && room.display && <span className="ss-sun-report__side-evidence">{room.display.chip ?? room.display.evidenceLabel}</span>}
+        </span>
+        <span className="ss-sun-report__side-duration">{side.durationText}</span>
+        <ChevronDown size={18} aria-hidden="true" />
+      </button>
+      <div id={panelId} className="ss-sun-report__side-panel" hidden={!open}>
+        {room.error ? <p className="ss-sun-report__notice">Sun estimates are unavailable for this {room.display?.kind === 'facade_side' ? 'side of the building' : 'room'}. Its location or bearing needs to be checked.</p> : <>
           <figure className="ss-sun-report__chart">
             <figcaption>
-              <h3>Sun through the year</h3>
-              <p>Hours of direct sun · 15th of each month, {year}</p>
+              <h3>Through the year</h3>
+              <p>Hours of direct sun on the 15th of each month, {year}</p>
             </figcaption>
             <YearSunChart monthly={room.monthly} year={year} sharedMax={sharedMax} />
           </figure>
-
-          <div className="ss-sun-report__sunniest">
-            <span><ClayIcon name="sun-cloud" size={24} />Sunniest months</span>
-            {room.sunniestMonths.length ? <ul aria-label="Sunniest months">{room.sunniestMonths.map(month => <li key={month}>{month}</li>)}</ul>
-              : <p>No modelled direct sun</p>}
-          </div>
-
-          <div className="ss-sun-report__seasons">
-            {room.seasons.map(season => (
-              <section className="ss-sun-report__season" key={season.key} aria-label={`${season.label} sun moments`}>
-                <h3>{season.label}<span>{formatGuestDate(`${season.date}T12:00:00Z`, 'UTC')}</span></h3>
-                <ul className="ss-sun-report__moments">
-                  {season.moments.map(moment => (
-                    <li key={moment.key} className={`ss-sun-report__moment${moment.available ? ' ss-sun-report__moment--sunny' : ''}`}>
-                      <ClayIcon name={moment.icon} size={30} />
-                      <span><strong>{moment.title}</strong><small>{moment.available ? 'Gets direct sun' : moment.available === null ? 'Unavailable' : 'In the shade'}</small></span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        </>
-      )}
+          <p className="ss-sun-report__sunniest">{sunniestMonthsText(room.sunniestMonths) ?? 'No modelled direct sun'}</p>
+          <section className="ss-sun-report__season-section" aria-labelledby={`${titleId}-seasons`}>
+            <h3 id={`${titleId}-seasons`}>Summer and winter</h3>
+            <table className="ss-sun-report__season-table">
+              <thead><tr>
+                <th scope="col">Time of day</th>
+                {table.columns.map(column => <th key={column.key} scope="col">{column.label}</th>)}
+              </tr></thead>
+              <tbody>{table.rows.map(row => <tr key={row.key}>
+                <th scope="row"><span className="ss-sun-report__moment-title"><ClayIcon name={row.icon} size={24} />{row.title}</span></th>
+                {row.cells.map((cell, index) => <td key={table.columns[index].key}>
+                  <span className={`ss-sun-report__season-status ss-sun-report__season-status--${cell}`}>
+                    {cell === 'sun' ? <><ClayIcon name="sun" size={18} />Sun</>
+                      : cell === 'shade' ? <><span className="ss-sun-report__shade-dot" aria-hidden="true" />Shade</> : 'Unavailable'}
+                  </span>
+                </td>)}
+              </tr>)}</tbody>
+            </table>
+          </section>
+        </>}
+      </div>
     </article>
   );
 }
@@ -211,7 +207,10 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
   const busy = loading || Boolean(venue && !report && !failed);
   const venueName = venue?.venueName || venue?.name || 'Hotel';
   const venueAddress = venue?.address || venue?.full_street_address;
-  const facadeSides = !report || report.display.mode === 'facade_sides';
+  const firstOpenSide = defaultOpenSideId(report?.rooms);
+  const evidence = sharedEvidence(report?.rooms);
+  const trustText = reportTrustText(report);
+  const dateLabel = today ? formatGuestDate(`${today}T12:00:00Z`, 'UTC') : null;
 
   const share = async () => {
     const url = hotelSunReportUrl(window.location.href, venue.id);
@@ -241,7 +240,7 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
         <div className="ss-sun-report__toolbar-inner">
           <button className="ss-sun-report__button" type="button" onClick={onClose}><ArrowLeft size={18} aria-hidden="true" />Back</button>
           <div className="ss-sun-report__actions">
-            <button className="ss-sun-report__button" type="button" onClick={() => window.print()} disabled={!report}><Printer size={18} aria-hidden="true" />Print</button>
+            <button className="ss-sun-report__button ss-sun-report__button--icon" type="button" onClick={() => window.print()} disabled={!report} aria-label="Print"><Printer size={18} aria-hidden="true" /></button>
             {venue?.id != null && <button className="ss-sun-report__button ss-sun-report__button--primary" type="button" onClick={share}><Share2 size={18} aria-hidden="true" />Share</button>}
           </div>
         </div>
@@ -249,12 +248,15 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
 
       <main className="ss-sun-report__document">
         <header className="ss-sun-report__header">
-          <div className="ss-sun-report__hero-icon"><ClayIcon name="hotel-views" size={82} /></div>
-          <p className="ss-sun-report__eyebrow">Sun report</p>
-          <h1 id={titleId}>{venue ? venueName : loading ? 'Finding your hotel' : 'Hotel not found'}</h1>
-          {venueAddress && <p className="ss-sun-report__address">{venueAddress}</p>}
-          <p className="ss-sun-report__subtitle">{report?.display.headline ?? 'Sun by side of the building'} · {report?.display.trustLine ?? 'modelled from building data'}</p>
-          {report && <p className="ss-sun-report__date">Today · {formatGuestDate(`${report.date}T12:00:00Z`, 'UTC')}</p>}
+          <p className="ss-sun-report__eyebrow">Sun report{dateLabel ? ` · ${dateLabel}` : ''}</p>
+          <div className="ss-sun-report__header-main">
+            <div className="ss-sun-report__icon-tile"><ClayIcon name="hotel-views" size={40} /></div>
+            <div>
+              <h1 id={titleId}>{venue ? venueName : loading ? 'Finding your hotel' : 'Hotel not found'}</h1>
+              {venueAddress && <p className="ss-sun-report__address">{venueAddress}</p>}
+            </div>
+          </div>
+          {trustText && <p className="ss-sun-report__trust-line">{trustText}</p>}
         </header>
 
         <div className="ss-sun-report__share-feedback ss-sun-report__screen-only">
@@ -266,19 +268,22 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
           : !venue ? <p className="ss-sun-report__notice">This hotel could not be found. Go back to explore stays and open a new sun report.</p>
           : failed ? <p className="ss-sun-report__notice" role="alert">We could not calculate this sun report. Go back and try opening it again.</p>
           : report && <>
-            <p className="ss-sun-report__explanation">See when direct sun is estimated to reach each {facadeSides ? 'side of the building' : 'room type'}. These are sun-path and building estimates, not a weather forecast; cloud, curtains and unrecorded obstructions can change the sun you experience.</p>
-            {report.rooms.length ? <div className="ss-sun-report__rooms">{report.rooms.map(room => <RoomReport key={room.id} room={room} year={report.year} sharedMax={reportMaxHours(report.rooms)} />)}</div>
-              : <p className="ss-sun-report__notice">Sun by side of the building is not available for this hotel yet.</p>}
-
-            {report.rooms.some(room => room.totalMinutes != null) && report.summary.length > 0 && <section className="ss-sun-report__summary rounded-3xl" aria-labelledby={`${titleId}-summary`}>
-              <h2 id={`${titleId}-summary`}>Find your sun moment</h2>
-              <p>{facadeSides ? 'Sunniest sides of the building' : 'Best rooms'} for today&apos;s direct sun, among available estimates</p>
-              <ul>{report.summary.map(moment => <li key={moment.key}>
-                <ClayIcon name={moment.icon} size={40} />
-                <span><strong>Best for {moment.title.toLowerCase()}</strong><span>{moment.roomName || `No ${facadeSides ? 'side of the building' : 'room'} gets direct sun at this time today`}</span></span>
+            {report.rooms.some(room => room.totalMinutes != null) && report.summary.length > 0 && <section className="ss-sun-report__summary" aria-labelledby={`${titleId}-summary`}>
+              <h2 id={`${titleId}-summary`}>Best side today</h2>
+              <p className="ss-sun-report__section-subtitle">Where direct sun reaches at each time of day.</p>
+              <ul>{bestSideRows(report).map(moment => <li key={moment.key}>
+                <ClayIcon name={moment.icon} size={32} />
+                <span className="ss-sun-report__summary-moment"><strong>{moment.title}</strong><span>{moment.window}</span></span>
+                <span className={`ss-sun-report__summary-side${moment.side === null ? ' ss-sun-report__summary-side--empty' : ''}`}>{moment.side ?? 'No direct sun'}</span>
               </li>)}</ul>
             </section>}
-            <footer className="ss-sun-report__footer">Monthly bars use the 15th of each month in {report.year}. Summer and winter moments use 15 January and 15 July in the hotel&apos;s local time. Sunniest months rank those representative days; actual days and individual rooms may differ.</footer>
+            {report.rooms.length ? <section className="ss-sun-report__sides" aria-labelledby={`${titleId}-sides`}>
+              <h2 id={`${titleId}-sides`}>Each side of the building</h2>
+              <p className="ss-sun-report__section-subtitle">Direct sun today. Tap a side for its year and seasons.</p>
+              {sideRows(report.rooms).map((side, index) => <RoomReport key={side.id} side={side} room={report.rooms[index]} year={report.year}
+                sharedMax={reportMaxHours(report.rooms)} initiallyOpen={side.id === firstOpenSide} showEvidence={evidence === null} />)}
+            </section> : <p className="ss-sun-report__notice">Sun by side of the building is not available for this hotel yet.</p>}
+            <footer className="ss-sun-report__footer">Estimates from the sun&apos;s path and nearby buildings, not a weather forecast. Cloud, curtains and unrecorded obstructions can change the sun you get. The year uses the 15th of each month in {report.year}; summer and winter use 15 January and 15 July in the hotel&apos;s local time.</footer>
           </>}
       </main>
     </div>, document.body,
