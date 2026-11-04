@@ -21,7 +21,7 @@ const test = base.extend({
     });
     await page.goto('/');
     // A unique mock temperature proves weather parsing succeeded instead of demo fallback.
-    await expect(page.getByText('23°', { exact: true })).toBeVisible();
+    await expect(page.getByText('23°', { exact: true }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
     await use(page);
     expect(weatherRequests).toBeGreaterThan(0);
@@ -167,4 +167,29 @@ test('a stay leads with its property website and names the external destination'
   await expect(website).toHaveAccessibleDescription('Opens questapartments.com.au');
   await expect(card.getByText('Opens questapartments.com.au', { exact: true })).toBeVisible();
   await expect(card.getByRole('link', { name: 'Get directions', exact: true })).toHaveCSS('color', 'rgb(146, 64, 14)');
+});
+
+
+test.describe('desktop Filters column', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
+
+  test('docks beside the map and returns focus after Escape', async ({ page }) => {
+    await openFilters(page);
+    const bounds = await sheet(page).boundingBox();
+    expect(bounds.x).toBe(0);
+    expect(bounds.width).toBe(390);
+    expect(bounds.y + bounds.height).toBe(900);
+
+    await expect(sheet(page).locator('.ss-filter-group-toggle')).toHaveCount(4);
+    const controls = sheet(page).getByRole('button', { name: /^Show \d+ venues?$/ })
+      .or(sheet(page).locator('.ss-filter-group-toggle'));
+    for (const control of await controls.all()) {
+      const box = await control.boundingBox();
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+    }
+
+    await page.keyboard.press('Escape');
+    await expect(sheet(page)).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeFocused();
+  });
 });
