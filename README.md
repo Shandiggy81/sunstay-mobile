@@ -79,12 +79,6 @@ sunstay-mobile/
 │   │   └── WeatherContext.jsx     # Weather state & Sunstay Score
 │   ├── hooks/
 │   │   └── useWeather.js          # Weather API caching (15-min TTL)
-│   ├── screens/
-│   │   └── Booking/
-│   │       └── BookingSummary.js   # Booking flow (race condition fix)
-│   ├── store/
-│   │   └── slices/
-│   │       └── bookingSlice.js    # Weather-booking sync
 │   ├── utils/
 │   │   ├── platform.js            # Cross-platform abstraction
 │   │   ├── sunCalcLogic.js
@@ -156,18 +150,6 @@ Longitude: 144.9631
 - Mapbox GL map component in `src/components/Map/VenueMap.jsx`
 - Uses a GeoJSON source for clustering plus DOM marker elements for visible venue/cluster markers
 - Supports weather/cloud overlays when optional keys are configured
-
-### BookingSummary (New)
-
-- **Double-tap prevention** via `useRef` mutex
-- Server-side availability check (pre-payment)
-- Melbourne timezone timestamps
-- Phased flow: verify → pay → confirm
-
-### bookingSlice (New)
-
-- **Weather severity listener** — auto re-checks availability on Sunny→Stormy transitions
-- React Context + useReducer (no Redux dependency)
 
 ### Venue API (New)
 

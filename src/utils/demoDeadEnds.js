@@ -6,9 +6,6 @@
 /** "Your filters" in the filter sheet saved text but filtered nothing. */
 export const SHOW_CUSTOM_FILTERS = false;
 
-/** "Guarantee available": there is no purchase or refund flow behind it yet. */
-export const SHOW_WEATHER_GUARANTEE = false;
-
 /** Shown after someone picks or takes a photo with "Capture the Vibe". */
 export const PHOTO_COMING_SOON_MESSAGE = '📸 Photo sharing is coming soon — nothing was uploaded.';
 
