@@ -261,7 +261,12 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     const cafeSun = Boolean(cafeHorizon) && rowSun !== ROW_SUN_FAILED;
     const cafeSunLine = cafeSun ? rowSunLine(rowSun) : null;
     const visibleChips = momentMatch || cafeSun ? chips.filter(chip => chip.key !== 'sun') : chips;
-    const sunLine = listRowSunLine({ rowSunLine: cafeSunLine, sunText: chips.find(chip => chip.key === 'sun')?.text ?? sunStatus.text, windText: chips.find(chip => chip.key === 'wind')?.text });
+    const sunLine = listRowSunLine({
+        rowSunLine: cafeSunLine,
+        sunText: chips.find(chip => chip.key === 'sun')?.text ?? sunStatus.text,
+        windText: chips.find(chip => chip.key === 'wind')?.text,
+        openSkyHidden: cafeSun || Boolean(momentMatch),
+    });
     const hover = (type) => (event) => {
         const wanted = type === 'focus' ? isKeyboardFocus(event.currentTarget) : isHoverPointer(event);
         if (wanted) onVenueHover?.(venue.id, 'enter');
