@@ -174,6 +174,15 @@ for (const [width, height] of [[320, 568], [768, 1024], [1440, 1024]]) {
         test.use({ viewport: { width, height }, isMobile: width < 1024 });
         test('fits and keeps the stay intent tappable', async ({ page, baseURL }) => {
             const { errors } = await boot(page, baseURL);
+            if (width >= 768) {
+                const header = await page.locator('header.ss-map-first-topbar').boundingBox();
+                expect(header.width).toBeLessThanOrEqual(358);
+            }
+            if (width >= 1024) {
+                const clipped = await page.locator('.ss-sidebar .ss-experience-options > button')
+                    .evaluateAll(buttons => buttons.some(button => button.scrollWidth > button.clientWidth));
+                expect(clipped).toBe(false);
+            }
             await page.getByRole('button', { name: 'Morning stays Explore room sun', exact: true }).click();
             const picker = page.locator('.ss-stay-picker').filter({ visible: true });
             await expect(picker.getByRole('button', { name: 'Morning coffee', exact: true })).toHaveAttribute('aria-pressed', 'true');
