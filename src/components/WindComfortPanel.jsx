@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Wind, Thermometer, Shield, AlertTriangle, Clock,
-    ChevronRight, ChevronDown, Calendar, TrendingUp,
+    ChevronRight, ChevronDown, TrendingUp,
     TrendingDown, Minus, Info,
 } from 'lucide-react';
 import { useWeather } from '../context/WeatherContext';
@@ -394,12 +394,12 @@ const WindComfortPanel = ({ venue }) => {
                 )}
             </AnimatePresence>
 
-            {/* ── Optimal Booking Time ────────────────────── */}
+            {/* ── Best time to sit outside (SunStay takes no bookings) ── */}
             {windData.optimalBooking && (
                 <div className="wind-booking-section">
                     <div className="wind-booking-header">
-                        <Calendar size={14} className="text-emerald-500" />
-                        <span>Optimal Booking Window</span>
+                        <Clock size={14} className="text-emerald-500" />
+                        <span>Best time to sit outside</span>
                     </div>
                     <div className="wind-booking-card">
                         <div className="wind-booking-time">

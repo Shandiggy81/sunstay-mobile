@@ -178,7 +178,7 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - `chat-sunny` accepts the public anon key as its bearer token. Its limits (`limits.js`) are per
   instance and in memory, so they cap bursts but are not a global quota.
 - Mapbox tokens and a Supabase publishable key appear in earlier Git history.
-- `src/index.css` still has 61 `backdrop-filter` rules; Xweather radar, cloud tiles and the comfort
+- `src/index.css` still has 45 `backdrop-filter` lines; Xweather radar, cloud tiles and the comfort
   heatmap are optional map layers.
 - No component tests, lint script or typecheck script.
 - Venue data lives in several files: the app uses Supabase with `src/data/demoVenues.js` as the
