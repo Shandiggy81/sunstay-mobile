@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardSunWindows, forecastForSunWindows, roundedSunDay } from './sunWindowsCard.js';
+import { cardSunWindows, forecastForSunWindows, rainDuringSun, roundedSunDay } from './sunWindowsCard.js';
 import { outdoorSunSummary } from './outdoorSunSummary.js';
 import { layoutSunWindows } from './sunWindowsGraph.js';
 import { outdoorSunDay } from './sunMoments.js';
@@ -167,5 +167,55 @@ describe('forecastForSunWindows', () => {
         assert.equal(forecastForSunWindows({ forecast: { hasHourly: false, hours: [] }, sun }), null);
         assert.equal(forecastForSunWindows({ forecast: forecast(() => 'day'), sun }), null);
         assert.equal(forecastForSunWindows({ forecast: forecast(() => 'sun'), sun: { ...sun, windows: [] } }), null);
+    });
+});
+
+describe('rainDuringSun', () => {
+    // Sabre Cafe on 4 Nov 2026: sun 7:01am–3:12pm, now 11:19am, rain from 1pm.
+    const sun = cardSunWindows({ ...ENGINE_DAY, windows: [{ start: at('07:01:00'), end: at('15:12:00') }] });
+    const CHANCE = { 11: 2, 12: 30, 13: 68, 14: 96, 15: 100, 16: 100 };
+    const forecast = (kindAt, extra = {}) => ({
+        hasHourly: true, nowHour: 11 + 19 / 60, sunriseHour: 6.2, sunsetHour: 19.97,
+        hours: Array.from({ length: 24 }, (_, hour) => ({ hour, kind: kindAt(hour), rainChance: CHANCE[hour] ?? 0 })),
+        ...extra,
+    });
+    const rainFrom1 = (h) => (h >= 13 && h <= 19 ? 'rain' : h >= 6 && h < 20 ? 'sun' : 'night');
+
+    it('names the first rain hour in the sun still to come, its chance and the peak', () => {
+        assert.deepEqual(rainDuringSun({ forecast: forecast(rainFrom1), sun }),
+            { title: 'Rain likely from 1pm', detail: "68% at 1pm · 100% by 3pm · cuts today's sun short", hour: 13 });
+    });
+
+    it('ignores rain outside the sun windows or already behind us', () => {
+        // Rain only after the last window (4pm on) is not during today's sun.
+        assert.equal(rainDuringSun({ forecast: forecast((h) => (h >= 16 ? 'rain' : 'sun')), sun }), null);
+        // Rain at 9am is past by 11:19am.
+        assert.equal(rainDuringSun({ forecast: forecast((h) => (h === 9 ? 'rain' : 'sun')), sun }), null);
+        // Rain in the current hour reads "now".
+        const rainNow = forecast((h) => (h === 11 ? 'rain' : 'sun'));
+        rainNow.hours[11].rainChance = 80;
+        assert.equal(rainDuringSun({ forecast: rainNow, sun }).title, 'Rain likely now');
+    });
+
+    it('says "possible" under the 50% rain chance and leaves out unknown chances', () => {
+        const lowChance = forecast((h) => (h === 12 ? 'rain' : 'sun'));
+        assert.deepEqual(rainDuringSun({ forecast: lowChance, sun }),
+            { title: 'Rain possible from 12pm', detail: "30% at 12pm · cuts today's sun short", hour: 12 });
+        const noChance = forecast((h) => (h === 14 ? 'rain' : 'sun'));
+        noChance.hours[14].rainChance = null;
+        assert.deepEqual(rainDuringSun({ forecast: noChance, sun }),
+            { title: 'Rain likely from 2pm', detail: "cuts today's sun short", hour: 14 });
+    });
+
+    it('uses daylight without building windows, and drops the sun-short clause', () => {
+        assert.deepEqual(rainDuringSun({ forecast: forecast(rainFrom1), sun: null }),
+            { title: 'Rain likely from 1pm', detail: '68% at 1pm · 100% by 3pm', hour: 13 });
+        assert.equal(rainDuringSun({ forecast: forecast(rainFrom1), sun: { ...sun, windows: [] } }).detail, '68% at 1pm · 100% by 3pm');
+    });
+
+    it('says nothing without an hourly forecast or a clock', () => {
+        assert.equal(rainDuringSun({ forecast: null, sun }), null);
+        assert.equal(rainDuringSun({ forecast: { hasHourly: false, hours: [] }, sun }), null);
+        assert.equal(rainDuringSun({ forecast: forecast(rainFrom1, { nowHour: null }), sun }), null);
     });
 });
