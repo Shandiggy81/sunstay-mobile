@@ -1,6 +1,7 @@
 import { SUN_MOMENTS } from './sunMoments.js';
-import { venueHour } from './venueTime.js';
+import { venueHour, venueTimeParts } from './venueTime.js';
 import { FACADE_TRUST_LINE, STAY_SUN_MODES } from './stayRoomTypes.js';
+import { BEST_FOR_MIN_SHARE } from './bestForMoment.js';
 
 /**
  * Layout data for the decluttered sun report: the best side for each moment
@@ -48,6 +49,45 @@ export function momentWindowText(key, { sunset = null, timeZone } = {}) {
     return hourRangeText(end - SUNSET_DRINKS_HOURS, end);
 }
 
+/** A moment's length in minutes: its fixed hours, or the 90 minutes before sunset. Null for an unknown moment. */
+function momentMinutes(key) {
+    const moment = SUN_MOMENTS.find(item => item.key === key);
+    if (!moment) return null;
+    return Math.round((moment.sunset ? SUNSET_DRINKS_HOURS : moment.to - moment.from) * 60);
+}
+
+/**
+ * How well a side's direct sun covers a moment, by the same rule as the café
+ * card's "Best for" (utils/bestForMoment): 'sun' when it covers at least half
+ * of the moment, 'some' for less, 'shade' for none, 'unknown' when it wasn't
+ * calculated. A side with 19 minutes of sun between 6 and 10am is 'some',
+ * not a morning-coffee side.
+ */
+export function momentFit(key, minutes) {
+    const length = momentMinutes(key);
+    if (!length || typeof minutes !== 'number' || !Number.isFinite(minutes) || minutes < 0) return 'unknown';
+    if (minutes === 0) return 'shade';
+    return minutes / length >= BEST_FOR_MIN_SHARE ? 'sun' : 'some';
+}
+
+/** Local decimal hour to the second, so hourRangeText rounds to the nearest minute like the venue card. */
+function localHour(instant, timeZone) {
+    const p = venueTimeParts(instant, timeZone);
+    return p.hour + p.minute / 60 + p.second / 3600;
+}
+
+/**
+ * When the sun is on a side: "Sun 7:41 to 10am", or "Sun 7:10 to 7:40am and
+ * 9:20 to 10am" when buildings break it up. Null without a valid window.
+ */
+export function sunWindowsText(windows, timeZone) {
+    const ranges = (Array.isArray(windows) ? windows : [])
+        .filter(window => window?.start instanceof Date && window?.end instanceof Date && window.end > window.start)
+        .map(window => hourRangeText(localHour(window.start, timeZone), localHour(window.end, timeZone)));
+    if (!ranges.length) return null;
+    return `Sun ${ranges.length === 1 ? ranges[0] : `${ranges.slice(0, -1).join(', ')} and ${ranges.at(-1)}`}`;
+}
+
 /**
  * The level every side shares ("Level 2"), or null when sides differ or one
  * has none. The report then says it once instead of on every side's name.
@@ -68,15 +108,24 @@ function shortNames(rooms) {
  * "Best side today": every moment with its window and the side with the most
  * direct sun then, from the report's summary. `side` is null when no side
  * gets direct sun at that time today, and drops a level every side shares.
+ * `fit` is momentFit for that side, and `sun` says when its sun comes, ending
+ * in "only" when it covers less than half of the moment ("Sun 9:41 to 10am
+ * only"), so a few minutes of sun is never shown as a sunny pick.
  */
 export function bestSideRows(report) {
     const summary = Array.isArray(report?.summary) ? report.summary : [];
     const short = shortNames(report?.rooms);
-    return summary.map(({ key, title, icon, roomName }) => ({
-        key, title, icon,
-        window: momentWindowText(key, { sunset: report.sunset, timeZone: report.timeZone }),
-        side: roomName == null ? null : short.get(roomName) ?? roomName,
-    }));
+    return summary.map(({ key, title, icon, roomName, minutes, windows }) => {
+        const fit = roomName == null ? 'shade' : momentFit(key, minutes);
+        const sun = roomName == null ? null : sunWindowsText(windows, report.timeZone);
+        return {
+            key, title, icon,
+            window: momentWindowText(key, { sunset: report.sunset, timeZone: report.timeZone }),
+            side: roomName == null ? null : short.get(roomName) ?? roomName,
+            fit,
+            sun: sun && fit === 'some' ? `${sun} only` : sun,
+        };
+    });
 }
 
 /**
@@ -125,7 +174,8 @@ function dayMonth(date) {
 
 /**
  * Summer and winter as one table: a column per season ("Summer · 15 Jan") and
- * a row per moment, each cell 'sun', 'shade' or 'unknown' (not calculated).
+ * a row per moment, each cell momentFit's 'sun' (at least half the moment),
+ * 'some', 'shade' or 'unknown' (not calculated).
  */
 export function seasonTable(seasons) {
     const list = Array.isArray(seasons) ? seasons : [];
@@ -136,8 +186,9 @@ export function seasonTable(seasons) {
     const rows = SUN_MOMENTS.map(({ key, title, icon }) => ({
         key, title, icon,
         cells: list.map(season => {
-            const available = season?.moments?.find(item => item.key === key)?.available;
-            return available === true ? 'sun' : available === false ? 'shade' : 'unknown';
+            const moment = season?.moments?.find(item => item.key === key);
+            return moment?.available === true ? momentFit(key, moment.minutes)
+                : moment?.available === false ? 'shade' : 'unknown';
         }),
     }));
     return { columns, rows };
