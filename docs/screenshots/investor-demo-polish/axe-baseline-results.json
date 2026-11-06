@@ -1,0 +1,462 @@
+[
+  {
+    "base": "de1e4a8",
+    "state": "home",
+    "width": 390,
+    "overflow": false,
+    "axeVersion": "4.14.0",
+    "violations": [
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ss-home-weather-card"
+            ],
+            "html": "<button type=\"button\" aria-label=\"23°, Clear sky, Light breeze, 7 km/h\" aria-expanded=\"false\" aria-controls=\"_r_1_\" class=\"ss-home-weather-card\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "button[aria-controls=\"_r_2_\"]"
+            ],
+            "html": "<button type=\"button\" aria-label=\"Preview time\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"_r_2_\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              ".ss-home-summary-copy"
+            ],
+            "html": "<button type=\"button\" class=\"ss-home-summary-copy\" aria-label=\"Show venue list\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          }
+        ]
+      }
+    ],
+    "incomplete": [
+      {
+        "id": "aria-valid-attr-value",
+        "nodes": 2
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 8
+      }
+    ],
+    "passes": 39
+  },
+  {
+    "base": "de1e4a8",
+    "state": "list",
+    "width": 390,
+    "overflow": false,
+    "axeVersion": "4.14.0",
+    "violations": [
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ss-home-weather-card"
+            ],
+            "html": "<button type=\"button\" aria-label=\"23°, Clear sky, Light breeze, 7 km/h\" aria-expanded=\"false\" aria-controls=\"_r_1_\" class=\"ss-home-weather-card\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "button[aria-controls=\"_r_2_\"]"
+            ],
+            "html": "<button type=\"button\" aria-label=\"Preview time\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"_r_2_\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-03"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: The Vineyard....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-03\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-04"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: CBCo Brewing....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-04\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-07"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: Welcome to Th...\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-07\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-08"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: Royal Standar...\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-08\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-10"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: Howler. Wareh...\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-10\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          }
+        ]
+      }
+    ],
+    "incomplete": [
+      {
+        "id": "aria-valid-attr-value",
+        "nodes": 1
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 13
+      }
+    ],
+    "passes": 42
+  },
+  {
+    "base": "de1e4a8",
+    "state": "filters",
+    "width": 390,
+    "overflow": false,
+    "axeVersion": "4.14.0",
+    "violations": [
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ss-home-weather-card"
+            ],
+            "html": "<button type=\"button\" aria-label=\"23°, Clear sky, Light breeze, 7 km/h\" aria-expanded=\"false\" aria-controls=\"_r_1_\" class=\"ss-home-weather-card\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "button[aria-controls=\"_r_2_\"]"
+            ],
+            "html": "<button type=\"button\" aria-label=\"Preview time\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"_r_2_\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-03"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: The Vineyard....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-03\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-04"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: CBCo Brewing....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-04\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-07"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: Welcome to Th...\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-07\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-08"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: Royal Standar...\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-08\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-10"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: Howler. Wareh...\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-10\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          }
+        ]
+      }
+    ],
+    "incomplete": [
+      {
+        "id": "aria-valid-attr-value",
+        "nodes": 1
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 13
+      }
+    ],
+    "passes": 44
+  },
+  {
+    "base": "de1e4a8",
+    "state": "home",
+    "width": 320,
+    "overflow": false,
+    "axeVersion": "4.14.0",
+    "violations": [
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ss-home-weather-card"
+            ],
+            "html": "<button type=\"button\" aria-label=\"23°, Clear sky, Light breeze, 7 km/h\" aria-expanded=\"false\" aria-controls=\"_r_1_\" class=\"ss-home-weather-card\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "button[aria-controls=\"_r_2_\"]"
+            ],
+            "html": "<button type=\"button\" aria-label=\"Preview time\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"_r_2_\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              ".ss-home-summary-copy"
+            ],
+            "html": "<button type=\"button\" class=\"ss-home-summary-copy\" aria-label=\"Show venue list\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          }
+        ]
+      }
+    ],
+    "incomplete": [
+      {
+        "id": "aria-valid-attr-value",
+        "nodes": 2
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 8
+      }
+    ],
+    "passes": 39
+  },
+  {
+    "base": "de1e4a8",
+    "state": "list",
+    "width": 320,
+    "overflow": false,
+    "axeVersion": "4.14.0",
+    "violations": [
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              "button[aria-controls=\"_r_2_\"]"
+            ],
+            "html": "<button type=\"button\" aria-label=\"Preview time\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"_r_2_\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-03"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: The Vineyard....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-03\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-04"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: CBCo Brewing....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-04\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-07"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: Welcome to Th...\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-07\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          }
+        ]
+      }
+    ],
+    "incomplete": [
+      {
+        "id": "aria-valid-attr-value",
+        "nodes": 1
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 6
+      }
+    ],
+    "passes": 40
+  },
+  {
+    "base": "de1e4a8",
+    "state": "filters",
+    "width": 320,
+    "overflow": false,
+    "axeVersion": "4.14.0",
+    "violations": [
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              "button[aria-controls=\"_r_2_\"]"
+            ],
+            "html": "<button type=\"button\" aria-label=\"Preview time\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"_r_2_\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-03"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: The Vineyard....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-03\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-04"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: CBCo Brewing....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-04\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-07"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: Welcome to Th...\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-07\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          }
+        ]
+      }
+    ],
+    "incomplete": [
+      {
+        "id": "aria-valid-attr-value",
+        "nodes": 1
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 6
+      }
+    ],
+    "passes": 44
+  },
+  {
+    "base": "de1e4a8",
+    "state": "home",
+    "width": 1440,
+    "overflow": false,
+    "axeVersion": "4.14.0",
+    "violations": [
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ss-home-weather-card"
+            ],
+            "html": "<button type=\"button\" aria-label=\"23°, Clear sky, Light breeze, 7 km/h\" aria-expanded=\"false\" aria-controls=\"_r_1_\" class=\"ss-home-weather-card\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "button[aria-controls=\"_r_2_\"]"
+            ],
+            "html": "<button type=\"button\" aria-label=\"Preview time\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"_r_2_\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-03"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: The Vineyard....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-03\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-04"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: CBCo Brewing....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-04\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          }
+        ]
+      }
+    ],
+    "incomplete": [
+      {
+        "id": "aria-valid-attr-value",
+        "nodes": 2
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 9
+      }
+    ],
+    "passes": 42
+  },
+  {
+    "base": "de1e4a8",
+    "state": "filters",
+    "width": 1440,
+    "overflow": false,
+    "axeVersion": "4.14.0",
+    "violations": [
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "nodes": [
+          {
+            "target": [
+              ".ss-home-weather-card"
+            ],
+            "html": "<button type=\"button\" aria-label=\"23°, Clear sky, Light breeze, 7 km/h\" aria-expanded=\"false\" aria-controls=\"_r_1_\" class=\"ss-home-weather-card\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "button[aria-controls=\"_r_2_\"]"
+            ],
+            "html": "<button type=\"button\" aria-label=\"Preview time\" aria-haspopup=\"dialog\" aria-expanded=\"false\" aria-controls=\"_r_2_\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-03"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: The Vineyard....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-03\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          },
+          {
+            "target": [
+              "#venue-list-dv-04"
+            ],
+            "html": "<div role=\"button\" tabindex=\"0\" aria-label=\"Venue: CBCo Brewing....\" class=\"ss-venue-list-card s...\" id=\"venue-list-dv-04\">",
+            "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+          }
+        ]
+      }
+    ],
+    "incomplete": [
+      {
+        "id": "aria-valid-attr-value",
+        "nodes": 2
+      },
+      {
+        "id": "color-contrast",
+        "nodes": 9
+      }
+    ],
+    "passes": 44
+  }
+]

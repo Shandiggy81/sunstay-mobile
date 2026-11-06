@@ -1,0 +1,516 @@
+[
+  {
+    "width": 390,
+    "view": "stay-keyboard-after",
+    "entry": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 6,
+        "width": 44,
+        "height": 44,
+        "top": 6,
+        "right": 60,
+        "bottom": 50,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 240,
+      "compact": "false"
+    },
+    "reverseFocus": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 44,
+        "width": 44,
+        "height": 44,
+        "top": 44,
+        "right": 60,
+        "bottom": 88,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 0,
+      "compact": "true"
+    },
+    "compactAgain": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 6,
+        "width": 44,
+        "height": 44,
+        "top": 6,
+        "right": 60,
+        "bottom": 50,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 240,
+      "compact": "false"
+    },
+    "tabs": [
+      {
+        "tag": "BUTTON",
+        "label": null,
+        "text": "See the sun report",
+        "inside": true,
+        "box": {
+          "x": 16,
+          "y": 118.46875,
+          "width": 197.703125,
+          "height": 50,
+          "top": 118.46875,
+          "right": 213.703125,
+          "bottom": 168.46875,
+          "left": 16
+        },
+        "withinViewport": true,
+        "scrollTop": 240,
+        "compact": "false"
+      },
+      {
+        "tag": "BUTTON",
+        "label": null,
+        "text": "Map",
+        "inside": true,
+        "box": {
+          "x": 330,
+          "y": 326.375,
+          "width": 44,
+          "height": 44,
+          "top": 326.375,
+          "right": 374,
+          "bottom": 370.375,
+          "left": 330
+        },
+        "withinViewport": true,
+        "scrollTop": 3442,
+        "compact": "false"
+      },
+      {
+        "tag": "A",
+        "label": "Check today’s hours on their website",
+        "text": "Website",
+        "inside": true,
+        "box": {
+          "x": 317.1875,
+          "y": 400.875,
+          "width": 56.8125,
+          "height": 44,
+          "top": 400.875,
+          "right": 374,
+          "bottom": 444.875,
+          "left": 317.1875
+        },
+        "withinViewport": true,
+        "scrollTop": 3442,
+        "compact": "false"
+      }
+    ],
+    "closed": true,
+    "afterClose": {
+      "tag": "BUTTON",
+      "label": "Show venue list",
+      "text": "13 venues13 in full sun",
+      "inside": false,
+      "box": {
+        "x": 16,
+        "y": 743.078125,
+        "width": 166.828125,
+        "height": 45.84375,
+        "top": 743.078125,
+        "right": 182.828125,
+        "bottom": 788.921875,
+        "left": 16
+      },
+      "withinViewport": true
+    }
+  },
+  {
+    "width": 390,
+    "view": "deep-link-cafe-partner-after",
+    "deepLinkFocus": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 44,
+        "width": 44,
+        "height": 44,
+        "top": 44,
+        "right": 60,
+        "bottom": 88,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 0,
+      "compact": "true"
+    },
+    "wrap": {
+      "tag": "A",
+      "label": "Get directions",
+      "text": "Get directions",
+      "inside": true,
+      "box": {
+        "x": 142.8125,
+        "y": 780,
+        "width": 231.1875,
+        "height": 52,
+        "top": 780,
+        "right": 374,
+        "bottom": 832,
+        "left": 142.8125
+      },
+      "withinViewport": true,
+      "scrollTop": 0,
+      "compact": "true"
+    },
+    "wrapBack": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 44,
+        "width": 44,
+        "height": 44,
+        "top": 44,
+        "right": 60,
+        "bottom": 88,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 0,
+      "compact": "true"
+    },
+    "partnerFocus": {
+      "tag": "BUTTON",
+      "label": "Close partner preview",
+      "text": "",
+      "inside": false,
+      "box": {
+        "x": 330,
+        "y": 18,
+        "width": 44,
+        "height": 44,
+        "top": 18,
+        "right": 374,
+        "bottom": 62,
+        "left": 330
+      },
+      "withinViewport": true,
+      "scrollTop": 1047,
+      "compact": "false"
+    },
+    "partnerClosed": true,
+    "partnerReturnFocus": {
+      "tag": "BUTTON",
+      "label": null,
+      "text": "Run Industry Beans Fitzroy?Partner preview · changes stay on this device",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 683.234375,
+        "width": 358,
+        "height": 68,
+        "top": 683.234375,
+        "right": 374,
+        "bottom": 751.234375,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 1047,
+      "compact": "false"
+    },
+    "cafeRemains": true,
+    "cafeClosed": true,
+    "finalFocus": {
+      "tag": "BUTTON",
+      "label": "Show venue list",
+      "text": "56 venues41 in full sun",
+      "inside": false,
+      "box": {
+        "x": 16,
+        "y": 743.078125,
+        "width": 166.828125,
+        "height": 45.84375,
+        "top": 743.078125,
+        "right": 182.828125,
+        "bottom": 788.921875,
+        "left": 16
+      },
+      "withinViewport": true
+    }
+  },
+  {
+    "width": 320,
+    "view": "stay-keyboard-after",
+    "entry": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 6,
+        "width": 44,
+        "height": 44,
+        "top": 6,
+        "right": 60,
+        "bottom": 50,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 260,
+      "compact": "false"
+    },
+    "reverseFocus": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 44,
+        "width": 44,
+        "height": 44,
+        "top": 44,
+        "right": 60,
+        "bottom": 88,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 0,
+      "compact": "true"
+    },
+    "compactAgain": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 6,
+        "width": 44,
+        "height": 44,
+        "top": 6,
+        "right": 60,
+        "bottom": 50,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 260,
+      "compact": "false"
+    },
+    "tabs": [
+      {
+        "tag": "BUTTON",
+        "label": null,
+        "text": "See the sun report",
+        "inside": true,
+        "box": {
+          "x": 16,
+          "y": 118.0625,
+          "width": 197.703125,
+          "height": 50,
+          "top": 118.0625,
+          "right": 213.703125,
+          "bottom": 168.0625,
+          "left": 16
+        },
+        "withinViewport": true,
+        "scrollTop": 260,
+        "compact": "false"
+      },
+      {
+        "tag": "BUTTON",
+        "label": null,
+        "text": "Map",
+        "inside": true,
+        "box": {
+          "x": 260,
+          "y": 188.046875,
+          "width": 44,
+          "height": 44,
+          "top": 188.046875,
+          "right": 304,
+          "bottom": 232.046875,
+          "left": 260
+        },
+        "withinViewport": true,
+        "scrollTop": 3957,
+        "compact": "false"
+      },
+      {
+        "tag": "A",
+        "label": "Check today’s hours on their website",
+        "text": "Website",
+        "inside": true,
+        "box": {
+          "x": 247.1875,
+          "y": 262.546875,
+          "width": 56.8125,
+          "height": 44,
+          "top": 262.546875,
+          "right": 304,
+          "bottom": 306.546875,
+          "left": 247.1875
+        },
+        "withinViewport": true,
+        "scrollTop": 3957,
+        "compact": "false"
+      }
+    ],
+    "closed": true,
+    "afterClose": {
+      "tag": "BUTTON",
+      "label": "Show venue list",
+      "text": "13 venues13 in full sun",
+      "inside": false,
+      "box": {
+        "x": 16,
+        "y": 450.5625,
+        "width": 96.828125,
+        "height": 65.4375,
+        "top": 450.5625,
+        "right": 112.828125,
+        "bottom": 516,
+        "left": 16
+      },
+      "withinViewport": true
+    }
+  },
+  {
+    "width": 320,
+    "view": "deep-link-cafe-partner-after",
+    "deepLinkFocus": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 44,
+        "width": 44,
+        "height": 44,
+        "top": 44,
+        "right": 60,
+        "bottom": 88,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 0,
+      "compact": "true"
+    },
+    "wrap": {
+      "tag": "A",
+      "label": "Get directions",
+      "text": "Get directions",
+      "inside": true,
+      "box": {
+        "x": 142.8125,
+        "y": 504,
+        "width": 161.1875,
+        "height": 52,
+        "top": 504,
+        "right": 304,
+        "bottom": 556,
+        "left": 142.8125
+      },
+      "withinViewport": true,
+      "scrollTop": 0,
+      "compact": "true"
+    },
+    "wrapBack": {
+      "tag": "BUTTON",
+      "label": "Close venue details",
+      "text": "",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 44,
+        "width": 44,
+        "height": 44,
+        "top": 44,
+        "right": 60,
+        "bottom": 88,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 0,
+      "compact": "true"
+    },
+    "partnerFocus": {
+      "tag": "BUTTON",
+      "label": "Close partner preview",
+      "text": "",
+      "inside": false,
+      "box": {
+        "x": 260,
+        "y": 18,
+        "width": 44,
+        "height": 44,
+        "top": 18,
+        "right": 304,
+        "bottom": 62,
+        "left": 260
+      },
+      "withinViewport": true,
+      "scrollTop": 1403,
+      "compact": "false"
+    },
+    "partnerClosed": true,
+    "partnerReturnFocus": {
+      "tag": "BUTTON",
+      "label": null,
+      "text": "Run Industry Beans Fitzroy?Partner preview · changes stay on this device",
+      "inside": true,
+      "box": {
+        "x": 16,
+        "y": 390.21875,
+        "width": 288,
+        "height": 85,
+        "top": 390.21875,
+        "right": 304,
+        "bottom": 475.21875,
+        "left": 16
+      },
+      "withinViewport": true,
+      "scrollTop": 1403,
+      "compact": "false"
+    },
+    "cafeRemains": true,
+    "cafeClosed": true,
+    "finalFocus": {
+      "tag": "BUTTON",
+      "label": "Show venue list",
+      "text": "56 venues41 in full sun",
+      "inside": false,
+      "box": {
+        "x": 16,
+        "y": 424.3125,
+        "width": 96.828125,
+        "height": 91.6875,
+        "top": 424.3125,
+        "right": 112.828125,
+        "bottom": 516,
+        "left": 16
+      },
+      "withinViewport": true
+    }
+  }
+]

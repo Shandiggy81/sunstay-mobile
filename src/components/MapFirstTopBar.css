@@ -11,6 +11,8 @@
 .ss-home-weather-copy, .ss-home-wind-copy { display: flex; min-width: 0; flex-direction: row; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
 .ss-home-weather-copy strong { font-size: 20px; font-weight: 800; line-height: 1.1; }
 .ss-home-weather-copy > span, .ss-home-wind-copy > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 600; color: #64748b; line-height: 1.2; }
+/* Missing weather must stay readable even though its details button is disabled. */
+.ss-home-weather-card:disabled .ss-home-weather-copy > span { white-space: normal; overflow: visible; text-overflow: clip; }
 .ss-home-wind-copy { gap: 4px; }
 .ss-home-wind-copy strong { font-size: 13px; font-weight: 800; line-height: 1.2; }
 .ss-home-wind-copy > span::before { content: '· '; }
@@ -52,4 +54,5 @@
 /* Above phone widths the header keeps the 390px phone layout instead of stretching. */
 @media (min-width: 480px) { .ss-map-first-topbar.ss-explore-topbar { right: auto; width: 358px; } }
 @media (max-width: 359px) { .ss-map-first-brand { width: 112px; object-fit: contain; } .ss-map-first-topbar-row { gap: 8px; } .ss-home-weather-card { column-gap: 5px; padding: 4px 8px 4px 6px; } .ss-map-first-search-icon { display: none; } .ss-home-search-row { gap: 8px; } .ss-map-first-search-pill { padding-left: 10px; gap: 4px; } }
+@media (max-width: 359px) { .ss-home-weather-card { padding-right: 6px; } .ss-home-wind-copy { gap: 2px; } .ss-home-wind-copy strong, .ss-home-wind-copy > span { font-size: 12px; } }
 @media (prefers-reduced-motion: reduce) { .ss-home-radar-track > span { transition: none; } }

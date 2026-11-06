@@ -31,18 +31,18 @@ export function formatScore(score) {
 const roundButton = 'ss-venue-round-button';
 
 // The handle retains the card's existing drag-to-close gesture.
-export function VenueHero({ onClose, onShare, shareLabel, canShare, saved, onToggleSave, onDragStart }) {
+export function VenueHero({ onClose, onShare, shareLabel, canShare, saved, onToggleSave, onDragStart, compact = false }) {
   return (
-    <div className="ss-venue-toolbar">
+    <div className="ss-venue-toolbar" aria-hidden={compact || undefined}>
       <div className="ss-venue-drag-target" onPointerDown={onDragStart} style={{ touchAction: 'none' }} aria-hidden="true">
         <span />
       </div>
       <div className="ss-venue-toolbar-actions">
-        <button type="button" onClick={onClose} className={roundButton} aria-label="Close venue details"><X size={20} /></button>
+        <button type="button" tabIndex={compact ? -1 : 0} onClick={onClose} className={roundButton} aria-label="Close venue details"><X size={20} /></button>
         <div className="flex gap-2">
-          <button type="button" onClick={onShare} disabled={!canShare} className={roundButton}
+          <button type="button" tabIndex={compact ? -1 : 0} onClick={onShare} disabled={!canShare} className={roundButton}
             aria-label={shareLabel === 'Share' ? 'Share venue' : shareLabel}><Share2 size={18} /></button>
-          <button type="button" onClick={onToggleSave} className={roundButton} aria-pressed={saved}
+          <button type="button" tabIndex={compact ? -1 : 0} onClick={onToggleSave} className={roundButton} aria-pressed={saved}
             aria-label={saved ? 'Saved on this device. Tap to remove' : 'Save on this device'}>
             <Heart size={18} className={saved ? 'fill-amber-300 text-amber-900' : ''} />
           </button>
