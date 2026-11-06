@@ -6055,6 +6055,9 @@ body,
 .ss-venue-list-card.ss-venue-list-card--paired,
 .ss-venue-list-card.ss-venue-list-card--paired:hover { box-shadow: inset 0 0 0 2px #fbbf24; }
 .ss-venue-list-card :is(.ss-stay-badge,.ss-stay-badge-row > span,.ss-stay-compare-toggle) { font-size: 13px; }
+/* Keep a stay's side and level readable beside its modelled-data label. */
+.ss-venue-list-card--sun-moment .ss-stay-badge-row { align-items: baseline; }
+.ss-venue-list-card--sun-moment .ss-stay-badge { white-space: normal; overflow: visible; text-overflow: clip; }
 .ss-vlc-amenities--row { flex-basis: 100%; margin: 0; }
 .ss-stay-chips button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; }
 .ss-stay-chips + .ss-stay-chips { margin-top: 6px; }

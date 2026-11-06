@@ -355,6 +355,10 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const [compact, setCompact] = useState(false);
   const compactRef = useRef(false);
   const scrollerRef = useRef(null);
+  const dialogRef = useRef(null);
+  const compactCloseRef = useRef(null);
+  const openerRef = useRef(null);
+  const returnFocusFrame = useRef(null);
   const now = useMinuteClock();
   const isReadyToFetch = useDeferredForecastReady(moreOpen, venue?.id ?? '');
   const auxEnabled = moreOpen && isReadyToFetch;
@@ -365,6 +369,38 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     setCompact(false);
     resetVenueDetailScroller(scrollerRef.current);
   }, [venue?.id]);
+
+  useLayoutEffect(() => {
+    cancelAnimationFrame(returnFocusFrame.current);
+    if (!openerRef.current) openerRef.current = document.activeElement;
+    const panel = dialogRef.current;
+    scrollerRef.current?.querySelector('[aria-label="Close venue details"]')?.focus({ preventScroll: true });
+    return () => {
+      // The list collapses when a venue opens, so its row may no longer be visible.
+      // Wait for that render before returning to the opener or the list handle.
+      returnFocusFrame.current = requestAnimationFrame(() => {
+        if ([...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some(element => element !== panel)) return;
+        const canFocus = element => element instanceof HTMLElement && element.isConnected && element.tabIndex >= 0 && !element.disabled && !element.closest('[inert]') && element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden';
+        const previous = openerRef.current;
+        // An exiting mobile list row can still be mounted during its animation.
+        const opener = !previous?.closest('.ss-mobile-sheet') && canFocus(previous) ? previous
+          : [...document.querySelectorAll('.ss-home-summary-copy'), document.querySelector('.ss-map-first-search-pill input')].find(canFocus);
+        opener?.focus({ preventScroll: true });
+      });
+    };
+  }, []);
+
+  const handleDialogKeyDown = event => {
+    // Sun Report and partner preview are separate, portalled dialogs.
+    if (event.defaultPrevented || !dialogRef.current?.contains(event.target)) return;
+    if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+    if (event.key !== 'Tab') return;
+    const controls = [...dialogRef.current.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')]
+      .filter(element => element.tabIndex >= 0 && !element.disabled && !element.closest('[aria-hidden="true"], [inert]') && element.getClientRects().length);
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  };
 
   useEffect(() => {
     if (!stayMatch?.bestRoom) return;
@@ -382,6 +418,11 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
       setCompact(show);
     }
   }, []);
+
+  useLayoutEffect(() => {
+    if (compact && document.activeElement?.closest('.ss-venue-toolbar')) compactCloseRef.current?.focus({ preventScroll: true });
+    else if (!compact && document.activeElement === compactCloseRef.current) scrollerRef.current?.querySelector('[aria-label="Close venue details"]')?.focus({ preventScroll: true });
+  }, [compact]);
 
   // Server-side microclimate for this venue, read at the time-of-day slider's
   // position. Same `venues_in_bbox` row + `todMinutes` the map markers and
@@ -572,6 +613,11 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
       <motion.div
         key={venueOverlayPresenceKey(venue?.id)}
         {...overlayMotionProps}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${displayName} details`}
+        onKeyDown={handleDialogKeyDown}
         className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/55"
         onClick={onClose}
       >
@@ -594,6 +640,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             aria-hidden={!compact}
           >
             <button
+              ref={compactCloseRef}
               type="button"
               onClick={onClose}
               tabIndex={compact ? 0 : -1}
@@ -623,6 +670,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white"
           >
             <VenueHero
+              compact={compact}
               onClose={onClose}
               onShare={share.share}
               shareLabel={share.shareLabel}

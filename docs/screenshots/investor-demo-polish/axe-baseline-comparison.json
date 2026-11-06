@@ -1,0 +1,110 @@
+{
+  "baselineCommit": "de1e4a8",
+  "method": "Detached baseline worktree; same fixture, advancing DateProxy, local fonts, native timers; normalise only generated React aria-controls IDs when comparing targets.",
+  "scans": [
+    {
+      "width": 390,
+      "state": "home",
+      "axeVersion": "4.14.0",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "baselineNodeCount": 3,
+      "currentNodeCount": 3,
+      "sameViolationTargetsIgnoringReactIds": true,
+      "baselineOverflow": false,
+      "currentOverflow": false
+    },
+    {
+      "width": 390,
+      "state": "list",
+      "axeVersion": "4.14.0",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "baselineNodeCount": 7,
+      "currentNodeCount": 7,
+      "sameViolationTargetsIgnoringReactIds": true,
+      "baselineOverflow": false,
+      "currentOverflow": false
+    },
+    {
+      "width": 390,
+      "state": "filters",
+      "axeVersion": "4.14.0",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "baselineNodeCount": 7,
+      "currentNodeCount": 7,
+      "sameViolationTargetsIgnoringReactIds": true,
+      "baselineOverflow": false,
+      "currentOverflow": false
+    },
+    {
+      "width": 320,
+      "state": "home",
+      "axeVersion": "4.14.0",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "baselineNodeCount": 3,
+      "currentNodeCount": 3,
+      "sameViolationTargetsIgnoringReactIds": true,
+      "baselineOverflow": false,
+      "currentOverflow": false
+    },
+    {
+      "width": 320,
+      "state": "list",
+      "axeVersion": "4.14.0",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "baselineNodeCount": 4,
+      "currentNodeCount": 4,
+      "sameViolationTargetsIgnoringReactIds": true,
+      "baselineOverflow": false,
+      "currentOverflow": false
+    },
+    {
+      "width": 320,
+      "state": "filters",
+      "axeVersion": "4.14.0",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "baselineNodeCount": 4,
+      "currentNodeCount": 4,
+      "sameViolationTargetsIgnoringReactIds": true,
+      "baselineOverflow": false,
+      "currentOverflow": false
+    },
+    {
+      "width": 1440,
+      "state": "home",
+      "axeVersion": "4.14.0",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "baselineNodeCount": 4,
+      "currentNodeCount": 4,
+      "sameViolationTargetsIgnoringReactIds": true,
+      "baselineOverflow": false,
+      "currentOverflow": false
+    },
+    {
+      "width": 1440,
+      "state": "filters",
+      "axeVersion": "4.14.0",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "baselineNodeCount": 4,
+      "currentNodeCount": 4,
+      "sameViolationTargetsIgnoringReactIds": true,
+      "baselineOverflow": false,
+      "currentOverflow": false
+    }
+  ]
+}
