@@ -2,64 +2,16 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import HourlyForecastStrip from './HourlyForecastStrip';
 import LiveSunTimeline from './LiveSunTimeline';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
-import { checkIfShaded } from '../utils/solarMath.js';
+import SunPathCard from './SunPathCard';
 import { resolveForecastView } from '../utils/resolveForecastView';
 import { noteSunForecast } from '../utils/sunForecastDiagnostics';
 import { traceMapOperation } from '../utils/mapOperationTrace';
 import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 
-const CARD =
-  'rounded-3xl border border-slate-900/[0.06] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-16px_rgba(15,23,42,0.18)]';
-
-function SolarPositionCard({ localSunData, sunWindow, venue, contextIsRaining, contextCloudCover }) {
-  if (!localSunData) return null;
-
-  const obstacleHeight = venue?.obstacle_height ?? 2;
-  const obstacleDistance = venue?.obstacle_distance ?? 1;
-  const isShaded = checkIfShaded(localSunData.altitude, obstacleHeight, obstacleDistance);
-  let statusText = '☀️ Direct Sun';
-  let statusClass = 'bg-amber-50 text-amber-800 border border-amber-500/20';
-
-  if (!localSunData.isSunUp) {
-    statusText = '🌙 Night (Sun is Down)';
-    statusClass = 'bg-slate-50 text-slate-700 border border-slate-900/[0.08]';
-  } else if (isShaded) {
-    statusText = '🏢 Shaded by Surroundings';
-    statusClass = 'bg-slate-50 text-slate-700 border border-slate-900/[0.08]';
-  } else if (contextIsRaining) {
-    statusText = '🌧️ Raining Currently';
-    statusClass = 'bg-slate-100 text-slate-700 border border-slate-900/[0.08]';
-  } else if (contextCloudCover > 75) {
-    statusText = '☁️ Overcast (Geometrically clear)';
-    statusClass = 'bg-slate-100 text-slate-700 border border-slate-900/[0.08]';
-  } else if (sunWindow) {
-    const timeStr = sunWindow.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    statusText = `☀️ Direct Sun (Until ${timeStr})`;
-  }
-
-  return (
-    <div className={`${CARD} flex flex-col gap-3 p-4`}>
-      <h3 className="text-[17px] font-bold tracking-[-0.01em] text-slate-900">Live 2D Solar Position</h3>
-      <div className="flex items-center justify-between gap-3 text-[15px]">
-        <span className="font-medium text-slate-600">Altitude (Elevation Angle)</span>
-        <span className="font-semibold tabular-nums text-slate-900">{localSunData.altitude?.toFixed(1) ?? '–'}°</span>
-      </div>
-      <div className="flex items-center justify-between gap-3 text-[15px]">
-        <span className="font-medium text-slate-600">Azimuth (Compass Angle)</span>
-        <span className="font-semibold tabular-nums text-slate-900">{localSunData.azimuth?.toFixed(1) ?? '–'}°</span>
-      </div>
-      <div className={`mt-1 flex min-h-11 items-center justify-center rounded-2xl px-3 text-center text-[15px] font-semibold ${statusClass}`}>
-        {statusText}
-      </div>
-    </div>
-  );
-}
-
 export default function SunForecastPanel({
   lat,
   lng,
   enabled = true,
-  localSunData,
   sunWindow,
   venue,
   contextIsRaining,
@@ -148,10 +100,11 @@ export default function SunForecastPanel({
       ) : null}
 
       <ForecastErrorBoundary key={venueId || 'venue'}>
-        <SolarPositionCard
-          localSunData={localSunData}
-          sunWindow={sunWindow}
+        <SunPathCard
+          lat={lat}
+          lng={lng}
           venue={venue}
+          sunWindow={sunWindow}
           contextIsRaining={contextIsRaining}
           contextCloudCover={contextCloudCover}
         />

@@ -215,6 +215,7 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
             'weather_code',
             'wind_speed_10m',
             'wind_gusts_10m',
+            'wind_direction_10m',
             'cloud_cover',
             'uv_index',
             'is_day',
@@ -282,7 +283,11 @@ const fetchOpenMeteoWeatherLive = async (lat, lon, signal) => {
             humidity: current.relative_humidity_2m ?? 50,
         },
         weather: [weatherDesc],
-        wind: { speed: (current.wind_speed_10m ?? 0) / 3.6 }, // convert kmh → m/s
+        wind: {
+            speed: (current.wind_speed_10m ?? 0) / 3.6, // convert kmh → m/s
+            // Meteorological convention: the bearing the wind blows FROM.
+            deg: Number.isFinite(current.wind_direction_10m) ? current.wind_direction_10m : null,
+        },
         clouds: { all: cloudCover },
         uvi: uvIndex,
         sys: {
