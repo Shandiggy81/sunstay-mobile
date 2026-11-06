@@ -35,7 +35,16 @@ test('sun report puts best sides first and keeps year and season details accessi
   await expect(moments).toHaveCount(4);
   for (const [index, title] of ['Morning coffee', 'Long lunch', 'Afternoon', 'Sunset drinks'].entries()) {
     await expect(moments.nth(index)).toContainText(title);
+    // Each moment says when its best side's sun comes, or that no side gets any.
+    await expect(moments.nth(index)).toContainText(/Sun \d|No direct sun/);
   }
+  // 19 Oct: the north side has lunch sun throughout; the east side's 85 minutes
+  // of morning sun cover less than half of 6 to 10am, so they read "only".
+  await expect(moments.nth(1)).toContainText('North side');
+  await expect(moments.nth(1)).toContainText('Sun 12 to 2:30pm');
+  await expect(moments.nth(0)).toContainText('East side');
+  await expect(moments.nth(0)).toContainText(/Sun \d.* only/);
+  await expect(report.locator('.ss-sun-report__footer')).toContainText('less than half of that time of day');
 
   const sides = report.locator('.ss-sun-report__side-toggle');
   await expect(sides.first()).toHaveAttribute('aria-expanded', 'true');

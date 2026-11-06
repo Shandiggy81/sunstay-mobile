@@ -107,6 +107,7 @@ function RoomReport({ room, side, year, sharedMax, initiallyOpen, showEvidence }
                 {row.cells.map((cell, index) => <td key={table.columns[index].key}>
                   <span className={`ss-sun-report__season-status ss-sun-report__season-status--${cell}`}>
                     {cell === 'sun' ? <><ClayIcon name="sun" size={18} />Sun</>
+                      : cell === 'some' ? <><ClayIcon name="sun" size={18} className="ss-sun-report__some-sun" />Some sun</>
                       : cell === 'shade' ? <><span className="ss-sun-report__shade-dot" aria-hidden="true" />Shade</> : 'Unavailable'}
                   </span>
                 </td>)}
@@ -275,7 +276,10 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
               <ul>{bestSideRows(report).map(moment => <li key={moment.key}>
                 <ClayIcon name={moment.icon} size={32} />
                 <span className="ss-sun-report__summary-moment"><strong>{moment.title}</strong><span>{moment.window}</span></span>
-                <span className={`ss-sun-report__summary-side${moment.side === null ? ' ss-sun-report__summary-side--empty' : ''}`}>{moment.side ?? 'No direct sun'}</span>
+                {moment.side === null ? <span className="ss-sun-report__summary-side ss-sun-report__summary-side--empty">No direct sun</span>
+                  : <span className={`ss-sun-report__summary-side${moment.fit === 'some' ? ' ss-sun-report__summary-side--some' : ''}`}>
+                    <strong>{moment.side}</strong>{moment.sun && <span>{moment.sun}</span>}
+                  </span>}
               </li>)}</ul>
             </section>}
             {report.rooms.length ? <section className="ss-sun-report__sides" aria-labelledby={`${titleId}-sides`}>
@@ -284,7 +288,7 @@ export default function HotelSunReport({ venue, onClose, loading = false }) {
               {sideRows(report.rooms).map((side, index) => <RoomReport key={side.id} side={side} room={report.rooms[index]} year={report.year}
                 sharedMax={reportMaxHours(report.rooms)} initiallyOpen={side.id === firstOpenSide} showEvidence={evidence === null} />)}
             </section> : <p className="ss-sun-report__notice">Sun by side of the building is not available for this hotel yet.</p>}
-            <footer className="ss-sun-report__footer">Estimates from the sun&apos;s path and nearby buildings, not a weather forecast. Cloud, curtains and unrecorded obstructions can change the sun you get. The year uses the 15th of each month in {report.year}; summer and winter use 15 January and 15 July in the hotel&apos;s local time.</footer>
+            <footer className="ss-sun-report__footer">Estimates from the sun&apos;s path and nearby buildings, not a weather forecast. Cloud, curtains and unrecorded obstructions can change the sun you get. &ldquo;Only&rdquo; and &ldquo;Some sun&rdquo; mean direct sun for less than half of that time of day. The year uses the 15th of each month in {report.year}; summer and winter use 15 January and 15 July in the hotel&apos;s local time.</footer>
           </>}
       </main>
     </div>, document.body,

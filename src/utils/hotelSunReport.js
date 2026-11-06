@@ -19,7 +19,7 @@ function coordinate(value) {
 
 function momentsFor(daily, timeZone) {
   return sunMomentsFromDay({ daily, timeZone }).moments.map(({ key, title, icon, available, windows }) => ({
-    key, title, icon, available,
+    key, title, icon, available, windows,
     minutes: windows.reduce((sum, { start, end }) => sum + (end - start) / 60000, 0),
   }));
 }
@@ -99,8 +99,10 @@ export function buildHotelSunReport(venue, { now = new Date(), date } = {}) {
   for (const room of rooms) {
     for (const month of room.monthly) month.barPercent = maximum > 0 ? month.totalMinutes / maximum * 100 : 0;
   }
+  // `windows` are the winning side's direct-sun windows inside the moment, so
+  // the report can say when the sun is there, not only which side gets most.
   const summary = SUN_MOMENTS.map(({ key, title, icon }) => {
-    let roomName = null, minutes = 0;
+    let roomName = null, minutes = 0, windows = [];
     for (const record of ordered) {
       if (!record.daily || record.daily.totalMinutes <= 0) continue;
       const moment = record.moments.find((item) => item.key === key);
@@ -108,9 +110,10 @@ export function buildHotelSunReport(venue, { now = new Date(), date } = {}) {
       if (moment.available && moment.minutes > minutes) {
         roomName = record.result.name;
         minutes = moment.minutes;
+        windows = moment.windows;
       }
     }
-    return { key, title, icon, roomName, minutes };
+    return { key, title, icon, roomName, minutes, windows };
   });
   // Every side shares the hotel's location, so any calculated side gives
   // today's sunset (the end of the sunset drinks window). Null without one.

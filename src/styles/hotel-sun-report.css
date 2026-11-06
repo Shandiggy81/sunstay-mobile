@@ -58,6 +58,9 @@
 .ss-sun-report__summary-moment strong { font-size: 14px; font-weight: 700; line-height: 1.4; }
 .ss-sun-report__summary-moment > span { color: #64748b; font-size: 13px; line-height: 1.5; }
 .ss-sun-report__summary-side { min-width: 0; color: #0f172a; font-size: 14px; font-weight: 700; line-height: 1.4; text-align: right; overflow-wrap: anywhere; }
+.ss-sun-report__summary-side > strong { display: block; font: inherit; }
+.ss-sun-report__summary-side > span { display: block; margin-top: 2px; color: #64748b; font-size: 13px; font-weight: 500; line-height: 1.5; }
+.ss-sun-report__summary-side--some > strong { color: #475569; font-weight: 600; }
 .ss-sun-report__summary-side--empty { color: #64748b; font-size: 13px; font-weight: 500; }
 
 .ss-sun-report__sides { margin-top: 26px; }
@@ -86,6 +89,8 @@
 .ss-sun-report__moment-title > img { flex-shrink: 0; }
 .ss-sun-report__season-status { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; color: #64748b; font-size: 13px; font-weight: 500; line-height: 1.4; }
 .ss-sun-report__season-status--sun { color: #92400e; font-weight: 700; }
+.ss-sun-report__season-status--some { color: #92400e; }
+.ss-sun-report__some-sun { opacity: 0.5; }
 .ss-sun-report__season-status--shade { font-weight: 600; }
 .ss-sun-report__season-status--unknown { overflow-wrap: anywhere; }
 .ss-sun-report__shade-dot { display: inline-block; width: 14px; height: 14px; border: 1px solid #94a3b8; border-radius: 50%; flex-shrink: 0; }

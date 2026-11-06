@@ -234,3 +234,30 @@ describe('hotel Sun report sunset', () => {
     assert.equal(buildHotelSunReport(hotel([]), { date: DATE }).sunset, null);
   });
 });
+
+describe('hotel Sun report recommendation windows', () => {
+  it('gives each recommendation the winning side’s sun windows inside the moment, adding up to its minutes', () => {
+    const venue = hotel([west, north, east]);
+    const report = buildHotelSunReport(venue, { date: DATE });
+    for (const recommendation of report.summary) {
+      assert.ok(recommendation.roomName, recommendation.key);
+      const room = venue.roomTypes.find(({ name }) => name === recommendation.roomName);
+      const moment = sunMomentsFromDay({ daily: calculateBalconySunDay(options(room)), timeZone: LOCATION.timeZone })
+        .moments.find(({ key }) => key === recommendation.key);
+      assert.deepEqual(recommendation.windows, moment.windows);
+      assert.equal(recommendation.minutes, overlapMinutes(moment));
+      const daily = calculateBalconySunDay(options(room));
+      for (const { start, end } of recommendation.windows) {
+        assert.ok(start < end);
+        assert.ok(daily.windows.some(sun => sun.start <= start && end <= sun.end), 'inside a sun window of that side');
+      }
+    }
+  });
+
+  it('has no windows when no side gets sun at that time', () => {
+    const blocked = { ...north, obstructions: [{ start: 0, end: 360, minAltitude: 90 }] };
+    const report = buildHotelSunReport(hotel([blocked]), { date: DATE });
+    assert.ok(report.summary.every(({ roomName, minutes, windows }) => roomName === null && minutes === 0 && windows.length === 0));
+    assert.ok(buildHotelSunReport(hotel([]), { date: DATE }).summary.every(({ windows }) => Array.isArray(windows) && windows.length === 0));
+  });
+});
