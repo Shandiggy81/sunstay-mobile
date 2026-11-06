@@ -43,24 +43,91 @@ export function homeConditions(weather) {
     return 'fair';
 }
 
-const SHELTER_TAGS = new Set(['covered', 'undercover', 'indoor', 'indoors', 'cozy', 'cosy', 'enclosed']);
+/**
+ * Each declared comfort fact on its own, so the comfort tier and the reason
+ * shown for it come from the same facts. Never a live status.
+ */
+function declaredComfort(venue) {
+    const warmth = warmthForVenue(venue).map(item => item.icon);
+    const heating = normaliseTag(venue?.heating);
+    const tags = new Set((Array.isArray(venue?.tags) ? venue.tags : []).map(normaliseTag));
+    return {
+        fireplace: warmth.includes('fireplace') || venue?.hasFireplace === true,
+        indoorWarmth: warmth.includes('indoor-warmth'),
+        heatedIndoors: heating === 'indoor only',
+        heaters: warmth.includes('heater'),
+        covered: tags.has('covered') || tags.has('undercover'),
+        indoorSeating: tags.has('indoor') || tags.has('indoors'),
+        enclosed: tags.has('enclosed'),
+        rainCover: (finiteOrNull(venue?.shielding?.rainCover) ?? 0) > 80,
+        cosy: venue?.hasCozy === true || tags.has('cozy') || tags.has('cosy'),
+        windbreak: (finiteOrNull(venue?.shielding?.windbreak) ?? 0) > 70,
+    };
+}
 
 /**
  * The venue's own declared comfort facts. Never a live status and never
  * guessed: most venues have an indoor area, but only declared facts count.
  */
 export function venueComfort(venue) {
-    const warmth = warmthForVenue(venue).map(item => item.icon);
-    const heating = normaliseTag(venue?.heating);
-    const tags = (Array.isArray(venue?.tags) ? venue.tags : []).map(normaliseTag);
-    const indoorWarm = warmth.includes('fireplace') || warmth.includes('indoor-warmth')
-        || venue?.hasFireplace === true || heating === 'indoor only';
-    const outdoorHeat = warmth.includes('heater');
-    const sheltered = indoorWarm || venue?.hasCozy === true
-        || tags.some(tag => SHELTER_TAGS.has(tag))
-        || (finiteOrNull(venue?.shielding?.rainCover) ?? 0) > 80;
-    const windbreak = sheltered || (finiteOrNull(venue?.shielding?.windbreak) ?? 0) > 70;
+    const f = declaredComfort(venue);
+    const indoorWarm = f.fireplace || f.indoorWarmth || f.heatedIndoors;
+    const outdoorHeat = f.heaters;
+    const sheltered = indoorWarm || f.cosy || f.covered || f.indoorSeating || f.enclosed || f.rainCover;
+    const windbreak = sheltered || f.windbreak;
     return { indoorWarm, outdoorHeat, sheltered, windbreak };
+}
+
+// What each fact says on a list row: the venue's own attribute, using the
+// labels "What this venue offers" and the Shelter panel already use. Never a
+// conclusion the data can't support ("dry", "lit", "sheltered from the wind").
+// Frozen and shared, so a memoised list row sees the same object each render.
+const REASONS = Object.freeze(Object.fromEntries(Object.entries({
+    fireplace: { text: 'Fireplace', icon: 'fireplace' },
+    indoorWarmth: { text: 'Warm indoor space', icon: 'indoor-warmth' },
+    heatedIndoors: { text: 'Heated indoors', icon: 'indoor-warmth' },
+    heaters: { text: 'Outdoor heaters', icon: 'heater' },
+    covered: { text: 'Covered seating', icon: 'umbrella' },
+    indoorSeating: { text: 'Indoor seating', icon: 'indoor-warmth' },
+    enclosed: { text: 'Enclosed area', icon: 'pergola' },
+    rainCover: { text: 'Rain cover', icon: 'umbrella' },
+    cosy: { text: 'Cosy', icon: 'indoor-warmth' },
+    windbreak: { text: 'Windbreak', icon: 'wind-sheltered' },
+}).map(([key, reason]) => [key, Object.freeze({ key, ...reason })])));
+const WARM_INSIDE = ['fireplace', 'indoorWarmth', 'heatedIndoors'];
+const SHELTER = ['covered', 'indoorSeating', 'enclosed', 'rainCover', 'cosy'];
+// Strongest first: the facts behind the higher comfort tier lead.
+const REASON_ORDER = Object.freeze({
+    wet: [...WARM_INSIDE, ...SHELTER],
+    cold: [...WARM_INSIDE, 'heaters'],
+    windy: [...WARM_INSIDE, ...SHELTER, 'windbreak'],
+});
+
+/**
+ * Why a venue leads the list in this weather: the declared fact behind its
+ * comfortTier ("Fireplace", "Covered seating", "Outdoor heaters"), or null
+ * when it has none for this condition. Null exactly when comfortTier is 0, so
+ * a row never shows a reason the ranking didn't use.
+ * @returns {Readonly<{ key: string, text: string, icon: string }>|null} shared, frozen
+ */
+export function comfortReason(venue, kind) {
+    const order = REASON_ORDER[kind];
+    if (!order) return null;
+    const facts = declaredComfort(venue);
+    const key = order.find(name => facts[name]);
+    return key ? REASONS[key] : null;
+}
+
+/**
+ * The reason for a list row: comfortReason, left out when the venue's live
+ * note already says it ("Fireplace lit now" beside "Fireplace"). `live` is
+ * liveWarmth(), the venue's own switches from the partner preview.
+ */
+export function rowComfortReason(venue, kind, { fireplaceOn = false, heatersOn = false } = {}) {
+    const reason = comfortReason(venue, kind);
+    if (reason?.key === 'fireplace' && fireplaceOn === true) return null;
+    if (reason?.key === 'heaters' && heatersOn === true) return null;
+    return reason;
 }
 
 /**

@@ -106,3 +106,68 @@ test('sort chip names the comfort order only when it applies', async () => {
     assert.equal(comfortSortLabel([fire], 'grey'), null);
     assert.equal(comfortSortLabel([fire], null), null);
 });
+
+test('reason: the declared fact behind the comfort tier, strongest first', async () => {
+    const { comfortReason } = await import('./homeConditions.js');
+    const text = (venue, kind) => comfortReason(venue, kind)?.text ?? null;
+    for (const kind of ['wet', 'cold', 'windy']) {
+        assert.equal(text(fire, kind), 'Fireplace', kind);
+        assert.equal(text(electric, kind), 'Fireplace', kind);
+        assert.equal(text({ hasFireplace: true }, kind), 'Fireplace', kind);
+        assert.equal(text({ tags: ['Indoor Warmth'] }, kind), 'Warm indoor space', kind);
+        assert.equal(text(indoor, kind), 'Heated indoors', kind);
+    }
+    // Outdoor heaters warm you but do not keep you dry, as in comfortTier.
+    assert.deepEqual(['wet', 'cold', 'windy'].map(kind => text(heaters, kind)), [null, 'Outdoor heaters', null]);
+    assert.deepEqual(['wet', 'cold', 'windy'].map(kind => text(covered, kind)), ['Covered seating', null, 'Covered seating']);
+    assert.deepEqual(['wet', 'cold', 'windy'].map(kind => text(cozy, kind)), ['Cosy', null, 'Cosy']);
+    assert.deepEqual(['wet', 'cold', 'windy'].map(kind => text(windbreak, kind)), [null, null, 'Windbreak']);
+    assert.equal(text({ tags: ['Undercover'] }, 'wet'), 'Covered seating');
+    assert.equal(text({ tags: ['Indoors'] }, 'wet'), 'Indoor seating');
+    assert.equal(text({ tags: ['Enclosed'] }, 'wet'), 'Enclosed area');
+    assert.equal(text({ shielding: { rainCover: 90 } }, 'wet'), 'Rain cover');
+    assert.equal(text({ shielding: { rainCover: 80 } }, 'wet'), null, 'over 80, as comfortTier');
+    // The higher tier's fact leads: a fireplace beats cover, heaters or a cosy flag.
+    assert.equal(text({ heating: 'heated outdoor', hasFireplace: true, shielding: { rainCover: 95 } }, 'wet'), 'Fireplace');
+    assert.equal(text({ heating: 'heated outdoor', hasFireplace: true }, 'cold'), 'Fireplace');
+    assert.equal(text({ tags: ['Cozy', 'Covered'], hasCozy: true }, 'wet'), 'Covered seating');
+    assert.deepEqual(comfortReason(fire, 'wet'), { key: 'fireplace', text: 'Fireplace', icon: 'fireplace' });
+    assert.deepEqual(comfortReason(heaters, 'cold'), { key: 'heaters', text: 'Outdoor heaters', icon: 'heater' });
+});
+
+test('reason: nothing for fine weather, unknown conditions or undeclared venues', async () => {
+    const { comfortReason } = await import('./homeConditions.js');
+    for (const kind of ['fair', 'grey', null, undefined, 'snow']) assert.equal(comfortReason(fire, kind), null, String(kind));
+    for (const venue of [plain, noHeat, { heating: 'no fireplace' }, { hasFireplace: 'yes' }, { hasCozy: 'true' }, {}, null, undefined]) {
+        for (const kind of ['wet', 'cold', 'windy']) assert.equal(comfortReason(venue, kind), null, `${JSON.stringify(venue)} ${kind}`);
+    }
+});
+
+test('reason: shown exactly when the ranking used comfort, and never claims a live status', async () => {
+    const { comfortReason } = await import('./homeConditions.js');
+    const { demoVenues } = await import('../data/demoVenues.js');
+    const fixtures = [fire, electric, indoor, heaters, covered, cozy, windbreak, plain, noHeat];
+    const texts = new Set();
+    for (const venue of [...fixtures, ...demoVenues]) {
+        for (const kind of ['wet', 'cold', 'windy', 'grey', 'fair', null]) {
+            const reason = comfortReason(venue, kind);
+            assert.equal(reason !== null, comfortTier(venue, kind) > 0, `${venue.id} ${kind}`);
+            if (reason) texts.add(reason.text);
+        }
+    }
+    assert.ok(texts.size >= 5, [...texts].join(', '));
+    for (const value of texts) assert.doesNotMatch(value, /\b(lit|on|now|open|dry|guaranteed)\b/i, value);
+});
+
+test('row reason: shared objects, and left out when the live note already says it', async () => {
+    const { comfortReason, rowComfortReason } = await import('./homeConditions.js');
+    assert.equal(comfortReason(fire, 'wet'), comfortReason(electric, 'cold'), 'same object, so memoised rows do not re-render');
+    assert.ok(Object.isFrozen(comfortReason(fire, 'wet')));
+    assert.equal(rowComfortReason(fire, 'wet'), comfortReason(fire, 'wet'));
+    assert.equal(rowComfortReason(fire, 'wet', { fireplaceOn: true }), null, '"Fireplace lit now" already says it');
+    assert.equal(rowComfortReason(fire, 'wet', { heatersOn: true }), comfortReason(fire, 'wet'));
+    assert.equal(rowComfortReason(heaters, 'cold', { heatersOn: true }), null, '"Heaters on now" already says it');
+    assert.equal(rowComfortReason(covered, 'wet', { fireplaceOn: true, heatersOn: true }), comfortReason(covered, 'wet'));
+    assert.equal(rowComfortReason(fire, 'fair', { fireplaceOn: true }), null);
+    assert.equal(rowComfortReason(fire, 'wet', { fireplaceOn: 'yes' }), comfortReason(fire, 'wet'));
+});

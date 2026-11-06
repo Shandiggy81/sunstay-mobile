@@ -54,3 +54,34 @@ test('home sheet: a full-sun count keeps the sun icon', async ({ page, baseURL }
   await expect(clause(page).locator('img')).toHaveAttribute('src', clayIcon('sun'));
   expect(errors, 'Unhandled browser errors').toEqual([]);
 });
+
+const list = page => page.locator('.ss-mobile-sheet');
+async function openList(page) {
+  await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+  await expect(list(page).getByRole('button', { name: /^Venue: / }).first()).toBeVisible();
+}
+
+test('venue list: in rain, cosy venues lead and each row says why', async ({ page, baseURL }, testInfo) => {
+  const errors = await boot(page, baseURL, melbourne(11), rainy);
+  await openList(page);
+  await expect(list(page).locator('.ss-explore-sort')).toHaveText('Cosy and dry first');
+  // Warm indoor spaces rank first in rain. The row names the venue's own declared
+  // fact, never a live status such as a lit fire.
+  const first = list(page).getByRole('button', { name: /^Venue: / }).first();
+  const reason = first.locator('.ss-vlc-moment');
+  await expect(reason).toHaveText(/^(Fireplace|Warm indoor space|Heated indoors)$/);
+  const text = await reason.innerText();
+  expect(await first.getAttribute('aria-label')).toContain(`. ${text}. `);
+  const screenshot = testInfo.outputPath('rain-list-390.png');
+  await page.screenshot({ path: screenshot });
+  await testInfo.attach('Rainy list at 390×844', { path: screenshot, contentType: 'image/png' });
+  expect(errors, 'Unhandled browser errors').toEqual([]);
+});
+
+test('venue list: a fine day stays sunniest first, with no comfort reasons', async ({ page, baseURL }) => {
+  const errors = await boot(page, baseURL, melbourne(11));
+  await openList(page);
+  await expect(list(page).locator('.ss-explore-sort')).toHaveText('Sunniest first');
+  await expect(list(page).locator('.ss-vlc-moment')).toHaveCount(0);
+  expect(errors, 'Unhandled browser errors').toEqual([]);
+});
