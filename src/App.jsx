@@ -1,7 +1,7 @@
 import './components/ExplorePresentation.css';
 import './components/MapFirstHome.css';
 import { homeSheetClause, mapHomeSummary } from './utils/mapHomeSummary.js';
-import { comfortSortLabel, homeConditions, rankForConditions } from './utils/homeConditions.js';
+import { comfortSortLabel, homeConditions, rankForConditions, rowComfortReason } from './utils/homeConditions.js';
 import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, lazy, memo } from 'react';
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
@@ -9,7 +9,7 @@ import { lookupMicroclimateEntry, markerScoreFromMicroclimate, readMicroclimate 
 import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { scoreDisplayState } from './utils/scoreDisplay.js';
-import { liveWarmthNote } from './utils/venueFeaturePin.js';
+import { liveWarmth, liveWarmthNote } from './utils/venueFeaturePin.js';
 import { readVenueLinkId, resolveVenueLink, venueLinkUrl, venueUrlChange } from './utils/venueLink.js';
 import { isPropertyVenue, isStayVenue, matchesPropertyTypeFilters, PROPERTY_FILTERS } from './utils/propertyTypes';
 import { homesEmptyState, includeNonStayResults } from './utils/propertyResults.js';
@@ -224,7 +224,7 @@ const CafeRowSunGraph = memo(function CafeRowSunGraph({ sun }) {
     );
 });
 
-const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys, isHighlighted = false, onVenueHover, horizon = null, isNight = false, isRain = false, liveNote = null }) => {
+const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMoment, compared, onCompare, compareFull, activeFilters, momentKeys, isHighlighted = false, onVenueHover, horizon = null, isNight = false, isRain = false, liveNote = null, comfort = null }) => {
     // Read from context: the list never passed this prop, so venues without a
     // microclimate profile showed no badge.
     const { calculateSunScore, unavailable: weatherUnavailableFlag, error: weatherError } = useWeather();
@@ -312,7 +312,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
             onPointerLeave={unhover('pointer')}
             onFocus={hover('focus')}
             onBlur={unhover('blur')}
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''}${liveNote ? ` ${liveNote}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? (badgeState === 'night' ? ' Sun score not shown after dark.' : badgeState === 'rain' ? ' Sun score not shown while it rains.' : ` Sun score ${sunstayScore} out of 100.`) : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
+            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''}${liveNote ? ` ${liveNote}.` : ''}${comfort ? ` ${comfort.text}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? (badgeState === 'night' ? ' Sun score not shown after dark.' : badgeState === 'rain' ? ' Sun score not shown while it rains.' : ` Sun score ${sunstayScore} out of 100.`) : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
             className={`ss-venue-list-card ${!isStay ? 'ss-explore-row' : ''} ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
             id={`venue-list-${venue.id}`}
         >
@@ -328,6 +328,8 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                     {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
                     {!(stayMoment && isStay) && sunLine && <p className="ss-vlc-sun-line" aria-hidden="true" title={sunLine}>{sunLine}</p>}
                     {liveNote && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name="fireplace" size={18} /><span>{liveNote}</span></p>}
+                    {/* Wet, cold or windy: the declared fact that put this venue near the top. */}
+                    {comfort && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={comfort.icon} size={18} /><span>{comfort.text}</span></p>}
                     {momentMatch && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={momentMatch.icon} size={18} /><span>{momentMatch.text}</span></p>}
                 </div>
                 <div className="ss-vlc-right">
@@ -391,6 +393,7 @@ const LiveVenueList = memo(function LiveVenueList({
     stayMoment, comparedIds = [], onCompare,
     activeFilters, sunMomentsById,
     highlightedVenueId = null, onVenueHover, sunHorizons = null, isNight = false, isRain = false, liveVenueFeatures = null,
+    comfortKind = null,
 }) {
     if (venues.length === 0) {
         return (
@@ -439,6 +442,7 @@ const LiveVenueList = memo(function LiveVenueList({
                         isNight={isNight}
                         isRain={isRain}
                         liveNote={liveWarmthNote(liveVenueFeatures?.[venue.id])}
+                        comfort={rowComfortReason(venue, comfortKind, liveWarmth(liveVenueFeatures?.[venue.id]))}
                     />
                 )}
             />
@@ -1428,6 +1432,7 @@ const AppContent = () => {
                                         isNight={cityNight}
                                         isRain={cityRain}
                                         liveVenueFeatures={liveVenueFeatures}
+                                        comfortKind={comfortSort ? listCondition : null}
                                         weather={weather}
                                         activeFilters={activeFilters}
                                         sunMomentsById={sunMomentsById}
@@ -1679,6 +1684,7 @@ const AppContent = () => {
                                             isNight={cityNight}
                                             isRain={cityRain}
                                             liveVenueFeatures={liveVenueFeatures}
+                                            comfortKind={comfortSort ? listCondition : null}
                                             weather={weather}
                                             activeFilters={activeFilters}
                                             sunMomentsById={sunMomentsById}
