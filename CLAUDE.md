@@ -2,8 +2,8 @@
 
 # SunStay — Claude Code guide
 
-AGENTS.md (above) holds the shared commands, test recipes, browser-verification and Netlify
-deploy checks. Its Cursor Cloud VM steps (tmux, xdotool, X11 capture) live in
+AGENTS.md (above) holds the shared commands, test recipes and browser-verification notes; the
+offline-emulation and Netlify deploy-check recipes it links are in `docs/agents/`. Its Cursor Cloud VM steps (tmux, xdotool, X11 capture) live in
 `docs/agents/cursor-vm.md` and do not apply on Windows or in the Claude Code cloud container,
 where you run `npm run dev` directly. This file adds repository facts and rules for Claude Code.
 
@@ -23,11 +23,15 @@ JavaScript/JSX. npm with `package-lock.json`. Hosted on Netlify (`netlify.toml`,
 - `npm run build` — `vite build`; manual chunks `vendor`, `map`, `ui`, `mapsgl`
 - `npm run preview` — `vite preview`
 - `npm test` — `node --test src/utils/*.test.js src/hooks/*.test.js`
+- `npm run test:smoke` — `playwright test`: the browser suite in `e2e/` at 390×844 (see `e2e/README.md`).
+  Needs Chromium; no API credentials.
+- `bash scripts/cloud-setup.sh` — install step for a Claude Code cloud environment (`npm ci` plus Chromium).
 - `npm run seed` — `node scripts/seedVenues.js`. Do not run without explicit approval.
 - There is no lint or typecheck script.
 
 ## Testing
-- Node's built-in test runner only; no jest, vitest or React Testing Library.
+- Unit tests use Node's built-in test runner only; no jest, vitest or React Testing Library.
+  Browser behaviour is covered by the Playwright specs in `e2e/`, which CI runs after the build.
 - Test files must be in `src/utils/` or `src/hooks/` and end in `.test.js`, or the glob skips them.
 - Components are not unit-tested. Put logic in pure helpers under `src/utils/` and test those;
   verify components in a browser.
@@ -56,30 +60,11 @@ JavaScript/JSX. npm with `package-lock.json`. Hosted on Netlify (`netlify.toml`,
   defers forecast fetching (`useDeferredForecastReady`), and calls the OpenAQ, Tomorrow.io and OpenUV hooks.
 
 ## Map lifecycle (src/components/Map/VenueMap.jsx)
-Read this section and the helpers below before editing the map.
-- Helpers, all unit-tested: `src/utils/mapLifecycle.js`, `mapRecovery.js`, `mapGpuGuard.js`,
-  `mapMarkerLifecycle.js`, `webglRecoveryView.js`.
-- Init: `claimMapboxMount` lock, then `new mapboxgl.Map` with the `mapbox://styles/mapbox/standard`
-  style, `maxBounds` (greater Melbourne), zoom 9–18, pitch 45. Requires a `pk.` token or the map shows an error state.
-- Mobile GPU limits (`mapMemoryOptions`, `suppressMobileGpuLayers`): no antialias, tile cache 10
-  (desktop 20), Standard 3D objects hidden, terrain and extrusion layers suppressed.
-- Generations: each map instance has a generation number. Camera timers, flyTo, resize and marker
-  sync run only for the current generation (`dispatchGenerationCallback`, `markerSyncAfterRestore`);
-  callbacks from a retired generation are ignored.
-- Markers: DOM `mapboxgl.Marker`s synced from a clustered GeoJSON source through
-  `mapMarkerLifecycle` (`syncMarkerLayer`, `releaseMarkerRecords`, a sync scheduler).
-- Resize: a debounced `ResizeObserver`, plus a `pageshow`/`visibilitychange` handler that calls
-  `resize()` and `triggerRepaint()` when a stale tab returns.
-- WebGL context loss: a capture-phase `webglcontextlost` handler marks the generation stale,
-  captures the camera, sends a Sentry `WebGL Context Lost` warning, pauses the recovery state
-  machine, and tears the map down with `releaseMapOwners` (markers, listeners, canvas reset, `map.remove()`).
-- Resume is manual: the user taps "Resume map". Recovery allows one resume per session after a
-  5 s cooldown; a second context loss locks the session. A resume creates a new generation and
-  restores the camera with `jumpTo`.
-- `MapErrorBoundary` is separate: it catches React render errors and retries once after 3 s.
-- Pins and clusters are map-aligned, so they tilt with the pitch. Their hit boxes use
-  `--ss-pin-hit-height` from `pinHitHeight(pitch)` (`src/utils/sunPin.js`), set on load and `pitchend`,
-  which keeps them 44 px tall on screen.
+Read [`docs/agents/map-lifecycle.md`](docs/agents/map-lifecycle.md) before editing the map or its helpers
+(`src/utils/mapLifecycle.js`, `mapRecovery.js`, `mapGpuGuard.js`, `mapMarkerLifecycle.js`,
+`webglRecoveryView.js`). It covers init, mobile GPU limits, generations, markers, resize and WebGL
+context loss. The rules that always apply: recovery is manual ("Resume map"), one resume per
+session, and no automatic WebGL retry loops.
 
 ## Monitoring
 - `@sentry/react` is initialised in `src/main.jsx`. It sends only when `VITE_SENTRY_DSN` is set;
@@ -168,45 +153,22 @@ Every `VITE_*` value is compiled into the browser bundle. See `.env.example`.
 - Separate automated validation from physical-device-only validation.
 - Do not run `npm run seed` without explicit approval.
 
+## Working cheaply
+- Never read `src/index.css`, `src/components/Map/VenueMap.jsx` or `src/App.jsx` whole (each is over
+  100 KB). Search for the selector or symbol, then read only those lines.
+- Do not read `docs/screenshots/` JSON or the old root reports (`CODE_AUDIT_REPORT.md`,
+  `QUICK_FIX_GUIDE.md`, `ARCHITECTURE_OPTIMIZATIONS.md`, `ERROR_REPORT.md`) unless the task names them.
+- Model choice: Opus 5.5 for everyday work (Codex prompts, small UI reviews, CSS, copy, pure helpers
+  with tests, preview checks). Use Fable 5.2 for the map lifecycle and WebGL recovery, the sun engine
+  and room profiles, Supabase migrations, RLS and Edge Functions, changes that cut across `App.jsx`,
+  and production incidents.
+- Review a PR against [`docs/agents/pr-review-checklist.md`](docs/agents/pr-review-checklist.md).
+
 ## Known risks and gaps
-
-### Verified repository facts
-- Third-party keys (Mapbox, Xweather, OpenWeatherMap, OpenAQ, OpenUV, Tomorrow.io) are `VITE_*`
-  variables and ship in the client bundle; they are not proxied server-side.
-- `OwnerDashboard` has no sign-in gate and cannot persist owner edits; `sunstay-admin` has sign-in
-  but no venue editing. Real owner editing needs an authenticated, server-side write path.
-- `chat-sunny` accepts the public anon key as its bearer token. Its limits (`limits.js`) are per
-  instance and in memory, so they cap bursts but are not a global quota.
-- Mapbox tokens and a Supabase publishable key appear in earlier Git history.
-- `src/index.css` still has 45 `backdrop-filter` lines; Xweather radar, cloud tiles and the comfort
-  heatmap are optional map layers.
-- No component tests, lint script or typecheck script.
-- Venue data lives in several files: the app uses Supabase with `src/data/demoVenues.js` as the
-  fallback; `src/data/venues.js` and `src/data/seedVenues.js` are used only by `scripts/`.
-- Rain radar verified on production 2026-11-03 (#286): the Netlify Xweather key authenticates and
-  radar tiles load. VenueMap waits for the MapsGL controller (`whenControllerReady`,
-  `src/utils/mapsglReady.js`) before adding the layer. App owns `radarOn`, shared by the
-  header switch and the map's layers menu.
-- The Xweather `Account` matches the installed SDK (@xweather/mapsgl 1.9.4,
-  `constructor(id: string, secret: string, serverOverrides?)`): VenueMap calls
-  `new Account(id, secret)` with the pair from `parseXweatherCredentials`, and passes it to
-  `new MapboxMapController(map, { account })`.
-- Open-Meteo's free API is for non-commercial use only (https://open-meteo.com/en/terms). The app's
-  forecast and air-quality calls and the `enrich-microclimate` job both use it keylessly; commercial
-  use needs a paid Open-Meteo plan before launch.
-
-### Requires production configuration or dashboard verification
-- Whether Gemini quota or rate limits protect `chat-sunny`. (Production verified 2026-10-11: the
-  hardening migration is applied, `venues` has only a public SELECT policy with RLS on, and the
-  deployed `chat-sunny` has `verify_jwt = true`.)
-- Whether the Mapbox token is URL-restricted and whether keys from Git history have been rotated.
-- Whether `VITE_SENTRY_DSN` is set in Netlify so Sentry events are actually sent.
-
-### Not currently verified in the repository
-- Stripe, Airtable integration, and Supabase Auth in the main app.
-
-### Physical iPhone / iOS Safari validation (cannot be replaced by unit tests)
-- WebGL context loss and the "Resume map" flow under real memory pressure.
-- Background/foreground and back/forward-cache returns redrawing the map at full size.
-- Jetsam-kill reporting through `sessionCrashWatch`.
-- Sheet drag, touch targets, safe-area insets and scroll behavior on device.
+The full list is in [`docs/agents/known-risks.md`](docs/agents/known-risks.md): verified repository
+facts, what still needs dashboard verification, and what is not verified. Read it before work on API
+keys, the owner dashboard, `chat-sunny`, Xweather radar or launch readiness. Three points to keep in mind:
+- Third-party keys are `VITE_*` variables and ship in the client bundle.
+- Open-Meteo's free API is non-commercial; commercial use needs a paid plan before launch.
+- WebGL context loss and "Resume map", background/foreground returns, jetsam-kill reporting, and
+  sheet drag, touch targets and safe-area insets need a physical iPhone; unit tests cannot replace that.
