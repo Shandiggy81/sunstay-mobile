@@ -1,0 +1,445 @@
+[
+  {
+    "role": "table",
+    "name": "Sunniest side",
+    "childIds": [
+      "361",
+      "362",
+      "379",
+      "388",
+      "397",
+      "405",
+      "414"
+    ],
+    "properties": [
+      {
+        "name": "labelledby",
+        "value": {
+          "type": "nodeList",
+          "relatedNodes": [
+            {
+              "backendDOMNodeId": 361,
+              "text": "Sunniest side"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "role": "rowgroup",
+    "name": "",
+    "childIds": [
+      "363"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "381"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "385",
+      "386",
+      "387"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "390"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "394",
+      "395",
+      "396"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "399"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "402",
+      "403",
+      "404"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "407"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "411",
+      "412",
+      "413"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "416"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "420",
+      "421",
+      "422"
+    ],
+    "properties": []
+  },
+  {
+    "role": "row",
+    "name": "",
+    "childIds": [
+      "364",
+      "370",
+      "374"
+    ],
+    "properties": []
+  },
+  {
+    "role": "rowheader",
+    "name": "Sun window",
+    "childIds": [
+      "382"
+    ],
+    "properties": [
+      {
+        "name": "readonly",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      },
+      {
+        "name": "required",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    ]
+  },
+  {
+    "role": "cell",
+    "name": "6:09am–10:00am",
+    "childIds": [
+      "529"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "6:09am–10:00am",
+    "childIds": [
+      "530"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "6:09am–10:00am",
+    "childIds": [
+      "531"
+    ],
+    "properties": []
+  },
+  {
+    "role": "rowheader",
+    "name": "Total sun",
+    "childIds": [
+      "391"
+    ],
+    "properties": [
+      {
+        "name": "readonly",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      },
+      {
+        "name": "required",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    ]
+  },
+  {
+    "role": "cell",
+    "name": "7h 52m",
+    "childIds": [
+      "533"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "7h 25m",
+    "childIds": [
+      "534"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "7h 13m",
+    "childIds": [
+      "535"
+    ],
+    "properties": []
+  },
+  {
+    "role": "rowheader",
+    "name": "Coffee",
+    "childIds": [
+      "58"
+    ],
+    "properties": [
+      {
+        "name": "readonly",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      },
+      {
+        "name": "required",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    ]
+  },
+  {
+    "role": "cell",
+    "name": "6:09am–10:00am",
+    "childIds": [
+      "537"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "6:09am–10:00am",
+    "childIds": [
+      "538"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "6:09am–10:00am",
+    "childIds": [
+      "539"
+    ],
+    "properties": []
+  },
+  {
+    "role": "rowheader",
+    "name": "Sunset",
+    "childIds": [
+      "408"
+    ],
+    "properties": [
+      {
+        "name": "readonly",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      },
+      {
+        "name": "required",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    ]
+  },
+  {
+    "role": "cell",
+    "name": "No sunset sun",
+    "childIds": [
+      "541"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "No sunset sun",
+    "childIds": [
+      "542"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "No sunset sun",
+    "childIds": [
+      "543"
+    ],
+    "properties": []
+  },
+  {
+    "role": "rowheader",
+    "name": "Best months",
+    "childIds": [
+      "417"
+    ],
+    "properties": [
+      {
+        "name": "readonly",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      },
+      {
+        "name": "required",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    ]
+  },
+  {
+    "role": "cell",
+    "name": "Dec, Jan, Nov",
+    "childIds": [
+      "545"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "Dec, Jan, Nov",
+    "childIds": [
+      "546"
+    ],
+    "properties": []
+  },
+  {
+    "role": "cell",
+    "name": "Dec, Jan, Nov",
+    "childIds": [
+      "547"
+    ],
+    "properties": []
+  },
+  {
+    "role": "columnheader",
+    "name": "Best stay Quest St Kilda Bayside North-east side · Level 2 · Modelled Wed 11 Nov",
+    "childIds": [
+      "365",
+      "367",
+      "368"
+    ],
+    "properties": [
+      {
+        "name": "readonly",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      },
+      {
+        "name": "required",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    ]
+  },
+  {
+    "role": "columnheader",
+    "name": "Sheraton Melbourne Hotel East side · Level 20 · Modelled Wed 11 Nov",
+    "childIds": [
+      "372",
+      "57"
+    ],
+    "properties": [
+      {
+        "name": "readonly",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      },
+      {
+        "name": "required",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    ]
+  },
+  {
+    "role": "columnheader",
+    "name": "Pan Pacific Melbourne East side · Level 16 · Modelled Wed 11 Nov",
+    "childIds": [
+      "376",
+      "377"
+    ],
+    "properties": [
+      {
+        "name": "readonly",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      },
+      {
+        "name": "required",
+        "value": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,59 @@
+{
+  "axeVersion": "4.14.0",
+  "baselineCommit": "ec517ec",
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa",
+    "wcag22aa",
+    "best-practice"
+  ],
+  "method": "Same Chromium, fixture weather and advancing date; normalise generated React IDs only.",
+  "scans": [
+    {
+      "width": 390,
+      "state": "weather-open",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "currentRules": [
+        "label-content-name-mismatch"
+      ],
+      "newViolationTargets": [],
+      "baselineNodeCount": 3,
+      "currentNodeCount": 3
+    },
+    {
+      "width": 390,
+      "state": "compare",
+      "baselineRules": [],
+      "currentRules": [],
+      "newViolationTargets": [],
+      "baselineNodeCount": 0,
+      "currentNodeCount": 0
+    },
+    {
+      "width": 320,
+      "state": "weather-open",
+      "baselineRules": [
+        "label-content-name-mismatch"
+      ],
+      "currentRules": [
+        "label-content-name-mismatch"
+      ],
+      "newViolationTargets": [],
+      "baselineNodeCount": 3,
+      "currentNodeCount": 3
+    },
+    {
+      "width": 320,
+      "state": "compare",
+      "baselineRules": [],
+      "currentRules": [],
+      "newViolationTargets": [],
+      "baselineNodeCount": 0,
+      "currentNodeCount": 0
+    }
+  ]
+}

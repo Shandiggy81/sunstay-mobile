@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useId, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, ChevronRight, ListFilter, MapPin, Search, X } from 'lucide-react';
 import headerLogo from '../assets/logo-header-hd.webp';
@@ -25,6 +25,7 @@ const suggestionType = venue => venueTypeLabel(venue?.typeLabel || venue?.vibe |
 // radarOn / onRadarChange: the rain radar switch, shared with the map's layers menu (App owns it).
 const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchChange, onSearchSubmit, venues = null, onSuggestionSelect, previewMinutes, now, hidden = false, radarOn = false, onRadarChange }) => {
     const [open, setOpen] = useState(false);
+    const weatherButton = useRef(null), weatherPanel = useRef(null);
     // Type-ahead: venues by name, then suburbs (utils/searchSuggestions.js).
     const [searchFocused, setSearchFocused] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
@@ -54,6 +55,47 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
     const windView = presentWind(weather);
     const filtersUi = resolveFiltersControls();
     const summary = headerWeatherSummary(weather, { windView, comfort });
+    const hasDetails = summary.details.length > 0;
+    const weatherOpen = open && !hidden && !showSuggestions && hasDetails;
+
+    useEffect(() => {
+        if (hidden || showSuggestions || !hasDetails) setOpen(false);
+    }, [hidden, showSuggestions, hasDetails]);
+
+    useEffect(() => {
+        if (!weatherOpen) return;
+        const control = target => target?.closest?.('button,input,select,textarea,a[href],[tabindex],[contenteditable="true"]');
+        const dialogOpen = () => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], dialog[open]')]
+            .some(element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden');
+        const focusTile = () => {
+            if (!dialogOpen() && weatherButton.current?.getClientRects().length && !weatherButton.current.disabled) weatherButton.current.focus({ preventScroll: true });
+        };
+        const close = returnFocus => {
+            setOpen(false);
+            if (returnFocus) focusTile();
+        };
+        const outside = event => {
+            if (weatherButton.current?.contains(event.target) || weatherPanel.current?.contains(event.target)) return;
+            // Preserve a tapped control's focus; a background tap returns to the tile.
+            close(false);
+            if (!control(event.target)) requestAnimationFrame(() => {
+                // Touch's compatibility mousedown can clear focus after pointerup.
+                if (!control(document.activeElement)) focusTile();
+            });
+        };
+        const escape = event => {
+            if (event.key !== 'Escape' || event.defaultPrevented || dialogOpen()) return;
+            event.preventDefault();
+            close(!control(document.activeElement));
+        };
+        document.addEventListener('pointerup', outside);
+        // Check dialog ownership before its bubbling Escape handler hides it.
+        document.addEventListener('keydown', escape, true);
+        return () => {
+            document.removeEventListener('pointerup', outside);
+            document.removeEventListener('keydown', escape, true);
+        };
+    }, [weatherOpen]);
 
     return (
         <motion.header hidden={hidden}
@@ -65,9 +107,9 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
             <div className="ss-map-first-topbar-row">
                 <img src={headerLogo} alt="SunStay" width={LOGO_W} height={LOGO_H} draggable={false} decoding="async" className="ss-map-first-brand" />
                 <div className="ss-home-weather-column">
-                    <button type="button" onClick={() => setOpen(value => !value)} disabled={!summary.details.length}
+                    <button ref={weatherButton} type="button" onClick={() => setOpen(value => !value)} disabled={!summary.details.length}
                         aria-label={[summary.temperature, summary.condition, summary.details.length ? describeWind(windView.speedKmh) : null, summary.details.length ? windView.speedLabel : null].filter(Boolean).join(', ')}
-                        aria-expanded={open} aria-controls={detailsId} className="ss-home-weather-card">
+                        aria-expanded={weatherOpen} aria-controls={detailsId} className="ss-home-weather-card">
                         <ClayIcon name={weatherClayIcon(summary.condition, { isNight: weather?.isDay === false })} size={28} />
                         <span className="ss-home-weather-copy"><strong>{summary.temperature}</strong><span>{summary.condition}</span></span>
                         {summary.details.length > 0 && <><span className="ss-home-weather-divider" /><ClayIcon name="windsock" size={22} />
@@ -138,8 +180,8 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
                     ))}
                 </ul>
             ) : null}
-            {open && !showSuggestions && summary.details.length ? (
-                <dl id={detailsId} className="ss-explore-weather-details ss-map-first-weather-details">
+            {weatherOpen ? (
+                <dl ref={weatherPanel} id={detailsId} className="ss-explore-weather-details ss-map-first-weather-details">
                     {summary.details.map(item => <div key={item.label} className="ss-explore-weather-detail">
                         <dt className="text-[12px] font-medium text-slate-500">{item.label}</dt>
                         <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{item.value}</dd>

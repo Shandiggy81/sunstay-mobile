@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { calculateMonthlySunSummary, formatGuestDate, formatGuestWindows } from '../utils/balconySunEngine.js';
@@ -13,10 +13,12 @@ const ROW_ICONS = Object.freeze({
   'Total sun': 'sun',
   Coffee: 'coffee',
   Sunset: 'cocktail',
+  'Best months': 'sun-calendar',
 });
 
 export default function StayComparison({ venues, moment, onClose, returnFocusRef }) {
   const sheet = useRef(null);
+  const tableId = useId();
   const months = useMemo(() => venues.map(venue => {
     if (!venue.bestRoom) return 'Unavailable';
     const summary = calculateMonthlySunSummary({ ...roomSunOptions(venue, venue.bestRoom), year: Number(venue.daily.date.slice(0, 4)) });
@@ -63,8 +65,18 @@ export default function StayComparison({ venues, moment, onClose, returnFocusRef
   return createPortal(<motion.div className="ss-stay-overlay" initial={{opacity:0}} animate={{opacity:1}} onClick={onClose}>
     <motion.section ref={sheet} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="stay-compare-title" className="ss-stay-comparison" initial={{y:80}} animate={{y:0}} onClick={e => e.stopPropagation()}>
       <header><h2 id="stay-compare-title">Compare · {SUN_MOMENTS[moment]}</h2><button aria-label="Close comparison" onClick={onClose}>✕</button></header>
-      <div className="ss-stay-table" role="region" aria-label="Stay comparison"><table><thead><tr><th scope="col">{facadeSides ? 'Sunniest side' : 'Best room'}</th>{venues.map((v, index) => <th scope="col" key={v.id}>{index === 0 && <span className="ss-stay-best-badge"><ClayIcon name="sun" size={18} />Best stay</span>}<span className="ss-stay-venue-name">{v.venueName}</span><small>{v.bestRoom ? stayRoomDisplay(v, v.bestRoom).displayName : facadeSides ? 'No matching side' : 'No matching room'}{isEstimatedRoom(v.bestRoom) ? ' · Modelled' : ''}<br />{v.daily?.date ? formatGuestDate(`${v.daily.date}T12:00:00Z`, 'UTC') : ''}</small></th>)}</tr></thead>
-        <tbody>{rows.map(([label, value]) => <tr key={label}><th scope="row"><span className="ss-stay-row-label">{ROW_ICONS[label] && <ClayIcon name={ROW_ICONS[label]} size={20} />}{label}</span></th>{venues.map((v, i) => <td key={v.id}>{value(v, i)}</td>)}</tr>)}</tbody></table></div>
+      <div className="ss-stay-table" role="region" aria-label="Stay comparison"><table>
+        <caption>{facadeSides ? 'Sunniest side' : 'Best room'}</caption>
+        <thead><tr>{venues.map((v, index) => <th scope="col" id={`${tableId}-stay-${index}`} key={v.id}>
+          <span className="ss-stay-best-badge" aria-hidden={index > 0 || undefined}>{index === 0 && <><ClayIcon name="sun" size={18} />Best stay</>}</span>
+          <span className="ss-stay-venue-name">{v.venueName}</span>
+          <small>{v.bestRoom ? stayRoomDisplay(v, v.bestRoom).displayName : facadeSides ? 'No matching side' : 'No matching room'}{isEstimatedRoom(v.bestRoom) ? ' · Modelled' : ''}<br />{v.daily?.date ? formatGuestDate(`${v.daily.date}T12:00:00Z`, 'UTC') : ''}</small>
+        </th>)}</tr></thead>
+        {rows.map(([label, value], rowIndex) => <tbody key={label}>
+          <tr><th id={`${tableId}-fact-${rowIndex}`} scope="rowgroup" colSpan={venues.length}><span className="ss-stay-row-label">{ROW_ICONS[label] && <ClayIcon name={ROW_ICONS[label]} size={20} />}{label}</span></th></tr>
+          <tr>{venues.map((v, i) => <td key={v.id} headers={`${tableId}-stay-${i} ${tableId}-fact-${rowIndex}`}>{value(v, i)}</td>)}</tr>
+        </tbody>)}
+      </table></div>
       <p>Estimated from the sun’s path, not a weather forecast. Best months use representative days.</p>
     </motion.section>
   </motion.div>, document.body);
