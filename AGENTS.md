@@ -59,87 +59,21 @@ MCP calls; Playwright has equivalents.
 
 ## CDP offline-emulation recipe
 
-Used to verify `src/components/common/NetworkErrorModal.jsx`. Order matters: the
-modal only renders once the connection is gone, so anything it needs from the
-network has to be cached *before* you cut the link.
+For `src/components/common/NetworkErrorModal.jsx` or any network-error UI, follow
+[`docs/agents/offline-emulation.md`](docs/agents/offline-emulation.md). Order matters: cache what the
+modal needs before cutting the link.
 
-```
-1. emulate         { pageId, }                                  # no args -> online, no overrides
-2. navigate_page   { pageId, url: "http://localhost:5173/" }
-3. evaluate_script { pageId, function: sleep ~2500ms }           # let idle-time prefetches finish
-4. emulate         { pageId, networkConditions: "Offline" }      # flips navigator.onLine, fires `offline`
-5. take_snapshot   { pageId }                                    # a11y tree: confirm dialog + get button uid
-6. click           { pageId, uid }
-7. evaluate_script { pageId, ... }                               # assert on the DOM
-8. emulate         { pageId }                                    # back online -> modal auto-dismisses
-```
-
-CDP offline emulation does set `navigator.onLine = false` and fire the `offline`
-event, so `window.addEventListener('offline', ...)` handlers work under it.
-
-To keep a viewport override across an offline toggle, repeat the `viewport`
-argument on every `emulate` call — it is not sticky:
-
-```
-emulate { pageId, viewport: "390x844x3,mobile,touch", networkConditions: "Offline" }
-```
-
-Assert on state with `evaluate_script` rather than only screenshots:
-
-```js
-() => ({
-  onLine: navigator.onLine,
-  modalOpen: !!document.querySelector('[role="dialog"]'),
-  status: document.querySelector('[role="status"]')?.textContent,
-})
-```
-
-Two cases worth exercising on any network-error UI here:
-
-- **Retry while still offline** — the probe in `NetworkErrorModal` must fail and
-  leave the dialog open.
-- **`navigator.onLine` wrongly false** (captive portals do this). Simulate it
-  with the network actually up: `window.dispatchEvent(new Event('offline'))`
-  reopens the modal, and retry should then succeed and dismiss it.
 
 ## Deploy checks
 
 The site is on Netlify (`netlify.toml`), and every PR gets a deploy preview at
-`https://deploy-preview-<PR>--sunstayglobal30.netlify.app`. Use it to verify
-anything that depends on real CDN behaviour, which `vite dev` cannot show:
+`https://deploy-preview-<PR>--sunstayglobal30.netlify.app`. The curl recipes for hashed-asset caching
+and crawler link previews are in [`docs/agents/deploy-checks.md`](docs/agents/deploy-checks.md).
 
-Mascots live in `src/assets/mascots/` and are imported as ES modules so Vite
-emits them as hashed `/assets/<name>-<hash>.png` files. Do **not** put them
-back under `public/` — that path is unhashed, and returning visitors will keep
-seeing the old artwork until their cache expires. PWA icons
-(`public/sun-badge.jpg`, `public/sunny-mascot.jpg`, `public/sunstay-logo.png`)
-stay at the site root because `manifest.json` cannot take a hashed URL.
+Mascots live in `src/assets/mascots/` and are imported as ES modules so they get hashed filenames.
+Do **not** put them back under `public/`. PWA icons stay at the site root because `manifest.json`
+cannot take a hashed URL.
 
-```bash
-# After a production/preview build, the hashed filename is in the JS bundle:
-curl -s https://sunstayglobal30.netlify.app/ \
-  | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1
-# Then:
-curl -s https://sunstayglobal30.netlify.app/assets/index-<hash>.js \
-  | grep -oE '/assets/brucey-offline-v2-[A-Za-z0-9_-]+\.png'
-curl -sI https://sunstayglobal30.netlify.app/assets/brucey-offline-v2-<hash>.png \
-  | grep -i cache-control     # public,max-age=31536000,immutable
-```
-
-Netlify's default for static assets is `max-age=0, must-revalidate`. Hashed
-`/assets/*.{js,css,png,jpg}` files get an explicit `immutable` header in
-`netlify.toml` so the offline modal can still paint Brucey from cache. The
-match is by extension so a missing path (SPA-rewritten to `index.html`) is
-not cached as an image.
-
-Venue link previews (`netlify/edge-functions/venue-preview.js`) only run for
-crawler user agents, so check them by sending one. The `x-sunstay-link-preview`
-header says what happened: `venue`, `not-found`, `unavailable` or `unconfigured`.
-
-```bash
-curl -s -A 'facebookexternalhit/1.1' -D - 'https://sunstayglobal30.netlify.app/?venue=dv-01' \
-  | grep -iE 'x-sunstay-link-preview|og:title'
-```
 
 ## Accessibility scan
 
