@@ -1,0 +1,1240 @@
+[
+  {
+    "phase": "before",
+    "width": 390,
+    "height": 844,
+    "state": "weather-open",
+    "open": {
+      "documentWidth": 390,
+      "viewport": 390,
+      "focus": {
+        "tag": "BUTTON",
+        "label": "23°, Clear sky, Light breeze, 7 km/h",
+        "text": "23°Clear skyLight breeze7 km/h"
+      },
+      "weatherExpanded": "true",
+      "weatherPanel": {
+        "x": 16,
+        "y": 80,
+        "width": 358,
+        "height": 114,
+        "top": 80,
+        "right": 374,
+        "bottom": 194,
+        "left": 16
+      },
+      "weatherTile": {
+        "x": 164,
+        "y": 16,
+        "width": 210,
+        "height": 58,
+        "top": 16,
+        "right": 374,
+        "bottom": 74,
+        "left": 164
+      },
+      "header": {
+        "x": 16,
+        "y": 16,
+        "width": 358,
+        "height": 184,
+        "top": 16,
+        "right": 374,
+        "bottom": 200,
+        "left": 16
+      }
+    },
+    "afterEscape": {
+      "documentWidth": 390,
+      "viewport": 390,
+      "focus": {
+        "tag": "BUTTON",
+        "label": "23°, Clear sky, Light breeze, 7 km/h",
+        "text": "23°Clear skyLight breeze7 km/h"
+      },
+      "weatherExpanded": "true",
+      "weatherPanel": {
+        "x": 16,
+        "y": 80,
+        "width": 358,
+        "height": 114,
+        "top": 80,
+        "right": 374,
+        "bottom": 194,
+        "left": 16
+      },
+      "weatherTile": {
+        "x": 164,
+        "y": 16,
+        "width": 210,
+        "height": 58,
+        "top": 16,
+        "right": 374,
+        "bottom": 74,
+        "left": 164
+      },
+      "header": {
+        "x": 16,
+        "y": 16,
+        "width": 358,
+        "height": 184,
+        "top": 16,
+        "right": 374,
+        "bottom": 200,
+        "left": 16
+      }
+    },
+    "axe": {
+      "violations": [
+        {
+          "id": "label-content-name-mismatch",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                ".ss-home-weather-card"
+              ],
+              "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+            },
+            {
+              "target": [
+                "button[aria-controls=\"_r_2_\"]"
+              ],
+              "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+            },
+            {
+              "target": [
+                ".ss-home-summary-copy"
+              ],
+              "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+            }
+          ]
+        }
+      ],
+      "incomplete": [
+        {
+          "id": "aria-valid-attr-value",
+          "nodes": 2
+        },
+        {
+          "id": "color-contrast",
+          "nodes": 16
+        }
+      ],
+      "passes": 41
+    },
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "width": 390,
+    "height": 844,
+    "state": "compare",
+    "metrics": {
+      "box": {
+        "x": 0,
+        "y": 316.4375,
+        "width": 390,
+        "height": 527.5625,
+        "top": 316.4375,
+        "right": 390,
+        "bottom": 844,
+        "left": 0
+      },
+      "w": 390,
+      "sw": 390,
+      "h": 528,
+      "sh": 528,
+      "scrollTop": 0,
+      "text": [
+        {
+          "tag": "H2",
+          "text": "Compare · Morning coffee",
+          "size": "16px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "size": "16px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TH",
+          "text": "Sunniest side",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Best stay",
+          "size": "9px",
+          "weight": "700",
+          "color": "rgb(180, 83, 9)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Quest St Kilda Bayside",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "North-east side · Level 2 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sheraton Melbourne Hotel",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "East side · Level 20 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Pan Pacific Melbourne",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "East side · Level 16 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sun window",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Total sun",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 52m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 25m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 13m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Coffee",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sunset",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Best months",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "P",
+          "text": "Estimated from the sun’s path, not a weather forecast. Best months use representative days.",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(100, 116, 139)"
+        }
+      ],
+      "overflow": [],
+      "names": [
+        {
+          "text": "Quest St Kilda Bayside",
+          "box": {
+            "x": 96,
+            "y": 415.4375,
+            "width": 86,
+            "height": 27.5,
+            "top": 415.4375,
+            "right": 182,
+            "bottom": 442.9375,
+            "left": 96
+          }
+        },
+        {
+          "text": "Sheraton Melbourne Hotel",
+          "box": {
+            "x": 190,
+            "y": 398.4375,
+            "width": 86,
+            "height": 41.25,
+            "top": 398.4375,
+            "right": 276,
+            "bottom": 439.6875,
+            "left": 190
+          }
+        },
+        {
+          "text": "Pan Pacific Melbourne",
+          "box": {
+            "x": 284,
+            "y": 398.4375,
+            "width": 86,
+            "height": 27.5,
+            "top": 398.4375,
+            "right": 370,
+            "bottom": 425.9375,
+            "left": 284
+          }
+        }
+      ],
+      "role": null,
+      "rows": 6,
+      "table": "<table><thead><tr><th scope=\"col\">Sunniest side</th><th scope=\"col\"><span class=\"ss-stay-best-badge\"><img alt=\"\" aria-hidden=\"true\" width=\"18\" height=\"18\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 18px; height: 18px;\">Best stay</span><span class=\"ss-stay-venue-name\">Quest St Kilda Bayside</span><small>North-east side · Level 2 · Modelled<br>Wed 11 Nov</small></th><th scope=\"col\"><span class=\"ss-stay-venue-name\">Sheraton Melbourne Hotel</span><small>East side · Level 20 · Modelled<br>Wed 11 Nov</small></th><th scope=\"col\"><span class=\"ss-stay-venue-name\">Pan Pacific Melbourne</span><small>East side · Level 16 · Modelled<br>Wed 11 Nov</small></th></tr></thead><tbody><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 20px; height: 20px;\">Sun window</span></th><td>6:09am–10:00am</td><td>6:09am–10:00am</td><td>6:09am–10:00am</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 20px; height: 20px;\">Total sun</span></th><td>7h 52m</td><td>7h 25m</td><td>7h 13m</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/coffee.webp\" style=\"width: 20px; height: 20px;\">Coffee</span></th><td>6:09am–10:00am</td><td>6:09am–10:00am</td><td>6:09am–10:00am</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/cocktail.webp\" style=\"width: 20px; height: 20px;\">Sunset</span></th><td>No sunset sun</td><td>No sunset sun</td><td>No sunset sun</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\">Best months</span></th><td>Dec, Jan, Nov</td><td>Dec, Jan, Nov</td><td>Dec, Jan, Nov</td></tr></tbody></table>"
+    },
+    "closed": {
+      "documentWidth": 390,
+      "viewport": 390,
+      "focus": {
+        "tag": "BUTTON",
+        "label": null,
+        "text": "Compare (3/3)"
+      },
+      "weatherExpanded": "false",
+      "weatherTile": {
+        "x": 164,
+        "y": 16,
+        "width": 210,
+        "height": 58,
+        "top": 16,
+        "right": 374,
+        "bottom": 74,
+        "left": 164
+      },
+      "header": {
+        "x": 16,
+        "y": 16,
+        "width": 358,
+        "height": 184,
+        "top": 16,
+        "right": 374,
+        "bottom": 200,
+        "left": 16
+      }
+    },
+    "compareTriggerFocused": true,
+    "axe": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 8
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passes": 36
+    },
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "width": 320,
+    "height": 568,
+    "state": "weather-open",
+    "open": {
+      "documentWidth": 320,
+      "viewport": 320,
+      "focus": {
+        "tag": "BUTTON",
+        "label": "23°, Clear sky, Light breeze, 7 km/h",
+        "text": "23°Clear skyLight breeze7 km/h"
+      },
+      "weatherExpanded": "true",
+      "weatherPanel": {
+        "x": 16,
+        "y": 80,
+        "width": 288,
+        "height": 132,
+        "top": 80,
+        "right": 304,
+        "bottom": 212,
+        "left": 16
+      },
+      "weatherTile": {
+        "x": 136,
+        "y": 16,
+        "width": 168,
+        "height": 58,
+        "top": 16,
+        "right": 304,
+        "bottom": 74,
+        "left": 136
+      },
+      "header": {
+        "x": 16,
+        "y": 16,
+        "width": 288,
+        "height": 184,
+        "top": 16,
+        "right": 304,
+        "bottom": 200,
+        "left": 16
+      }
+    },
+    "afterEscape": {
+      "documentWidth": 320,
+      "viewport": 320,
+      "focus": {
+        "tag": "BUTTON",
+        "label": "23°, Clear sky, Light breeze, 7 km/h",
+        "text": "23°Clear skyLight breeze7 km/h"
+      },
+      "weatherExpanded": "true",
+      "weatherPanel": {
+        "x": 16,
+        "y": 80,
+        "width": 288,
+        "height": 132,
+        "top": 80,
+        "right": 304,
+        "bottom": 212,
+        "left": 16
+      },
+      "weatherTile": {
+        "x": 136,
+        "y": 16,
+        "width": 168,
+        "height": 58,
+        "top": 16,
+        "right": 304,
+        "bottom": 74,
+        "left": 136
+      },
+      "header": {
+        "x": 16,
+        "y": 16,
+        "width": 288,
+        "height": 184,
+        "top": 16,
+        "right": 304,
+        "bottom": 200,
+        "left": 16
+      }
+    },
+    "axe": {
+      "violations": [
+        {
+          "id": "label-content-name-mismatch",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                ".ss-home-weather-card"
+              ],
+              "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+            },
+            {
+              "target": [
+                "button[aria-controls=\"_r_2_\"]"
+              ],
+              "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+            },
+            {
+              "target": [
+                ".ss-home-summary-copy"
+              ],
+              "summary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+            }
+          ]
+        }
+      ],
+      "incomplete": [
+        {
+          "id": "aria-valid-attr-value",
+          "nodes": 2
+        },
+        {
+          "id": "color-contrast",
+          "nodes": 16
+        }
+      ],
+      "passes": 41
+    },
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "width": 320,
+    "height": 568,
+    "state": "compare",
+    "metrics": {
+      "box": {
+        "x": 0,
+        "y": 85.203125,
+        "width": 320,
+        "height": 482.796875,
+        "top": 85.203125,
+        "right": 320,
+        "bottom": 568,
+        "left": 0
+      },
+      "w": 320,
+      "sw": 320,
+      "h": 483,
+      "sh": 571,
+      "scrollTop": 0,
+      "text": [
+        {
+          "tag": "H2",
+          "text": "Compare · Morning coffee",
+          "size": "16px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "size": "16px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TH",
+          "text": "Sunniest side",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Best stay",
+          "size": "9px",
+          "weight": "700",
+          "color": "rgb(180, 83, 9)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Quest St Kilda Bayside",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "North-east side · Level 2 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sheraton Melbourne Hotel",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "East side · Level 20 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Pan Pacific Melbourne",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "East side · Level 16 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sun window",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Total sun",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 52m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 25m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 13m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Coffee",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sunset",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Best months",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "P",
+          "text": "Estimated from the sun’s path, not a weather forecast. Best months use representative days.",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(100, 116, 139)"
+        }
+      ],
+      "overflow": [],
+      "names": [
+        {
+          "text": "Quest St Kilda Bayside",
+          "box": {
+            "x": 96,
+            "y": 184.203125,
+            "width": 62.65625,
+            "height": 41.25,
+            "top": 184.203125,
+            "right": 158.65625,
+            "bottom": 225.453125,
+            "left": 96
+          }
+        },
+        {
+          "text": "Sheraton Melbourne Hotel",
+          "box": {
+            "x": 166.65625,
+            "y": 167.203125,
+            "width": 62.65625,
+            "height": 41.25,
+            "top": 167.203125,
+            "right": 229.3125,
+            "bottom": 208.453125,
+            "left": 166.65625
+          }
+        },
+        {
+          "text": "Pan Pacific Melbourne",
+          "box": {
+            "x": 237.3125,
+            "y": 167.203125,
+            "width": 62.6875,
+            "height": 27.5,
+            "top": 167.203125,
+            "right": 300,
+            "bottom": 194.703125,
+            "left": 237.3125
+          }
+        }
+      ],
+      "role": null,
+      "rows": 6,
+      "table": "<table><thead><tr><th scope=\"col\">Sunniest side</th><th scope=\"col\"><span class=\"ss-stay-best-badge\"><img alt=\"\" aria-hidden=\"true\" width=\"18\" height=\"18\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 18px; height: 18px;\">Best stay</span><span class=\"ss-stay-venue-name\">Quest St Kilda Bayside</span><small>North-east side · Level 2 · Modelled<br>Wed 11 Nov</small></th><th scope=\"col\"><span class=\"ss-stay-venue-name\">Sheraton Melbourne Hotel</span><small>East side · Level 20 · Modelled<br>Wed 11 Nov</small></th><th scope=\"col\"><span class=\"ss-stay-venue-name\">Pan Pacific Melbourne</span><small>East side · Level 16 · Modelled<br>Wed 11 Nov</small></th></tr></thead><tbody><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 20px; height: 20px;\">Sun window</span></th><td>6:09am–10:00am</td><td>6:09am–10:00am</td><td>6:09am–10:00am</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 20px; height: 20px;\">Total sun</span></th><td>7h 52m</td><td>7h 25m</td><td>7h 13m</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/coffee.webp\" style=\"width: 20px; height: 20px;\">Coffee</span></th><td>6:09am–10:00am</td><td>6:09am–10:00am</td><td>6:09am–10:00am</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/cocktail.webp\" style=\"width: 20px; height: 20px;\">Sunset</span></th><td>No sunset sun</td><td>No sunset sun</td><td>No sunset sun</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\">Best months</span></th><td>Dec, Jan, Nov</td><td>Dec, Jan, Nov</td><td>Dec, Jan, Nov</td></tr></tbody></table>"
+    },
+    "closed": {
+      "documentWidth": 320,
+      "viewport": 320,
+      "focus": {
+        "tag": "BUTTON",
+        "label": null,
+        "text": "Compare (3/3)"
+      },
+      "weatherExpanded": "false",
+      "weatherTile": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "header": {
+        "x": 16,
+        "y": 16,
+        "width": 288,
+        "height": 60,
+        "top": 16,
+        "right": 304,
+        "bottom": 76,
+        "left": 16
+      }
+    },
+    "compareTriggerFocused": true,
+    "axe": {
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "nodes": 1
+        },
+        {
+          "id": "label-content-name-mismatch",
+          "nodes": 1
+        }
+      ],
+      "passes": 37
+    },
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "width": 1440,
+    "height": 900,
+    "state": "compare",
+    "metrics": {
+      "box": {
+        "x": 320,
+        "y": 415.875,
+        "width": 800,
+        "height": 484.125,
+        "top": 415.875,
+        "right": 1120,
+        "bottom": 900,
+        "left": 320
+      },
+      "w": 800,
+      "sw": 800,
+      "h": 484,
+      "sh": 484,
+      "scrollTop": 0,
+      "text": [
+        {
+          "tag": "H2",
+          "text": "Compare · Morning coffee",
+          "size": "16px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "BUTTON",
+          "text": "✕",
+          "size": "16px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TH",
+          "text": "Sunniest side",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Best stay",
+          "size": "9px",
+          "weight": "700",
+          "color": "rgb(180, 83, 9)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Quest St Kilda Bayside",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "North-east side · Level 2 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sheraton Melbourne Hotel",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "East side · Level 20 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Pan Pacific Melbourne",
+          "size": "11px",
+          "weight": "800",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SMALL",
+          "text": "East side · Level 16 · ModelledWed 11 Nov",
+          "size": "8.8px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sun window",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Total sun",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 52m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 25m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "7h 13m",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Coffee",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "6:09am–10:00am",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Sunset",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "No sunset sun",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "SPAN",
+          "text": "Best months",
+          "size": "11px",
+          "weight": "700",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "TD",
+          "text": "Dec, Jan, Nov",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(51, 65, 85)"
+        },
+        {
+          "tag": "P",
+          "text": "Estimated from the sun’s path, not a weather forecast. Best months use representative days.",
+          "size": "11px",
+          "weight": "400",
+          "color": "rgb(100, 116, 139)"
+        }
+      ],
+      "overflow": [],
+      "names": [
+        {
+          "text": "Quest St Kilda Bayside",
+          "box": {
+            "x": 416,
+            "y": 514.875,
+            "width": 222.65625,
+            "height": 13.75,
+            "top": 514.875,
+            "right": 638.65625,
+            "bottom": 528.625,
+            "left": 416
+          }
+        },
+        {
+          "text": "Sheraton Melbourne Hotel",
+          "box": {
+            "x": 646.65625,
+            "y": 497.875,
+            "width": 222.65625,
+            "height": 13.75,
+            "top": 497.875,
+            "right": 869.3125,
+            "bottom": 511.625,
+            "left": 646.65625
+          }
+        },
+        {
+          "text": "Pan Pacific Melbourne",
+          "box": {
+            "x": 877.3125,
+            "y": 497.875,
+            "width": 222.6875,
+            "height": 13.75,
+            "top": 497.875,
+            "right": 1100,
+            "bottom": 511.625,
+            "left": 877.3125
+          }
+        }
+      ],
+      "role": null,
+      "rows": 6,
+      "table": "<table><thead><tr><th scope=\"col\">Sunniest side</th><th scope=\"col\"><span class=\"ss-stay-best-badge\"><img alt=\"\" aria-hidden=\"true\" width=\"18\" height=\"18\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 18px; height: 18px;\">Best stay</span><span class=\"ss-stay-venue-name\">Quest St Kilda Bayside</span><small>North-east side · Level 2 · Modelled<br>Wed 11 Nov</small></th><th scope=\"col\"><span class=\"ss-stay-venue-name\">Sheraton Melbourne Hotel</span><small>East side · Level 20 · Modelled<br>Wed 11 Nov</small></th><th scope=\"col\"><span class=\"ss-stay-venue-name\">Pan Pacific Melbourne</span><small>East side · Level 16 · Modelled<br>Wed 11 Nov</small></th></tr></thead><tbody><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 20px; height: 20px;\">Sun window</span></th><td>6:09am–10:00am</td><td>6:09am–10:00am</td><td>6:09am–10:00am</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/sun.webp\" style=\"width: 20px; height: 20px;\">Total sun</span></th><td>7h 52m</td><td>7h 25m</td><td>7h 13m</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/coffee.webp\" style=\"width: 20px; height: 20px;\">Coffee</span></th><td>6:09am–10:00am</td><td>6:09am–10:00am</td><td>6:09am–10:00am</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\"><img alt=\"\" aria-hidden=\"true\" width=\"20\" height=\"20\" loading=\"lazy\" decoding=\"async\" draggable=\"false\" class=\"shrink-0 select-none object-contain \" src=\"/src/assets/clay/cocktail.webp\" style=\"width: 20px; height: 20px;\">Sunset</span></th><td>No sunset sun</td><td>No sunset sun</td><td>No sunset sun</td></tr><tr><th scope=\"row\"><span class=\"ss-stay-row-label\">Best months</span></th><td>Dec, Jan, Nov</td><td>Dec, Jan, Nov</td><td>Dec, Jan, Nov</td></tr></tbody></table>"
+    },
+    "closed": {
+      "documentWidth": 1440,
+      "viewport": 1440,
+      "focus": {
+        "tag": "BUTTON",
+        "label": null,
+        "text": "Compare (3/3)"
+      },
+      "weatherExpanded": "false",
+      "weatherTile": {
+        "x": 164,
+        "y": 16,
+        "width": 210,
+        "height": 58,
+        "top": 16,
+        "right": 374,
+        "bottom": 74,
+        "left": 164
+      },
+      "header": {
+        "x": 16,
+        "y": 16,
+        "width": 358,
+        "height": 184,
+        "top": 16,
+        "right": 374,
+        "bottom": 200,
+        "left": 16
+      }
+    },
+    "compareTriggerFocused": true,
+    "axe": null,
+    "errors": []
+  }
+]
