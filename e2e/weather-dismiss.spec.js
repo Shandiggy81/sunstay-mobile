@@ -130,7 +130,7 @@ for (const [width, height] of [[320, 568], [390, 844]]) {
       await expect(filters).toBeFocused();
 
       await tile(page).tap();
-      const preview = page.getByRole('button', { name: 'Preview time', exact: true });
+      const preview = page.getByRole('button', { name: /Preview time$/ });
       await preview.focus();
       await page.keyboard.press('Enter');
       const time = page.getByRole('dialog', { name: 'Preview time', exact: true });

@@ -1,6 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { searchSuggestions, MAX_VENUE_SUGGESTIONS } from './searchSuggestions.js';
+import { searchSuggestions, MAX_VENUE_SUGGESTIONS, nextSuggestionIndex } from './searchSuggestions.js';
+
+test('the first arrow selects the appropriate end of the suggestions', () => {
+    for (const count of [1, 2, 7]) {
+        assert.equal(nextSuggestionIndex(-1, 1, count), 0);
+        assert.equal(nextSuggestionIndex(-1, -1, count), count - 1);
+    }
+});
+
+test('arrow navigation wraps at either end and visits the other options', () => {
+    assert.equal(nextSuggestionIndex(1, -1, 2), 0);
+    assert.equal(nextSuggestionIndex(0, -1, 2), 1);
+    assert.equal(nextSuggestionIndex(1, 1, 2), 0);
+    assert.equal(nextSuggestionIndex(0, 1, 2), 1);
+});
+
+test('an empty suggestion list has no active option', () => {
+    assert.equal(nextSuggestionIndex(-1, -1, 0), -1);
+    assert.equal(nextSuggestionIndex(-1, 1, 0), -1);
+});
 
 const venues = [
     { id: 'dv-01', venueName: 'Wonderland Bar', suburb: 'Windsor', typeLabel: 'Bar' },

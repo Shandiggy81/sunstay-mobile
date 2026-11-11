@@ -37,12 +37,15 @@ const FilterSheet = ({
     // Keep focus inside the dialog, then restore its opener on every close path.
     React.useEffect(() => {
         if (!isOpen) return undefined;
+        const panel = panelRef.current;
         const previous = document.activeElement instanceof HTMLButtonElement
             ? document.activeElement : document.querySelector('.ss-map-first-filters');
         setOpenGroups([]);
         closeRef.current?.focus({ preventScroll: true });
         const onKeyDown = event => {
-            if (event.key === 'Escape') onClose();
+            // A higher dialog (such as the offline modal) owns its own keyboard events.
+            if (event.defaultPrevented || !panel?.contains(event.target)) return;
+            if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
             if (event.key !== 'Tab') return;
             const controls = [...(panelRef.current?.querySelectorAll('button:not(:disabled), input, [tabindex="0"]') ?? [])]
                 .filter(element => element.getClientRects().length > 0);
@@ -53,7 +56,8 @@ const FilterSheet = ({
         document.addEventListener('keydown', onKeyDown);
         return () => {
             document.removeEventListener('keydown', onKeyDown);
-            if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true });
+            const activeDialog = document.activeElement?.closest('[role="dialog"], [role="alertdialog"]');
+            if (previous instanceof HTMLElement && previous.isConnected && (!activeDialog || activeDialog === panel || activeDialog.contains(previous))) previous.focus({ preventScroll: true });
         };
     }, [isOpen, onClose]);
 

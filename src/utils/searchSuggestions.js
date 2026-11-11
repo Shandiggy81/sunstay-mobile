@@ -12,6 +12,13 @@ import { foldSearchText, searchWords, wordsNear } from './searchText.js';
 export const MAX_VENUE_SUGGESTIONS = 6;
 export const MAX_PLACE_SUGGESTIONS = 2;
 
+/** Start at the matching edge when no suggestion is selected, then wrap. */
+export function nextSuggestionIndex(index, step, count) {
+    if (count === 0) return -1;
+    if (index < 0) return step < 0 ? count - 1 : 0;
+    return (index + step + count) % count;
+}
+
 const words = text => text.split(' ').filter(Boolean);
 
 function nameRank(name, query, queryWords) {
