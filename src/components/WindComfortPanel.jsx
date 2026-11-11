@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Wind, Thermometer, Shield, AlertTriangle, Clock,
@@ -141,6 +141,7 @@ const ComfortGauge = ({ apparentTemp, comfort, actualTemp }) => {
 
 const HourlyForecastStrip = ({ forecast, onHourTap }) => {
     const [expanded, setExpanded] = useState(false);
+    const stripId = useId();
     const rows = Array.isArray(forecast) ? forecast : [];
     const visible = expanded ? rows.slice(0, 24) : rows.slice(0, 12);
 
@@ -154,7 +155,7 @@ const HourlyForecastStrip = ({ forecast, onHourTap }) => {
 
     return (
         <div className="hourly-forecast-section">
-            <div className="hourly-scroll">
+            <div id={stripId} className="hourly-scroll">
                 {visible.map((h, i) => {
                     const dotColors = {
                         green: '#22c55e',
@@ -193,6 +194,8 @@ const HourlyForecastStrip = ({ forecast, onHourTap }) => {
                 <button
                     type="button"
                     onClick={() => setExpanded(!expanded)}
+                    aria-expanded={expanded}
+                    aria-controls={stripId}
                     className="mt-1.5 flex min-h-11 w-full cursor-pointer items-center justify-center gap-1 rounded-xl text-[12px] font-semibold text-slate-500 transition-colors active:bg-slate-900/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                 >
                     {expanded ? 'Show less' : 'Show full 24 hours'}

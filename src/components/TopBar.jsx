@@ -9,7 +9,7 @@ import { weatherClayIcon } from '../utils/weatherClayIcon';
 import ClayIcon from './common/ClayIcon.jsx';
 import VenueIcon from './common/VenueIcon';
 import { venueIcon } from '../utils/clayIcons';
-import { searchSuggestions } from '../utils/searchSuggestions.js';
+import { searchSuggestions, nextSuggestionIndex } from '../utils/searchSuggestions.js';
 import { venueTypeLabel } from '../utils/venueTypeLabel';
 import HomePopover from './HomePopover.jsx';
 import { homePreviewLabel } from '../utils/homeChrome.js';
@@ -57,6 +57,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
     const summary = headerWeatherSummary(weather, { windView, comfort });
     const hasDetails = summary.details.length > 0;
     const weatherOpen = open && !hidden && !showSuggestions && hasDetails;
+    const previewLabel = homePreviewLabel({ minutes: previewMinutes, now, weather });
 
     useEffect(() => {
         if (hidden || showSuggestions || !hasDetails) setOpen(false);
@@ -134,7 +135,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
                                 if (showSuggestions && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
                                     event.preventDefault();
                                     const step = event.key === 'ArrowDown' ? 1 : -1;
-                                    setActiveIndex(index => (index + step + options.length) % options.length);
+                                    setActiveIndex(index => nextSuggestionIndex(index, step, options.length));
                                     return;
                                 }
                                 if (event.key === 'Escape' && showSuggestions) { event.preventDefault(); setActiveIndex(-1); event.currentTarget.blur(); return; }
@@ -146,7 +147,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
                             autoComplete="off" spellCheck={false} enterKeyHint="search" />
                         {searchQuery && <button type="button" aria-label="Clear search"
                             className="ss-map-first-search-clear" onClick={() => onSearchChange?.('')}><X size={16} /></button>}
-                        <HomePopover label="Preview time" className="ss-home-time" trigger={<><span>{homePreviewLabel({ minutes: previewMinutes, now, weather })}</span><ChevronDown size={14} aria-hidden="true" /></>}>
+                        <HomePopover label="Preview time" triggerLabel={`${previewLabel}, Preview time`} className="ss-home-time" trigger={<><span>{previewLabel}</span><ChevronDown size={14} aria-hidden="true" /></>}>
                             <div id="explore-time-controls" />
                         </HomePopover>
                     </div>

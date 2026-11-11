@@ -32,7 +32,7 @@ class ForecastErrorBoundary extends React.Component {
         if (this.props.fallback !== undefined) return this.props.fallback;
 
         return (
-            <div className="flex items-center gap-2.5 rounded-2xl border border-slate-900/[0.06] bg-slate-50 px-4 py-3.5 text-left">
+            <div role="alert" className="flex items-center gap-2.5 rounded-2xl border border-slate-900/[0.06] bg-slate-50 px-4 py-3.5 text-left">
                 <CloudOff size={16} className="flex-shrink-0 text-slate-400" aria-hidden="true" />
                 <p className="text-[13px] font-medium leading-snug text-slate-500">
                     Forecast data unavailable right now. Everything else on this venue still works.

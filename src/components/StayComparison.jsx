@@ -26,6 +26,7 @@ export default function StayComparison({ venues, moment, onClose, returnFocusRef
       .map(m => new Intl.DateTimeFormat('en', {month:'short',timeZone:'UTC'}).format(new Date(`${m.date}T12:00:00Z`))).join(', ') || 'No direct sun';
   }), [venues]);
   useEffect(() => {
+    const panel = sheet.current;
     const previous = returnFocusRef?.current ?? document.activeElement;
     const root = document.getElementById('root');
     const wasInert = root?.inert;
@@ -36,6 +37,7 @@ export default function StayComparison({ venues, moment, onClose, returnFocusRef
     if (root) root.inert = true;
     sheet.current?.querySelector('button')?.focus({ preventScroll: true });
     const handleKeyDown = event => {
+      if (event.defaultPrevented || !panel?.contains(event.target)) return;
       if (event.key === 'Escape') { event.preventDefault(); onClose(); }
       if (event.key === 'Tab') {
         const controls = [...sheet.current.querySelectorAll('button, [tabindex="0"]')];
@@ -50,7 +52,8 @@ export default function StayComparison({ venues, moment, onClose, returnFocusRef
       document.body.style.overflow = bodyOverflow;
       document.documentElement.style.overflow = htmlOverflow;
       if (root) root.inert = wasInert;
-      if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true });
+      const activeDialog = document.activeElement?.closest('[role="dialog"], [role="alertdialog"]');
+      if (previous instanceof HTMLElement && previous.isConnected && (!activeDialog || activeDialog === panel || activeDialog.contains(previous))) previous.focus({ preventScroll: true });
     };
   }, [onClose, returnFocusRef]);
   // Facade-only stays compare their sunniest side; "Best room" only once every stay has room types.
