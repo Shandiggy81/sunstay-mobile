@@ -11,7 +11,7 @@
  * says what it is; nothing is guessed.
  */
 import { listSunStatus } from './venueSun.js';
-import { getVenueWindExposure } from '../data/windIntelligence.js';
+import { getVenueWindExposure, measuredWindOptions } from '../data/windIntelligence.js';
 
 function finite(value) {
     const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
@@ -33,12 +33,14 @@ export function windWord(kmh) {
  * The wind chip, or null without wind data.
  * @returns {{ key: 'wind', icon: string, text: string, tone: 'calm'|'breezy'|'windy' }|null}
  */
-export function windChip(venue, weather) {
+export function windChip(venue, weather, microclimate = null) {
     const ms = finite(weather?.wind?.speed);
     if (ms == null) return null;
     const gustKmh = finite(weather?.windGusts);
-    const exposure = getVenueWindExposure(ms, venue, weather?.windDirection ?? weather?.wind?.deg ?? null,
-        gustKmh == null ? null : gustKmh / 3.6);
+    const direction = weather?.windDirection ?? weather?.wind?.deg ?? null;
+    // A fresh microclimate row's measured shelter replaces the venue-type estimate.
+    const exposure = getVenueWindExposure(ms, venue, direction, gustKmh == null ? null : gustKmh / 3.6,
+        microclimate ? measuredWindOptions(microclimate, direction) : {});
     const kmh = exposure?.effectiveWindMs == null ? null : Math.round(exposure.effectiveWindMs * 3.6);
     const word = windWord(kmh);
     if (!word) return null;
@@ -81,13 +83,13 @@ export function outdoorChip(venue) {
  * @param {object|null} input.weather live WeatherContext weather, or null
  * @returns {Array<{ key: string, icon: string, text: string, tone?: string }>}
  */
-export function venueConditionChips({ venue, forecast, weather }) {
+export function venueConditionChips({ venue, forecast, weather, microclimate = null }) {
     const chips = [];
     if (forecast) {
         const sun = listSunStatus(forecast);
         chips.push({ key: 'sun', icon: sun.icon, text: sun.text.replace(/^Sunny · until/, 'Sunny until'), tone: forecast.now?.kind === 'sun' ? 'sun' : 'muted' });
     }
-    const wind = weather ? windChip(venue, weather) : null;
+    const wind = weather ? windChip(venue, weather, microclimate) : null;
     if (wind) chips.push(wind);
     const outdoor = outdoorChip(venue);
     if (outdoor) chips.push(outdoor);

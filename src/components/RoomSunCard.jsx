@@ -8,6 +8,7 @@ import {
   formatGuestDate, venueLocalDate,
 } from '../utils/balconySunEngine.js';
 import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
+import { formatSunDuration } from '../utils/formatSunDuration.js';
 import { roomSourceLabel } from '../utils/roomProfiles.js';
 import { stayRoomDisplay } from '../utils/stayRoomTypes.js';
 
@@ -129,6 +130,13 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
       {daily ? (
         <div className="flex flex-col gap-3">
           <SunMomentsPanel daily={daily} summary={sunMomentsFromDay({ daily, forecast, timeZone })} timeZone={timeZone} now={now} label={`potential ${exposureLabel}`} dayLabel={daily.date === venueLocalDate(now, timeZone) ? 'today' : `on ${formatGuestDate(`${daily.date}T12:00:00Z`, 'UTC')}`} />
+          {daily.partSunMinutes > 0 ? (
+            <p className="text-[13px] font-medium leading-relaxed text-slate-600" data-balcony-roof-note>
+              {daily.fullSunMinutes > 0
+                ? `For ${formatSunDuration(daily.partSunMinutes)} of that, the balcony roof shades the back of the balcony and the railing side stays in the sun.`
+                : 'The balcony roof keeps the sun off the back of the balcony all day; the railing side is what gets the sun.'}
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-center gap-1.5 text-[12px]" aria-label="Sunniest months, representative 15th-of-month estimates">
             <span className="mr-1 inline-flex items-center gap-1 font-semibold text-slate-600"><ClayIcon name="sun-cloud" size={20} />Sunniest months</span>
             {months === undefined ? <span role="status" className="h-6 w-12 rounded-full bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating sunniest months</span></span>

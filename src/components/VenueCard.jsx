@@ -188,7 +188,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
 // ── More weather detail ─────────────────────────────────────
 // UV, air quality, rain radar and wind comfort come from rate-limited
 // third-party APIs, so they load only when someone opens this section.
-const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArrivalMins, rainArrivalLabel, venue, microclimate, microclimateAtLabel, shielding }) => {
+const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArrivalMins, rainArrivalLabel, venue, microclimate, microclimateEntry = null, microclimateAtLabel, shielding }) => {
   const panelId = `venue-more-weather-${venueId ?? 'panel'}`;
   return (
     <div className="flex flex-col gap-2.5">
@@ -235,7 +235,7 @@ const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArri
             </div>
           ) : null}
           <ForecastErrorBoundary>
-            <WindComfortPanel venue={venue} />
+            <WindComfortPanel venue={venue} microclimate={microclimateEntry} />
           </ForecastErrorBoundary>
         </div>
       ) : null}
@@ -523,7 +523,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const scoreState = scoreDisplayState({ isNight: nightAtScoreTime, skyKind: skyAtScoreTime });
 
   // Sheltered feels-like and wind remain the same values as the list.
-  const feelsLike = venueFeelsLike(venue, liveWeather);
+  const feelsLike = venueFeelsLike(venue, liveWeather, microclimateEntry);
   const rainChance = finite(liveWeather?.precipProbability);
   const uvIndex = finite(liveWeather?.uvi ?? liveWeather?.uvIndex);
 
@@ -578,7 +578,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const description = [venue?.venue_description, venue?.description, venue?.about]
     .find((d) => typeof d === 'string' && d.trim())?.trim() ?? null;
 
-  const statTiles = venueStatTiles({ venue, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary, isNight: nightAtScoreTime, skyKindAtScore: skyAtScoreTime });
+  const statTiles = venueStatTiles({ venue, microclimate: microclimateEntry, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary, isNight: nightAtScoreTime, skyKindAtScore: skyAtScoreTime });
   const cardSun = outdoorDay ? cardSunWindows(outdoorDay) : null;
   // Stay cards can show another date's rooms, so today's rain only goes on outdoor sun cards.
   const rain = sunSection === 'stay' ? null : rainDuringSun({ forecast: liveWeather ? forecast : null, sun: cardSun });
@@ -785,7 +785,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     <HappyHourSection happyHour={happyHour} fromPartnerPreview={!verifiedHH && Boolean(happyHour)} />
                     <PartnerExtrasSection events={partnerEvents} outdoor={partnerOutdoor} />
                     <MoreWeatherDetail open={moreOpen} onToggle={() => setMoreOpen(v => !v)} venueId={venue?.id} uvIndex={uvIndex} aqLabel={aqLabel}
-                      rainArrivalMins={rainArrivalMins} rainArrivalLabel={rainArrivalLabel} venue={venue} microclimate={microclimate} microclimateAtLabel={microclimateAtLabel} shielding={shielding} />
+                      rainArrivalMins={rainArrivalMins} rainArrivalLabel={rainArrivalLabel} venue={venue} microclimate={microclimate} microclimateEntry={microclimateEntry} microclimateAtLabel={microclimateAtLabel} shielding={shielding} />
                   </section>
                   <VibeSection onManage={handleManage} venueName={displayName} />
                   <VenueSourceNote note={venueSourceNote(venue)} />

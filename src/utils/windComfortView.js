@@ -24,18 +24,7 @@ export function comfortScale(feelsLike) {
     };
 }
 
-const MEASURED_MAX_AGE_MS = 2 * 60 * 60 * 1000;
-
-/**
- * A microclimate row is only used for the wind factor while its weather is
- * recent: it was scored for the wind direction at `weather_computed_at`.
- */
-export function freshMicroclimate(entry, now = new Date()) {
-    const scoredAt = Date.parse(entry?.weather_computed_at ?? '');
-    const at = now instanceof Date ? now.getTime() : Number(now);
-    if (!Number.isFinite(scoredAt) || !Number.isFinite(at)) return null;
-    return at - scoredAt >= 0 && at - scoredAt <= MEASURED_MAX_AGE_MS ? entry : null;
-}
+export { freshMicroclimate } from '../data/windIntelligence.js';
 
 const TYPE_WORDS = {
     rooftop: 'rooftop', floating: 'on the water', waterfront: 'waterfront', open_park: 'open ground',

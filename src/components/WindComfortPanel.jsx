@@ -6,7 +6,7 @@ import { estimateNoise } from '../utils/noiseExposure';
 import { compassPoint } from '../utils/comfortDisplay.js';
 import { describeWindExposure } from '../utils/windExposure.js';
 import {
-    WIND_FACTOR_STEPS, WIND_LEVEL_KEYS, comfortScale, feelsLikeGap, freshMicroclimate,
+    WIND_FACTOR_STEPS, WIND_LEVEL_KEYS, comfortScale, feelsLikeGap,
     hourlyWindColumns, windFactorView, windLevelWord,
 } from '../utils/windComfortView.js';
 import OutdoorComfortTiles from './OutdoorComfortTiles.jsx';
@@ -16,6 +16,7 @@ import {
     getWindWarning,
     getVenueWindExposure,
     resolveVenueWindFactor,
+    measuredWindOptions,
     calculateApparentTemp,
     getComfortZone,
     generateHourlyForecast,
@@ -47,10 +48,9 @@ const WindArrow = ({ direction }) => (
 
 /**
  * Wind and feels-like comfort at one venue. `microclimate` is the venue's
- * microclimate row: its wind shelter is measured from the surrounding buildings
- * and replaces the venue-type estimate. The venue card does not pass it yet,
- * because the list row and the card header still use the venue-type estimate
- * and one card must not show two different winds. Pass it once they do.
+ * microclimate row: while it is fresh, its wind shelter, measured from the
+ * surrounding buildings, replaces the venue-type estimate. The list row and
+ * the card header use the same row (measuredWindOptions), so all three agree.
  */
 const WindComfortPanel = ({ venue, microclimate = null }) => {
     const { weather } = useWeather();
@@ -70,7 +70,7 @@ const WindComfortPanel = ({ venue, microclimate = null }) => {
         const direction = finiteOrNull(weather.windDirection ?? weather.wind?.deg);
         const gusts = finiteOrNull(weather.windGusts);
         const gustMs = gusts === null ? null : gusts / 3.6;
-        const measured = { microclimate: freshMicroclimate(microclimate), measuredDirection: direction };
+        const measured = measuredWindOptions(microclimate, direction);
 
         const typeProfile = getWindProfile(venue);
         const factor = resolveVenueWindFactor(venue, { direction, ...measured });

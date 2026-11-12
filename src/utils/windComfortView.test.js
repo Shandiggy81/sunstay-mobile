@@ -5,8 +5,10 @@ import {
 } from './windComfortView.js';
 import {
     calculateApparentTemp, generateHourlyForecast, getComfortZone, getOptimalBookingTime, getVenueWindExposure,
-    getWindProfile, getWindWarning, measuredWindFactor, resolveVenueWindFactor,
+    getWindProfile, getWindWarning, measuredWindFactor, measuredWindOptions, resolveVenueWindFactor,
 } from '../data/windIntelligence.js';
+import { windChip } from './venueConditionChips.js';
+import { venueFeelsLike } from './venueSun.js';
 
 const cafe = { id: 'x-cafe', venueName: 'Corner Cafe', vibe: 'Cafe' };
 const hourly = {
@@ -161,4 +163,26 @@ test('the feels-like gap is only mentioned when it is worth a sentence', () => {
     assert.equal(feelsLikeGap(20, 23), 'Feels 3° warmer than the 20° air');
     assert.equal(feelsLikeGap(20, 19), null);
     assert.equal(feelsLikeGap(null, 12), null);
+});
+
+test('the list row, the card header and the panel show the same measured wind and feels-like', () => {
+    const weather = { main: { temp: 20, humidity: 50 }, wind: { speed: 10 }, windDirection: 350, windGusts: 54 };
+    const minutesAgo = minutes => new Date(Date.now() - minutes * 60000).toISOString();
+    const row = { wind_shelter_score: 0.1, weather_computed_at: minutesAgo(10) };
+    const options = measuredWindOptions(row, 350);
+    // What the panel works out…
+    const panelWind = Math.round(getVenueWindExposure(10, cafe, 350, 15, options).effectiveWindMs * 3.6);
+    const panelFeels = Math.round(calculateApparentTemp(20, 10, 50, getWindProfile(cafe).shelterFactor, 350, 15, cafe, options));
+    // …is what the list chip, the card tile and both feels-like figures show.
+    assert.equal(panelWind, 36);
+    assert.equal(windChip(cafe, weather, row).kmh, panelWind);
+    assert.equal(venueFeelsLike(cafe, weather, row), panelFeels);
+    assert.notEqual(windChip(cafe, weather, row).kmh, windChip(cafe, weather).kmh);
+    // A stale row, or none, leaves the venue-type estimate exactly as it was.
+    const stale = { ...row, weather_computed_at: minutesAgo(300) };
+    for (const unusable of [stale, null, {}, { wind_shelter_score: 0.1 }]) {
+        assert.equal(windChip(cafe, weather, unusable).kmh, windChip(cafe, weather).kmh);
+        assert.equal(venueFeelsLike(cafe, weather, unusable), venueFeelsLike(cafe, weather));
+    }
+    assert.deepEqual(measuredWindOptions(stale, 350), { microclimate: null, measuredDirection: 350 });
 });

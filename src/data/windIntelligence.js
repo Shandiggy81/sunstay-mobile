@@ -110,6 +110,28 @@ export function measuredWindFactor(entry) {
     return Math.round(((1 - shelter) / 0.9) * 100) / 100;
 }
 
+const MEASURED_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * A microclimate row is only used for the wind factor while its weather is
+ * recent: it was scored for the wind direction at `weather_computed_at`.
+ */
+export function freshMicroclimate(entry, now = new Date()) {
+    const scoredAt = Date.parse(entry?.weather_computed_at ?? '');
+    const at = now instanceof Date ? now.getTime() : Number(now);
+    if (!Number.isFinite(scoredAt) || !Number.isFinite(at)) return null;
+    return at - scoredAt >= 0 && at - scoredAt <= MEASURED_MAX_AGE_MS ? entry : null;
+}
+
+/**
+ * The `options` every wind helper takes, from a venue's microclimate row and
+ * the current wind direction. The list row, the card header and the Wind &
+ * comfort panel all build them here, so they show the same wind.
+ */
+export function measuredWindOptions(entry, direction, now = new Date()) {
+    return { microclimate: freshMicroclimate(entry, now), measuredDirection: direction ?? null };
+}
+
 /**
  * The wind factor for one wind direction, best source first:
  *   'profile'  the venue's own directional wind profile
