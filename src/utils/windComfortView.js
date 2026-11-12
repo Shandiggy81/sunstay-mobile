@@ -81,17 +81,20 @@ export function rowWindKmh(row) {
 
 /**
  * Columns for the hourly strip. Bars share one scale (at least 40 km/h tall)
- * so a calm day does not look windy.
+ * so a calm day does not look windy. `current` carries the panel's headline
+ * feels-like and wind, so the "Now" column never disagrees with them: the
+ * forecast's slot for this hour is rounded and can be a degree out.
  */
-export function hourlyWindColumns(rows, limit = 12) {
+export function hourlyWindColumns(rows, limit = 12, current = null) {
     const list = (Array.isArray(rows) ? rows : []).slice(0, limit);
-    const speeds = list.map(rowWindKmh);
+    const headline = row => (row?.isCurrent === true && current ? current : null);
+    const speeds = list.map(row => finite(headline(row)?.windKmh) ?? rowWindKmh(row));
     const top = Math.max(40, ...speeds.filter(speed => speed !== null));
     return list.map((row, index) => {
         const kmh = speeds[index];
         const level = LEVEL_WORDS[row?.windWarning?.level] ? row.windWarning.level : null;
         const from = compassPoint(row?.windDirection);
-        const feels = finite(row?.feelsLike);
+        const feels = finite(headline(row)?.feelsLike) ?? finite(row?.feelsLike);
         const label = row?.label ?? '–';
         return {
             key: row?.time instanceof Date ? row.time.getTime() : index,

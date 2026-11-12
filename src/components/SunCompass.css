@@ -1,0 +1,26 @@
+/* Sun compass on the stay card: gold for sun now, pale gold for sun later,
+   slate for shade. Drawn 1:1 so the compass letters stay at 12px. */
+.ss-compass { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 0; border-top: 1px solid #f1ece2; border-bottom: 1px solid #f1ece2; }
+.ss-compass > svg { flex: 0 0 auto; margin: 0 auto; }
+.ss-compass__ring { fill: none; stroke: #f1f5f9; stroke-width: 9; }
+.ss-compass__building { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; }
+.ss-compass__cardinal { font-size: 12px; font-weight: 700; fill: #64748b; text-anchor: middle; dominant-baseline: central; }
+.ss-compass__side { fill: none; stroke: #e2e8f0; stroke-width: 9; stroke-linecap: round; }
+.ss-compass__side[data-state='now'] { stroke: #f59e0b; }
+.ss-compass__side[data-state='later'], .ss-compass__side[data-state='some'] { stroke: #fde68a; }
+.ss-compass__side[data-state='done'] { stroke: #cbd5e1; }
+.ss-compass__ray { stroke: #fbbf24; stroke-width: 1.5; stroke-dasharray: 1 5; stroke-linecap: round; }
+.ss-compass__halo { fill: rgba(245, 158, 11, 0.22); }
+.ss-compass__sun { fill: #f59e0b; stroke: #ffffff; stroke-width: 2; }
+
+.ss-compass__body { flex: 1 1 150px; min-width: 150px; }
+.ss-compass__label { font-size: 13px; font-weight: 700; color: #475569; }
+.ss-compass__list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.ss-compass__list li { display: flex; align-items: flex-start; gap: 8px; }
+.ss-compass__list i { flex: 0 0 auto; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; background: #e2e8f0; }
+.ss-compass__list i[data-state='now'] { background: #f59e0b; }
+.ss-compass__list i[data-state='later'], .ss-compass__list i[data-state='some'] { background: #fde68a; box-shadow: inset 0 0 0 1px #f59e0b; }
+.ss-compass__list i[data-state='done'] { background: #cbd5e1; }
+.ss-compass__list strong { display: block; font-size: 13px; font-weight: 700; line-height: 1.3; color: #0f172a; }
+.ss-compass__list span > span { display: block; font-size: 12px; font-weight: 500; line-height: 1.35; color: #64748b; }
+.ss-compass__note { margin-top: 8px; font-size: 12px; font-weight: 500; line-height: 1.4; color: #64748b; }

@@ -145,6 +145,12 @@ test('hourly columns show the wind at the venue, share one bar scale and say wha
     const calm = hourlyWindColumns([{ label: 'Now', wind: 4, feelsLike: 20, windWarning: { level: 'green' } }]);
     assert.equal(calm[0].bar, 0.1);
     assert.deepEqual(hourlyWindColumns(null), []);
+    // The "Now" column repeats the panel's headline figures; later hours are untouched.
+    const aligned = hourlyWindColumns(rows, 12, { feelsLike: 17, windKmh: 12 });
+    assert.deepEqual([aligned[0].feelsLike, aligned[0].windKmh], [17, 12]);
+    assert.match(aligned[0].spoken, /^Now: feels like 17°, wind 12 km\/h from N, calm$/);
+    assert.deepEqual([aligned[1].feelsLike, aligned[1].windKmh], [columns[1].feelsLike, columns[1].windKmh]);
+    assert.equal(hourlyWindColumns(rows, 12, { feelsLike: null, windKmh: null })[0].windKmh, columns[0].windKmh);
     assert.equal(rowWindKmh({ wind: 12 }), 12);
     assert.equal(rowWindKmh({}), null);
     assert.equal(windLevelWord('purple'), 'Wind unknown');

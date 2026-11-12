@@ -7,6 +7,7 @@ import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
 import RoomSunCard from './RoomSunCard';
+import SunCompass from './SunCompass.jsx';
 import { stayRoomTypesDisplay } from '../utils/stayRoomTypes.js';
 import SunMomentsPanel from './SunMomentsPanel.jsx';
 import CafeSunSection, { CafeSunMonths, CafeSunFacts } from './CafeSunSection.jsx';
@@ -187,7 +188,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
 // ── More weather detail ─────────────────────────────────────
 // UV, air quality, rain radar and wind comfort come from rate-limited
 // third-party APIs, so they load only when someone opens this section.
-const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArrivalMins, rainArrivalLabel, venue, microclimate, microclimateEntry = null, microclimateAtLabel, shielding }) => {
+const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArrivalMins, rainArrivalLabel, venue, microclimate, microclimateAtLabel, shielding }) => {
   const panelId = `venue-more-weather-${venueId ?? 'panel'}`;
   return (
     <div className="flex flex-col gap-2.5">
@@ -234,7 +235,7 @@ const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArri
             </div>
           ) : null}
           <ForecastErrorBoundary>
-            <WindComfortPanel venue={venue} microclimate={microclimateEntry} />
+            <WindComfortPanel venue={venue} />
           </ForecastErrorBoundary>
         </div>
       ) : null}
@@ -717,6 +718,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                             See the sun report
                           </button>
                         ) : null}
+                        <SunCompass rooms={roomTypes} venue={venue} date={stayMatch?.daily?.date ?? todayKey} now={now} />
                         <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
                         {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />)}
                       </section>
@@ -783,7 +785,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     <HappyHourSection happyHour={happyHour} fromPartnerPreview={!verifiedHH && Boolean(happyHour)} />
                     <PartnerExtrasSection events={partnerEvents} outdoor={partnerOutdoor} />
                     <MoreWeatherDetail open={moreOpen} onToggle={() => setMoreOpen(v => !v)} venueId={venue?.id} uvIndex={uvIndex} aqLabel={aqLabel}
-                      rainArrivalMins={rainArrivalMins} rainArrivalLabel={rainArrivalLabel} venue={venue} microclimate={microclimate} microclimateEntry={microclimateEntry} microclimateAtLabel={microclimateAtLabel} shielding={shielding} />
+                      rainArrivalMins={rainArrivalMins} rainArrivalLabel={rainArrivalLabel} venue={venue} microclimate={microclimate} microclimateAtLabel={microclimateAtLabel} shielding={shielding} />
                   </section>
                   <VibeSection onManage={handleManage} venueName={displayName} />
                   <VenueSourceNote note={venueSourceNote(venue)} />

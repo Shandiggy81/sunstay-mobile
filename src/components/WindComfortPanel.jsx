@@ -47,8 +47,10 @@ const WindArrow = ({ direction }) => (
 
 /**
  * Wind and feels-like comfort at one venue. `microclimate` is the venue's
- * microclimate row when there is one: its wind shelter is measured from the
- * surrounding buildings and replaces the venue-type estimate.
+ * microclimate row: its wind shelter is measured from the surrounding buildings
+ * and replaces the venue-type estimate. The venue card does not pass it yet,
+ * because the list row and the card header still use the venue-type estimate
+ * and one card must not show two different winds. Pass it once they do.
  */
 const WindComfortPanel = ({ venue, microclimate = null }) => {
     const { weather } = useWeather();
@@ -99,7 +101,7 @@ const WindComfortPanel = ({ venue, microclimate = null }) => {
 
     if (!data) return <WindComfortUnavailable />;
 
-    const columns = hourlyWindColumns(data.rows, expanded ? 24 : 12);
+    const columns = hourlyWindColumns(data.rows, expanded ? 24 : 12, { feelsLike: data.feelsLike, windKmh: data.hereKmh });
     const selected = columns.find(column => column.key === selectedKey) ?? null;
     const selectedRow = selected ? data.rows.find(row => row.time?.getTime() === selected.key) ?? null : null;
     const activeRow = selectedRow ?? data.rows[0] ?? null;
