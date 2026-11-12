@@ -1,426 +1,250 @@
 import React, { useId, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Wind, Thermometer, Shield, AlertTriangle, Clock,
-    ChevronRight, ChevronDown, TrendingUp,
-    TrendingDown, Minus, Info,
-} from 'lucide-react';
+import { ArrowUp, ChevronDown } from 'lucide-react';
 import { useWeather } from '../context/WeatherContext';
 import { finiteOrNull } from '../utils/finiteOrNull';
 import { estimateNoise } from '../utils/noiseExposure';
+import { compassPoint } from '../utils/comfortDisplay.js';
+import { describeWindExposure } from '../utils/windExposure.js';
+import {
+    WIND_FACTOR_STEPS, WIND_LEVEL_KEYS, comfortScale, feelsLikeGap, freshMicroclimate,
+    hourlyWindColumns, windFactorView, windLevelWord,
+} from '../utils/windComfortView.js';
 import OutdoorComfortTiles from './OutdoorComfortTiles.jsx';
+import ClayIcon from './common/ClayIcon';
 import {
     getWindProfile,
     getWindWarning,
+    getVenueWindExposure,
+    resolveVenueWindFactor,
     calculateApparentTemp,
     getComfortZone,
     generateHourlyForecast,
     getWindTrend,
     getOptimalBookingTime,
-    getWindImpactExplanation,
 } from '../data/windIntelligence';
+import './WindComfortPanel.css';
 
-// ── Unavailable State ─────────────────────────────────────────────
-// Shown when the venue has no usable temperature reading. Keeps the section
-// heading in place so the accordion does not appear to lose content.
+const kmh = ms => (Number.isFinite(ms) ? Math.round(ms * 3.6) : null);
 
+// Shown when there is no usable temperature. The heading stays so the
+// section does not appear to lose its content.
 const WindComfortUnavailable = () => (
-    <div className="wind-comfort-panel">
-        <div className="wind-section-header">
-            <div className="wind-section-title-group">
-                <Shield size={16} className="text-blue-500" />
-                <h3 className="wind-section-title">Wind &amp; Comfort Intelligence</h3>
+    <section className="ss-wind" aria-label="Wind and comfort">
+        <div className="ss-wind__head">
+            <ClayIcon name="windsock" size={40} />
+            <div>
+                <h3 className="ss-wind__title">Wind &amp; comfort</h3>
+                <p className="ss-wind__verdict">Forecast data is unavailable for this venue right now.</p>
             </div>
         </div>
-        <div className="wind-venue-note">
-            <Info size={13} className="text-blue-400 flex-shrink-0 mt-0.5" />
-            <p>Forecast data unavailable for this venue right now.</p>
-        </div>
-    </div>
+    </section>
 );
 
-// ── Wind Warning Badge ────────────────────────────────────────────
+/** A wind direction arrow that points the way the wind is blowing. */
+const WindArrow = ({ direction }) => (
+    <ArrowUp size={13} aria-hidden="true" className="shrink-0" style={{ transform: `rotate(${direction + 180}deg)` }} />
+);
 
-const WindWarningBadge = ({ warning }) => {
-    if (!warning) return null;
-
-    const dotColors = {
-        green: 'bg-emerald-500',
-        yellow: 'bg-amber-500',
-        orange: 'bg-orange-500',
-        red: 'bg-red-500',
-    };
-
-    return (
-        <div className={`wind-warning-badge ${warning.bgColor ?? ''} border ${warning.borderColor ?? ''}`}>
-            <div className="flex items-center gap-2">
-                <span className={`wind-warning-dot ${dotColors[warning.level] ?? 'bg-slate-400'}`} />
-                <span className={`wind-warning-label ${warning.color ?? ''}`}>
-                    {warning.icon} {warning.label ?? 'Wind conditions unavailable'}
-                </span>
-            </div>
-            {warning.advice ? <p className="wind-warning-advice">{warning.advice}</p> : null}
-            {Number.isFinite(warning.effectiveWind) ? (
-                <p className="wind-warning-detail">
-                    Effective wind: {warning.effectiveWind} km/h at venue
-                </p>
-            ) : null}
-        </div>
-    );
-};
-
-// ── Comfort Gauge ─────────────────────────────────────────────────
-
-const ComfortGauge = ({ apparentTemp, comfort, actualTemp }) => {
-    // Position on a -5 to 45°C scale. An unusable reading would make `position`
-    // NaN and emit `left: NaN%`, so park the needle mid-scale instead.
-    const min = -5;
-    const max = 45;
-    const feels = finiteOrNull(apparentTemp);
-    const actual = finiteOrNull(actualTemp);
-    const position = feels === null
-        ? 50
-        : Math.max(0, Math.min(100, ((feels - min) / (max - min)) * 100));
-
-    const zoneColors = [
-        { start: 0, end: 20, color: '#3b82f6', label: 'Cold' },
-        { start: 20, end: 34, color: '#60a5fa', label: 'Cool' },
-        { start: 34, end: 54, color: '#22c55e', label: 'Comfortable' },
-        { start: 54, end: 66, color: '#f59e0b', label: 'Warm' },
-        { start: 66, end: 80, color: '#f97316', label: 'Hot' },
-        { start: 80, end: 100, color: '#ef4444', label: 'Extreme' },
-    ];
-
-    return (
-        <div className="comfort-gauge">
-            <div className="comfort-gauge-temps">
-                <div className="comfort-gauge-actual">
-                    <span className="comfort-gauge-temp-number">{actual === null ? '–' : `${actual}°C`}</span>
-                    <span className="comfort-gauge-temp-label">Actual</span>
-                </div>
-                <div className="comfort-gauge-arrow">→</div>
-                <div className={`comfort-gauge-feels`}>
-                    <span className={`comfort-gauge-temp-number ${comfort?.color ?? ''}`}>
-                        {feels === null ? '–' : `${feels}°C`}
-                    </span>
-                    <span className="comfort-gauge-temp-label">Feels Like</span>
-                </div>
-            </div>
-
-            {/* Visual gauge bar */}
-            <div className="comfort-gauge-track">
-                {zoneColors.map((zone, i) => (
-                    <div
-                        key={i}
-                        className="comfort-gauge-zone"
-                        style={{
-                            left: `${zone.start}%`,
-                            width: `${zone.end - zone.start}%`,
-                            background: zone.color,
-                        }}
-                    />
-                ))}
-                {/* Indicator needle */}
-                <motion.div
-                    className="comfort-gauge-needle"
-                    initial={{ left: '50%' }}
-                    animate={{ left: `${position}%` }}
-                    transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-                />
-            </div>
-            <div className="comfort-gauge-labels">
-                <span>Cold</span>
-                <span>Comfortable</span>
-                <span>Hot</span>
-            </div>
-        </div>
-    );
-};
-
-// ── Hourly Forecast Strip ─────────────────────────────────────────
-
-const HourlyForecastStrip = ({ forecast, onHourTap }) => {
-    const [expanded, setExpanded] = useState(false);
-    const stripId = useId();
-    const rows = Array.isArray(forecast) ? forecast : [];
-    const visible = expanded ? rows.slice(0, 24) : rows.slice(0, 12);
-
-    if (!visible.length) {
-        return (
-            <p className="hourly-forecast-section text-[12px] font-semibold text-slate-400">
-                Hourly forecast data unavailable
-            </p>
-        );
-    }
-
-    return (
-        <div className="hourly-forecast-section">
-            <div id={stripId} className="hourly-scroll">
-                {visible.map((h, i) => {
-                    const dotColors = {
-                        green: '#22c55e',
-                        yellow: '#f59e0b',
-                        orange: '#f97316',
-                        red: '#ef4444',
-                    };
-
-                    return (
-                        <motion.button
-                            type="button"
-                            key={i}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.02 }}
-                            className={`hourly-item ${h?.isCurrent ? 'hourly-item-current' : ''}`}
-                            style={{ minWidth: 44, minHeight: 44 }}
-                            onClick={() => onHourTap && onHourTap(h)}
-                        >
-                            <span className="hourly-label">{h?.label ?? '–'}</span>
-                            <span className="hourly-icon">{h?.comfort?.icon ?? '❓'}</span>
-                            <span className={`hourly-feels ${h?.comfort?.color ?? ''}`}>
-                                {Number.isFinite(h?.feelsLike) ? `${h.feelsLike}°` : '–'}
-                            </span>
-                            <div
-                                className="hourly-wind-dot"
-                                style={{ background: dotColors[h?.windWarning?.level] ?? '#94a3b8' }}
-                                title={`${h?.wind ?? '–'}km/h — ${h?.windWarning?.label ?? 'unknown'}`}
-                            />
-                            <span className="hourly-wind">{Number.isFinite(h?.wind) ? h.wind : '–'}</span>
-                        </motion.button>
-                    );
-                })}
-            </div>
-            {rows.length > 12 && (
-                <button
-                    type="button"
-                    onClick={() => setExpanded(!expanded)}
-                    aria-expanded={expanded}
-                    aria-controls={stripId}
-                    className="mt-1.5 flex min-h-11 w-full cursor-pointer items-center justify-center gap-1 rounded-xl text-[12px] font-semibold text-slate-500 transition-colors active:bg-slate-900/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                >
-                    {expanded ? 'Show less' : 'Show full 24 hours'}
-                    <ChevronDown
-                        size={14}
-                        className={`transition-transform ${expanded ? 'rotate-180' : ''}`}
-                    />
-                </button>
-            )}
-        </div>
-    );
-};
-
-// ── Main WindComfortPanel Component ───────────────────────────────
-
-const WindComfortPanel = ({ venue }) => {
+/**
+ * Wind and feels-like comfort at one venue. `microclimate` is the venue's
+ * microclimate row when there is one: its wind shelter is measured from the
+ * surrounding buildings and replaces the venue-type estimate.
+ */
+const WindComfortPanel = ({ venue, microclimate = null }) => {
     const { weather } = useWeather();
-    const [selectedHour, setSelectedHour] = useState(null);
+    const [selectedKey, setSelectedKey] = useState(null);
+    const [expanded, setExpanded] = useState(false);
+    const titleId = useId();
+    const stripId = useId();
 
-    const windData = useMemo(() => {
+    const data = useMemo(() => {
         if (!weather || !venue) return null;
-
-        // The weather payload is assembled from several upstream providers, so
-        // treat every reading as optional and reject anything non-finite before
-        // it can reach the gauge as "NaN°C".
+        // The weather payload is assembled from several providers: treat every
+        // reading as optional so nothing reaches the panel as "NaN°".
         const temp = finiteOrNull(weather.main?.temp);
-        const feelsLikeApi = finiteOrNull(weather.main?.feels_like);
+        if (temp === null) return null;
         const windSpeed = finiteOrNull(weather.wind?.speed) ?? 0;
         const humidity = finiteOrNull(weather.main?.humidity);
         const direction = finiteOrNull(weather.windDirection ?? weather.wind?.deg);
         const gusts = finiteOrNull(weather.windGusts);
         const gustMs = gusts === null ? null : gusts / 3.6;
+        const measured = { microclimate: freshMicroclimate(microclimate), measuredDirection: direction };
 
-        // Temperature drives the gauge, the comfort zone and every hourly row.
-        // Without it there is nothing to model, so fall through to the
-        // unavailable state rather than rendering a panel full of NaN.
-        if (temp === null) return null;
-
-        const windProfile = getWindProfile(venue);
-        const windWarning = getWindWarning(windSpeed, venue, direction, gustMs);
-        const apparentTemp = calculateApparentTemp(
-            temp, windSpeed, humidity, windProfile.shelterFactor, direction, gustMs, venue
-        );
-        const comfort = getComfortZone(apparentTemp);
-        const hourlyForecast = generateHourlyForecast(temp, windSpeed, humidity, venue, direction, gustMs,
-            { hourly: weather.hourly, utcOffsetSeconds: weather.utcOffsetSeconds });
-        const windTrend = getWindTrend(hourlyForecast);
-        const optimalBooking = getOptimalBookingTime(hourlyForecast);
-        const windImpact = getWindImpactExplanation(temp, windSpeed, apparentTemp, venue, direction, gustMs);
-
+        const typeProfile = getWindProfile(venue);
+        const factor = resolveVenueWindFactor(venue, { direction, ...measured });
+        const exposure = getVenueWindExposure(windSpeed, venue, direction, gustMs, measured);
+        const warning = getWindWarning(windSpeed, venue, direction, gustMs, measured);
+        const apparent = calculateApparentTemp(temp, windSpeed, humidity, typeProfile.shelterFactor, direction, gustMs, venue, measured);
+        const hourly = generateHourlyForecast(temp, windSpeed, humidity, venue, direction, gustMs,
+            { hourly: weather.hourly, utcOffsetSeconds: weather.utcOffsetSeconds, ...measured });
+        const rows = Array.isArray(hourly) ? hourly : [];
         return {
             temp: Math.round(temp),
-            feelsLikeApi: feelsLikeApi === null ? null : Math.round(feelsLikeApi),
-            windSpeed,
-            humidity,
-            windProfile,
-            windWarning,
-            apparentTemp: apparentTemp === null ? null : Math.round(apparentTemp),
-            comfort,
-            hourlyForecast: Array.isArray(hourlyForecast) ? hourlyForecast : [],
-            windTrend,
-            optimalBooking,
-            windImpact,
+            humidity: humidity === null ? null : Math.round(humidity),
+            feelsLike: apparent === null ? null : Math.round(apparent),
+            comfort: getComfortZone(apparent),
+            openAirKmh: kmh(windSpeed),
+            hereKmh: kmh(exposure.effectiveWindMs),
+            gustKmh: exposure.effectiveGustMs > 0 ? kmh(exposure.effectiveGustMs) : null,
+            direction: exposure.direction,
+            exposure, warning, rows,
+            factor: windFactorView({
+                ...factor, note: factor.note ?? typeProfile.venueNote,
+                illustrative: Boolean(venue.comfortProfilesIllustrative),
+            }),
+            trend: getWindTrend(rows),
+            best: getOptimalBookingTime(rows),
         };
-    }, [weather, venue]);
+    }, [weather, venue, microclimate]);
 
-    if (!windData) return <WindComfortUnavailable />;
-    // Resolve a stored selection against fresh rows, so refreshed weather never leaves a stale comfort verdict.
-    const activeHour = windData.hourlyForecast.find(row => row.time?.getTime() === selectedHour?.time?.getTime()) ?? windData.hourlyForecast[0];
-    const outdoorWind = activeHour?.windExposure;
-    const outdoorNoise = estimateNoise(venue, activeHour?.time);
-    const showOutdoorComfort = Boolean(venue?.windProfile || venue?.noiseProfile);
+    if (!data) return <WindComfortUnavailable />;
 
-    const TrendIcon = windData.windTrend?.direction === 'building'
-        ? TrendingUp
-        : windData.windTrend?.direction === 'calming'
-            ? TrendingDown
-            : Minus;
+    const columns = hourlyWindColumns(data.rows, expanded ? 24 : 12);
+    const selected = columns.find(column => column.key === selectedKey) ?? null;
+    const selectedRow = selected ? data.rows.find(row => row.time?.getTime() === selected.key) ?? null : null;
+    const activeRow = selectedRow ?? data.rows[0] ?? null;
+    const scale = comfortScale(data.feelsLike);
+    const from = compassPoint(data.direction);
+    const gap = feelsLikeGap(data.temp, data.feelsLike);
+    const showNoise = Boolean(venue?.windProfile || venue?.noiseProfile);
+    const anyEstimate = columns.some(column => column.estimated);
 
     return (
-        <div className="wind-comfort-panel">
-            {/* ── Section Title ──────────────────────────── */}
-            <div className="wind-section-header">
-                <div className="wind-section-title-group">
-                    <Shield size={16} className="text-blue-500" />
-                    <h3 className="wind-section-title">Wind & Comfort Intelligence</h3>
+        <section className="ss-wind" aria-labelledby={titleId}>
+            <div className="ss-wind__head">
+                <ClayIcon name={data.warning.level === 'green' ? 'wind-sheltered' : 'windsock'} size={40} />
+                <div className="min-w-0">
+                    <h3 id={titleId} className="ss-wind__title">Wind &amp; comfort</h3>
+                    <p className="ss-wind__verdict"><strong>{data.warning.label} here now.</strong> {data.warning.advice}</p>
                 </div>
             </div>
 
-            {/* ── Wind Warning Badge ─────────────────────── */}
-            <WindWarningBadge warning={windData.windWarning} />
-
-            {showOutdoorComfort && (
-                <OutdoorComfortTiles wind={outdoorWind} noise={outdoorNoise} hourLabel={activeHour?.label} venue={venue} />
-            )}
-
-            {/* ── Venue Wind Note ─────────────────────────── */}
-            {windData.windProfile?.venueNote && (
-                <div className="wind-venue-note">
-                    <Info size={13} className="text-blue-400 flex-shrink-0 mt-0.5" />
-                    <p>{windData.windProfile.venueNote}</p>
-                </div>
-            )}
-
-            {/* ── Dual Temperature + Comfort Gauge ───────── */}
-            <ComfortGauge
-                apparentTemp={windData.apparentTemp}
-                comfort={windData.comfort}
-                actualTemp={windData.temp}
-            />
-
-            {/* ── Comfort Zone Badge ─────────────────────── */}
-            <div className={`wind-comfort-badge ${windData.comfort?.bgColor ?? ''} border ${windData.comfort?.borderColor ?? ''}`}>
-                <span className="text-lg">{windData.comfort?.icon ?? '❓'}</span>
+            <dl className="ss-wind__stats">
                 <div>
-                    <p className={`wind-comfort-label ${windData.comfort?.color ?? ''}`}>
-                        {windData.comfort?.label ?? 'Comfort unavailable'}
-                    </p>
-                    <p className="wind-comfort-advice">{windData.comfort?.advice ?? 'Weather data unavailable'}</p>
+                    <dt>Feels like</dt>
+                    <dd className="ss-wind__value">{data.feelsLike === null ? '–' : `${data.feelsLike}°`}</dd>
+                    <dd className="ss-wind__stat-note">Air {data.temp}°{data.humidity === null ? '' : ` · ${data.humidity}% humidity`}</dd>
                 </div>
+                <div>
+                    <dt>Wind here</dt>
+                    <dd className="ss-wind__value">{data.hereKmh ?? '–'}<span> km/h</span></dd>
+                    <dd className="ss-wind__stat-note">
+                        {from ? <><WindArrow direction={data.direction} />From {from}</> : 'Direction unknown'}
+                        {data.gustKmh !== null ? <span>· gusts {data.gustKmh}</span> : null}
+                    </dd>
+                </div>
+            </dl>
+
+            <div>
+                <div
+                    className="ss-wind__scale"
+                    role="img"
+                    aria-label={data.feelsLike === null ? 'Comfort scale unavailable' : `Comfort scale from cold to hot. Feels like ${data.feelsLike}°: ${data.comfort.label.toLowerCase()}.`}
+                >
+                    {scale.segments.map(segment => (
+                        <span key={segment.level} data-level={segment.level} style={{ left: `${segment.start}%`, width: `${segment.end - segment.start}%` }} />
+                    ))}
+                    {scale.position === null ? null : <i style={{ left: `${scale.position}%` }} />}
+                </div>
+                <div className="ss-wind__scale-ends" aria-hidden="true"><span>Cold</span><span>Comfortable</span><span>Hot</span></div>
+                <p className="ss-wind__text"><strong>{data.comfort.label}.</strong> {data.comfort.advice}{gap ? `. ${gap}.` : '.'}</p>
             </div>
 
-            {/* ── Wind Impact Explanation ─────────────────── */}
-            {windData.windImpact && (
-                <div className="wind-impact-explainer">
-                    <Wind size={13} className="text-blue-400 flex-shrink-0" />
-                    <p>{windData.windImpact}</p>
-                </div>
-            )}
-
-            {/* ── Wind Trend ─────────────────────────────── */}
-            <div className="wind-trend-row">
-                <TrendIcon size={14} className="text-gray-500" />
-                <span className="wind-trend-label">
-                    {windData.windTrend?.icon} {windData.windTrend?.label ?? 'Wind trend unavailable'}
-                </span>
-            </div>
-
-            {/* ── Hourly Forecast Strip ───────────────────── */}
-            <div className="wind-forecast-header">
-                <Clock size={13} className="text-gray-400" />
-                <span>Hourly Comfort Forecast</span>
-                <div className="wind-forecast-legend">
-                    <span className="wind-legend-dot" style={{ background: '#22c55e' }} />
-                    <span>Calm</span>
-                    <span className="wind-legend-dot" style={{ background: '#f59e0b' }} />
-                    <span>Breezy</span>
-                    <span className="wind-legend-dot" style={{ background: '#ef4444' }} />
-                    <span>Windy</span>
-                </div>
-            </div>
-
-            <HourlyForecastStrip
-                forecast={windData.hourlyForecast}
-                onHourTap={setSelectedHour}
-            />
-
-            {/* ── Selected Hour Detail ────────────────────── */}
-            <AnimatePresence>
-                {selectedHour && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="wind-hour-detail"
+            {data.factor ? (
+                <div className="ss-wind__block">
+                    <p className="ss-wind__label">How windy this spot gets</p>
+                    <p className="ss-wind__factor">{data.factor.headline}</p>
+                    <div
+                        className="ss-wind__steps"
+                        role="img"
+                        aria-label={`Wind exposure: ${WIND_FACTOR_STEPS[data.factor.step]}, on a scale from sheltered to funnels wind.`}
                     >
-                        <div className={`wind-hour-card ${selectedHour.comfort?.bgColor ?? ''} border ${selectedHour.comfort?.borderColor ?? ''}`}>
-                            <div className="wind-hour-card-header">
-                                <span className="font-bold text-gray-800">
-                                    {selectedHour.label === 'Now' ? 'Right Now' : `At ${selectedHour.label ?? '–'}`}
-                                </span>
-                                <span className="text-lg">{selectedHour.comfort?.icon ?? '❓'}</span>
-                            </div>
-                            <div className="wind-hour-stats">
-                                <div>
-                                    <span className="wind-hour-stat-label">Temp</span>
-                                    <span className="wind-hour-stat-value">
-                                        {Number.isFinite(selectedHour.temp) ? `${selectedHour.temp}°C` : '–'}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span className="wind-hour-stat-label">Feels Like</span>
-                                    <span className={`wind-hour-stat-value ${selectedHour.comfort?.color ?? ''}`}>
-                                        {Number.isFinite(selectedHour.feelsLike) ? `${selectedHour.feelsLike}°C` : '–'}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span className="wind-hour-stat-label">Wind</span>
-                                    <span className="wind-hour-stat-value">
-                                        {Number.isFinite(selectedHour.wind) ? `${selectedHour.wind} km/h` : '–'}
-                                    </span>
-                                </div>
-                            </div>
-                            {selectedHour.comfort?.advice ? (
-                                <p className="wind-hour-advice">{selectedHour.comfort.advice}</p>
-                            ) : null}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* ── Best time to sit outside (SunStay takes no bookings) ── */}
-            {windData.optimalBooking && (
-                <div className="wind-booking-section">
-                    <div className="wind-booking-header">
-                        <Clock size={14} className="text-emerald-500" />
-                        <span>Best time to sit outside</span>
+                        {WIND_FACTOR_STEPS.map((step, index) => <span key={step} className={index === data.factor.step ? 'is-on' : undefined} />)}
                     </div>
-                    <div className="wind-booking-card">
-                        <div className="wind-booking-time">
-                            <span className="wind-booking-time-range">
-                                {windData.optimalBooking.startLabel ?? '–'} — {windData.optimalBooking.endLabel ?? '–'}
-                            </span>
-                            <ChevronRight size={16} className="text-gray-400" />
+                    <div className="ss-wind__scale-ends" aria-hidden="true"><span>Sheltered</span><span>Funnels wind</span></div>
+                    <p className="ss-wind__text">
+                        {data.factor.share}
+                        {data.openAirKmh !== null && data.hereKmh !== null ? `: ${data.openAirKmh} km/h in the open is about ${data.hereKmh} km/h here.` : '.'}
+                    </p>
+                    {data.exposure.tunnel ? <p className="ss-wind__tunnel">{describeWindExposure(data.exposure, 'now')}</p> : null}
+                    {data.factor.note ? <p className="ss-wind__text">{data.factor.note}.</p> : null}
+                    <p className="ss-wind__source">{data.factor.sourceLabel}</p>
+                </div>
+            ) : null}
+
+            {showNoise ? (
+                <OutdoorComfortTiles wind={null} noise={estimateNoise(venue, activeRow?.time)} hourLabel={activeRow?.label} venue={venue} />
+            ) : null}
+
+            <div className="ss-wind__block">
+                <div className="ss-wind__hours-head">
+                    <p className="ss-wind__label">Hour by hour</p>
+                    <ul className="ss-wind__legend" aria-hidden="true">
+                        {WIND_LEVEL_KEYS.map(level => <li key={level}><i data-level={level} />{windLevelWord(level)}</li>)}
+                    </ul>
+                </div>
+                {columns.length ? (
+                    <>
+                        <div id={stripId} className="hourly-scroll ss-wind__strip" role="group" aria-label="Feels-like temperature and wind here for each hour">
+                            {columns.map(column => (
+                                <button
+                                    type="button"
+                                    key={column.key}
+                                    className={`hourly-item ss-wind__hour${column.isCurrent ? ' is-now' : ''}${column.estimated ? ' is-estimate' : ''}`}
+                                    aria-pressed={selectedKey === column.key}
+                                    aria-label={column.spoken}
+                                    onClick={() => setSelectedKey(current => (current === column.key ? null : column.key))}
+                                >
+                                    <span className="ss-wind__hour-label">{column.label}</span>
+                                    <span className="ss-wind__hour-feels">{column.feelsLike === null ? '–' : `${column.feelsLike}°`}</span>
+                                    <span className="ss-wind__bar" data-level={column.level ?? 'none'}><i style={{ height: `${Math.round(column.bar * 100)}%` }} /></span>
+                                    <span className="ss-wind__hour-wind">{column.windKmh ?? '–'}</span>
+                                </button>
+                            ))}
                         </div>
-                        <p className="wind-booking-reason">
-                            {windData.optimalBooking.reason ?? 'Best conditions in the forecast window'}
+                        <p className="ss-wind__source">
+                            Top: feels like. Bars and bottom number: wind here in km/h. {data.trend?.label ? `${data.trend.label}.` : ''}
+                            {anyEstimate ? ' Faded hours follow the usual daily pattern because the forecast does not reach them.' : ''}
                         </p>
-                        <p className="wind-booking-tip">
-                            Best time for this outdoor area before conditions change
-                        </p>
+                        {selected ? (
+                            <p className="ss-wind__hour-detail" role="status">
+                                <strong>{selected.label === 'Now' ? 'Right now' : `At ${selected.label}`}:</strong>{' '}
+                                {selected.feelsLike === null ? 'feels-like unknown' : `feels like ${selected.feelsLike}°`}
+                                {Number.isFinite(selectedRow?.temp) ? ` (air ${selectedRow.temp}°)` : ''},{' '}
+                                {selected.windKmh === null ? 'wind unknown' : `wind ${selected.windKmh} km/h here${selected.from ? ` from ${selected.from}` : ''}`}
+                                {selectedRow?.windExposure?.effectiveGustMs > 0 ? `, gusts ${kmh(selectedRow.windExposure.effectiveGustMs)}` : ''}.{' '}
+                                {selected.levelWord}.
+                            </p>
+                        ) : null}
+                        {data.rows.length > 12 ? (
+                            <button
+                                type="button"
+                                onClick={() => setExpanded(value => !value)}
+                                aria-expanded={expanded}
+                                aria-controls={stripId}
+                                className="ss-wind__more"
+                            >
+                                {expanded ? 'Show less' : 'Show full 24 hours'}
+                                <ChevronDown size={16} aria-hidden="true" className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                            </button>
+                        ) : null}
+                    </>
+                ) : (
+                    <p className="ss-wind__text">Hourly forecast data unavailable.</p>
+                )}
+            </div>
+
+            {data.best ? (
+                <div className="ss-wind__block ss-wind__best">
+                    <ClayIcon name="clock" size={40} />
+                    <div className="min-w-0">
+                        <p className="ss-wind__label">Best time to sit outside</p>
+                        <p className="ss-wind__factor">{data.best.startLabel ?? '–'} – {data.best.endLabel ?? '–'}</p>
+                        <p className="ss-wind__text">{data.best.reason ?? 'Best conditions in the forecast window'}.</p>
                     </div>
                 </div>
-            )}
-        </div>
+            ) : null}
+        </section>
     );
 };
 

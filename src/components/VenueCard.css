@@ -90,19 +90,4 @@
 .ss-venue-detail-card [class*='text-[26px]'], .ss-venue-detail-card [class*='text-[32px]'] { font-size: 22px; }
 .ss-venue-detail-card .ss-venue-sun-block > section[aria-labelledby='stay-heading'] { margin-top: 4px; }
 /* The optional weather drill-down uses the same type scale and neutral/gold surfaces. */
-.ss-venue-detail-card .wind-comfort-panel { border: 0; padding: 0; border-radius: 0; }
-.ss-venue-detail-card .wind-comfort-panel * { font-size: 12px; }
-.ss-venue-detail-card .wind-comfort-panel :is(.wind-section-title, .comfort-gauge-temp-number) { font-size: 17px; }
-.ss-venue-detail-card .wind-comfort-panel :is(.wind-warning-label, .wind-comfort-label) { font-size: 14px; }
-.ss-venue-detail-card .wind-comfort-panel :is(.wind-venue-note, .wind-impact-explainer, .wind-warning-badge, .wind-comfort-badge, .wind-push-card, .hourly-item-current) { background: #fffbeb; border-color: #fcd34d; color: #92400e; box-shadow: none; }
-.ss-venue-detail-card .wind-comfort-panel :is(.comfort-gauge-temp-label, .comfort-gauge-labels, .wind-warning-detail, .wind-forecast-legend, .hourly-label, .hourly-wind) { color: #64748b; }
-.ss-venue-detail-card .wind-alert-toggle { width: 44px; height: 44px; }
-.ss-venue-detail-card .wind-comfort-panel [class*='text-blue-'], .ss-venue-detail-card .wind-comfort-panel [class*='text-emerald-'] { color: #475569; }
-.ss-venue-detail-card .wind-comfort-panel [class*='bg-emerald-'] { background: #fffbeb; }
-.ss-venue-detail-card .wind-comfort-panel .rounded-xl.border { border: 0; border-bottom: 1px solid #f1ece2; border-radius: 0; }
 .ss-venue-weather-details > .grid > div, .ss-venue-weather-details > div.border { border: 0; border-radius: 0; border-bottom: 1px solid #f1ece2; box-shadow: none; padding: 12px 0; }
-.ss-venue-detail-card .wind-comfort-panel .comfort-gauge-zone { background: #cbd5e1 !important; }
-.ss-venue-detail-card .wind-comfort-panel .comfort-gauge-zone:nth-child(3) { background: #fcd34d !important; }
-.ss-venue-detail-card .wind-comfort-panel .comfort-gauge-zone:nth-child(n+4) { background: #92400e !important; }
-.ss-venue-detail-card .wind-comfort-panel :is(.wind-legend-dot, .hourly-wind-dot) { background: #64748b !important; }
-.ss-venue-detail-card .wind-comfort-panel :is(.wind-warning-dot, .wind-hour-card) { background: #fffbeb; border-color: #fcd34d; }
