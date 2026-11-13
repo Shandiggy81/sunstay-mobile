@@ -18,15 +18,22 @@ function finite(value) {
     return typeof n === 'number' && Number.isFinite(n) ? n : null;
 }
 
-/** Plain words for a wind speed felt at the venue (km/h). */
-export function windWord(kmh) {
+/** Upper limits, in km/h felt at the venue, of Calm, Light wind, Breezy and Windy. Above the last is Very windy. */
+export const WIND_WORD_LIMITS = Object.freeze([6, 20, 30, 40]);
+const WIND_WORDS = Object.freeze(['Calm', 'Light wind', 'Breezy', 'Windy', 'Very windy']);
+
+/** Which of the five wind words a speed falls in: 0 (Calm) to 4 (Very windy), or null. */
+export function windBand(kmh) {
     const k = finite(kmh);
     if (k == null) return null;
-    if (k < 6) return 'Calm';
-    if (k < 20) return 'Light wind';
-    if (k < 30) return 'Breezy';
-    if (k < 40) return 'Windy';
-    return 'Very windy';
+    const band = WIND_WORD_LIMITS.findIndex((limit) => k < limit);
+    return band < 0 ? WIND_WORD_LIMITS.length : band;
+}
+
+/** Plain words for a wind speed felt at the venue (km/h). */
+export function windWord(kmh) {
+    const band = windBand(kmh);
+    return band == null ? null : WIND_WORDS[band];
 }
 
 /**
