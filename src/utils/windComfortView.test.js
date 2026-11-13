@@ -126,6 +126,9 @@ test('the wind factor is explained in plain words with its source', () => {
     assert.deepEqual([funnel.headline, funnel.share, funnel.sourceLabel, funnel.note],
         ['Wind funnels through here', 'Wind speeds up to about 1.6× here', 'Illustrative wind profile for this venue', 'Northerlies funnel here']);
     assert.equal(windFactorView({ factor: 0, source: 'measured' }).share, 'About 5% of the open-air wind reaches here');
+    // Shelter score 0.10, the most exposed a measured row gets, is a factor of exactly 1.
+    for (const factor of [0.98, 1, 1.05]) assert.equal(windFactorView({ factor, source: 'measured' }).share, 'All of the open-air wind reaches here');
+    assert.equal(windFactorView({ factor: 0.97, source: 'measured' }).share, 'About 95% of the open-air wind reaches here');
     assert.deepEqual([0, 0.33, 0.34, 0.66, 0.67, 1.05, 1.06, 2.5].map(factor => windFactorView({ factor, source: 'type' }).step), [0, 0, 1, 1, 2, 2, 3, 3]);
     assert.equal(windFactorView({ factor: NaN, source: 'type' }), null);
     assert.equal(windFactorView(), null);

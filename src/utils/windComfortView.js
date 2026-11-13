@@ -42,9 +42,12 @@ export function windFactorView({ factor, source, type, note = null, illustrative
     const headline = value > 1.05 ? 'Wind funnels through here'
         : value >= 0.67 ? 'Open to the wind'
             : value >= 0.34 ? 'Partly sheltered' : 'Sheltered spot';
+    // A fully exposed venue is common in the measured rows, and "about 100%" reads oddly.
+    const percent = Math.max(5, Math.round((value * 100) / 5) * 5);
     const share = value > 1.05
         ? `Wind speeds up to about ${(Math.round(value * 10) / 10).toFixed(1)}× here`
-        : `About ${Math.max(5, Math.round((value * 100) / 5) * 5)}% of the open-air wind reaches here`;
+        : percent >= 100 ? 'All of the open-air wind reaches here'
+            : `About ${percent}% of the open-air wind reaches here`;
     const sourceLabel = source === 'profile' ? (illustrative ? 'Illustrative wind profile for this venue' : 'From this venue’s wind profile')
         : source === 'measured' ? 'Measured from the buildings around it'
             : `Estimated from the kind of venue${TYPE_WORDS[type] ? ` (${TYPE_WORDS[type]})` : ''}`;
