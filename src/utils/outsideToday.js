@@ -12,7 +12,7 @@ import { PART_SUN_FRACTION, SUN_CURVE_SLOTS } from './microclimate.js';
 import { outdoorHourStates, outdoorVerdict } from './outdoorVerdict.js';
 import { formatHour } from './sunForecastState.js';
 import { windBand, windWord } from './venueConditionChips.js';
-import { venueHour } from './venueTime.js';
+import { venueHour, venueTimeParts } from './venueTime.js';
 import { rowWindKmh } from './windComfortView.js';
 
 const HOURS_IN_DAY = 24;
@@ -59,6 +59,23 @@ export function shadeByHour({ windows = null, curve = null, timeZone = 'Australi
     return { source: null, hours: Array(HOURS_IN_DAY).fill(null) };
 }
 
+/**
+ * The wind rows that belong to one venue-local day. A forecast that starts
+ * part-way through today runs on into tomorrow, and tomorrow's 9am must not
+ * be drawn as this morning's.
+ *
+ * @param {Array<{ time?: Date }>} rows generateHourlyForecast() rows
+ * @param {string} dayKey venue-local YYYY-MM-DD
+ * @param {string} [timeZone]
+ */
+export function rowsForLocalDay(rows, dayKey, timeZone = 'Australia/Melbourne') {
+    if (!Array.isArray(rows) || typeof dayKey !== 'string') return [];
+    return rows.filter((row) => {
+        if (!(row?.time instanceof Date) || Number.isNaN(row.time.getTime())) return false;
+        try { return venueTimeParts(row.time, timeZone).date === dayKey; } catch { return false; }
+    });
+}
+
 // The moment-by-moment reading for "now" beats the hour's average: a venue in
 // its sun window at 3:10pm is in the sun, even if the hour as a whole is 60%.
 function applyLiveSun(entry, sunKind) {
@@ -77,9 +94,12 @@ function applyLiveSun(entry, sunKind) {
  * @param {Array<object>} [input.windRows] generateHourlyForecast() rows covering the venue's local day
  * @param {{ sunKind?: string|null, windKmh?: number|null, feelsLike?: number|null, windFrom?: number|null, windSource?: string|null }|null} [input.live]
  *   what the card already shows for this moment, so "now" matches its tiles
- * @param {number|null} [input.selectedMinutes] the time-of-day slider (minutes past local midnight), or null for now
+ * @param {number|null} [input.selectedMinutes] the app's time-of-day slider (minutes past local midnight), or null for now
+ * @param {number|null} [input.nowSliderMinutes] where that slider sits for "now" (todMinutes.localTimeToSliderMinutes).
+ *   The app's slider only covers 6am to 8pm, so at night "now" is pinned to one end of it.
  * @returns {null | {
  *   isNow: boolean, nowHour: number, selectedHour: number, timeLabel: string, whenLabel: string, spoken: string,
+ *   shadeSource: 'windows'|'curve'|null,
  *   verdict: null | { state: string, headline: string, sunSentence: string, feelsSentence: string },
  *   range: { start: number, end: number }, marker: number,
  *   lanes: Array<{ hour: number, label: string, sun: string, windKmh: number|null, windBand: number|null, estimated: boolean }>,
@@ -88,15 +108,18 @@ function applyLiveSun(entry, sunKind) {
  * }} null when there is no hourly sky to draw
  */
 export function outsideToday(input = {}) {
-    const { forecast, shade = null, windRows = [], live = null, selectedMinutes = null } = input ?? {};
+    const { forecast, shade = null, windRows = [], live = null, selectedMinutes = null, nowSliderMinutes = null } = input ?? {};
     const sky = Array.isArray(forecast?.hours) && forecast.hours.length === HOURS_IN_DAY ? forecast.hours : null;
     const nowDecimal = finite(forecast?.nowHour);
     if (!sky || nowDecimal == null || !forecast.hasHourly) return null;
 
     const nowHour = Math.min(HOURS_IN_DAY - 1, Math.max(0, Math.floor(nowDecimal)));
+    const hourOf = minutes => Math.floor((((Math.round(minutes) % 1440) + 1440) % 1440) / 60);
     const picked = finite(selectedMinutes);
-    const selectedHour = picked == null ? nowHour : Math.floor((((Math.round(picked) % 1440) + 1440) % 1440) / 60);
-    const isNow = selectedHour === nowHour;
+    const pinned = finite(nowSliderMinutes);
+    // "Now" is no selection, the current hour, or the slider resting where it shows now.
+    const isNow = picked == null || hourOf(picked) === nowHour || (pinned != null && hourOf(picked) === hourOf(pinned));
+    const selectedHour = isNow ? nowHour : hourOf(picked);
 
     const rowByHour = new Map();
     for (const row of Array.isArray(windRows) ? windRows : []) {
@@ -185,6 +208,8 @@ export function outsideToday(input = {}) {
         selectedHour,
         timeLabel,
         whenLabel: isNow ? 'Right now' : `At ${timeLabel}`,
+        // null: the venue's surroundings are not mapped, so the sun lane is the sky alone.
+        shadeSource: shade?.source ?? null,
         spoken: result ? `${isNow ? 'Now' : timeLabel}: ${result.verdict}` : (isNow ? 'Now' : timeLabel),
         verdict: result
             ? { state: result.state, headline: result.verdict, sunSentence: result.sunSentence, feelsSentence: result.feelsSentence }

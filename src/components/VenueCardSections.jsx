@@ -76,14 +76,15 @@ export function VenueSunNow({ tile }) {
   );
 }
 
-export function VenueWeatherNow({ tiles, rainChance }) {
+// `at` is a clock label ("2pm") when the row describes an hour the guest picked.
+export function VenueWeatherNow({ tiles, rainChance, at = null }) {
   const wind = tiles[1];
   return (
-    <dl aria-label="Weather now" className="ss-venue-weather-now">
+    <dl aria-label={at ? `Weather at ${at}` : 'Weather now'} className="ss-venue-weather-now">
       {[
         { icon: 'windsock', label: `Wind${wind.note ? ` · ${wind.note}` : ''}`, value: wind.value },
         { icon: 'thermometer', label: 'Feels like', value: tiles[2].value },
-        { icon: 'rain', label: 'Rain now', value: rainChance != null ? `${Math.round(rainChance)}%` : '–' },
+        { icon: 'rain', label: at ? `Rain at ${at}` : 'Rain now', value: rainChance != null ? `${Math.round(rainChance)}%` : '–' },
       ].map(item => <div key={item.label}>
         <ClayIcon name={item.icon} size={28} /><dt>{item.label}</dt><dd>{item.value}</dd>
       </div>)}

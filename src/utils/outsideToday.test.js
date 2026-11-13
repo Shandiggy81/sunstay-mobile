@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { outsideToday, shadeByHour, verdictWindLevel } from './outsideToday.js';
+import { outsideToday, rowsForLocalDay, shadeByHour, verdictWindLevel } from './outsideToday.js';
 import { deriveSunForecast } from './sunForecastState.js';
 import { windWord } from './venueConditionChips.js';
 import { generateHourlyForecast, measuredWindOptions } from '../data/windIntelligence.js';
@@ -69,7 +69,36 @@ describe('shadeByHour', () => {
     });
 });
 
+describe('rowsForLocalDay', () => {
+    it('keeps only the rows of the venue’s own day', () => {
+        // A forecast that starts at 2pm today runs to 1pm tomorrow.
+        const hourly = hourlyBlock({ from: 14 });
+        const rows = generateHourlyForecast(20, 20 / 3.6, 50, VENUE, 350, null, { hourly, utcOffsetSeconds: OFFSET, now: at(0) });
+        assert.equal(rows.length, 24);
+        const today = rowsForLocalDay(rows, DAY, TZ);
+        assert.deepEqual(today.map(row => row.hour), [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]);
+        assert.equal(rowsForLocalDay(rows, '2026-11-13', TZ).length, 14);
+        // The same instants are a different calendar day for a venue in London.
+        assert.notDeepEqual(rowsForLocalDay(rows, DAY, 'Europe/London').map(row => row.hour), today.map(row => row.hour));
+    });
+
+    it('ignores rows without a usable time, and bad input', () => {
+        assert.deepEqual(rowsForLocalDay([{ time: 'noon' }, { time: new Date(NaN) }, null, {}], DAY, TZ), []);
+        for (const bad of [null, undefined, 'rows']) assert.deepEqual(rowsForLocalDay(bad, DAY, TZ), []);
+        assert.deepEqual(rowsForLocalDay([{ time: at(9) }], null, TZ), []);
+        assert.deepEqual(rowsForLocalDay([{ time: at(9) }], DAY, 'Not/AZone'), []);
+    });
+});
+
 describe('outsideToday', () => {
+    it('says where the shade came from', () => {
+        const hourly = hourlyBlock();
+        const forecast = forecastAt(11, hourly);
+        assert.equal(outsideToday({ forecast, windRows: rowsFor(hourly) }).shadeSource, null);
+        assert.equal(outsideToday({ forecast, windRows: rowsFor(hourly), shade: shadeByHour({ windows: [] }) }).shadeSource, 'windows');
+        assert.equal(outsideToday({ forecast, windRows: rowsFor(hourly), shade: shadeByHour({ curve: Array(24).fill(0.5) }) }).shadeSource, 'curve');
+    });
+
     it('gives one verdict for sun and wind at the current hour on a clear day', () => {
         const hourly = hourlyBlock();
         const model = outsideToday({ forecast: forecastAt(11, hourly, 20), windRows: rowsFor(hourly) });
@@ -223,6 +252,24 @@ describe('outsideToday', () => {
         const noHourly = deriveSunForecast({ hourly: null, utcOffsetSeconds: OFFSET, timeZone: TZ, now: at(11), sunrise: at(6, 2), sunset: at(20, 5) });
         assert.equal(outsideToday({ forecast: noHourly, windRows: [] }), null);
         for (const bad of [undefined, null, {}, { forecast: null }, { forecast: { hours: [], nowHour: 11, hasHourly: true } }]) assert.equal(outsideToday(bad), null);
+    });
+
+    it('treats the slider resting on its position for now as now', () => {
+        const hourly = hourlyBlock();
+        const rows = rowsFor(hourly);
+        // 3am: the app's slider starts at 6am, so "now" is pinned there.
+        const night = outsideToday({ forecast: forecastAt(3, hourly), windRows: rows, selectedMinutes: 360, nowSliderMinutes: 360 });
+        assert.equal(night.isNow, true);
+        assert.equal(night.selectedHour, 3);
+        assert.equal(night.verdict.state, 'dawn');
+        // 11:55am snaps to 12:00 on the slider: still now, described as the real hour.
+        const snapped = outsideToday({ forecast: forecastAt(11, hourly, 55), windRows: rows, selectedMinutes: 720, nowSliderMinutes: 720 });
+        assert.equal(snapped.isNow, true);
+        assert.equal(snapped.selectedHour, 11);
+        // Any other hour is a choice.
+        const chosen = outsideToday({ forecast: forecastAt(11, hourly), windRows: rows, selectedMinutes: 15 * 60, nowSliderMinutes: 675 });
+        assert.equal(chosen.isNow, false);
+        assert.equal(chosen.selectedHour, 15);
     });
 
     it('wraps the slider minutes and leaves its inputs untouched', () => {

@@ -36,7 +36,7 @@
 .ss-wind__factor { font-size: 17px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.25; color: #0f172a; }
 .ss-wind__steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 2px; }
 .ss-wind__steps > span { height: 6px; border-radius: 999px; background: #f1f5f9; }
-.ss-wind__steps > span.is-on { background: #f59e0b; }
+.ss-wind__steps > span.is-on { background: #0f172a; }
 .ss-wind__steps + .ss-wind__scale-ends { margin-bottom: 0; }
 .ss-wind__tunnel { font-size: 14px; font-weight: 700; line-height: 1.4; color: #92400e; }
 .ss-wind__source { font-size: 12px; font-weight: 500; line-height: 1.5; color: #64748b; }
@@ -52,9 +52,10 @@
 .ss-wind__legend li { display: inline-flex; align-items: center; gap: 4px; }
 .ss-wind__legend i, .ss-wind__bar > i { background: #cbd5e1; }
 .ss-wind__legend i { width: 8px; height: 8px; border-radius: 2px; }
-.ss-wind__legend [data-level='yellow'], .ss-wind__bar[data-level='yellow'] > i { background: #fcd34d; }
-.ss-wind__legend [data-level='orange'], .ss-wind__bar[data-level='orange'] > i { background: #f59e0b; }
-.ss-wind__legend [data-level='red'], .ss-wind__bar[data-level='red'] > i { background: #92400e; }
+/* Slate for wind, as on the card's sun-and-wind strip; gold is kept for sun. */
+.ss-wind__legend [data-level='yellow'], .ss-wind__bar[data-level='yellow'] > i { background: #94a3b8; }
+.ss-wind__legend [data-level='orange'], .ss-wind__bar[data-level='orange'] > i { background: #475569; }
+.ss-wind__legend [data-level='red'], .ss-wind__bar[data-level='red'] > i { background: #0f172a; }
 .ss-wind__strip { display: flex; gap: 2px; margin: 0 -4px; padding: 2px 4px 4px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .ss-wind__strip::-webkit-scrollbar { display: none; }
 .ss-wind__hour { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; gap: 4px; min-width: 48px; min-height: 44px; padding: 8px 4px; border-radius: 12px; cursor: pointer; }

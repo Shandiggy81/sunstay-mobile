@@ -5,6 +5,7 @@ import { finiteOrNull } from '../utils/finiteOrNull';
 import { estimateNoise } from '../utils/noiseExposure';
 import { compassPoint } from '../utils/comfortDisplay.js';
 import { describeWindExposure } from '../utils/windExposure.js';
+import { windWord } from '../utils/venueConditionChips.js';
 import {
     WIND_FACTOR_STEPS, WIND_LEVEL_KEYS, comfortScale, feelsLikeGap,
     hourlyWindColumns, windFactorView, windLevelWord,
@@ -52,7 +53,7 @@ const WindArrow = ({ direction }) => (
  * surrounding buildings, replaces the venue-type estimate. The list row and
  * the card header use the same row (measuredWindOptions), so all three agree.
  */
-const WindComfortPanel = ({ venue, microclimate = null }) => {
+const WindComfortPanel = ({ venue, microclimate = null, showFactor = true }) => {
     const { weather } = useWeather();
     const [selectedKey, setSelectedKey] = useState(null);
     const [expanded, setExpanded] = useState(false);
@@ -117,7 +118,8 @@ const WindComfortPanel = ({ venue, microclimate = null }) => {
                 <ClayIcon name={data.warning.level === 'green' ? 'wind-sheltered' : 'windsock'} size={40} />
                 <div className="min-w-0">
                     <h3 id={titleId} className="ss-wind__title">Wind &amp; comfort</h3>
-                    <p className="ss-wind__verdict"><strong>{data.warning.label} here now.</strong> {data.warning.advice}</p>
+                    {/* The same wind word as the list row, the card's headline and its score. */}
+                    <p className="ss-wind__verdict"><strong>{windWord(data.hereKmh) ?? data.warning.label} here now.</strong> {data.warning.advice}</p>
                 </div>
             </div>
 
@@ -152,7 +154,7 @@ const WindComfortPanel = ({ venue, microclimate = null }) => {
                 <p className="ss-wind__text"><strong>{data.comfort.label}.</strong> {data.comfort.advice}{gap ? `. ${gap}.` : '.'}</p>
             </div>
 
-            {data.factor ? (
+            {data.factor && showFactor ? (
                 <div className="ss-wind__block">
                     <p className="ss-wind__label">How windy this spot gets</p>
                     <p className="ss-wind__factor">{data.factor.headline}</p>

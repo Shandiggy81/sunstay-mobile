@@ -6,6 +6,7 @@ import { X, Wind, Globe, Navigation, ExternalLink, ChevronDown, MapPin } from 'l
 import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
+import OutsideToday, { OutsideVerdict } from './OutsideToday.jsx';
 import RoomSunCard from './RoomSunCard';
 import SunCompass from './SunCompass.jsx';
 import { stayRoomTypesDisplay } from '../utils/stayRoomTypes.js';
@@ -16,7 +17,13 @@ import { cafeCardTiles, isCafeVenue } from '../utils/cafeCardTiles.js';
 import { cardSunWindows, forecastForSunWindows, rainDuringSun, roundedSunDay } from '../utils/sunWindowsCard.js';
 import { outdoorSunDay, roomsBySunToday, sunMomentsFromDay } from '../utils/sunMoments.js';
 import { outdoorSunSummary } from '../utils/outdoorSunSummary.js';
-import { DEFAULT_TIME_ZONE, venueLocalDate } from '../utils/balconySunEngine.js';
+import { DEFAULT_TIME_ZONE, venueDayBounds, venueLocalDate } from '../utils/balconySunEngine.js';
+import { outsideToday, rowsForLocalDay, shadeByHour } from '../utils/outsideToday.js';
+import { localTimeToSliderMinutes } from '../utils/todMinutes.js';
+import { windFactorView } from '../utils/windComfortView.js';
+import { describeWindExposure } from '../utils/windExposure.js';
+import { windChip } from '../utils/venueConditionChips.js';
+import { generateHourlyForecast, getVenueWindExposure, getWindProfile, measuredWindOptions, resolveVenueWindFactor } from '../data/windIntelligence.js';
 import ClayIcon from './common/ClayIcon';
 import {
   AboutAndHours,
@@ -43,7 +50,7 @@ import { useOpenUV } from '../hooks/useOpenUV';
 import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 import { checkIsAccommodation } from '../utils/accommodation';
 import { useWeather } from '../context/WeatherContext';
-import { useMicroclimateState } from '../context/MicroclimateContext';
+import { useMicroclimateActions, useMicroclimateState } from '../context/MicroclimateContext';
 import { formatReadingTime, lookupMicroclimateEntry, readMicroclimate } from '../utils/microclimate';
 import { formatHour } from '../utils/sunForecastState';
 import { canUsePointerTilt } from '../utils/canUsePointerTilt';
@@ -188,7 +195,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
 // ── More weather detail ─────────────────────────────────────
 // UV, air quality, rain radar and wind comfort come from rate-limited
 // third-party APIs, so they load only when someone opens this section.
-const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArrivalMins, rainArrivalLabel, venue, microclimate, microclimateEntry = null, microclimateAtLabel, shielding }) => {
+const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArrivalMins, rainArrivalLabel, venue, microclimate, microclimateEntry = null, microclimateAtLabel, shielding, shelterShownAbove = false }) => {
   const panelId = `venue-more-weather-${venueId ?? 'panel'}`;
   return (
     <div className="flex flex-col gap-2.5">
@@ -235,7 +242,7 @@ const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArri
             </div>
           ) : null}
           <ForecastErrorBoundary>
-            <WindComfortPanel venue={venue} microclimate={microclimateEntry} />
+            <WindComfortPanel venue={venue} microclimate={microclimateEntry} showFactor={!shelterShownAbove} />
           </ForecastErrorBoundary>
         </div>
       ) : null}
@@ -464,7 +471,18 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     unavailable: weatherUnavailableFlag,
     getSunScoreResult,
     fetchedAt: weatherFetchedAt,
+    setScorePreviewMinutes,
   } = useWeather();
+  const { setTodMinutes } = useMicroclimateActions();
+  // The card's slider moves the app's one time of day: the same minutes the
+  // map pins, the list and this card's score read. The map normally forwards
+  // them to the weather score; the card does it too in case the map never loaded.
+  // "Now" is the slider's own position for the current time, as the map's Now button sets it.
+  const selectOutsideMinutes = useCallback((minutes) => {
+    const value = minutes == null ? localTimeToSliderMinutes(new Date()) : minutes;
+    setTodMinutes(value);
+    if (typeof setScorePreviewMinutes === 'function') setScorePreviewMinutes(value);
+  }, [setTodMinutes, setScorePreviewMinutes]);
   const weatherData = contextWeather ?? weather ?? null;
   const weatherUnavailable = Boolean(
     weatherUnavailableFlag || weatherError || weatherData?.unavailable || weatherData?.source === 'demo',
@@ -579,6 +597,62 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     .find((d) => typeof d === 'string' && d.trim())?.trim() ?? null;
 
   const statTiles = venueStatTiles({ venue, microclimate: microclimateEntry, weather: liveWeather, forecast, score, scoreLoading: overviewScore.loading, feelsLike, sunNow: outdoorSummary, isNight: nightAtScoreTime, skyKindAtScore: skyAtScoreTime });
+  // Sun and wind together, for bars, cafes and other outdoor venues: the sky
+  // from this card's forecast, the venue's own shade, and the wind rows the
+  // Wind & comfort panel shows, lined up by local hour (utils/outsideToday.js).
+  const dayWind = useMemo(() => {
+    if (showStay || !liveWeather?.hourly || !todayKey) return null;
+    const temp = finite(liveWeather.main?.temp);
+    if (temp == null) return null;
+    const windMs = finite(liveWeather.wind?.speed) ?? 0;
+    const direction = finite(liveWeather.windDirection ?? liveWeather.wind?.deg);
+    const gustKmh = finite(liveWeather.windGusts);
+    const gustMs = gustKmh == null ? null : gustKmh / 3.6;
+    const measured = measuredWindOptions(microclimateEntry, direction);
+    let dayStart;
+    try { dayStart = venueDayBounds(todayKey, venueTimeZone).start; } catch { return null; }
+    const rows = generateHourlyForecast(temp, windMs, finite(liveWeather.main?.humidity), venue, direction, gustMs,
+      { hourly: liveWeather.hourly, utcOffsetSeconds: liveWeather.utcOffsetSeconds, now: dayStart, ...measured });
+    return {
+      // Only today's hours: a forecast that starts mid-day runs on into tomorrow.
+      rows: rowsForLocalDay(rows, todayKey, venueTimeZone),
+      direction,
+      openAirKmh: Math.round(windMs * 3.6),
+      factor: resolveVenueWindFactor(venue, { direction, ...measured }),
+      exposure: getVenueWindExposure(windMs, venue, direction, gustMs, measured),
+    };
+  }, [showStay, liveWeather, todayKey, venueTimeZone, venue, microclimateEntry]);
+  const windNow = liveWeather ? windChip(venue, liveWeather, microclimateEntry) : null;
+  const outside = dayWind ? outsideToday({
+    forecast,
+    shade: shadeByHour({ windows: outdoorDay?.windows ?? null, curve: microclimateEntry?.sun_hour_fraction ?? null, timeZone: venueTimeZone }),
+    windRows: dayWind.rows,
+    // What the tiles show for this moment, so "now" cannot disagree with them.
+    live: { sunKind: (outdoorSummary ?? forecast.now)?.kind ?? null, windKmh: windNow?.kmh ?? null, feelsLike, windFrom: dayWind.direction, windSource: dayWind.factor?.source ?? null },
+    selectedMinutes: todMinutes,
+    nowSliderMinutes: localTimeToSliderMinutes(now),
+  }) : null;
+  const outsideFactor = outside && dayWind.factor ? windFactorView({
+    ...dayWind.factor, note: dayWind.factor.note ?? getWindProfile(venue).venueNote, illustrative: Boolean(venue?.comfortProfilesIllustrative),
+  }) : null;
+  const outsideShelter = outsideFactor ? {
+    ...outsideFactor,
+    example: windNow?.kmh != null ? `${dayWind.openAirKmh} km/h in the open is about ${windNow.kmh} km/h here` : null,
+    tunnel: dayWind.exposure?.tunnel ? describeWindExposure(dayWind.exposure, 'now') : null,
+  } : null;
+  // The wind word beside the sun score: the chosen hour's, or now's.
+  const scoreWindWord = outside ? outside.readout.windWord : windNow?.text ?? null;
+  const sunNowSentence = outdoorSummary?.sentence ?? sentence;
+  const outsideSentence = !outside ? sunNowSentence
+    : outside.isNow ? [sunNowSentence, outside.verdict?.feelsSentence].filter(Boolean).join(' ')
+    : outside.verdict ? `${outside.verdict.sunSentence} ${outside.verdict.feelsSentence}`
+    : 'The forecast does not cover this hour yet.';
+  // The weather row follows the chosen hour.
+  const outsideTiles = outside && !outside.isNow ? [
+    statTiles[0],
+    { ...statTiles[1], value: outside.readout.windWord ?? 'Unavailable', note: outside.readout.windKmh != null ? `${outside.readout.windKmh} km/h` : null },
+    { ...statTiles[2], value: outside.readout.feelsLike != null ? `${outside.readout.feelsLike}°` : '–' },
+  ] : statTiles;
   const cardSun = outdoorDay ? cardSunWindows(outdoorDay) : null;
   // Stay cards can show another date's rooms, so today's rain only goes on outdoor sun cards.
   const rain = sunSection === 'stay' ? null : rainDuringSun({ forecast: liveWeather ? forecast : null, sun: cardSun });
@@ -689,18 +763,31 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
               >
                 <div className="ss-venue-card-content">
                   <VenueInfoHeader icon={icon} name={displayName} subtitle={subtitle}>
-                    {!overviewScore.loading && scoreState === 'score' && Number.isFinite(score) ? <ScoreRing score={score} size={56} /> : <span className="ss-venue-score-state">
-                      <ClayIcon name={nowIcon} size={28} />
-                      <strong>{overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}</strong>
-                      <span className="sr-only">{overviewScore.loading ? 'Sun score loading' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
-                    </span>}
+                    <span className="ss-venue-score-pair">
+                      {!overviewScore.loading && scoreState === 'score' && Number.isFinite(score) ? <ScoreRing score={score} size={56} /> : <span className="ss-venue-score-state">
+                        <ClayIcon name={nowIcon} size={28} />
+                        <strong>{overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}</strong>
+                        <span className="sr-only">{overviewScore.loading ? 'Sun score loading' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
+                      </span>}
+                      {scoreWindWord ? <small data-score-wind><span className="sr-only">Wind: </span>{scoreWindWord}</small> : null}
+                    </span>
                   </VenueInfoHeader>
                   {liveNote ? <div role="status" className="ss-venue-live-note"><ClayIcon name="fireplace" size={28} /><span>{liveNote}<small>Set by the venue</small></span></div> : null}
 
-                  <div className="ss-venue-sun-block">
-                    <VenueSunNow tile={statTiles[0]} />
-                    <p className="ss-venue-sun-sentence">{outdoorSummary?.sentence ?? sentence}</p>
+                  <div className={`ss-venue-sun-block${outside?.verdict ? ' has-verdict' : ''}`}>
+                    <OutsideVerdict model={outside} />
+                    {/* The to-the-minute sun line describes this moment, so it steps aside for another hour. */}
+                    {!outside || outside.isNow ? <VenueSunNow tile={statTiles[0]} /> : null}
+                    <p className="ss-venue-sun-sentence">{outsideSentence}</p>
                     {weatherUnavailable && !weatherLoading ? <p className="ss-venue-sun-caption" role="status">Live weather is unavailable right now, so the forecast below is limited.</p> : null}
+
+                    {outside ? (
+                      <ForecastErrorBoundary>
+                        <OutsideToday model={outside} onSelectMinutes={selectOutsideMinutes} shelter={outsideShelter}>
+                          <VenueWeatherNow tiles={outsideTiles} rainChance={outside.isNow ? rainChance : outside.readout.rainChance} at={outside.isNow ? null : outside.timeLabel} />
+                        </OutsideToday>
+                      </ForecastErrorBoundary>
+                    ) : null}
 
                     {sunSection === 'stay' ? (
                       <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
@@ -724,7 +811,8 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       </section>
                     ) : null}
 
-                    {sunSection === 'today' ? (
+                    {/* The strip above already draws today's sun; this bar is the fallback without an hourly forecast. */}
+                    {sunSection === 'today' && !outside ? (
                       <ForecastErrorBoundary>
                         <TodaysSun forecast={forecast} />
                       </ForecastErrorBoundary>
@@ -764,7 +852,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     </> : null}
                   </div>
 
-                  <VenueWeatherNow tiles={statTiles} rainChance={rainChance} />
+                  {outside ? null : <VenueWeatherNow tiles={statTiles} rainChance={rainChance} />}
                   {rain ? <div className="ss-venue-rain-row"><ClayIcon name="rain" size={28} /><div><p>{rain.title}</p>{rain.detail ? <p>{rain.detail}</p> : null}</div></div> : null}
                   <ForecastErrorBoundary><HourByHour items={hours} forecastLabel={forecastLabel} /></ForecastErrorBoundary>
                   <TonightFeelSection view={tonight} />
@@ -785,7 +873,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     <HappyHourSection happyHour={happyHour} fromPartnerPreview={!verifiedHH && Boolean(happyHour)} />
                     <PartnerExtrasSection events={partnerEvents} outdoor={partnerOutdoor} />
                     <MoreWeatherDetail open={moreOpen} onToggle={() => setMoreOpen(v => !v)} venueId={venue?.id} uvIndex={uvIndex} aqLabel={aqLabel}
-                      rainArrivalMins={rainArrivalMins} rainArrivalLabel={rainArrivalLabel} venue={venue} microclimate={microclimate} microclimateEntry={microclimateEntry} microclimateAtLabel={microclimateAtLabel} shielding={shielding} />
+                      rainArrivalMins={rainArrivalMins} rainArrivalLabel={rainArrivalLabel} venue={venue} microclimate={microclimate} microclimateEntry={microclimateEntry} microclimateAtLabel={microclimateAtLabel} shielding={shielding} shelterShownAbove={Boolean(outsideShelter)} />
                   </section>
                   <VibeSection onManage={handleManage} venueName={displayName} />
                   <VenueSourceNote note={venueSourceNote(venue)} />
