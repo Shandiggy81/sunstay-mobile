@@ -18,6 +18,8 @@
 import { MELBOURNE_TZ } from './sunPosition.js';
 
 export const SUN_CURVE_SLOTS = 24;
+export const FULL_SUN_FRACTION = 0.75;
+export const PART_SUN_FRACTION = 0.4;
 
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
 
@@ -139,8 +141,8 @@ export function describeSun(fraction) {
     const n = asFiniteNumber(fraction);
     if (n == null) return null;
     const v = clamp01(n);
-    if (v >= 0.75) return 'Full sun';
-    if (v >= 0.4) return 'Partial sun';
+    if (v >= FULL_SUN_FRACTION) return 'Full sun';
+    if (v >= PART_SUN_FRACTION) return 'Partial sun';
     if (v > 0) return 'Mostly shaded';
     return 'In shade';
 }

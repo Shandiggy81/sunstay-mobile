@@ -10,7 +10,7 @@ import { getSunData } from './getSunData.js';
 import { checkIfShaded, getVenueSunStatus } from './solarMath.js';
 import { deriveSunForecast, formatDuration, formatHour } from './sunForecastState.js';
 import { forecastKindIconName, weatherIconName } from './clayIcons.js';
-import { calculateApparentTemp, getWindProfile } from '../data/windIntelligence.js';
+import { calculateApparentTemp, getWindProfile, measuredWindOptions } from '../data/windIntelligence.js';
 import { DEFAULT_TIME_ZONE } from './balconySunEngine.js';
 import { venueUtcOffsetSeconds } from './venueTime.js';
 
@@ -72,15 +72,19 @@ export function venueSunForecast({ venue, weather, now = new Date(), sunTimes } 
 /**
  * Feels-like at the venue: the current temperature with the venue's own wind
  * shelter applied. The list row and the card both show this number.
+ * `microclimate` is the venue's microclimate row, when there is one: while it
+ * is fresh, its measured wind shelter replaces the venue-type estimate.
  *
  * @returns {number|null} whole degrees
  */
-export function venueFeelsLike(venue, weather) {
+export function venueFeelsLike(venue, weather, microclimate = null) {
     const temp = finite(weather?.main?.temp);
     if (temp == null) return null;
     const shelter = getWindProfile(venue ?? {}).shelterFactor;
+    const direction = weather?.windDirection ?? weather?.wind?.deg;
     const value = calculateApparentTemp(temp, weather?.wind?.speed, weather?.main?.humidity, shelter,
-        weather?.windDirection ?? weather?.wind?.deg, weather?.windGusts == null ? null : weather.windGusts / 3.6, venue);
+        direction, weather?.windGusts == null ? null : weather.windGusts / 3.6, venue,
+        microclimate ? measuredWindOptions(microclimate, direction) : null);
     return Number.isFinite(value) ? Math.round(value) : null;
 }
 

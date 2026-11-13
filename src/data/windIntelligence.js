@@ -7,7 +7,7 @@
  */
 
 import { finiteOrNull } from '../utils/finiteOrNull.js';
-import { calculateWindExposure } from '../utils/windExposure.js';
+import { calculateWindExposure, windFromDegrees } from '../utils/windExposure.js';
 import { normalizeHourlyForecast } from '../utils/normalizeHourlyForecast.js';
 import { getCurrentHourlyIndex, openMeteoLocalTimeToDate } from '../utils/weatherService.js';
 import { venueHour } from '../utils/venueTime.js';
@@ -93,9 +93,72 @@ export function getWindProfile(venue) {
     };
 }
 
-export function getVenueWindExposure(windMs, venue, direction = null, gustMs = null) {
-    return calculateWindExposure({ windMs, direction, gustMs, windProfile: venue?.windProfile,
-        fallbackFactor: getWindProfile(venue).exposure });
+// ── The venue's wind factor ───────────────────────────────────────
+// One answer to "how much of the open-air wind reaches this spot?", with
+// where the answer came from, so the card can say how sure it is.
+
+const windSector = direction => Math.round(direction / 45) % 8;
+
+/**
+ * Open-air wind multiplier from a microclimate row. enrich-microclimate stores
+ * `wind_shelter_score = 1 − multiplier × 0.9` for the wind direction it scored,
+ * so a fully exposed spot reads as at least 1.11; null when the score is unusable.
+ */
+export function measuredWindFactor(entry) {
+    const shelter = finiteOrNull(entry?.wind_shelter_score);
+    if (shelter === null || shelter < 0 || shelter > 1) return null;
+    return Math.round(((1 - shelter) / 0.9) * 100) / 100;
+}
+
+const MEASURED_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * A microclimate row is only used for the wind factor while its weather is
+ * recent: it was scored for the wind direction at `weather_computed_at`.
+ */
+export function freshMicroclimate(entry, now = new Date()) {
+    const scoredAt = Date.parse(entry?.weather_computed_at ?? '');
+    const at = now instanceof Date ? now.getTime() : Number(now);
+    if (!Number.isFinite(scoredAt) || !Number.isFinite(at)) return null;
+    return at - scoredAt >= 0 && at - scoredAt <= MEASURED_MAX_AGE_MS ? entry : null;
+}
+
+/**
+ * The `options` every wind helper takes, from a venue's microclimate row and
+ * the current wind direction. The list row, the card header and the Wind &
+ * comfort panel all build them here, so they show the same wind.
+ */
+export function measuredWindOptions(entry, direction, now = new Date()) {
+    return { microclimate: freshMicroclimate(entry, now), measuredDirection: direction ?? null };
+}
+
+/**
+ * The wind factor for one wind direction, best source first:
+ *   'profile'  the venue's own directional wind profile
+ *   'measured' surrounding buildings (microclimate row), only for wind from
+ *              the 45° sector that row was scored in (`measuredDirection`)
+ *   'type'     an estimate from the kind of venue
+ * `measuredDirection` is the wind direction (FROM degrees) when the row was scored.
+ */
+export function resolveVenueWindFactor(venue, { direction = null, microclimate = null, measuredDirection = null } = {}) {
+    const typeProfile = getWindProfile(venue);
+    const profiled = calculateWindExposure({ windMs: 0, direction, windProfile: venue?.windProfile, fallbackFactor: typeProfile.exposure });
+    if (profiled.directional) {
+        return { factor: profiled.factor, source: 'profile', note: profiled.note, tunnel: profiled.tunnel, type: typeProfile.type };
+    }
+    const measured = measuredWindFactor(microclimate);
+    const from = windFromDegrees(direction), scored = windFromDegrees(measuredDirection);
+    if (measured !== null && from !== null && scored !== null && windSector(from) === windSector(scored)) {
+        return { factor: measured, source: 'measured', note: null, tunnel: false, type: typeProfile.type };
+    }
+    return { factor: typeProfile.exposure, source: 'type', note: null, tunnel: false, type: typeProfile.type };
+}
+
+/** `options` may carry `{ microclimate, measuredDirection }`; without them this is the venue-type estimate. */
+export function getVenueWindExposure(windMs, venue, direction = null, gustMs = null, options = {}) {
+    const resolved = resolveVenueWindFactor(venue, { direction, microclimate: options?.microclimate, measuredDirection: options?.measuredDirection });
+    const exposure = calculateWindExposure({ windMs, direction, gustMs, windProfile: venue?.windProfile, fallbackFactor: resolved.factor });
+    return { ...exposure, source: resolved.source };
 }
 
 // ── Apparent Temperature Calculation ──────────────────────────────
@@ -115,7 +178,7 @@ export function getVenueWindExposure(windMs, venue, direction = null, gustMs = n
  * direction (FROM degrees), gustMs and venue arguments follow the legacy four.
  * Gusts affect warnings, not the sustained-wind apparent-temperature formula.
  */
-export function calculateApparentTemp(tempC, windSpeedMs, humidity, shelterFactor = 0, direction = null, gustMs = null, venue = null) {
+export function calculateApparentTemp(tempC, windSpeedMs, humidity, shelterFactor = 0, direction = null, gustMs = null, venue = null, options = null) {
     // Non-finite inputs (a missing field, or a non-numeric string) must not
     // propagate through the arithmetic below as NaN.
     const temp = finiteOrNull(tempC);
@@ -129,9 +192,14 @@ export function calculateApparentTemp(tempC, windSpeedMs, humidity, shelterFacto
     // Vapour pressure (hPa)
     const e = (rh / 100) * 6.105 * Math.exp((17.27 * tempC) / (237.7 + tempC));
 
-    // Effective wind speed at venue (reduced by shelter)
+    // Effective wind speed at venue (reduced by shelter). A measured wind
+    // factor, when the caller supplies one for this direction, replaces the
+    // venue-type shelter estimate.
+    const measured = options?.microclimate
+        ? resolveVenueWindFactor(venue, { direction, microclimate: options.microclimate, measuredDirection: options.measuredDirection })
+        : null;
     const effectiveWind = calculateWindExposure({ windMs: windSpeedMs, direction, gustMs,
-        windProfile: venue?.windProfile, fallbackFactor: 1 - shelterFactor }).effectiveWindMs;
+        windProfile: venue?.windProfile, fallbackFactor: measured?.source === 'measured' ? measured.factor : 1 - shelterFactor }).effectiveWindMs;
 
     // Apparent temperature
     const at = tempC + 0.33 * e - 0.70 * effectiveWind - 4.00;
@@ -149,6 +217,9 @@ export function getWindChillImpact(tempC, windSpeedMs, shelterFactor = 0) {
 }
 
 // ── Comfort Zone Classification ───────────────────────────────────
+
+/** Feels-like temperatures (°C) where one comfort zone ends and the next begins. */
+export const COMFORT_ZONE_LIMITS = Object.freeze([10, 16, 22, 28, 34]);
 
 /**
  * Classify apparent temperature into a comfort zone.
@@ -174,8 +245,8 @@ export function getComfortZone(apparentTemp) {
     if (apparentTemp < 10) {
         return {
             level: 'cold',
-            label: 'Feels Cold',
-            advice: 'Bring warm jackets for outdoor seating',
+            label: 'Feels cold',
+            advice: 'Bring a warm jacket for outdoor tables',
             color: 'text-blue-700',
             bgColor: 'bg-blue-50',
             borderColor: 'border-blue-200',
@@ -185,8 +256,8 @@ export function getComfortZone(apparentTemp) {
     if (apparentTemp < 16) {
         return {
             level: 'cool',
-            label: 'Feels Cool',
-            advice: 'A light jacket recommended for outdoor areas',
+            label: 'Feels cool',
+            advice: 'A light jacket helps outside',
             color: 'text-blue-500',
             bgColor: 'bg-blue-50/60',
             borderColor: 'border-blue-200/60',
@@ -196,8 +267,8 @@ export function getComfortZone(apparentTemp) {
     if (apparentTemp < 22) {
         return {
             level: 'mild',
-            label: 'Comfortable — Mild',
-            advice: 'Lovely outdoor conditions',
+            label: 'Comfortable and mild',
+            advice: 'Lovely for sitting outside',
             color: 'text-green-600',
             bgColor: 'bg-green-50',
             borderColor: 'border-green-200',
@@ -207,8 +278,8 @@ export function getComfortZone(apparentTemp) {
     if (apparentTemp < 28) {
         return {
             level: 'warm',
-            label: 'Comfortable — Warm',
-            advice: 'Perfect outdoor conditions',
+            label: 'Comfortable and warm',
+            advice: 'Ideal for sitting outside',
             color: 'text-emerald-600',
             bgColor: 'bg-emerald-50',
             borderColor: 'border-emerald-200',
@@ -218,8 +289,8 @@ export function getComfortZone(apparentTemp) {
     if (apparentTemp < 34) {
         return {
             level: 'hot',
-            label: 'Feels Hot',
-            advice: 'Seek shade or breeze — stay hydrated',
+            label: 'Feels hot',
+            advice: 'Look for shade and a breeze, and keep a drink handy',
             color: 'text-orange-600',
             bgColor: 'bg-orange-50',
             borderColor: 'border-orange-200',
@@ -228,8 +299,8 @@ export function getComfortZone(apparentTemp) {
     }
     return {
         level: 'extreme',
-        label: 'Extreme Heat',
-        advice: 'Indoor seating strongly recommended',
+        label: 'Extreme heat',
+        advice: 'Indoor tables are the safer choice',
         color: 'text-red-700',
         bgColor: 'bg-red-50',
         borderColor: 'border-red-200',
@@ -240,80 +311,34 @@ export function getComfortZone(apparentTemp) {
 // ── Wind Warning System ───────────────────────────────────────────
 
 /**
- * Classify wind conditions at a venue into a danger level.
- * Uses actual wind speed * venue exposure factor.
+ * Wind at the venue (regional wind × the venue's wind factor), in four levels
+ * worded for someone choosing a table: Calm under 5 m/s, Breezy to 9, Windy to
+ * 14, then Very windy.
  *
- * Wind categories (effective wind at venue in m/s):
- *   Green:  < 5 m/s  — Calm
- *   Yellow: 5-9 m/s  — Moderate
- *   Orange: 9-14 m/s — Windy
- *   Red:    14+ m/s  — High Wind
- *
- * @returns {{ level, label, advice, color, bgColor, borderColor, icon, effectiveWind }}
+ * @returns {{ level, label, phrase, advice, color, bgColor, borderColor, icon, effectiveWind }}
  */
-export function getWindWarning(windSpeedMs, venue, direction = null, gustMs = null) {
+const WIND_LEVELS = [
+    // Effective wind at the venue, m/s. `phrase` completes "Feels like 18° with …".
+    { below: 5, level: 'green', label: 'Calm', phrase: 'calm air', advice: 'Easy outdoor weather. Napkins stay put.',
+        color: 'text-emerald-600', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200', icon: '🍃' },
+    { below: 9, level: 'yellow', label: 'Breezy', phrase: 'a steady breeze', advice: 'A steady breeze. A sheltered table will feel warmer.',
+        color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200', icon: '🌿' },
+    { below: 14, level: 'orange', label: 'Windy', phrase: 'gusty wind', advice: 'Hold on to hats and menus. Sheltered or indoor tables are the better pick.',
+        color: 'text-orange-600', bgColor: 'bg-orange-50', borderColor: 'border-orange-200', icon: '💨' },
+    { below: Infinity, level: 'red', label: 'Very windy', phrase: 'strong wind', advice: 'Too gusty to sit outside comfortably. Indoors is the call.',
+        color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-red-200', icon: '🌬️' },
+];
+
+export function getWindWarning(windSpeedMs, venue, direction = null, gustMs = null, options = {}) {
     const profile = getWindProfile(venue);
-    const exposure = getVenueWindExposure(windSpeedMs, venue, direction, gustMs);
+    const exposure = getVenueWindExposure(windSpeedMs, venue, direction, gustMs, options);
     // Gusts influence warnings only for an active directional profile; legacy venues keep their thresholds.
     const effectiveWind = exposure.directional ? Math.max(exposure.effectiveWindMs ?? 0, exposure.effectiveGustMs ?? 0) : exposure.effectiveWindMs ?? 0;
     const windKmh = Math.round((exposure.effectiveWindMs ?? 0) * 3.6);
     const details = venue?.windProfile ? { factor: exposure.factor, tunnel: exposure.tunnel,
         effectiveGust: exposure.effectiveGustMs === null ? null : Math.round(exposure.effectiveGustMs * 3.6) } : {};
-
-    if (effectiveWind < 5) {
-        return {
-            level: 'green',
-            label: 'Calm Conditions',
-            advice: 'Perfect for outdoor events',
-            color: 'text-emerald-600',
-            bgColor: 'bg-emerald-50',
-            borderColor: 'border-emerald-200',
-            icon: '🍃',
-            effectiveWind: windKmh,
-            ...details,
-            exposureLabel: profile.label,
-        };
-    }
-    if (effectiveWind < 9) {
-        return {
-            level: 'yellow',
-            label: 'Moderate Breeze',
-            advice: 'Secure lightweight decorations',
-            color: 'text-amber-600',
-            bgColor: 'bg-amber-50',
-            borderColor: 'border-amber-200',
-            icon: '🌿',
-            effectiveWind: windKmh,
-            ...details,
-            exposureLabel: profile.label,
-        };
-    }
-    if (effectiveWind < 14) {
-        return {
-            level: 'orange',
-            label: 'Windy',
-            advice: 'Recommend secure tent anchoring and marquee weights',
-            color: 'text-orange-600',
-            bgColor: 'bg-orange-50',
-            borderColor: 'border-orange-200',
-            icon: '💨',
-            effectiveWind: windKmh,
-            ...details,
-            exposureLabel: profile.label,
-        };
-    }
-    return {
-        level: 'red',
-        label: 'High Wind Warning',
-        advice: 'Outdoor events not recommended — indoor backup advised',
-        color: 'text-red-700',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
-        icon: '🌬️',
-        effectiveWind: windKmh,
-        ...details,
-        exposureLabel: profile.label,
-    };
+    const { below: _below, ...view } = WIND_LEVELS.find(entry => effectiveWind < entry.below) ?? WIND_LEVELS[WIND_LEVELS.length - 1];
+    return { ...view, effectiveWind: windKmh, ...details, exposureLabel: profile.label };
 }
 
 // ── Wind Trend Analysis ───────────────────────────────────────────
@@ -332,14 +357,16 @@ export function getWindWarning(windSpeedMs, venue, direction = null, gustMs = nu
 export function generateHourlyForecast(currentTemp, currentWind, humidity, venue, direction = null, gustMs = null, options = {}) {
     const profile = getWindProfile(venue);
     const now = options.now ?? new Date();
-    const profiled = Boolean(venue?.windProfile || venue?.noiseProfile);
+    // Real forecast hours for every venue; the daily pattern below only fills gaps.
+    const useForecast = Boolean(options.hourly);
+    const measuredOptions = { microclimate: options.microclimate ?? null, measuredDirection: options.measuredDirection ?? direction };
     let timeZone = venue?.timeZone ?? venue?.timezone ?? 'Australia/Melbourne';
     let currentHour;
     try { currentHour = Math.floor(venueHour(now, timeZone)); }
     catch { timeZone = 'Australia/Melbourne'; currentHour = Math.floor(venueHour(now, timeZone)); }
     const index = getCurrentHourlyIndex(options.hourly, options.utcOffsetSeconds, now);
     const firstTime = openMeteoLocalTimeToDate(options.hourly?.time?.[index], options.utcOffsetSeconds) ?? now;
-    const actualRows = profiled ? normalizeHourlyForecast({ hourly: options.hourly, utc_offset_seconds: options.utcOffsetSeconds }, { now: firstTime, limit: 24 }) : [];
+    const actualRows = useForecast ? normalizeHourlyForecast({ hourly: options.hourly, utc_offset_seconds: options.utcOffsetSeconds }, { now: firstTime, limit: 24 }) : [];
     const safeCurrentTemp = Number.isFinite(Number(currentTemp)) ? Number(currentTemp) : 20;
     const safeCurrentWind = Number.isFinite(Number(currentWind)) ? Number(currentWind) : 0;
     const safeHumidity = Number.isFinite(Number(humidity)) ? Number(humidity) : 50;
@@ -371,7 +398,7 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
 
     const hours = [];
     for (let i = 0; i < 24; i++) {
-        const time = new Date((profiled && options.hourly ? firstTime : now).getTime() + i * 3600000);
+        const time = new Date((useForecast ? firstTime : now).getTime() + i * 3600000);
         // Match timestamps rather than array indices: omitted rows must not shift future weather into "Now".
         const actual = actualRows.find(row => row.time.getTime() === time.getTime());
         const h = Math.floor(venueHour(time, timeZone));
@@ -380,9 +407,9 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
         const hourDirection = options.hourly ? actual?.windDirection ?? null : direction;
         const hourGust = options.hourly ? actual?.gusts == null ? null : actual.gusts / 3.6
             : finiteOrNull(gustMs) === null ? null : gustMs * (windMultipliers[h] || 1) / currentMultiplier;
-        const feelsLike = calculateApparentTemp(hourTemp, hourWind, safeHumidity, profile.shelterFactor, hourDirection, hourGust, venue);
+        const feelsLike = calculateApparentTemp(hourTemp, hourWind, safeHumidity, profile.shelterFactor, hourDirection, hourGust, venue, measuredOptions);
         const comfort = getComfortZone(feelsLike);
-        const windWarning = getWindWarning(hourWind, venue, hourDirection, hourGust);
+        const windWarning = getWindWarning(hourWind, venue, hourDirection, hourGust, measuredOptions);
 
         // Format hour label
         const isPM = h >= 12;
@@ -396,7 +423,9 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
             wind: Math.round(hourWind * 3.6), // km/h
             windMs: Math.round(hourWind * 10) / 10,
             time, windDirection: hourDirection, gustMs: hourGust,
-            windExposure: getVenueWindExposure(hourWind, venue, hourDirection, hourGust),
+            windExposure: getVenueWindExposure(hourWind, venue, hourDirection, hourGust, measuredOptions),
+            // 'forecast' rows come from the hourly forecast; 'estimate' rows from the typical daily pattern.
+            source: actual ? 'forecast' : 'estimate',
             feelsLike: Math.round(feelsLike),
             comfort,
             windWarning,
@@ -412,7 +441,7 @@ export function generateHourlyForecast(currentTemp, currentWind, humidity, venue
  */
 export function getWindTrend(hourlyForecast) {
     if (!hourlyForecast || hourlyForecast.length < 4) {
-        return { direction: 'steady', label: 'Wind conditions steady', icon: '↔️' };
+        return { direction: 'steady', label: 'Wind staying about the same', icon: '↔️' };
     }
 
     const now = hourlyForecast[0].windMs;
@@ -423,12 +452,12 @@ export function getWindTrend(hourlyForecast) {
     const ratio = now > 0 ? delta / now : delta;
 
     if (ratio > 0.3 || delta > 3) {
-        return { direction: 'building', label: 'Wind building through afternoon', icon: '📈' };
+        return { direction: 'building', label: 'Wind picking up over the next few hours', icon: '📈' };
     }
     if (ratio < -0.3 || delta < -3) {
-        return { direction: 'calming', label: 'Winds calming down', icon: '📉' };
+        return { direction: 'calming', label: 'Wind easing over the next few hours', icon: '📉' };
     }
-    return { direction: 'steady', label: 'Wind conditions steady', icon: '↔️' };
+    return { direction: 'steady', label: 'Wind staying about the same', icon: '↔️' };
 }
 
 /**
@@ -494,7 +523,7 @@ export function getOptimalBookingTime(hourlyForecast) {
         endLabel: fmtHour((endHour.hour + 1) % 24),
         avgFeelsLike,
         avgWindLevel: startHour.windWarning.level,
-        reason: `Feels like ${avgFeelsLike}°C with ${startHour.windWarning.label.toLowerCase()}`,
+        reason: `Feels like ${avgFeelsLike}° with ${startHour.windWarning.phrase ?? 'light wind'}`,
     };
 }
 
