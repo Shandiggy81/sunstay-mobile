@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { FULL_SUN_FRACTION, PART_SUN_FRACTION } from './microclimate.js';
 import { outdoorVerdict } from './outdoorVerdict.js';
+import { SUNNY_CLEARNESS } from './skyClearness.js';
 
 const hourEntry = (overrides = {}) => ({
     hour: 11,
@@ -121,11 +123,18 @@ describe('outdoorVerdict sun sentences', () => {
 });
 
 describe('outdoorVerdict shared microclimate bands', () => {
+    it('uses the exported full-sun and partial-sun thresholds', () => {
+        assert.equal(FULL_SUN_FRACTION, 0.75);
+        assert.equal(PART_SUN_FRACTION, 0.4);
+        assert.equal(outdoorVerdict({ hours: [hourEntry({ sunFraction: FULL_SUN_FRACTION })], index: 0 }).state, 'sun');
+        assert.equal(outdoorVerdict({ hours: [hourEntry({ sunFraction: PART_SUN_FRACTION })], index: 0 }).state, 'part');
+    });
+
     for (const [sunFraction, state] of [
         [0, 'shade'], [0.3, 'shade'], [0.3999, 'shade'],
         [0.4, 'part'], [0.7, 'part'], [0.7499, 'part'], [0.75, 'sun'], [1, 'sun'],
     ]) {
-        it(`classifies ${sunFraction} as ${state} using describeSun`, () => {
+        it(`classifies ${sunFraction} as ${state} using the shared thresholds`, () => {
             assert.equal(outdoorVerdict({ hours: [hourEntry({ sunFraction })], index: 0 }).state, state);
         });
     }
@@ -151,7 +160,21 @@ describe('outdoorVerdict wind sentences', () => {
 
     it('accepts zero wind and a negative feels-like temperature', () => {
         const result = outdoorVerdict({ hours: [hourEntry({ windKmh: 0, feelsLike: -2 })], index: 0 });
-        assert.ok(result.detail.endsWith('Feels -2\u00b0 with 0 km/h from the north.'));
+        assert.ok(result.detail.endsWith('Feels -2\u00b0 in still air.'));
+    });
+
+    it('describes still air with a null direction', () => {
+        const result = outdoorVerdict({ hours: [hourEntry({ windKmh: 0, windFrom: null })], index: 0 });
+        assert.equal(result.detail, 'Full sun for the rest of the day. Feels 21\u00b0 in still air.');
+    });
+
+    it('uses still-air copy exactly when the rounded wind speed is zero', () => {
+        for (const windFrom of [null, 350]) {
+            const still = outdoorVerdict({ hours: [hourEntry({ windKmh: 0.49, windFrom })], index: 0 });
+            assert.ok(still.detail.endsWith('Feels 21\u00b0 in still air.'));
+            const breeze = outdoorVerdict({ hours: [hourEntry({ windKmh: 0.5, windFrom })], index: 0 });
+            assert.ok(breeze.detail.includes('Feels 21\u00b0 with 1 km/h'));
+        }
     });
 });
 
@@ -172,7 +195,7 @@ describe('outdoorVerdict slots', () => {
             { hour: 10, label: '10am', words: 'Sunny \u00b7 Breezy', good: true },
             { hour: 11, label: '11am', words: 'Part sun \u00b7 Windy', good: false },
             { hour: 12, label: '12pm', words: 'In shade \u00b7 Very windy', good: false },
-            { hour: 13, label: '1pm', words: 'After dark \u00b7 Breezy', good: false },
+            { hour: 13, label: '1pm', words: 'Before sunrise \u00b7 Breezy', good: false },
             { hour: 14, label: '2pm', words: 'Sunny \u00b7 Windy', good: false },
         ]);
     });
@@ -242,6 +265,196 @@ describe('outdoorVerdict invalid inputs', () => {
             assert.equal(result.changeHour, null);
             assert.equal(result.slots.length, 1);
         }
+    });
+});
+
+describe('outdoorVerdict cloud', () => {
+    for (const sunFraction of [PART_SUN_FRACTION, FULL_SUN_FRACTION]) {
+        for (const [windLevel, verdict] of [
+            ['green', 'Cloudy and calm'], ['yellow', 'Cloudy, a bit breezy'],
+            ['orange', 'Cloudy and windy'], ['red', 'Cloudy and windy'],
+        ]) {
+            it(`describes cloud at sun fraction ${sunFraction} with ${windLevel} wind`, () => {
+                const hours = [hourEntry({ sunFraction, skyClearness: 0, windLevel })];
+                const result = outdoorVerdict({ hours, index: 0 });
+                assert.equal(result.state, 'cloud');
+                assert.equal(result.verdict, verdict);
+                assert.equal(result.detail, 'No direct sun expected here today. Feels 21\u00b0 with 7 km/h from the north.');
+                const windWords = { green: 'Calm', yellow: 'Breezy', orange: 'Windy', red: 'Very windy' };
+                assert.deepEqual(result.slots, [{ hour: 11, label: '11am', words: `Cloudy \u00b7 ${windWords[windLevel]}`, good: false }]);
+            });
+        }
+    }
+
+    for (const [sunFraction, clearState] of [[FULL_SUN_FRACTION, 'sun'], [PART_SUN_FRACTION, 'part']]) {
+        for (const [skyClearness, expected] of [
+            [SUNNY_CLEARNESS - 0.0001, 'cloud'],
+            [SUNNY_CLEARNESS, clearState],
+            [SUNNY_CLEARNESS + 0.0001, clearState],
+        ]) {
+            it(`classifies clearness ${skyClearness} and sun fraction ${sunFraction} as ${expected}`, () => {
+                const hours = [hourEntry({ sunFraction, skyClearness })];
+                assert.equal(outdoorVerdict({ hours, index: 0 }).state, expected);
+            });
+        }
+    }
+
+    it('keeps the existing result when sky clearness is null or undefined', () => {
+        for (const hours of [FIXTURE_A, FIXTURE_B]) {
+            for (const skyClearness of [null, undefined]) {
+                const unknown = hours.map(entry => ({ ...entry, skyClearness }));
+                for (let index = 0; index < hours.length; index += 1) {
+                    assert.deepEqual(outdoorVerdict({ hours: unknown, index }), outdoorVerdict({ hours, index }));
+                }
+            }
+        }
+    });
+
+    it('keeps geometric shade and evening darkness when the sky is cloudy or clear', () => {
+        for (const skyClearness of [0, 1]) {
+            const shade = hourEntry({ sunFraction: PART_SUN_FRACTION - 0.0001, skyClearness });
+            assert.equal(outdoorVerdict({ hours: [shade], index: 0 }).state, 'shade');
+            const night = hourEntry({ hour: 20, skyClearness, isDaylight: false });
+            assert.equal(outdoorVerdict({ hours: [night], index: 0 }).state, 'dark');
+        }
+        assert.equal(outdoorVerdict({ hours: [hourEntry({ skyClearness: 1 })], index: 0 }).state, 'sun');
+    });
+
+    it('finds later direct sun after cloud clears, skipping cloudy and shaded entries', () => {
+        const hours = [
+            hourEntry({ hour: 11, skyClearness: 0.1 }),
+            hourEntry({ hour: 12, sunFraction: 0.5, skyClearness: 0.1 }),
+            hourEntry({ hour: 13, sunFraction: 0.1, skyClearness: 1 }),
+            hourEntry({ hour: 14, skyClearness: 0.1 }),
+            hourEntry({ hour: 15, sunFraction: 0.5, skyClearness: 1 }),
+            hourEntry({ hour: 16, skyClearness: 1 }),
+            hourEntry({ hour: 17, isDaylight: false }),
+        ];
+        const cloud = at(hours, 11);
+        assert.equal(cloud.detail, 'Sun from 3pm. Feels 21\u00b0 with 7 km/h from the north.');
+        assert.equal(cloud.changeHour, 13);
+        assert.equal(at(hours, 13).detail, 'Sun from 3pm. Feels 21\u00b0 with 7 km/h from the north.');
+    });
+
+    it('has no direct sun expected when cloud lasts all day through nightfall', () => {
+        const hours = Array.from({ length: 11 }, (_, index) => hourEntry({
+            hour: 10 + index, skyClearness: 0.1, isDaylight: index < 10,
+        }));
+        const result = at(hours, 10);
+        assert.equal(result.detail, 'No direct sun expected here today. Feels 21\u00b0 with 7 km/h from the north.');
+        assert.equal(result.changeHour, 20);
+        assert.ok(result.slots.every(slot => !slot.good));
+    });
+
+    it('keeps the shade sentence when all later daylight is cloudy', () => {
+        const hours = [
+            hourEntry({ sunFraction: 0.1 }),
+            hourEntry({ hour: 12, skyClearness: 0.1 }),
+            hourEntry({ hour: 13, isDaylight: false }),
+        ];
+        const result = at(hours, 11);
+        assert.equal(result.detail, 'No more sun here today. Feels 21\u00b0 with 7 km/h from the north.');
+        assert.equal(result.changeHour, 12);
+    });
+
+    it('rejects non-finite, non-numeric and out-of-range sky clearness', () => {
+        for (const skyClearness of [NaN, Infinity, -Infinity, '0.5', '', false, true, {}, [], -0.0001, 1.0001]) {
+            assert.equal(outdoorVerdict({ hours: [hourEntry({ skyClearness })], index: 0 }), null);
+            const hours = [hourEntry(), hourEntry({ hour: 12, skyClearness }), hourEntry({ hour: 13, sunFraction: 0 })];
+            assert.equal(at(hours, 11).slots.length, 1);
+            assert.equal(at(hours, 11).changeHour, null);
+        }
+    });
+});
+
+describe('outdoorVerdict before sunrise', () => {
+    for (const [windLevel, windWords] of [
+        ['green', 'calm'], ['yellow', 'breezy'], ['orange', 'windy'], ['red', 'very windy'],
+    ]) {
+        it(`describes a pre-dawn hour with ${windLevel} wind`, () => {
+            const hours = [
+                hourEntry({ hour: 5, isDaylight: false, windLevel }),
+                hourEntry({ hour: 6, isDaylight: false }),
+                hourEntry({ hour: 7, sunFraction: 0.1 }),
+                hourEntry({ hour: 8, sunFraction: 0.5 }),
+                hourEntry({ hour: 9, isDaylight: false }),
+            ];
+            const result = at(hours, 5);
+            assert.equal(result.state, 'dawn');
+            assert.equal(result.verdict, `Before sunrise, ${windWords}`);
+            assert.equal(result.detail, 'Sun from 8am. Feels 21\u00b0 with 7 km/h from the north.');
+            assert.equal(result.changeHour, 7);
+            assert.equal(result.slots[0].words, `Before sunrise \u00b7 ${windWords[0].toUpperCase()}${windWords.slice(1)}`);
+            assert.equal(result.slots[0].good, false);
+            assert.equal(result.slots[1].words, 'Before sunrise \u00b7 Calm');
+            assert.equal(result.slots[4].words, 'After dark \u00b7 Calm');
+            assert.equal(at(hours, 6).state, 'dawn');
+            assert.equal(at(hours, 9).detail, 'The sun is down. Feels 21\u00b0 with 7 km/h from the north.');
+        });
+    }
+
+    it('uses the first later full-sun hour and skips cloudy daylight', () => {
+        const hours = [
+            hourEntry({ hour: 5, isDaylight: false }),
+            hourEntry({ hour: 6, skyClearness: 0.1 }),
+            hourEntry({ hour: 7, skyClearness: 1 }),
+            hourEntry({ hour: 8, isDaylight: false }),
+        ];
+        const result = at(hours, 5);
+        assert.equal(result.detail, 'Sun from 7am. Feels 21\u00b0 with 7 km/h from the north.');
+        assert.equal(result.changeHour, 6);
+    });
+
+    for (const daylight of [{ sunFraction: 0.1 }, { skyClearness: 0.1 }]) {
+        it(`falls back to daylight time when the day has ${daylight.sunFraction == null ? 'cloud' : 'shade'} and no sun`, () => {
+            const hours = [
+                hourEntry({ hour: 5, isDaylight: false }),
+                hourEntry({ hour: 6, ...daylight }),
+                hourEntry({ hour: 7, ...daylight }),
+                hourEntry({ hour: 8, isDaylight: false }),
+            ];
+            const result = at(hours, 5);
+            assert.equal(result.state, 'dawn');
+            assert.equal(result.detail, 'Daylight from 6am. Feels 21\u00b0 with 7 km/h from the north.');
+            assert.equal(result.changeHour, 6);
+        });
+    }
+
+    it('finds sunrise beyond the six displayed slots', () => {
+        const hours = Array.from({ length: 10 }, (_, hour) => hourEntry({
+            hour, isDaylight: hour >= 7 && hour < 9,
+        }));
+        const result = at(hours, 0);
+        assert.equal(result.state, 'dawn');
+        assert.equal(result.detail, 'Sun from 7am. Feels 21\u00b0 with 7 km/h from the north.');
+        assert.equal(result.changeHour, 7);
+        assert.equal(result.slots.length, 6);
+        assert.ok(result.slots.every(slot => slot.words === 'Before sunrise \u00b7 Calm' && !slot.good));
+    });
+
+    it('does not count daylight in the next local day as sunrise today', () => {
+        const hours = [hourEntry({ hour: 23, isDaylight: false }), hourEntry({ hour: 6 })];
+        const result = at(hours, 23);
+        assert.equal(result.state, 'dark');
+        assert.equal(result.detail, 'The sun is down. Feels 21\u00b0 with 7 km/h from the north.');
+        assert.equal(result.changeHour, null);
+        assert.equal(result.slots.length, 1);
+    });
+
+    it('preserves inputs while resolving cloud, dawn and night slots', () => {
+        const hours = [
+            hourEntry({ hour: 5, isDaylight: false }),
+            hourEntry({ hour: 6, skyClearness: 0.1 }),
+            hourEntry({ hour: 7 }),
+            hourEntry({ hour: 8, isDaylight: false }),
+        ];
+        const original = structuredClone(hours);
+        hours.forEach(Object.freeze);
+        Object.freeze(hours);
+        assert.equal(at(hours, 5).state, 'dawn');
+        assert.equal(at(hours, 6).state, 'cloud');
+        assert.equal(at(hours, 8).state, 'dark');
+        assert.deepEqual(hours, original);
     });
 });
 
