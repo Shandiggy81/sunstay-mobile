@@ -51,7 +51,7 @@ import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 import { checkIsAccommodation } from '../utils/accommodation';
 import { useWeather } from '../context/WeatherContext';
 import { useMicroclimateActions, useMicroclimateState } from '../context/MicroclimateContext';
-import { formatReadingTime, lookupMicroclimateEntry, readMicroclimate } from '../utils/microclimate';
+import { formatReadingTime, lookupMicroclimateEntry, readMicroclimate, resolveSunFraction } from '../utils/microclimate';
 import { formatHour } from '../utils/sunForecastState';
 import { canUsePointerTilt } from '../utils/canUsePointerTilt';
 import { resolveOverviewScore } from '../utils/resolveOverviewScore';
@@ -628,7 +628,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     shade: shadeByHour({ windows: outdoorDay?.windows ?? null, curve: microclimateEntry?.sun_hour_fraction ?? null, timeZone: venueTimeZone }),
     windRows: dayWind.rows,
     // What the tiles show for this moment, so "now" cannot disagree with them.
-    live: { sunKind: (outdoorSummary ?? forecast.now)?.kind ?? null, windKmh: windNow?.kmh ?? null, feelsLike, windFrom: dayWind.direction, windSource: dayWind.factor?.source ?? null },
+    live: { sunKind: (outdoorSummary ?? forecast.now)?.kind ?? null, sunFraction: resolveSunFraction(microclimateEntry, null), windKmh: windNow?.kmh ?? null, feelsLike, windFrom: dayWind.direction, windSource: dayWind.factor?.source ?? null },
     selectedMinutes: todMinutes,
     nowSliderMinutes: localTimeToSliderMinutes(now),
   }) : null;

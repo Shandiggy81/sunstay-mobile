@@ -33,14 +33,21 @@ function localHour(value, timeZone) {
 }
 
 /**
- * The share of each venue-local hour that the venue's surroundings leave in
- * direct sun on a clear day. The stored horizon's sun windows are exact, so
- * they win; the scored hourly curve is next; otherwise the shade is unknown.
+ * How much sun each venue-local hour gets on a clear day, 0 to 1.
+ *
+ * The scored hourly curve comes first because it is the number behind the sun
+ * score: read from it, the headline's "sunny" or "part sun" matches the score
+ * beside it at every hour. Without a curve, the venue's sun windows give the
+ * share of each hour in direct sun. Without either, the shade is unknown.
  *
  * @param {{ windows?: Array<{start: Date|number, end: Date|number}>|null, curve?: Array<number|null>|null, timeZone?: string }} input
  * @returns {{ source: 'windows'|'curve'|null, hours: Array<number|null> }}
  */
 export function shadeByHour({ windows = null, curve = null, timeZone = 'Australia/Melbourne' } = {}) {
+    if (Array.isArray(curve) && curve.length === SUN_CURVE_SLOTS) {
+        const hours = curve.map(value => (value == null || finite(Number(value)) == null ? null : clamp01(Number(value))));
+        if (hours.some(value => value != null)) return { source: 'curve', hours };
+    }
     if (Array.isArray(windows)) {
         const spans = windows
             .map(window => [localHour(window?.start, timeZone), localHour(window?.end, timeZone)])
@@ -51,10 +58,6 @@ export function shadeByHour({ windows = null, curve = null, timeZone = 'Australi
             hours: Array.from({ length: HOURS_IN_DAY }, (_, hour) => clamp01(spans.reduce(
                 (sum, [start, end]) => sum + Math.max(0, Math.min(end, hour + 1) - Math.max(start, hour)), 0))),
         };
-    }
-    if (Array.isArray(curve) && curve.length === SUN_CURVE_SLOTS) {
-        const hours = curve.map(value => (value == null || finite(Number(value)) == null ? null : clamp01(Number(value))));
-        if (hours.some(value => value != null)) return { source: 'curve', hours };
     }
     return { source: null, hours: Array(HOURS_IN_DAY).fill(null) };
 }
@@ -78,9 +81,11 @@ export function rowsForLocalDay(rows, dayKey, timeZone = 'Australia/Melbourne') 
 
 // The moment-by-moment reading for "now" beats the hour's average: a venue in
 // its sun window at 3:10pm is in the sun, even if the hour as a whole is 60%.
-function applyLiveSun(entry, sunKind) {
+// How strong that sun is comes from the score's own reading for now, when the
+// venue has one, so "sunny" or "part sun" matches the number beside it.
+function applyLiveSun(entry, sunKind, sunFraction) {
     if (sunKind === 'night') return { ...entry, isDaylight: false, skyKnown: true };
-    if (sunKind === 'sun') return { ...entry, isDaylight: true, skyKnown: true, rain: false, sunFraction: 1, skyClearness: null };
+    if (sunKind === 'sun') return { ...entry, isDaylight: true, skyKnown: true, rain: false, sunFraction: Math.max(sunFraction ?? 1, PART_SUN_FRACTION), skyClearness: null };
     if (sunKind === 'shaded') return { ...entry, isDaylight: true, skyKnown: true, rain: false, sunFraction: 0, skyClearness: null };
     if (sunKind === 'cloud') return { ...entry, isDaylight: true, skyKnown: true, rain: false, sunFraction: Math.max(entry.sunFraction, PART_SUN_FRACTION), skyClearness: 0 };
     if (sunKind === 'rain') return { ...entry, isDaylight: true, skyKnown: true, rain: true };
@@ -92,8 +97,8 @@ function applyLiveSun(entry, sunKind) {
  * @param {object|null} input.forecast venueSunForecast() result: the sky for each local hour, sunrise, sunset and now
  * @param {{ hours: Array<number|null> }|null} [input.shade] shadeByHour() result
  * @param {Array<object>} [input.windRows] generateHourlyForecast() rows covering the venue's local day
- * @param {{ sunKind?: string|null, windKmh?: number|null, feelsLike?: number|null, windFrom?: number|null, windSource?: string|null }|null} [input.live]
- *   what the card already shows for this moment, so "now" matches its tiles
+ * @param {{ sunKind?: string|null, sunFraction?: number|null, windKmh?: number|null, feelsLike?: number|null, windFrom?: number|null, windSource?: string|null }|null} [input.live]
+ *   what the card already shows for this moment, so "now" matches its tiles. `sunFraction` is the sun score's reading for now (0 to 1), if the venue has one
  * @param {number|null} [input.selectedMinutes] the app's time-of-day slider (minutes past local midnight), or null for now
  * @param {number|null} [input.nowSliderMinutes] where that slider sits for "now" (todMinutes.localTimeToSliderMinutes).
  *   The app's slider only covers 6am to 8pm, so at night "now" is pinned to one end of it.
@@ -167,7 +172,7 @@ export function outsideToday(input = {}) {
             feelsLike: finite(live.feelsLike) ?? entry.feelsLike,
             windFrom: live.windFrom === undefined ? entry.windFrom : finite(live.windFrom),
             estimated: false,
-        }, live.sunKind ?? null);
+        }, live.sunKind ?? null, finite(live.sunFraction) == null ? null : clamp01(live.sunFraction));
     });
 
     // The strip draws each hour's sun even where the wind is missing.

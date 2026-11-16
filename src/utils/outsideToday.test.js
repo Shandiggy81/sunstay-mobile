@@ -57,9 +57,11 @@ describe('shadeByHour', () => {
         assert.deepEqual(shadeByHour({ windows: [] }), { source: 'windows', hours: Array(24).fill(0) });
     });
 
-    it('falls back to the scored hourly curve, then to unknown', () => {
+    it('prefers the scored hourly curve, the number behind the sun score, then windows, then unknown', () => {
         const curve = Array.from({ length: 24 }, (_, hour) => (hour >= 9 && hour < 15 ? 0.8 : 0));
         assert.deepEqual(shadeByHour({ curve }), { source: 'curve', hours: curve });
+        assert.equal(shadeByHour({ curve, windows: [{ start: at(6), end: at(20) }], timeZone: TZ }).source, 'curve');
+        assert.equal(shadeByHour({ curve: Array(24).fill(null), windows: [{ start: at(6), end: at(20) }], timeZone: TZ }).source, 'windows');
         const gappy = shadeByHour({ curve: curve.map((value, hour) => (hour === 10 ? null : hour === 11 ? 1.4 : value)) });
         assert.equal(gappy.hours[10], null);
         assert.equal(gappy.hours[11], 1);
@@ -139,6 +141,12 @@ describe('outsideToday', () => {
         // 11am is a third in the sun as an hour, but at 11:45 the venue is in its window.
         assert.equal(model.verdict.state, 'sun');
         assert.equal(model.verdict.sunSentence, 'Full sun until 2pm.');
+        // The score's own reading for now sets how strong that sun is, but direct sun is never called shade.
+        const strong = outsideToday({ forecast, shade, windRows: rowsFor(hourly), live: { sunKind: 'sun', sunFraction: 0.96 } });
+        assert.equal(strong.verdict.state, 'sun');
+        for (const sunFraction of [0.5, 0.2]) {
+            assert.equal(outsideToday({ forecast, shade, windRows: rowsFor(hourly), live: { sunKind: 'sun', sunFraction } }).verdict.state, 'part');
+        }
         const shadedNow = outsideToday({ forecast, shade, windRows: rowsFor(hourly), live: { sunKind: 'shaded' } });
         assert.equal(shadedNow.verdict.state, 'shade');
         assert.equal(shadedNow.verdict.sunSentence, 'Sun from 12pm.');
