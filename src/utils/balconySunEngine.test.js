@@ -4,7 +4,7 @@ import SunCalc from 'suncalc';
 import {
   calculateBalconySunDay, calculateMonthlySunSummary, formatSunTime, formatSunWindows,
   isDirectSun, parseFacing, SUN_DAY_CACHE_LIMIT, venueDayBounds, venueLocalDate,
-  formatGuestDate, formatGuestTime, formatGuestWindows,
+  formatGuestDate, formatGuestTime, formatGuestWindows, balconyLitShare, DEFAULT_MIN_LIT_DEPTH,
 } from './balconySunEngine.js';
 import { calculateBalconySun } from './calculateBalconySun.js';
 
@@ -50,12 +50,65 @@ describe('balcony reference fixtures', () => {
     assert.equal(result.morningCoffee.available, false);
     assert.equal(result.sunsetDrinks.available, true);
   });
-  it('Lisbon overhang reduces 7h33m to 5h46m', () => {
+  it('Lisbon balcony roof: 7h33m open, 6h39m with the railing side lit, 5h46m to the back wall', () => {
     const open = calculateBalconySunDay(LISBON);
     const roof = calculateBalconySunDay({ ...LISBON, overhang: { depth: 1.2, height: 2.7 } });
     near(open.totalMinutes, 453);
-    near(roof.totalMinutes, 346);
+    near(roof.totalMinutes, 399);
+    near(roof.fullSunMinutes, 346);
+    near(roof.partSunMinutes, 53);
+    assert.equal(roof.fullSunMinutes + roof.partSunMinutes, roof.totalMinutes);
     assert.ok(roof.totalMinutes < open.totalMinutes);
+    // The older rule, sun only while it reaches the wall, is still available.
+    near(calculateBalconySunDay({ ...LISBON, overhang: { depth: 1.2, height: 2.7, minLitShare: 1 } }).totalMinutes, 346);
+    assert.deepEqual([open.fullSunMinutes, open.partSunMinutes], [open.totalMinutes, 0]);
+  });
+});
+
+describe('balcony roof: share of the floor in sun', () => {
+  const NORTH = { lat: -37.8136, lng: 144.9631, facing: 0 };
+  const roof = { depth: 1.5, height: 2.7 };
+  const day = (date, overhang) => calculateBalconySunDay({ ...NORTH, date, ...(overhang ? { overhang } : {}) });
+
+  it('keeps a north-facing Melbourne balcony sunny at the railing when high sun cannot reach the wall', () => {
+    // Midsummer: the sun is too high to reach the back wall at any time, but
+    // the railing side is lit for about three hours either side of noon.
+    const summer = day('2026-12-21', roof);
+    near(summer.totalMinutes, 187);
+    assert.equal(summer.fullSunMinutes, 0);
+    assert.equal(summer.partSunMinutes, summer.totalMinutes);
+    assert.equal(day('2026-12-21', { ...roof, minLitShare: 1 }).totalMinutes, 0, 'the wall-only rule reports no sun at all');
+    assert.ok(summer.totalMinutes < day('2026-12-21').totalMinutes);
+    // Midwinter: low sun reaches the back wall all day, so the roof changes nothing.
+    const winter = day('2026-06-21', roof);
+    assert.equal(winter.totalMinutes, day('2026-06-21').totalMinutes);
+    assert.deepEqual([winter.fullSunMinutes, winter.partSunMinutes], [winter.totalMinutes, 0]);
+  });
+
+  it('reports the lit share of the floor at an instant', () => {
+    const noon = new Date('2026-12-21T02:20:00Z'); // about solar noon in Melbourne
+    const share = balconyLitShare(noon, { ...NORTH, overhang: roof });
+    assert.ok(Math.abs(share - 0.46) < 0.01, `share ${share}`);
+    assert.equal(balconyLitShare(noon, NORTH), 1, 'no roof: the whole floor');
+    assert.equal(balconyLitShare(noon, { ...NORTH, facing: 180, overhang: roof }), 0, 'facing away from the sun');
+    assert.equal(balconyLitShare(new Date('2026-12-21T14:00:00Z'), { ...NORTH, overhang: roof }), 0, 'night');
+    assert.equal(isDirectSun(noon, { ...NORTH, overhang: roof }), true);
+    assert.equal(isDirectSun(noon, { ...NORTH, overhang: { ...roof, minLitShare: 0.5 } }), false);
+  });
+
+  it('needs a lit strip deep enough for a chair, or the whole floor of a shallower balcony', () => {
+    assert.equal(DEFAULT_MIN_LIT_DEPTH, 0.6);
+    // A 2.4 m floor under the same roof keeps its outer half in sun far longer.
+    assert.ok(day('2026-12-21', { ...roof, balconyDepth: 2.4 }).totalMinutes > day('2026-12-21', roof).totalMinutes);
+    // A 0.4 m Juliet balcony has no room for a part-lit strip: wall rule.
+    assert.equal(day('2026-12-21', { ...roof, balconyDepth: 0.4 }).totalMinutes, day('2026-12-21', { ...roof, minLitShare: 1 }).totalMinutes);
+  });
+
+  it('rejects impossible balcony geometry', () => {
+    for (const overhang of [{ ...roof, balconyDepth: 0 }, { ...roof, balconyDepth: -1 }, { ...roof, balconyDepth: 'deep' },
+      { ...roof, minLitShare: 0 }, { ...roof, minLitShare: 1.2 }, { ...roof, minLitShare: NaN }]) {
+      assert.throws(() => calculateBalconySunDay({ ...NORTH, date: '2026-12-21', overhang }), RangeError);
+    }
   });
 });
 

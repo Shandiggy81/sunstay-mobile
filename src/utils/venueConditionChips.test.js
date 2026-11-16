@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { outdoorChip, venueConditionChips, windChip, windWord } from './venueConditionChips.js';
+import { outdoorChip, venueConditionChips, windChip, windWord, WIND_WORD_LIMITS, windBand } from './venueConditionChips.js';
 const windWordFor = windWord;
 
 test('wind words', () => {
@@ -38,4 +38,15 @@ test('chips come in sun, wind, outdoor order', () => {
     assert.equal(chips[0].text, 'Sunny until 3pm');
     assert.equal(chips[0].tone, 'sun');
     assert.deepEqual(venueConditionChips({ venue: {}, forecast: null, weather: null }), []);
+});
+
+test('wind words and their bands share one set of limits', () => {
+    assert.deepEqual([...WIND_WORD_LIMITS], [6, 20, 30, 40]);
+    assert.deepEqual([0, 5.9, 6, 19.9, 20, 29.9, 30, 39.9, 40, 90].map(windBand), [0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+    assert.deepEqual([3, 12, 25, 35, 60].map(windWord), ['Calm', 'Light wind', 'Breezy', 'Windy', 'Very windy']);
+    for (const bad of [null, undefined, NaN, '', 'gusty']) {
+        assert.equal(windBand(bad), null);
+        assert.equal(windWord(bad), null);
+    }
+    assert.equal(windBand('12'), 1, 'a numeric string still reads as a speed');
 });

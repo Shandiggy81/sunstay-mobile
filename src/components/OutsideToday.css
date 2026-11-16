@@ -1,0 +1,80 @@
+/* The venue card's sun-and-wind block. Gold is sun, slate is wind; type from
+   22/17/14/13/12; hairline dividers between blocks, no bordered tiles. */
+.ss-outside-verdict { display: flex; flex-direction: column; gap: 2px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; color: #0f172a; }
+.ss-outside-verdict > span { font-size: 13px; font-weight: 700; letter-spacing: 0; line-height: 1.4; color: #64748b; }
+/* With the verdict above it, the precise sun line reads as its detail. */
+.ss-venue-sun-block.has-verdict .ss-venue-sun-now dd { font-size: 14px; font-weight: 700; color: #475569; }
+.ss-venue-sun-block.has-verdict .ss-venue-sun-now dd img { width: 24px; height: 24px; }
+
+.ss-outside { --ss-outside-label: 52px; --ss-outside-gap: 8px; display: flex; flex-direction: column; gap: 8px; padding-top: 16px; border-top: 1px solid #f1ece2; color: #0f172a; }
+.ss-outside__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ss-outside h3 { font-size: 17px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.3; color: #0f172a; }
+.ss-outside__head > span { font-size: 13px; font-weight: 700; color: #92400e; white-space: nowrap; }
+
+.ss-outside__chart { position: relative; display: flex; flex-direction: column; gap: 8px; }
+.ss-outside__lane { display: flex; align-items: center; gap: var(--ss-outside-gap); }
+.ss-outside__lane.is-wind { align-items: flex-end; }
+.ss-outside__label { display: flex; flex: 0 0 var(--ss-outside-label); align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: #334155; }
+.ss-outside__label.is-sun { color: #92400e; }
+.ss-outside__cells { display: grid; flex: 1 1 auto; grid-template-columns: repeat(var(--ss-outside-cols), minmax(0, 1fr)); gap: 2px; min-width: 0; }
+.ss-outside__cells > i { height: 20px; box-sizing: border-box; border-radius: 4px; background: #e2e8f0; }
+.ss-outside__cells.is-bars { align-items: end; height: 44px; }
+.ss-outside__cells.is-bars > i { border-radius: 3px 3px 0 0; background: #cbd5e1; }
+.ss-outside__lane.is-axis .ss-outside__cells > span { justify-self: center; font-size: 12px; font-weight: 600; line-height: 16px; color: #64748b; white-space: nowrap; }
+
+/* Sun lane and its legend share one set of swatches. */
+.ss-outside [data-sun='sun'] { background: #f59e0b; }
+.ss-outside [data-sun='part'] { background: #fde68a; box-shadow: inset 0 0 0 1px #f59e0b; }
+.ss-outside [data-sun='shade'] { background: #e2e8f0; box-shadow: inset 0 0 0 1px #cbd5e1; }
+.ss-outside [data-sun='cloud'] { background: repeating-linear-gradient(135deg, #cbd5e1 0 3px, #f1f5f9 3px 6px); box-shadow: inset 0 0 0 1px #cbd5e1; }
+.ss-outside [data-sun='rain'] { background: #64748b; }
+.ss-outside [data-sun='dawn'], .ss-outside [data-sun='dark'] { background: #334155; }
+.ss-outside__lane.is-wind .ss-outside__label { padding-bottom: 2px; }
+.ss-outside [data-sun='unknown'] { background: #ffffff; box-shadow: inset 0 0 0 1px #cbd5e1; }
+
+/* Wind lane: taller and darker is windier. */
+.ss-outside__cells.is-bars > [data-band='1'] { background: #94a3b8; }
+.ss-outside__cells.is-bars > [data-band='2'] { background: #64748b; }
+.ss-outside__cells.is-bars > [data-band='3'] { background: #334155; }
+.ss-outside__cells.is-bars > [data-band='4'] { background: #0f172a; }
+.ss-outside__cells.is-bars > [data-estimated] { opacity: 0.45; }
+
+.ss-outside__marker { position: absolute; top: -4px; bottom: 20px; left: calc(var(--ss-outside-label) + var(--ss-outside-gap) + (100% - var(--ss-outside-label) - var(--ss-outside-gap)) * var(--ss-outside-at)); width: 2px; margin-left: -1px; border-radius: 1px; background: #0f172a; pointer-events: none; }
+
+.ss-outside__slider { display: block; width: calc(100% - var(--ss-outside-label) - var(--ss-outside-gap)); height: 44px; margin: 0 0 0 calc(var(--ss-outside-label) + var(--ss-outside-gap)); padding: 0; border: 0; background: transparent; cursor: pointer; -webkit-appearance: none; appearance: none; touch-action: pan-y; }
+.ss-outside__slider::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: #e2e8f0; }
+.ss-outside__slider::-moz-range-track { height: 6px; border-radius: 999px; background: #e2e8f0; }
+.ss-outside__slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 28px; height: 28px; margin-top: -11px; border: 2px solid #0f172a; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25); }
+.ss-outside__slider::-moz-range-thumb { width: 24px; height: 24px; border: 2px solid #0f172a; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25); }
+.ss-outside__slider:focus-visible { outline: 2px solid #f59e0b; outline-offset: 2px; border-radius: 8px; }
+
+.ss-outside__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ss-outside__legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; font-weight: 600; color: #475569; }
+.ss-outside__legend li { display: inline-flex; align-items: center; gap: 4px; }
+.ss-outside__legend i { width: 12px; height: 12px; border-radius: 3px; }
+.ss-outside__now { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 1px solid #e2e8f0; border-radius: 999px; background: #ffffff; font-size: 13px; font-weight: 700; color: #0f172a; }
+.ss-outside__now:disabled { color: #94a3b8; }
+.ss-outside__now:focus-visible, .ss-outside__times button:focus-visible { outline: 2px solid #f59e0b; outline-offset: 2px; }
+
+/* The weather row for the chosen hour sits inside the block, by the strip. */
+.ss-outside .ss-venue-weather-now { padding: 4px 0 0; }
+.ss-outside__note { font-size: 12px; font-weight: 500; line-height: 1.5; color: #64748b; }
+.ss-outside__text { font-size: 14px; font-weight: 500; line-height: 1.45; color: #475569; }
+.ss-outside__strong { font-size: 14px; font-weight: 700; line-height: 1.4; color: #0f172a; }
+
+.ss-outside__block { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 16px; border-top: 1px solid #f1ece2; }
+.ss-outside__steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 2px; }
+.ss-outside__steps > span { height: 6px; border-radius: 999px; background: #e2e8f0; }
+.ss-outside__steps > span.is-on { background: #0f172a; }
+.ss-outside__ends { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #64748b; }
+
+.ss-outside__times { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; margin-top: 2px; }
+.ss-outside__times button { display: flex; flex-direction: column; gap: 2px; width: 100%; min-height: 56px; box-sizing: border-box; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; text-align: left; color: #0f172a; }
+.ss-outside__times button.is-good { border-color: #f59e0b; background: #fffbeb; }
+.ss-outside__times button[aria-pressed='true'] { border-color: #0f172a; box-shadow: inset 0 0 0 1px #0f172a; }
+.ss-outside__times strong { font-size: 14px; font-weight: 800; line-height: 1.3; }
+.ss-outside__times span { font-size: 12px; font-weight: 600; line-height: 1.35; color: #475569; }
+
+/* The wind word that pairs with the sun score in the card header. */
+.ss-venue-score-pair { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; gap: 2px; min-width: 56px; }
+.ss-venue-score-pair > small { font-size: 12px; font-weight: 700; line-height: 1.3; color: #475569; white-space: nowrap; }

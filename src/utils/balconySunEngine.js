@@ -16,7 +16,8 @@ export const SUN_DAY_CACHE_LIMIT = 2048;
 const CACHE_LIMIT = SUN_DAY_CACHE_LIMIT;
 function cacheKey(kind, room, timeZone, period) {
   return JSON.stringify([kind, room.lat, room.lng, room.facing, timeZone, room.horizon,
-    room.overhang ? [room.overhang.depth, room.overhang.height] : null, room.halfFov, room.minAltitude, period]);
+    room.overhang ? [room.overhang.depth, room.overhang.height, room.overhang.balconyDepth, room.overhang.minLitShare] : null,
+    room.halfFov, room.minAltitude, period]);
 }
 function cachedResult(key) {
   const result = resultCache.get(key);
@@ -143,30 +144,72 @@ function geometry(options) {
   });
   if (overhang && (!Number.isFinite(overhang.depth) || overhang.depth <= 0 || !Number.isFinite(overhang.height) || overhang.height <= 0))
     throw new RangeError('Overhang depth and floor-to-roof height must both be positive.');
-  return { lat, lng, facing: bearing, horizon, overhang, halfFov: Math.min(90, fovDeg / 2), minAltitude };
+  let roof = null;
+  if (overhang) {
+    // The balcony floor is as deep as its roof unless the room says otherwise.
+    const balconyDepth = overhang.balconyDepth ?? overhang.depth;
+    if (!Number.isFinite(balconyDepth) || balconyDepth <= 0) throw new RangeError('Balcony depth must be positive.');
+    const minLitShare = overhang.minLitShare ?? Math.min(1, DEFAULT_MIN_LIT_DEPTH / balconyDepth);
+    if (!Number.isFinite(minLitShare) || minLitShare <= 0 || minLitShare > 1) throw new RangeError('Minimum lit share must be above 0 and at most 1.');
+    roof = { depth: overhang.depth, height: overhang.height, balconyDepth, minLitShare };
+  }
+  return { lat, lng, facing: bearing, horizon, overhang: roof, halfFov: Math.min(90, fovDeg / 2), minAltitude };
 }
 
-function directPosition(position, room) {
+/**
+ * A roofed balcony counts as in the sun while a strip at least this deep, in
+ * metres from the railing, is lit: room for a chair. A shallower balcony needs
+ * its whole floor lit. A fixed share would call a deep balcony shaded while
+ * its railing side sat in full sun.
+ */
+export const DEFAULT_MIN_LIT_DEPTH = 0.6;
+
+// Share of the balcony floor, wall to edge, that the roof leaves in the sun.
+// The roof's shadow reaches `depth − height ÷ tan(profile)` out from the wall,
+// so low sun lights the whole floor and high sun only the outer edge.
+function roofLitShare(tanProfile, roof) {
+  const shadow = roof.depth - roof.height / tanProfile;
+  if (shadow <= 0) return 1;
+  return Math.max(0, (roof.balconyDepth - shadow) / roof.balconyDepth);
+}
+
+// 0 when the sun is down, behind the building or blocked; otherwise the lit
+// share of the balcony floor (always 1 without a roof).
+function litShareAt(position, room) {
   const altitude = position.altitude / RAD, bearing = normalise(position.azimuth / RAD + 180);
   let minimum = room.minAltitude;
   for (const o of room.horizon) {
     const inRange = o.all || (o.start <= o.end ? bearing >= o.start && bearing <= o.end : bearing >= o.start || bearing <= o.end);
     if (inRange) minimum = Math.max(minimum, o.minAltitude);
   }
-  if (!(altitude > minimum)) return false;
+  if (!(altitude > minimum)) return 0;
   const difference = room.facing === null ? 0 : angularDifference(bearing, room.facing);
-  if (room.facing !== null && !(difference < room.halfFov)) return false;
-  if (room.overhang) {
-    const profile = Math.atan(Math.tan(position.altitude) / Math.cos(difference * RAD));
-    if (Math.tan(profile) > room.overhang.height / room.overhang.depth) return false;
-  }
-  return true;
+  if (room.facing !== null && !(difference < room.halfFov)) return 0;
+  if (!room.overhang) return 1;
+  return roofLitShare(Math.tan(position.altitude) / Math.cos(difference * RAD), room.overhang);
+}
+
+function directPosition(position, room) {
+  const share = litShareAt(position, room);
+  return share > 0 && share >= (room.overhang ? room.overhang.minLitShare : 1);
 }
 
 export function isDirectSun(instant, options) {
   const room = geometry(options), date = new Date(instant);
   if (!Number.isFinite(date.getTime())) throw new RangeError('Invalid date.');
   return directPosition(SunCalc.getPosition(date, room.lat, room.lng), room);
+}
+
+/**
+ * Share of the balcony floor in direct sun at an instant, 0 to 1. Without an
+ * `overhang` it is 1 whenever the sun reaches the side. With one
+ * (`{ depth, height, balconyDepth?, minLitShare? }`, metres) the roof shades
+ * the floor from the wall outwards as the sun climbs.
+ */
+export function balconyLitShare(instant, options) {
+  const room = geometry(options), date = new Date(instant);
+  if (!Number.isFinite(date.getTime())) throw new RangeError('Invalid date.');
+  return litShareAt(SunCalc.getPosition(date, room.lat, room.lng), room);
 }
 
 function refine(lo, hi, previousState, predicate) {
@@ -215,6 +258,11 @@ function solarEvents(room, start, end) {
  * date: venue-local YYYY-MM-DD or an absolute Date/instant. Detected edges are
  * refined below one second; formatSunTime displays the nearest minute. Five-minute
  * sampling can miss shorter sun/shade intervals occurring between samples.
+ * With an `overhang`, a moment counts while a strip at least 0.6 m deep at the
+ * railing is lit (or `minLitShare` of the floor, when given); `fullSunMinutes`
+ * and `partSunMinutes` split the total into sun to the back wall and sun on
+ * the front only. `minLitShare: 1` is the older rule: sun only while it
+ * reaches the wall.
  */
 export function calculateBalconySunDay(options) {
   const timeZone = options.timeZone ?? DEFAULT_TIME_ZONE, room = geometry(options);
@@ -224,6 +272,11 @@ export function calculateBalconySunDay(options) {
   const bounds = venueDayBounds(date, timeZone);
   const start = bounds.start.getTime(), end = bounds.end.getTime(), formatter = dateFormatter(timeZone);
   const windows = sampleWindows(start, end, t => directPosition(SunCalc.getPosition(new Date(t), room.lat, room.lng), room));
+  // With a balcony roof: how long the sun reaches right back to the wall, and
+  // how long the roof shades the back of the floor while the front stays lit.
+  const fullMinutes = room.overhang
+    ? Math.round(minutesIn(sampleWindows(start, end, t => litShareAt(SunCalc.getPosition(new Date(t), room.lat, room.lng), room) >= 1)))
+    : null;
   const events = solarEvents(room, start, end);
   // On a day with no clock change, local minutes are simply minutes since the
   // day began; only daylight-saving changeover days need the formatter.
@@ -241,6 +294,8 @@ export function calculateBalconySunDay(options) {
   return rememberResult(key, {
     date: bounds.date, timeZone, dayStart: bounds.start, dayEnd: bounds.end,
     windows: dateWindows(windows), totalMinutes: Math.round(minutesIn(windows)),
+    fullSunMinutes: fullMinutes === null ? Math.round(minutesIn(windows)) : Math.min(fullMinutes, Math.round(minutesIn(windows))),
+    partSunMinutes: fullMinutes === null ? 0 : Math.max(0, Math.round(minutesIn(windows)) - fullMinutes),
     morningCoffee: { available: coffee.length > 0, windows: dateWindows(coffee) },
     sunsetDrinks: { available: sunset === undefined ? null : drinks.length > 0, windows: dateWindows(drinks) },
     sunrise: events.sunrise ?? null, sunset: events.sunset ?? null,

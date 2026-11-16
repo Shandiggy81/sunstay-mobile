@@ -232,11 +232,15 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     // position. Absent until the bbox fetch lands, and absent for venues with
     // no profile row, so every use below is guarded.
     const micro = useVenueMicroclimate(venue.id);
+    // The raw row behind it: its measured wind shelter feeds the wind chip and
+    // feels-like, the same way the venue card does.
+    const { byId: microById } = useMicroclimateState();
+    const microEntry = useMemo(() => lookupMicroclimateEntry(microById, venue.id), [microById, venue.id]);
     const liveWeather = weatherUnavailableFlag || weatherError || weather?.unavailable || weather?.source === 'demo'
         ? null
         : weather;
     // Same sheltered feels-like and sun forecast as the venue card.
-    const feelsLike = venueFeelsLike(venue, liveWeather);
+    const feelsLike = venueFeelsLike(venue, liveWeather, microEntry);
     const sunForecast = useMemo(
         () => venueSunForecast({ venue, weather: liveWeather }),
         [venue, liveWeather],
@@ -244,8 +248,8 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     const sunStatus = useMemo(() => listSunStatus(sunForecast), [sunForecast]);
     // Sun, wind and outdoor-space chips with pictures (utils/venueConditionChips).
     const chips = useMemo(
-        () => venueConditionChips({ venue, forecast: sunForecast, weather: liveWeather }),
-        [venue, sunForecast, liveWeather],
+        () => venueConditionChips({ venue, forecast: sunForecast, weather: liveWeather, microclimate: microEntry }),
+        [venue, sunForecast, liveWeather, microEntry],
     );
     // Wheelchair, pram, dog and hidden-gem icons after the chips (utils/venueAmenities).
     const amenities = useMemo(() => keyAmenities(venue).slice(0, 3), [venue]);

@@ -11,34 +11,43 @@
  * says what it is; nothing is guessed.
  */
 import { listSunStatus } from './venueSun.js';
-import { getVenueWindExposure } from '../data/windIntelligence.js';
+import { getVenueWindExposure, measuredWindOptions } from '../data/windIntelligence.js';
 
 function finite(value) {
     const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
     return typeof n === 'number' && Number.isFinite(n) ? n : null;
 }
 
-/** Plain words for a wind speed felt at the venue (km/h). */
-export function windWord(kmh) {
+/** Upper limits, in km/h felt at the venue, of Calm, Light wind, Breezy and Windy. Above the last is Very windy. */
+export const WIND_WORD_LIMITS = Object.freeze([6, 20, 30, 40]);
+const WIND_WORDS = Object.freeze(['Calm', 'Light wind', 'Breezy', 'Windy', 'Very windy']);
+
+/** Which of the five wind words a speed falls in: 0 (Calm) to 4 (Very windy), or null. */
+export function windBand(kmh) {
     const k = finite(kmh);
     if (k == null) return null;
-    if (k < 6) return 'Calm';
-    if (k < 20) return 'Light wind';
-    if (k < 30) return 'Breezy';
-    if (k < 40) return 'Windy';
-    return 'Very windy';
+    const band = WIND_WORD_LIMITS.findIndex((limit) => k < limit);
+    return band < 0 ? WIND_WORD_LIMITS.length : band;
+}
+
+/** Plain words for a wind speed felt at the venue (km/h). */
+export function windWord(kmh) {
+    const band = windBand(kmh);
+    return band == null ? null : WIND_WORDS[band];
 }
 
 /**
  * The wind chip, or null without wind data.
  * @returns {{ key: 'wind', icon: string, text: string, tone: 'calm'|'breezy'|'windy' }|null}
  */
-export function windChip(venue, weather) {
+export function windChip(venue, weather, microclimate = null) {
     const ms = finite(weather?.wind?.speed);
     if (ms == null) return null;
     const gustKmh = finite(weather?.windGusts);
-    const exposure = getVenueWindExposure(ms, venue, weather?.windDirection ?? weather?.wind?.deg ?? null,
-        gustKmh == null ? null : gustKmh / 3.6);
+    const direction = weather?.windDirection ?? weather?.wind?.deg ?? null;
+    // A fresh microclimate row's measured shelter replaces the venue-type estimate.
+    const exposure = getVenueWindExposure(ms, venue, direction, gustKmh == null ? null : gustKmh / 3.6,
+        microclimate ? measuredWindOptions(microclimate, direction) : {});
     const kmh = exposure?.effectiveWindMs == null ? null : Math.round(exposure.effectiveWindMs * 3.6);
     const word = windWord(kmh);
     if (!word) return null;
@@ -81,13 +90,13 @@ export function outdoorChip(venue) {
  * @param {object|null} input.weather live WeatherContext weather, or null
  * @returns {Array<{ key: string, icon: string, text: string, tone?: string }>}
  */
-export function venueConditionChips({ venue, forecast, weather }) {
+export function venueConditionChips({ venue, forecast, weather, microclimate = null }) {
     const chips = [];
     if (forecast) {
         const sun = listSunStatus(forecast);
         chips.push({ key: 'sun', icon: sun.icon, text: sun.text.replace(/^Sunny · until/, 'Sunny until'), tone: forecast.now?.kind === 'sun' ? 'sun' : 'muted' });
     }
-    const wind = weather ? windChip(venue, weather) : null;
+    const wind = weather ? windChip(venue, weather, microclimate) : null;
     if (wind) chips.push(wind);
     const outdoor = outdoorChip(venue);
     if (outdoor) chips.push(outdoor);

@@ -1,0 +1,77 @@
+/* Wind & comfort panel. Amber and slate only, type from 22/17/14/13/12,
+   hairline dividers between blocks instead of bordered tiles. */
+.ss-wind { display: flex; flex-direction: column; gap: 16px; color: #0f172a; }
+.ss-wind__head { display: flex; align-items: flex-start; gap: 12px; }
+.ss-wind__title { font-size: 17px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.25; color: #0f172a; }
+.ss-wind__verdict, .ss-wind__text { font-size: 14px; font-weight: 500; line-height: 1.45; color: #475569; }
+.ss-wind__verdict { margin-top: 2px; }
+.ss-wind__verdict strong, .ss-wind__text strong { font-weight: 700; color: #0f172a; }
+
+/* Feels like · Wind here */
+.ss-wind__stats { display: grid; grid-template-columns: 1fr 1fr; }
+.ss-wind__stats > div { min-width: 0; padding: 0 16px; }
+.ss-wind__stats > div:first-child { padding-left: 0; }
+.ss-wind__stats > div + div { border-left: 1px solid #f1ece2; }
+.ss-wind__stats dt, .ss-wind__label { font-size: 13px; font-weight: 700; color: #475569; }
+.ss-wind__value { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; font-variant-numeric: tabular-nums; color: #0f172a; }
+.ss-wind__value span { font-size: 13px; font-weight: 600; letter-spacing: 0; color: #64748b; }
+.ss-wind__stat-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; margin-top: 2px; font-size: 12px; font-weight: 500; color: #64748b; }
+
+/* Feels-like scale: slate for cold, deepening gold for warmth. */
+.ss-wind__scale { position: relative; height: 8px; border-radius: 999px; background: #f1f5f9; }
+.ss-wind__scale > span { position: absolute; top: 0; bottom: 0; }
+.ss-wind__scale > span:first-of-type { border-radius: 999px 0 0 999px; }
+.ss-wind__scale > span:last-of-type { border-radius: 0 999px 999px 0; }
+.ss-wind__scale > [data-level='cold'] { background: #94a3b8; }
+.ss-wind__scale > [data-level='cool'] { background: #cbd5e1; }
+.ss-wind__scale > [data-level='mild'] { background: #fde68a; }
+.ss-wind__scale > [data-level='warm'] { background: #fbbf24; }
+.ss-wind__scale > [data-level='hot'] { background: #d97706; }
+.ss-wind__scale > [data-level='extreme'] { background: #92400e; }
+.ss-wind__scale > i { position: absolute; top: 50%; width: 18px; height: 18px; border: 3px solid #ffffff; border-radius: 50%; background: #0f172a; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.3); transform: translate(-50%, -50%); }
+.ss-wind__scale-ends { display: flex; justify-content: space-between; margin: 6px 0 8px; font-size: 12px; font-weight: 500; color: #64748b; }
+
+/* Blocks below the summary are separated by a hairline. */
+.ss-wind__block { display: flex; flex-direction: column; gap: 6px; padding-top: 16px; border-top: 1px solid #f1ece2; }
+.ss-wind__factor { font-size: 17px; font-weight: 800; letter-spacing: -0.015em; line-height: 1.25; color: #0f172a; }
+.ss-wind__steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 2px; }
+.ss-wind__steps > span { height: 6px; border-radius: 999px; background: #f1f5f9; }
+.ss-wind__steps > span.is-on { background: #0f172a; }
+.ss-wind__steps + .ss-wind__scale-ends { margin-bottom: 0; }
+.ss-wind__tunnel { font-size: 14px; font-weight: 700; line-height: 1.4; color: #92400e; }
+.ss-wind__source { font-size: 12px; font-weight: 500; line-height: 1.5; color: #64748b; }
+
+/* The noise tile for profiled venues, flattened to match the blocks around it. */
+.ss-wind [data-outdoor-comfort] { margin-top: 0; padding-top: 16px; border-top: 1px solid #f1ece2; }
+.ss-wind [data-outdoor-comfort] > p:first-child { font-size: 13px; font-weight: 700; color: #475569; }
+.ss-wind [data-outdoor-comfort] .rounded-xl { padding: 0; border: 0; border-radius: 0; background: transparent; }
+
+/* Hour by hour */
+.ss-wind__hours-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.ss-wind__legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; font-weight: 500; color: #64748b; }
+.ss-wind__legend li { display: inline-flex; align-items: center; gap: 4px; }
+.ss-wind__legend i, .ss-wind__bar > i { background: #cbd5e1; }
+.ss-wind__legend i { width: 8px; height: 8px; border-radius: 2px; }
+/* Slate for wind, as on the card's sun-and-wind strip; gold is kept for sun. */
+.ss-wind__legend [data-level='yellow'], .ss-wind__bar[data-level='yellow'] > i { background: #94a3b8; }
+.ss-wind__legend [data-level='orange'], .ss-wind__bar[data-level='orange'] > i { background: #475569; }
+.ss-wind__legend [data-level='red'], .ss-wind__bar[data-level='red'] > i { background: #0f172a; }
+.ss-wind__strip { display: flex; gap: 2px; margin: 0 -4px; padding: 2px 4px 4px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.ss-wind__strip::-webkit-scrollbar { display: none; }
+.ss-wind__hour { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; gap: 4px; min-width: 48px; min-height: 44px; padding: 8px 4px; border-radius: 12px; cursor: pointer; }
+.ss-wind__hour.is-now, .ss-wind__hour[aria-pressed='true'] { background: #fffbeb; }
+.ss-wind__hour[aria-pressed='true'] { box-shadow: inset 0 0 0 2px #f59e0b; }
+.ss-wind__hour:focus-visible, .ss-wind__more:focus-visible { outline: 2px solid #b45309; outline-offset: 2px; }
+.ss-wind__hour-label { font-size: 12px; font-weight: 600; color: #64748b; white-space: nowrap; }
+.ss-wind__hour.is-now .ss-wind__hour-label { font-weight: 800; color: #92400e; }
+.ss-wind__hour-feels { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; color: #0f172a; }
+.ss-wind__bar { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 40px; }
+.ss-wind__bar > i { display: block; width: 14px; min-height: 3px; border-radius: 4px 4px 2px 2px; }
+.ss-wind__hour.is-estimate .ss-wind__bar > i, .ss-wind__hour.is-estimate .ss-wind__hour-feels { opacity: 0.5; }
+.ss-wind__hour-wind { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: #64748b; }
+.ss-wind__hour-detail { padding: 10px 12px; border-radius: 12px; background: #fffbeb; font-size: 14px; font-weight: 500; line-height: 1.45; color: #475569; }
+.ss-wind__hour-detail strong { font-weight: 700; color: #0f172a; }
+.ss-wind__more { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 44px; border-radius: 12px; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; }
+.ss-wind__more:active { background: rgba(15, 23, 42, 0.04); }
+
+.ss-wind__best { flex-direction: row; align-items: flex-start; gap: 12px; }

@@ -12,8 +12,8 @@ const SKY_NOW = { rain: 'Raining', cloud: 'Cloudy' };
  * `sunNow` (outdoorSunSummary) replaces the forecast's "Sun now" cell when the
  * card shows the venue's building-shaded sun moments.
  */
-export function venueStatTiles({ venue, weather, forecast, score, scoreLoading, feelsLike, sunNow = null, isNight = false, skyKindAtScore = null }) {
-  const wind = windChip(venue, weather);
+export function venueStatTiles({ venue, weather, forecast, score, scoreLoading, feelsLike, sunNow = null, isNight = false, skyKindAtScore = null, microclimate = null }) {
+  const wind = windChip(venue, weather, microclimate);
   const nowKind = sunNow ? sunNow.kind : forecast?.now?.kind;
   const scoreState = scoreDisplayState({ isNight, skyKind: skyKindAtScore });
   return [
