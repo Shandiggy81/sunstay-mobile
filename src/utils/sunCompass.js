@@ -82,3 +82,19 @@ export function sunCompassView({ rooms, venue, date = null, now = new Date(), ti
         ranked: [...sides].sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || b.totalMinutes - a.totalMinutes),
     };
 }
+
+/**
+ * How a side of the building sits to the wind, from the way it faces alone.
+ * An estimate: it knows nothing about neighbours, height or balcony screens.
+ *
+ * @param {number} facing bearing the side faces, degrees from north
+ * @param {number|null} windFrom bearing the wind blows from
+ * @returns {null | { key: 'facing'|'side-on'|'sheltered', text: string }}
+ */
+export function sideWind(facing, windFrom) {
+    if (!Number.isFinite(facing) || !Number.isFinite(windFrom)) return null;
+    const gap = angularDifference(normalise(facing), normalise(windFrom));
+    if (gap <= 50) return { key: 'facing', text: 'Faces the wind' };
+    if (gap >= 130) return { key: 'sheltered', text: 'Sheltered side' };
+    return { key: 'side-on', text: 'Side-on to the wind' };
+}

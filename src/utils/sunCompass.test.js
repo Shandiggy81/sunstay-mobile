@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compassArcPath, compassPointAt, sunCompassView } from './sunCompass.js';
+import { compassArcPath, compassPointAt, sunCompassView, sideWind } from './sunCompass.js';
 import { calculateBalconySunDay } from './balconySunEngine.js';
 
 const venue = { lat: -37.8136, lng: 144.9631 };
@@ -83,4 +83,15 @@ test('arcs sit on the dial with north up and never overlap', () => {
     const close = sunCompassView({ rooms: [{ id: 'a', orientation: 0 }, { id: 'b', orientation: 40 }], venue, now: MORNING });
     assert.equal(close.spread, 14);
     assert.equal(sunCompassView({ rooms: [{ id: 'a', orientation: 20 }, { id: 'b', orientation: 110 }], venue, now: MORNING }).buildingRotation, 20);
+});
+
+test('a side faces the wind, sits side-on to it, or is sheltered from it', () => {
+    // A northerly on the demo hotel's four sides.
+    assert.deepEqual([340, 69, 160, 249].map(facing => sideWind(facing, 350).key), ['facing', 'side-on', 'sheltered', 'side-on']);
+    // After a south-westerly change.
+    assert.deepEqual([340, 69, 160, 249].map(facing => sideWind(facing, 230).key), ['side-on', 'sheltered', 'side-on', 'facing']);
+    assert.equal(sideWind(10, 350).text, 'Faces the wind', 'the gap wraps through north');
+    assert.deepEqual([50, 51, 129, 130].map(gap => sideWind(0, gap).key), ['facing', 'side-on', 'side-on', 'sheltered']);
+    assert.equal(sideWind(-20, 700).key, 'facing', 'bearings outside 0 to 360 still work');
+    for (const bad of [[null, 350], [340, null], [NaN, 10], ['north', 10]]) assert.equal(sideWind(...bad), null);
 });

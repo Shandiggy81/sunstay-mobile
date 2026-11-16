@@ -17,13 +17,13 @@ import { cafeCardTiles, isCafeVenue } from '../utils/cafeCardTiles.js';
 import { cardSunWindows, forecastForSunWindows, rainDuringSun, roundedSunDay } from '../utils/sunWindowsCard.js';
 import { outdoorSunDay, roomsBySunToday, sunMomentsFromDay } from '../utils/sunMoments.js';
 import { outdoorSunSummary } from '../utils/outdoorSunSummary.js';
-import { DEFAULT_TIME_ZONE, venueDayBounds, venueLocalDate } from '../utils/balconySunEngine.js';
-import { outsideToday, rowsForLocalDay, shadeByHour } from '../utils/outsideToday.js';
+import { DEFAULT_TIME_ZONE, venueLocalDate } from '../utils/balconySunEngine.js';
+import { outsideToday, shadeByHour, venueDayWind } from '../utils/outsideToday.js';
 import { localTimeToSliderMinutes } from '../utils/todMinutes.js';
 import { windFactorView } from '../utils/windComfortView.js';
 import { describeWindExposure } from '../utils/windExposure.js';
 import { windChip } from '../utils/venueConditionChips.js';
-import { generateHourlyForecast, getVenueWindExposure, getWindProfile, measuredWindOptions, resolveVenueWindFactor } from '../data/windIntelligence.js';
+import { getWindProfile } from '../data/windIntelligence.js';
 import ClayIcon from './common/ClayIcon';
 import {
   AboutAndHours,
@@ -360,6 +360,7 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
 // ── Main VenueCard ────────────────────────────────────────────
 function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture, stayMatch }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [allSidesOpen, setAllSidesOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const compactRef = useRef(false);
   const scrollerRef = useRef(null);
@@ -600,28 +601,10 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   // Sun and wind together, for bars, cafes and other outdoor venues: the sky
   // from this card's forecast, the venue's own shade, and the wind rows the
   // Wind & comfort panel shows, lined up by local hour (utils/outsideToday.js).
-  const dayWind = useMemo(() => {
-    if (showStay || !liveWeather?.hourly || !todayKey) return null;
-    const temp = finite(liveWeather.main?.temp);
-    if (temp == null) return null;
-    const windMs = finite(liveWeather.wind?.speed) ?? 0;
-    const direction = finite(liveWeather.windDirection ?? liveWeather.wind?.deg);
-    const gustKmh = finite(liveWeather.windGusts);
-    const gustMs = gustKmh == null ? null : gustKmh / 3.6;
-    const measured = measuredWindOptions(microclimateEntry, direction);
-    let dayStart;
-    try { dayStart = venueDayBounds(todayKey, venueTimeZone).start; } catch { return null; }
-    const rows = generateHourlyForecast(temp, windMs, finite(liveWeather.main?.humidity), venue, direction, gustMs,
-      { hourly: liveWeather.hourly, utcOffsetSeconds: liveWeather.utcOffsetSeconds, now: dayStart, ...measured });
-    return {
-      // Only today's hours: a forecast that starts mid-day runs on into tomorrow.
-      rows: rowsForLocalDay(rows, todayKey, venueTimeZone),
-      direction,
-      openAirKmh: Math.round(windMs * 3.6),
-      factor: resolveVenueWindFactor(venue, { direction, ...measured }),
-      exposure: getVenueWindExposure(windMs, venue, direction, gustMs, measured),
-    };
-  }, [showStay, liveWeather, todayKey, venueTimeZone, venue, microclimateEntry]);
+  const dayWind = useMemo(
+    () => (showStay ? null : venueDayWind({ weather: liveWeather, venue, microclimate: microclimateEntry, dayKey: todayKey, timeZone: venueTimeZone })),
+    [showStay, liveWeather, todayKey, venueTimeZone, venue, microclimateEntry],
+  );
   const windNow = liveWeather ? windChip(venue, liveWeather, microclimateEntry) : null;
   const outside = dayWind ? outsideToday({
     forecast,
@@ -805,9 +788,18 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                             See the sun report
                           </button>
                         ) : null}
-                        <SunCompass rooms={roomTypes} venue={venue} date={stayMatch?.daily?.date ?? todayKey} now={now} />
+                        <SunCompass rooms={roomTypes} venue={venue} date={stayMatch?.daily?.date ?? todayKey} now={now}
+                          wind={liveWeather ? { from: finite(liveWeather.windDirection ?? liveWeather.wind?.deg), kmh: finite(liveWeather.wind?.speed) == null ? null : liveWeather.wind.speed * 3.6 } : null} />
                         <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
-                        {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />)}
+                        {/* The compass above already says each side in a line, so only the sunniest side opens in full. */}
+                        {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => (i === 0 || allSidesOpen
+                          ? <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />
+                          : null))}
+                        {roomTypes.length > 1 ? (
+                          <button type="button" className="ss-stay-more-sides" aria-expanded={allSidesOpen} onClick={() => setAllSidesOpen(open => !open)}>
+                            {allSidesOpen ? 'Show the sunniest only' : `Show all ${roomTypes.length} ${stayDisplay ? 'sides' : 'rooms'} in full`}
+                          </button>
+                        ) : null}
                       </section>
                     ) : null}
 

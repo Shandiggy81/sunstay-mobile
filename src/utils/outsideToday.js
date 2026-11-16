@@ -14,6 +14,8 @@ import { formatHour } from './sunForecastState.js';
 import { windBand, windWord } from './venueConditionChips.js';
 import { venueHour, venueTimeParts } from './venueTime.js';
 import { rowWindKmh } from './windComfortView.js';
+import { venueDayBounds } from './balconySunEngine.js';
+import { generateHourlyForecast, getVenueWindExposure, measuredWindOptions, resolveVenueWindFactor } from '../data/windIntelligence.js';
 
 const HOURS_IN_DAY = 24;
 const WIND_LEVELS = Object.freeze(['green', 'light', 'yellow', 'orange', 'red']);
@@ -230,5 +232,64 @@ export function outsideToday(input = {}) {
             estimated: at.estimated,
         },
         slots,
+    };
+}
+
+/**
+ * The wind at one venue for every hour of its local day, with the factor and
+ * exposure for this moment: the same rows the Wind & comfort panel builds,
+ * started at local midnight. The card and the list rows both read this.
+ *
+ * @param {{ weather: object|null, venue: object, microclimate?: object|null, dayKey: string|null, timeZone?: string }} input
+ *   `weather` is WeatherContext's live weather; `dayKey` the venue-local YYYY-MM-DD
+ * @returns {null | { rows: object[], direction: number|null, openAirKmh: number, factor: object, exposure: object }}
+ */
+export function venueDayWind({ weather, venue, microclimate = null, dayKey, timeZone = 'Australia/Melbourne' } = {}) {
+    if (!weather?.hourly || !dayKey) return null;
+    const temp = finite(weather.main?.temp);
+    if (temp == null) return null;
+    const windMs = finite(weather.wind?.speed) ?? 0;
+    const direction = finite(weather.windDirection ?? weather.wind?.deg);
+    const gustKmh = finite(weather.windGusts);
+    const gustMs = gustKmh == null ? null : gustKmh / 3.6;
+    const measured = measuredWindOptions(microclimate, direction);
+    let dayStart;
+    try { dayStart = venueDayBounds(dayKey, timeZone).start; } catch { return null; }
+    const rows = generateHourlyForecast(temp, windMs, finite(weather.main?.humidity), venue, direction, gustMs,
+        { hourly: weather.hourly, utcOffsetSeconds: weather.utcOffsetSeconds, now: dayStart, ...measured });
+    return {
+        // Only today's hours: a forecast that starts mid-day runs on into tomorrow.
+        rows: rowsForLocalDay(rows, dayKey, timeZone),
+        direction,
+        openAirKmh: Math.round(windMs * 3.6),
+        factor: resolveVenueWindFactor(venue, { direction, ...measured }),
+        exposure: getVenueWindExposure(windMs, venue, direction, gustMs, measured),
+    };
+}
+
+const MINI_SUN = Object.freeze({ sun: '#f59e0b', part: '#fde68a', shade: '#e2e8f0', cloud: '#cbd5e1', rain: '#64748b', dawn: '#334155', dark: '#334155', unknown: '#f1f5f9' });
+const MINI_WIND = Object.freeze(['#e2e8f0', '#cbd5e1', '#94a3b8', '#475569', '#0f172a']);
+
+function bands(colors) {
+    const step = 100 / colors.length;
+    const stops = colors.map((color, i) => `${color} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`);
+    return `linear-gradient(to right, ${stops.join(', ')})`;
+}
+
+/**
+ * A list row's miniature of the card's strip: the day's sun over its wind, as
+ * two CSS backgrounds, with where the chosen hour sits (0 to 1).
+ *
+ * @param {ReturnType<typeof outsideToday>} model
+ * @returns {null | { sun: string, wind: string|null, marker: number }}
+ */
+export function miniStrip(model) {
+    const lanes = model?.lanes;
+    if (!Array.isArray(lanes) || lanes.length === 0) return null;
+    const hasWind = lanes.some(lane => lane.windBand != null);
+    return {
+        sun: bands(lanes.map(lane => MINI_SUN[lane.sun] ?? MINI_SUN.unknown)),
+        wind: hasWind ? bands(lanes.map(lane => (lane.windBand == null ? '#f1f5f9' : MINI_WIND[lane.windBand]))) : null,
+        marker: model.marker,
     };
 }

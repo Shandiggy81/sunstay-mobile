@@ -174,3 +174,33 @@ test('after dark the verdict says so and offers no times; building shade shows i
   await testInfo.attach(`${VENUE} with building shade, 390×844`, { path: shot, contentType: 'image/png' });
   expect(errors, 'Unhandled browser errors').toEqual([]);
 });
+
+test('list rows carry the strip in miniature, and a stay opens with one side and the wind by side', async ({ page, baseURL }) => {
+  const { errors } = await boot(page, baseURL, melbourne(11));
+  await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+  const rows = page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: / });
+  await expect(rows.first()).toBeVisible();
+  // Decoration only: the row's label already says the sun and the wind.
+  const strip = rows.first().locator('[data-row-outside]');
+  await expect(strip).toBeVisible();
+  await expect(strip).toHaveAttribute('aria-hidden', 'true');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+
+  await page.goto('/?venue=dv-melb-stay-01');
+  const card = page.getByRole('article');
+  const compass = card.locator('[data-sun-compass]');
+  await expect(compass).toBeVisible();
+  // Four sides, each with how it sits to today's wind.
+  await expect(compass.locator('[data-side-wind]')).toHaveCount(4);
+  await expect(compass.locator('[data-side-wind="sheltered"]')).toHaveCount(1);
+  await expect(compass.locator('[data-side-wind="facing"]')).toHaveCount(1);
+  // Only the sunniest side is open in full until the guest asks for the rest.
+  const more = card.getByRole('button', { name: /^Show all 4 sides in full$/ });
+  await expect(more).toHaveAttribute('aria-expanded', 'false');
+  const sideCards = card.locator('section[aria-labelledby="stay-heading"] h4');
+  await expect(sideCards).toHaveCount(1);
+  await more.click();
+  await expect(sideCards).toHaveCount(4);
+  await expect(card.getByRole('button', { name: 'Show the sunniest only', exact: true })).toHaveAttribute('aria-expanded', 'true');
+  expect(errors, 'Unhandled browser errors').toEqual([]);
+});
