@@ -116,6 +116,27 @@ export function validWrite(row) {
     ['sunny_calm', 'sunny_breezy', 'shaded_calm', 'shaded_breezy'].includes(row.comfort_hint);
 }
 
+// Quote PostgREST filter literals; venue IDs are data, never filter syntax.
+const filterLiteral = value => '"' + value.replaceAll('\\', '\\\\').replaceAll('"', '\\"') + '"';
+
+export function refreshPageQuery(client, { after, cutoff, limit, signal }) {
+  const due = `or(expires_at.is.null,expires_at.lte.${filterLiteral(cutoff)})`;
+  let predicate = due;
+  if (after !== null) {
+    const id = filterLiteral(after.venue_id);
+    const cursor = after.expires_at === null
+      ? `or(and(expires_at.is.null,venue_id.gt.${id}),expires_at.not.is.null)`
+      : `or(expires_at.gt.${filterLiteral(after.expires_at)},and(expires_at.eq.${filterLiteral(after.expires_at)},venue_id.gt.${id}))`;
+    predicate = `and(${due},${cursor})`;
+  }
+  return client.from('microclimate_profiles')
+    .select('venue_id, expires_at, sun_score_annual, sun_hour_fraction, wind_exposure_by_sector, canyon_aspect_hw, venues!inner(id, lat, lng)')
+    .or(predicate)
+    .order('expires_at', { ascending: true, nullsFirst: true })
+    .order('venue_id', { ascending: true })
+    .limit(limit).abortSignal(signal);
+}
+
 export async function runEnrichment({ selectPage, writeBatch, score,
   fetchImpl = fetch, clock = () => performance.now(), wallNow = () => new Date(),
   deadline = clock() + LIMITS.invocationMs, pageSize, ttlMinutes,
@@ -132,8 +153,8 @@ export async function runEnrichment({ selectPage, writeBatch, score,
     const cutoff = new Date(wallNow().getTime() + LIMITS.refreshAheadMinutes * minute).toISOString();
     const rows = [], seen = new Set();
     let after = null;
-    // Stable venue-ID keyset. Gather before writes; OFFSET paging of the changing
-    // expires_at predicate would skip rows. Cap both work and memory.
+    // Oldest-expiry keyset (null first, ID tie-break). Gather before writes
+    // so this invocation cannot move its own cursor. Cap work and memory.
     while (rows.length < LIMITS.maxRows && metrics.pages < LIMITS.maxPages) {
       const limit = Math.min(size, LIMITS.maxRows - rows.length);
       const page = await bounded(signal => selectPage({ after, cutoff, limit, signal }),
@@ -143,9 +164,11 @@ export async function runEnrichment({ selectPage, writeBatch, score,
       for (const row of page) {
         if (typeof row.venue_id !== 'string' || seen.has(row.venue_id)) throw codeError('invalid_page');
         seen.add(row.venue_id); rows.push(row);
+        metrics.selected = rows.length;
       }
       if (page.length < limit) break;
-      after = page.at(-1).venue_id;
+      const last = page.at(-1);
+      after = { venue_id: last.venue_id, expires_at: last.expires_at ?? null };
       metrics.capped = rows.length === LIMITS.maxRows || metrics.pages === LIMITS.maxPages;
     }
     metrics.selected = rows.length;

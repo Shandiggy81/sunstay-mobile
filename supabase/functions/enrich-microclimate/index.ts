@@ -24,7 +24,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { melbourneHour, scoreVenue } from "./scoring.js";
-import { runEnrichment, LIMITS } from "./reliability.js";
+import { runEnrichment, refreshPageQuery, LIMITS } from "./reliability.js";
 
 type Profile = {
   venue_id: string;
@@ -38,7 +38,7 @@ type Weather = { windSpeed: number; windDir: number; cloud: number; sunCloud?: n
 type WeatherWrite = ReturnType<typeof scoreVenue> & {
   venue_id: string; wind_speed_10m: number; wind_direction_deg: number; cloud_cover_pct: number;
 };
-type PageRequest = { after: string | null; cutoff: string; limit: number; signal: AbortSignal };
+type PageRequest = { after: { venue_id: string; expires_at: string | null } | null; cutoff: string; limit: number; signal: AbortSignal };
 
 // A client per invocation prevents concurrent calls sharing deadlines/signals.
 export async function enrichBatch() {
@@ -54,13 +54,7 @@ export async function enrichBatch() {
     ttlMinutes: Deno.env.get("ENRICH_TTL_MINUTES"),
     score: (profile: Profile, weather: Weather, now: Date) => scoreVenue(profile, weather, melbourneHour(now)),
     selectPage: async ({ after, cutoff, limit, signal }: PageRequest) => {
-      let query = supabase.from("microclimate_profiles")
-        .select(`venue_id, sun_score_annual, sun_hour_fraction,
-          wind_exposure_by_sector, canyon_aspect_hw, venues!inner(id, lat, lng)`)
-        .or(`expires_at.is.null,expires_at.lte.${cutoff}`)
-        .order("venue_id", { ascending: true }).limit(limit);
-      if (after !== null) query = query.gt("venue_id", after);
-      const { data, error } = await query.abortSignal(signal);
+      const { data, error } = await refreshPageQuery(supabase, { after, cutoff, limit, signal });
       if (error) throw new Error("selection_failed");
       return data ?? [];
     },

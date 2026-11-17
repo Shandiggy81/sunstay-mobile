@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bounded, fetchWeatherJSON, validateWeather, runEnrichment, cellKey, LIMITS, validWrite } from '../../supabase/functions/enrich-microclimate/reliability.js';
+import { bounded, fetchWeatherJSON, validateWeather, runEnrichment, cellKey, LIMITS, validWrite, refreshPageQuery } from '../../supabase/functions/enrich-microclimate/reliability.js';
 import { scoreVenue, melbourneHour } from '../../supabase/functions/enrich-microclimate/scoring.js';
 
 const now = new Date('2026-11-17T02:00:00Z');
@@ -93,7 +93,7 @@ test('units, timestamps, offset and optional radiation validation', () => {
 async function run(rows, extra = {}) {
   const writes = [], reads = [];
   const result = await runEnrichment({ wallNow: () => now, pageSize: 50, score,
-    selectPage: async args => { reads.push(args); return rows.filter(r => args.after === null || r.venue_id > args.after).slice(0, args.limit); },
+    selectPage: async args => { reads.push(args); return rows.filter(r => args.after === null || r.venue_id > args.after.venue_id).slice(0, args.limit); },
     fetchImpl: async url => {
       const u = new URL(url), lats = u.searchParams.get('latitude').split(',').map(Number), lngs = u.searchParams.get('longitude').split(',').map(Number);
       return response(lats.map((lat, i) => weather({ lat, lng: lngs[i] })));
@@ -176,4 +176,81 @@ test('bulk timeout is bounded, not retried, and reported as an unknown outcome',
     writeBatch: async () => { writes++; return new Promise(() => {}); } });
   assert.equal(writes, 1); assert.equal(result.updated, 0);
   assert.equal(result.write_outcome_unknown, true); assert.equal(result.unprocessed, 1);
+});
+
+test('failed later page retains selected and unprocessed counts', async () => {
+  let pages = 0;
+  const { result, writes } = await run([], { selectPage: async () => {
+    if (++pages === 2) throw new Error('selection failed');
+    return Array.from({ length: 50 }, (_, i) => profile(String(i)));
+  } });
+  assert.equal(result.selected, 50); assert.equal(result.unprocessed, 50);
+  assert.equal(result.pages, 1); assert.equal(result.ok, false); assert.equal(writes.length, 0);
+});
+
+// In-memory DB fixture models SQL NULLS FIRST + timestamp/ID ordering and cursors.
+function orderedPage(rows, { after, cutoff, limit }) {
+  const expiry = row => row.expires_at === null ? -Infinity : Date.parse(row.expires_at);
+  const compare = (a, b) => expiry(a) === expiry(b)
+    ? a.venue_id.localeCompare(b.venue_id) : expiry(a) < expiry(b) ? -1 : 1;
+  return rows.filter(r => expiry(r) <= Date.parse(cutoff) && (!after || compare(r, after) > 0))
+    .sort(compare).slice(0, limit);
+}
+
+test('oldest-expiry paging crosses null and timestamp ties without missing or duplicating rows', async () => {
+  const rows = Array.from({ length: 151 }, (_, i) => ({ ...profile(String(150-i).padStart(4, '0')),
+    expires_at: i < 61 ? null : i < 111 ? '2026-11-17T01:00:00Z' : '2026-11-17T01:30:00Z' }));
+  const expected = orderedPage(rows, { after: null, cutoff: now.toISOString(), limit: 1000 });
+  const { result, writes } = await run(rows, { selectPage: async args => orderedPage(rows, args) });
+  assert.equal(result.ok, true); assert.equal(result.pages, 4);
+  assert.deepEqual(writes.flat().map(r => r.venue_id), expected.map(r => r.venue_id));
+});
+
+test('repeated third-batch failures progress through all 1081 venues across scheduled cycles', async () => {
+  const rows = Array.from({ length: 1081 }, (_, i) => ({ ...profile(String(i).padStart(4, '0')),
+    expires_at: '2026-11-17T01:00:00Z' }));
+  const byId = new Map(rows.map(r => [r.venue_id, r]));
+  const touched = new Set(); const coverage = [];
+  for (let cycle = 0; cycle < 3; cycle++) {
+    const time = new Date(now.getTime() + cycle * 20 * 60000); let calls = 0;
+    const { result } = await run(rows, { wallNow: () => time,
+      selectPage: async args => orderedPage(rows, args),
+      fetchImpl: async () => { const r = weather(); r.current.time = time.getTime()/1000; return response(r); },
+      writeBatch: async batch => {
+        if (++calls === 3) throw new Error('transient batch failure');
+        for (const r of batch) {
+          byId.get(r.venue_id).expires_at = new Date(time.getTime()+30*60000).toISOString();
+          touched.add(r.venue_id);
+        }
+        return batch.length;
+      },
+    });
+    assert.equal(result.updated, 400); assert.equal(result.code, 'bulk_failed');
+    coverage.push(touched.size);
+  }
+  assert.deepEqual(coverage, [400, 800, 1081]);
+});
+
+test('production page query sends one combined filter, expiry ordering and safely quoted cursors', async () => {
+  const { createClient } = await import('@supabase/supabase-js');
+  const urls = [];
+  const client = createClient('https://example.invalid', 'fake-test-key', {
+    global: { fetch: async url => { urls.push(new URL(url)); return new Response('[]', { headers: { 'content-type': 'application/json' } }); } },
+  });
+  const args = { cutoff: now.toISOString(), limit: 50, signal: new AbortController().signal };
+  for (const after of [null, { venue_id: 'id,("\\)', expires_at: null },
+    { venue_id: 'z', expires_at: '2026-11-17T01:00:00Z' }]) {
+    const { error } = await refreshPageQuery(client, { ...args, after }); assert.equal(error, null);
+  }
+  for (const url of urls) {
+    assert.equal(url.searchParams.getAll('or').length, 1);
+    assert.equal(url.searchParams.get('order'), 'expires_at.asc.nullsfirst,venue_id.asc');
+    assert.match(url.searchParams.get('select'), /expires_at/);
+    assert.equal(url.searchParams.get('limit'), '50');
+  }
+  assert.equal(urls[0].searchParams.get('or'), '(or(expires_at.is.null,expires_at.lte."2026-11-17T02:00:00.000Z"))');
+  assert.ok(urls[1].searchParams.get('or').includes('venue_id.gt."id,(\\"\\\\)"'));
+  assert.match(urls[1].searchParams.get('or'), /expires_at.not.is.null/);
+  assert.match(urls[2].searchParams.get('or'), /expires_at.gt."2026-11-17T01:00:00Z"/);
+  assert.match(urls[2].searchParams.get('or'), /expires_at.eq."2026-11-17T01:00:00Z",venue_id.gt."z"/);
 });

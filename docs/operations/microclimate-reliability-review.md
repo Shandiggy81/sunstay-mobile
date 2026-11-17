@@ -41,7 +41,7 @@ The SQL tests execute only against an ephemeral, in-memory PGlite database.
    Melbourne-hour functions extracted without mathematical changes.
 4. `supabase/migrations/20261117140000_microclimate_weather_bulk_v1.sql`:
    additive, unapplied project migration containing only a new restricted RPC.
-5. `src/utils/enrichMicroclimateReliability.test.js`: 19 reliability tests,
+5. `src/utils/enrichMicroclimateReliability.test.js`: 23 reliability tests,
    automatically included by existing `npm test` glob.
 6. `scripts/testMicroclimateMigration.mjs`: isolated PostgreSQL validation.
 7. `docs/operations/microclimate-reliability-review.md`: this review/rollout plan.
@@ -70,7 +70,8 @@ issued one RPC per venue. The new path:
   budget, including the SDK's response-body consumption. A write that times
   out may have committed: it is NOT retried or counted as confirmed success.
 - Selects null expiry or expiry <= invocation start +22 minutes, using a fixed
-  cutoff. Pages by unique venue ID (keyset, not OFFSET); gathers pages before
+  cutoff. Pages by expiry (null first, oldest first), then venue ID for ties
+  (composite keyset, not OFFSET); gathers pages before
   any writes. Default page size 200; allowed 50–500. Hard caps: 2,000 profiles
   and 40 pages. There is deliberately no self-invocation or schedule change.
 - Deduplicates requested 0.05-degree cells across all selected pages. Fetches
@@ -130,11 +131,11 @@ wins and reports incompletion. The write reserve guarantees room for one
 bounded write, not every outstanding batch.
 
 All due profiles must fit each run. At/above 2,000 due profiles, capacity is
-reported conservatively even if exactly 2,000 exist. ID ordering favors low
-IDs under persistent overload or failures; it is not a cross-invocation
-fairness queue. Do not enable this for an oversized/dispersed population until
-partitioning/capacity is separately designed and approved. Profiles arriving
-behind the current cursor wait until the next invocation. Overlapping manual
+reported conservatively even if exactly 2,000 exist. Oldest-expiry ordering prioritizes unfinished profiles over ones already
+refreshed by earlier runs. Permanently failing profiles can still consume
+capacity; this is not a durable retry/dead-letter queue. Do not enable this for an oversized/dispersed population until
+partitioning/capacity is separately designed and approved. Profiles arriving or externally modified
+behind the current expiry/ID cursor wait until the next invocation. Overlapping manual
 runs can repeat writes; the normal 20-minute cron cannot overlap a healthy
 45-second run. No lease/table/schedule was added in this change.
 
@@ -163,10 +164,27 @@ changes. It must be applied BEFORE deploying this new Edge Function, following
 separate explicit approval. Do not replay all historical migrations as part
 of this rollout: some historical files contain production data operations.
 
+## Follow-up review fixes
+
+- Selection now uses expiry NULLS FIRST, then ascending expiry and venue ID.
+  The cursor carries both expiry and ID; null-to-timestamp transitions and
+  equal-expiry boundaries are covered. All filter literals are quoted and
+  escaped, and one combined predicate retains the fixed refresh cutoff.
+- With the third batch failing in each of three 20-minute cycles, cumulative
+  coverage is now 400, 800, then all 1,081 profiles (previously 400 every cycle).
+  This proves recovery progress, not continuous freshness during failures.
+- Selection counters update after each accepted row. A failed second page
+  after 50 successful reads now reports selected=50 and unprocessed=50.
+- New tests also check the actual SDK-generated request filters and ordering.
+  No hosted database request is made by these tests.
+- GitHub CI on the original PR commit passed all 77 browser smoke tests,
+  resolving the earlier local browser startup limitation for that commit.
+  Follow-up commit CI must be checked independently.
+
 ## Actual verification
 
 - `npm ci`: succeeded; repository lockfile unchanged.
-- `npm test`: **1,656 passed, 0 failed**, including 19 new reliability tests.
+- `npm test`: **1,660 passed, 0 failed**, including 23 reliability tests.
 - Isolated PostgreSQL/PGlite migration suite: **8 passed, 0 failed** (parent
   test plus 7 subtests). Checks legacy definition equality, grants and denied
   calls, geometry preservation, zero values, TTL, validation and atomic rollback.
