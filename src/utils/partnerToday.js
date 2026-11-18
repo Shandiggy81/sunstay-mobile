@@ -9,6 +9,8 @@
  * the manager is asked for their hours instead.
  */
 import { DEFAULT_TIME_ZONE } from './balconySunEngine.js';
+import { getBadgeState } from './dataBadgeState.js';
+import { isMicroclimateEntryExpired, isMicroclimateEntryStale, timestampMs } from './microclimateProvenance.js';
 import { finiteOrNull } from './finiteOrNull.js';
 import { outdoorChips } from './partnerTools.js';
 import { partnerWeatherTips } from './partnerWeatherTips.js';
@@ -261,6 +263,31 @@ export function partnerTodayView({ venue, forecast, now, timeZone = venue?.timeZ
         forecastMissing: !usableForecast(forecast),
         tip: tip ? { icon: tip.icon, text: tip.text, timeLabel: tip.timeLabel } : null,
     };
+}
+
+const LEFT_OFF = 'left off your guest card until it refreshes';
+
+/**
+ * The service forecast and the venue's own SunStay reading (its venues_in_bbox
+ * row), judged apart: an expired reading never ages the forecast, and a fresh
+ * forecast never makes the reading look live. The guest card shows a reading
+ * only while it's fresh (freshMicroclimateEntry), the same rule as the map pin.
+ * @returns {{ forecast: object|null, reading: { status: 'fresh'|'expired'|'stale', updatedAt: number|null, text: string }|null }}
+ */
+export function partnerDataStatus({ forecastFetchedAt = null, reading = null, now, timeZone = DEFAULT_TIME_ZONE }) {
+    const fetchedAt = timestampMs(forecastFetchedAt);
+    const forecast = fetchedAt == null ? null : getBadgeState({ kind: 'forecast', updatedAt: fetchedAt, now });
+    if (!reading) return { forecast, reading: null };
+    const updatedAt = timestampMs(reading.weather_computed_at);
+    const at = ms => { const p = venueTimeParts(ms, timeZone); return clockLabel(p.hour * 60 + p.minute); };
+    if (isMicroclimateEntryExpired(reading, now)) {
+        return { forecast, reading: { status: 'expired', updatedAt, text: `Venue reading expired at ${at(timestampMs(reading.expires_at))} · ${LEFT_OFF}` } };
+    }
+    if (isMicroclimateEntryStale(reading, now)) {
+        const text = updatedAt == null ? `Venue reading has no update time · ${LEFT_OFF}` : `Venue reading from ${at(updatedAt)} is over an hour old · ${LEFT_OFF}`;
+        return { forecast, reading: { status: 'stale', updatedAt, text } };
+    }
+    return { forecast, reading: { status: 'fresh', updatedAt, text: 'Venue reading · on your guest card' } };
 }
 
 /**

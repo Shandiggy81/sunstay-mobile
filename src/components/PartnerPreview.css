@@ -25,6 +25,8 @@
 .ss-partner-service-tip { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; color: #334155; font-size: 13px; line-height: 1.5; }
 .ss-partner-service-tip strong { color: #92400e; }
 .ss-partner-service-source { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; color: #64748b; font-size: 12px; line-height: 1.5; }
+.ss-partner-service-reading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; color: #64748b; font-size: 12px; line-height: 1.5; }
+.ss-partner-service-reading:not([data-status=fresh]) { color: #92400e; font-weight: 600; }
 .ss-partner-todo-section { display: flex; flex-direction: column; gap: 10px; }
 .ss-partner-todo-heading { font-size: 17px; font-weight: 800; letter-spacing: -.015em; }
 .ss-partner-todo { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 24px; background: white; }

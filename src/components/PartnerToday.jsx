@@ -2,8 +2,10 @@ import { forwardRef, useEffect, useRef, useState } from 'react';
 import { Check, ChevronRight } from 'lucide-react';
 import ClayIcon from './common/ClayIcon.jsx';
 import DataBadge from './DataBadge.jsx';
-import { fetchOpenMeteoWeather } from '../utils/weatherService.js';
-import { partnerTodayView } from '../utils/partnerToday.js';
+import { useMicroclimateState } from '../context/MicroclimateContext';
+import { lookupMicroclimateEntry } from '../utils/microclimate.js';
+import { fetchOpenMeteoWeatherWithMeta } from '../utils/weatherService.js';
+import { partnerDataStatus, partnerTodayView } from '../utils/partnerToday.js';
 import { PARTNER_DAYS } from '../utils/partnerTools.js';
 import { partnerSpecialSave } from '../utils/partnerToolsForm.js';
 
@@ -23,19 +25,23 @@ function useVenueForecast(venue) {
         setForecast(null);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
         const controller = new AbortController();
-        fetchOpenMeteoWeather(lat, lng, controller.signal).then(data => {
-            if (!controller.signal.aborted) setForecast({ lat, lng, data });
+        fetchOpenMeteoWeatherWithMeta(lat, lng, controller.signal).then(({ data, fetchedAt }) => {
+            if (!controller.signal.aborted) setForecast({ lat, lng, data, fetchedAt });
         }).catch(() => { /* Missing forecast means no advice, not a default claim. */ });
         return () => controller.abort();
     }, [lat, lng]);
-    return forecast?.lat === lat && forecast.lng === lng ? forecast.data : null;
+    return forecast?.lat === lat && forecast.lng === lng ? forecast : null;
 }
 
 /** Today: the date and the next service with its weather (Jobber's next-visit card). */
 export function PartnerToday({ venue, now }) {
     const forecast = useVenueForecast(venue);
-    const view = partnerTodayView({ venue, forecast, now });
+    const { byId } = useMicroclimateState();
+    const view = partnerTodayView({ venue, forecast: forecast?.data ?? null, now });
     const { service, weather } = view;
+    // Each source gets its own status: the forecast by its fetch time, the venue reading by its own.
+    const status = partnerDataStatus({ forecastFetchedAt: forecast?.fetchedAt, reading: lookupMicroclimateEntry(byId, venue.id),
+        now, timeZone: venue.timeZone ?? venue.timezone });
     return <section className="ss-partner-today" aria-labelledby="partner-today-heading">
         <div className="ss-partner-check-head">
             <div>{view.dateLabel ? <p className="ss-partner-today-date">{view.dateLabel}</p> : null}<h3 id="partner-today-heading">Today</h3></div>
@@ -57,9 +63,13 @@ export function PartnerToday({ venue, now }) {
             </div> : null}
             {view.tip ? <p className="ss-partner-service-tip"><ClayIcon name={view.tip.icon} size={28} /><span><strong>{view.tip.timeLabel}</strong> {view.tip.text}</span></p> : null}
             {service ? <div className="ss-partner-service-source">
-                {!view.forecastMissing ? <DataBadge kind="forecast" source="Open-Meteo" /> : null}
+                {!view.forecastMissing ? <DataBadge kind="forecast" updatedAt={forecast?.fetchedAt} source="Open-Meteo" /> : null}
                 <span>{SOURCE_LINE[service.source]}</span>
             </div> : null}
+            {status.reading ? <p className="ss-partner-service-reading" data-status={status.reading.status}>
+                {status.reading.status === 'fresh' ? <DataBadge kind="calculated" updatedAt={status.reading.updatedAt} source="SunStay venue reading" /> : null}
+                <span>{status.reading.text}</span>
+            </p> : null}
         </article>
     </section>;
 }

@@ -51,7 +51,8 @@ import { useDeferredForecastReady } from '../hooks/useDeferredForecastReady';
 import { checkIsAccommodation } from '../utils/accommodation';
 import { useWeather } from '../context/WeatherContext';
 import { useMicroclimateActions, useMicroclimateState } from '../context/MicroclimateContext';
-import { formatReadingTime, lookupMicroclimateEntry, readMicroclimate, resolveSunFraction } from '../utils/microclimate';
+import { formatReadingTime, readMicroclimate, resolveSunFraction } from '../utils/microclimate';
+import { freshMicroclimateEntry } from '../utils/microclimateProvenance.js';
 import { formatHour } from '../utils/sunForecastState';
 import { canUsePointerTilt } from '../utils/canUsePointerTilt';
 import { resolveOverviewScore } from '../utils/resolveOverviewScore';
@@ -196,14 +197,15 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
 // UV, air quality, rain radar and wind comfort come from rate-limited
 // third-party APIs, so they load only when someone opens this section.
 const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArrivalMins, rainArrivalLabel, venue, microclimate, microclimateEntry = null, microclimateAtLabel, shielding, shelterShownAbove = false }) => {
-  const panelId = `venue-more-weather-${venueId ?? 'panel'}`;
+  // Per card: the partner preview's guest view can sit on the page beside this card.
+  const panelId = useId();
   return (
     <div className="flex flex-col gap-2.5">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        aria-controls={panelId}
+        aria-controls={open ? panelId : undefined}
         className="ss-venue-more-weather"
       >
         <Wind size={22} aria-hidden="true" /><span className="flex-1">UV, air quality and wind comfort</span>
@@ -372,6 +374,10 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const openerRef = useRef(null);
   const returnFocusFrame = useRef(null);
   const now = useMinuteClock();
+  // Section ids are per card, so the partner preview's guest view (a second
+  // card on the page) labels its own sections, not this card's.
+  const sectionId = useId();
+  const headingIds = { stay: `${sectionId}-stay`, moments: `${sectionId}-moments`, goodToKnow: `${sectionId}-good-to-know` };
   const isReadyToFetch = useDeferredForecastReady(moreOpen, venue?.id ?? '');
   const auxEnabled = moreOpen && isReadyToFetch;
 
@@ -441,7 +447,9 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   // position. Same `venues_in_bbox` row + `todMinutes` the map markers and
   // the list use, so the card score cannot drift from the pin or the list.
   const { todMinutes, byId: microById } = useMicroclimateState();
-  const microclimateEntry = useMemo(() => lookupMicroclimateEntry(microById, venue?.id), [microById, venue?.id]);
+  // A stale or expired row counts as no reading, as it does for the map pin,
+  // so the card never calls an old reading live.
+  const microclimateEntry = useMemo(() => freshMicroclimateEntry(microById, venue?.id, now), [microById, venue?.id, now]);
   const microclimate = useMemo(() => readMicroclimate(microclimateEntry, todMinutes), [microclimateEntry, todMinutes]);
   const microclimateAtLabel = useMemo(() => formatReadingTime(todMinutes), [todMinutes]);
 
@@ -778,9 +786,9 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     ) : null}
 
                     {sunSection === 'stay' ? (
-                      <section aria-labelledby="stay-heading" className="flex flex-col gap-3">
+                      <section aria-labelledby={headingIds.stay} className="ss-venue-stay flex flex-col gap-3">
                         <div>
-                          <h3 id="stay-heading" className={SECTION_TITLE}>{stayDisplay?.headline ?? (venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay')}</h3>
+                          <h3 id={headingIds.stay} className={SECTION_TITLE}>{stayDisplay?.headline ?? (venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay')}</h3>
                           {stayDisplay?.trustLine ? <p className="mt-1 text-[12px] font-medium text-slate-500">{stayDisplay.trustLine}</p> : null}
                         </div>
                         {onOpenSunReport && canShowHotelSunReport(venue) ? (
@@ -817,8 +825,8 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
 
                     {sunSection === 'moments' ? (
                       <ForecastErrorBoundary>
-                        <section aria-labelledby="sun-moments-heading" className="flex flex-col gap-3">
-                          <h3 id="sun-moments-heading" className={SECTION_TITLE}>Sun moments today</h3>
+                        <section aria-labelledby={headingIds.moments} className="flex flex-col gap-3">
+                          <h3 id={headingIds.moments} className={SECTION_TITLE}>Sun moments today</h3>
                           <SunMomentsPanel daily={outdoorDay} summary={outdoorMoments} timeZone={venueTimeZone} now={now} label="sun at this venue" compact />
                         </section>
                       </ForecastErrorBoundary>
@@ -856,8 +864,8 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                   {sunSection === 'cafe' ? <CafeSunMonths venue={venue} daily={outdoorDay} horizon={sunHorizon} timeZone={venueTimeZone} /> : null}
                   {sunSection === 'moments' && venuePerfectFor(outdoorMoments) ? <div className="ss-venue-summary-row"><ClayIcon name="sun" size={32} /><p>Best for {venuePerfectFor(outdoorMoments)}</p></div> : null}
 
-                  <section aria-labelledby="good-to-know-heading" className="ss-venue-good-to-know">
-                    <h3 id="good-to-know-heading" className={SECTION_TITLE}>Good to know</h3>
+                  <section aria-labelledby={headingIds.goodToKnow} className="ss-venue-good-to-know">
+                    <h3 id={headingIds.goodToKnow} className={SECTION_TITLE}>Good to know</h3>
                     {description ? <p className="ss-venue-description">{description}</p> : null}
                     {sunSection === 'cafe' ? <CafeSunFacts venue={venue} microclimateEntry={microclimateEntry} now={now} /> : null}
                     <VenueOfferingsList key={venue?.id} offerings={offeringsBesideCafeFacts(offerings, cafeFactKeys)} amenities={amenities} />

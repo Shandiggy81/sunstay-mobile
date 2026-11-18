@@ -2,8 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { demoVenues } from '../data/demoVenues.js';
 import { heatingConflict } from './partnerWalkthrough.js';
+import { getBadgeState } from './dataBadgeState.js';
+import { readMicroclimate } from './microclimate.js';
+import { freshMicroclimateEntry } from './microclimateProvenance.js';
 import {
-    clockLabel, nextService, parseListedHours, partnerServiceHours, partnerTodayTasks,
+    clockLabel, nextService, parseListedHours, partnerDataStatus, partnerServiceHours, partnerTodayTasks,
     partnerTodayView, serviceWeather, venueDateLabel,
 } from './partnerToday.js';
 
@@ -148,4 +151,42 @@ test('labels', () => {
     assert.equal(clockLabel(1440), 'midnight');
     assert.equal(clockLabel(25 * 60), '1am');
     assert.equal(venueDateLabel(melbourne(20, 9)), 'Tuesday 20 October');
+});
+
+test('an expired venue reading and a fresh service forecast each get their own status', () => {
+    const now = melbourne(19, 12, 15);
+    // Young enough by age alone (35 min), but past its own expiry at 12:10pm.
+    const expired = { id: 'dv-20', sun_now: 0.92, effective_sun: 0.92,
+        weather_computed_at: new Date(now - 35 * 60000).toISOString(), expires_at: new Date(now - 5 * 60000).toISOString() };
+    const status = partnerDataStatus({ forecastFetchedAt: now.getTime() - 2 * 60000, reading: expired, now });
+    assert.deepEqual([status.forecast.label, status.forecast.sublabel, status.forecast.isLive], ['Forecast', 'Updated 2 min ago', false]);
+    assert.equal(status.reading.status, 'expired');
+    assert.equal(status.reading.text, 'Venue reading expired at 12:10pm · left off your guest card until it refreshes');
+    // Read raw, the row would call itself live; the guest card reads only fresh rows.
+    assert.equal(readMicroclimate(expired, null, now).isLiveSun, true);
+    const onCard = freshMicroclimateEntry({ 'dv-20': expired }, 'dv-20', now);
+    assert.equal(onCard, null);
+    assert.equal(readMicroclimate(onCard, null, now).isLiveSun, false);
+    assert.equal(readMicroclimate(onCard, null, now).available, false);
+});
+
+test('a fresh venue reading next to an older forecast keeps each its own age', () => {
+    const now = melbourne(19, 12, 15);
+    const fresh = { id: 'dv-20', sun_now: 0.9, weather_computed_at: new Date(now - 12 * 60000).toISOString() };
+    const status = partnerDataStatus({ forecastFetchedAt: new Date(now - 50 * 60000).toISOString(), reading: fresh, now });
+    assert.equal(status.forecast.sublabel, 'Updated 50 min ago');
+    assert.deepEqual(status.reading, { status: 'fresh', updatedAt: now.getTime() - 12 * 60000, text: 'Venue reading · on your guest card' });
+    assert.equal(getBadgeState({ kind: 'calculated', updatedAt: status.reading.updatedAt, now }).sublabel, 'Updated 12 min ago');
+    assert.equal(freshMicroclimateEntry({ 'dv-20': fresh }, 'dv-20', now), fresh);
+});
+
+test('a reading over an hour old is stale without an expiry time; no data claims nothing', () => {
+    const now = melbourne(19, 12, 15);
+    const old = { id: 'dv-20', sun_now: 0.9, weather_computed_at: new Date(now - 95 * 60000).toISOString() };
+    const status = partnerDataStatus({ reading: old, now });
+    assert.equal(status.reading.text, 'Venue reading from 10:40am is over an hour old · left off your guest card until it refreshes');
+    assert.equal(status.forecast, null);
+    assert.equal(partnerDataStatus({ reading: { id: 'dv-20', sun_now: 0.9 }, now }).reading.text,
+        'Venue reading has no update time · left off your guest card until it refreshes');
+    assert.deepEqual(partnerDataStatus({ now }), { forecast: null, reading: null });
 });

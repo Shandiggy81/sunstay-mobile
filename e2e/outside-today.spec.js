@@ -197,7 +197,7 @@ test('list rows carry the strip in miniature, and a stay opens with one side and
   // Only the sunniest side is open in full until the guest asks for the rest.
   const more = card.getByRole('button', { name: /^Show all 4 sides in full$/ });
   await expect(more).toHaveAttribute('aria-expanded', 'false');
-  const sideCards = card.locator('section[aria-labelledby="stay-heading"] h4');
+  const sideCards = card.locator('section.ss-venue-stay h4');
   await expect(sideCards).toHaveCount(1);
   await more.click();
   await expect(sideCards).toHaveCount(4);

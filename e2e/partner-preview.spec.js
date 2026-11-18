@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { FAKE_SUPABASE_URL } from './fixtures/supabase.js';
 import { weather as sunny } from './fixtures/weather.js';
 
 // Monday 19 October 2026, Melbourne daylight time (UTC+11).
@@ -17,7 +18,7 @@ rainy.hourly.time.forEach((time, i) => {
   rainy.hourly.precipitation[i] = wet ? 1.4 : 0;
 });
 
-async function openPartnerPreview(page, baseURL, { venue, name, now, forecast }) {
+async function openPartnerPreview(page, baseURL, { venue, name, now, forecast, rows = null }) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.clock.setFixedTime(now);
@@ -26,6 +27,8 @@ async function openPartnerPreview(page, baseURL, { venue, name, now, forecast })
     const url = new URL(route.request().url());
     if (url.origin === baseURL) return route.continue();
     if (forecast && url.origin === 'https://api.open-meteo.com' && url.pathname === '/v1/forecast') return route.fulfill({ json: forecast });
+    // Venue readings (venues_in_bbox rows) only when a test supplies them.
+    if (rows && url.origin === FAKE_SUPABASE_URL && url.pathname.endsWith('/rpc/venues_in_bbox')) return route.fulfill({ json: rows });
     // Venues stay on the demo list; nothing else leaves the browser (no forecast when `forecast` is null).
     return route.abort('blockedbyclient');
   });
@@ -36,6 +39,34 @@ async function openPartnerPreview(page, baseURL, { venue, name, now, forecast })
   const panel = page.getByRole('dialog', { name });
   await expect(panel.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
   return { errors, card, panel };
+}
+
+// The app's card and the preview's card are on the page together: every id once, and each
+// card's labels, descriptions and controls resolve inside that same card.
+async function expectOwnIds(page, name) {
+  const audit = await page.evaluate(venueName => {
+    const counts = {};
+    for (const element of document.querySelectorAll('[id]')) counts[element.id] = (counts[element.id] ?? 0) + 1;
+    const cards = [document.querySelector(`#root [role="dialog"][aria-label="${venueName} details"]`),
+      document.querySelector(`[role="region"][aria-label="${venueName} guest card preview"]`)];
+    const strays = [];
+    let checked = 0;
+    for (const card of cards) {
+      if (!card) { strays.push('card not mounted'); continue; }
+      for (const element of card.querySelectorAll('[aria-labelledby], [aria-describedby], [aria-controls], label[for]')) {
+        const ids = element.matches('label[for]') ? [element.htmlFor]
+          : ['aria-labelledby', 'aria-describedby', 'aria-controls'].flatMap(name => (element.getAttribute(name) ?? '').split(/\s+/)).filter(Boolean);
+        for (const id of ids) {
+          checked += 1;
+          if (!card.contains(document.getElementById(id))) strays.push(id);
+        }
+      }
+    }
+    return { duplicates: Object.keys(counts).filter(id => counts[id] > 1), strays, checked };
+  }, name);
+  expect(audit.duplicates).toEqual([]);
+  expect(audit.strays).toEqual([]);
+  expect(audit.checked).toBeGreaterThan(5);
 }
 
 async function expectTouchTargets(locator) {
@@ -64,11 +95,17 @@ test('sunny lunch: next service, a special, and the real guest card one tap away
   await viewSwitch.getByRole('button', { name: 'Guest view' }).tap();
   const guest = panel.getByRole('region', { name: 'Mr Tulk guest card preview' });
   await expect(guest).toBeVisible();
-  const specials = guest.locator('section[aria-labelledby="happy-hour-heading"]');
+  // The jump lands on the preview's own Specials, labelled by its own heading.
+  const specials = guest.getByRole('region', { name: 'Specials', exact: true });
   await expect(specials).toContainText(SPECIAL);
   await expect(specials).toContainText('From the partner preview on this device');
   await expect(specials).toBeInViewport();
   await expect(panel.getByLabel('What’s on special?')).toBeHidden();
+  await expectOwnIds(page, 'Mr Tulk');
+  // With the weather detail open in both cards, each toggle still points at its own panel.
+  await page.getByRole('dialog', { name: 'Mr Tulk details' }).getByRole('button', { name: 'UV, air quality and wind comfort' }).evaluate(button => button.click());
+  await guest.getByRole('button', { name: 'UV, air quality and wind comfort' }).click();
+  await expectOwnIds(page, 'Mr Tulk');
 
   // Back to editing: the draft and the place in the editor are kept.
   await viewSwitch.getByRole('button', { name: 'Edit' }).tap();
@@ -120,6 +157,78 @@ test('missing data: no forecast and unreadable hours are asked for, not guessed'
   expect(tulk.errors).toEqual([]);
 });
 
+test('phone switch: the keyboard reaches both views and focus comes back where it left', async ({ page, baseURL }) => {
+  const { errors, panel } = await openPartnerPreview(page, baseURL, { venue: 'dv-20', name: 'Mr Tulk', now: melbourne(12, 15), forecast: sunny });
+  const viewSwitch = panel.getByRole('group', { name: 'Partner preview view' });
+  const editButton = viewSwitch.getByRole('button', { name: 'Edit' });
+  const guestButton = viewSwitch.getByRole('button', { name: 'Guest view' });
+  const guest = panel.getByRole('region', { name: 'Mr Tulk guest card preview' });
+  await expect(panel.getByRole('button', { name: 'Close partner preview' })).toBeFocused();
+  await panel.getByLabel('What’s on special?').fill(SPECIAL);
+  await panel.getByRole('button', { name: 'Close partner preview' }).focus();
+
+  // The switch closes the panel's tab loop: Shift+Tab from Close lands on it, Enter and Space work it.
+  await page.keyboard.press('Shift+Tab');
+  await expect(guestButton).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(guestButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(guest).toBeVisible();
+  await expect(guestButton).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(editButton).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(editButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(editButton).toBeFocused();
+  await expect(panel.getByLabel('What’s on special?')).toHaveValue(SPECIAL);
+
+  // A to-do row hides as it opens the guest view, so focus goes to the guest view's heading,
+  // Tab carries on into the card, and the card's own close comes back to that row.
+  const row = panel.getByRole('button', { name: /^(Check your guest card|Guest card checked)/ });
+  await row.focus();
+  await page.keyboard.press('Enter');
+  await expect(guest).toBeVisible();
+  await expect(panel.getByRole('heading', { name: 'Guest view', exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(guest.locator(':focus')).toHaveCount(1);
+  await guest.getByRole('button', { name: 'Close venue details' }).first().focus();
+  await page.keyboard.press('Enter');
+  await expect(editButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(row).toBeFocused();
+  await expect(panel.getByLabel('What’s on special?')).toHaveValue(SPECIAL);
+  expect(errors).toEqual([]);
+});
+
+for (const reading of [
+  { status: 'expired', computedMinutesAgo: 95, expiresMinutesAgo: 65, line: 'Venue reading expired at 11:10am · left off your guest card until it refreshes' },
+  { status: 'fresh', computedMinutesAgo: 10, expiresMinutesAgo: null, line: 'Venue reading · on your guest card' },
+]) {
+  test(`${reading.status === 'expired' ? 'an' : 'a'} ${reading.status} venue reading next to a fresh forecast: each gets its own status`, async ({ page, baseURL }) => {
+    const now = melbourne(12, 15);
+    const row = { id: 'dv-20', sun_now: 0.92, effective_sun: 0.92, geometry_confidence: 0.8,
+      weather_computed_at: new Date(now - reading.computedMinutesAgo * 60000).toISOString(),
+      ...(reading.expiresMinutesAgo == null ? {} : { expires_at: new Date(now - reading.expiresMinutesAgo * 60000).toISOString() }) };
+    const { errors, panel } = await openPartnerPreview(page, baseURL, { venue: 'dv-20', name: 'Mr Tulk', now, forecast: sunny, rows: [row] });
+    const service = panel.getByRole('article', { name: 'Open now · until 5pm' });
+    await expect(service.getByRole('img', { name: 'Forecast, Updated just now, Source Open-Meteo' })).toBeVisible();
+    await expect(service).toContainText(reading.line);
+    await expect(service.getByRole('img', { name: 'Calculated, Updated 10 minutes ago, Source SunStay venue reading' }))
+      .toHaveCount(reading.status === 'fresh' ? 1 : 0);
+
+    // The guest card shows the reading only while it's fresh, so an expired one is never called live.
+    await panel.getByRole('group', { name: 'Partner preview view' }).getByRole('button', { name: 'Guest view' }).tap();
+    const guest = panel.getByRole('region', { name: 'Mr Tulk guest card preview' });
+    await guest.getByRole('button', { name: 'UV, air quality and wind comfort' }).click();
+    const details = guest.locator('.ss-venue-weather-details');
+    await expect(details).toBeVisible();
+    if (reading.status === 'fresh') await expect(details).toContainText(/Microclimate at .*Live/);
+    else {
+      await expect(details).not.toContainText('Microclimate at');
+      await expect(details).not.toContainText(/\bLive\b/);
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
 test.describe('wide window', () => {
   test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
 
@@ -129,8 +238,10 @@ test.describe('wide window', () => {
     await expect(guest).toBeVisible();
     await expect(panel.getByRole('group', { name: 'Partner preview view' })).toBeHidden();
     await panel.getByLabel('What’s on special?').fill(SPECIAL);
-    await expect(guest.locator('section[aria-labelledby="happy-hour-heading"]')).toContainText(SPECIAL);
-    await expect(guest.locator('section[aria-labelledby="happy-hour-heading"]')).toBeInViewport();
+    const specials = guest.getByRole('region', { name: 'Specials', exact: true });
+    await expect(specials).toContainText(SPECIAL);
+    await expect(specials).toBeInViewport();
+    await expectOwnIds(page, 'Mr Tulk');
     expect(errors).toEqual([]);
   });
 });

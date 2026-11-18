@@ -52,6 +52,9 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const specialRef = useRef(null);
     const editScrollRef = useRef(0);
     const returningRef = useRef(false);
+    // The control that opened the guest view, for focus to come back to.
+    const openerRef = useRef(null);
+    const editButtonRef = useRef(null);
     const [now, setNow] = useState(() => new Date());
     const [hours, setHours] = useState(() => Object.fromEntries(DAYS.map(day => [day,
         venue.hours?.[day] && typeof venue.hours[day] === 'object' ? { ...venue.hours[day] }
@@ -142,7 +145,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const revealSpecial = useCallback(() => {
         const frame = frameRef.current;
         const scroller = frame?.querySelector('[data-venue-card-scroller]');
-        const target = frame?.querySelector('section[aria-labelledby="happy-hour-heading"]');
+        const target = frame?.querySelector('[data-venue-section="specials"]');
         if (!scroller || !target || !frame.getClientRects().length) return;
         const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 96;
         scroller.scrollTo({ top: Math.max(0, top), behavior: 'instant' });
@@ -151,19 +154,31 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     }, []);
     // Phone: one tap to the guest view and back. The editor stays mounted while
     // hidden, so every unsaved field is kept, and its scroll position comes back.
+    const guestHeading = () => frameRef.current?.closest('section')?.querySelector('h3');
     const showView = next => {
         if (next === view) return;
         if (next === 'guest') {
             editScrollRef.current = contentRef.current?.scrollTop ?? 0;
+            openerRef.current = document.activeElement;
             setGuestChecked(true);
         } else returningRef.current = true;
         setView(next);
     };
     useLayoutEffect(() => {
-        if (view === 'guest') revealSpecial();
-        else if (returningRef.current) {
+        // The control that switched views can sit in the half that just hid (a
+        // to-do row, the guest card's close). Then focus moves to the half now
+        // showing instead of being lost; the Edit and Guest view buttons keep it.
+        const active = document.activeElement;
+        const focusLost = !(active instanceof HTMLElement) || active === document.body || !active.getClientRects().length;
+        if (view === 'guest') {
+            revealSpecial();
+            if (focusLost) guestHeading()?.focus({ preventScroll: true });
+        } else if (returningRef.current) {
             returningRef.current = false;
             contentRef.current?.scrollTo({ top: editScrollRef.current, behavior: 'instant' });
+            const opener = openerRef.current;
+            const canReturn = opener instanceof HTMLElement && opener !== document.body && panelRef.current?.contains(opener) && opener.getClientRects().length > 0;
+            if (focusLost) (canReturn ? opener : editButtonRef.current)?.focus({ preventScroll: true });
         }
     }, [view, revealSpecial]);
     // Wide windows: a new special shows in the guest view beside the editor as it saves.
@@ -182,7 +197,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const openTask = target => {
         if (target === 'guest') {
             setGuestChecked(true);
-            if (sideBySide()) { revealSpecial(); frameRef.current?.closest('section')?.querySelector('h3')?.focus({ preventScroll: true }); }
+            if (sideBySide()) { revealSpecial(); guestHeading()?.focus({ preventScroll: true }); }
             else showView('guest');
             return;
         }
@@ -272,7 +287,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
             </div>
             </div>
             <div className="ss-partner-viewbar" role="group" aria-label="Partner preview view">
-                <button type="button" aria-pressed={view === 'edit'} onClick={() => showView('edit')}><PencilLine size={18} aria-hidden="true" />Edit</button>
+                <button ref={editButtonRef} type="button" aria-pressed={view === 'edit'} onClick={() => showView('edit')}><PencilLine size={18} aria-hidden="true" />Edit</button>
                 <button type="button" aria-pressed={view === 'guest'} onClick={() => showView('guest')}><Eye size={18} aria-hidden="true" />Guest view</button>
             </div>
         </motion.section>
