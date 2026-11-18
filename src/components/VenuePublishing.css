@@ -1,0 +1,34 @@
+.ss-publish-overlay { position: fixed; inset: 0; z-index: 300; display: flex; align-items: flex-end; justify-content: center; background: #141b2666; }
+.ss-publish-manage { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 0; color: #304e64; font-size: 13px; font-weight: 700; }
+.ss-publish-dialog { width: min(100%, 480px); max-height: 92dvh; overflow-y: auto; background: #fff; color: #17212e; border-radius: 8px 8px 0 0; box-shadow: 0 -6px 30px #17212e24; }
+.ss-publish-dialog > header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; background: #fff; padding: 12px 16px; border-bottom: 1px solid #dbe2e8; }
+.ss-publish-dialog h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 18px; line-height: 1.4; font-weight: 800; }
+.ss-publish-dialog > header button { flex: 0 0 44px; width: 44px; height: 44px; display: grid; place-items: center; }
+.ss-publish-content { padding: 20px 20px max(24px, env(safe-area-inset-bottom)); overflow-wrap: anywhere; }
+.ss-publish-form { display: grid; gap: 18px; }
+.ss-publish-form label, .ss-guest-area-reports label { display: grid; gap: 6px; font-size: 14px; font-weight: 700; }
+.ss-publish-form input, .ss-publish-form select, .ss-guest-area-reports select { width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; font-size: 16px; background: #fff; color: #17212e; border: 1px solid #788b9d; border-radius: 6px; }
+.ss-publish-form button, .ss-publish-signout, .ss-publish-demo-action { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 10px 14px; border-radius: 6px; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.ss-publish-primary { background: #fbbf24; color: #17212e; }
+.ss-publish-primary:disabled { opacity: .55; }
+.ss-publish-switch { width: 100%; justify-content: flex-start !important; border: 1px solid #b5c3cc; background: #f5f8fa; }
+.ss-publish-switch[aria-checked="true"] { background: #e8f4ec; border-color: #287046; }
+.ss-publish-switch > span:first-of-type { flex: 1; display: grid; text-align: left; }
+.ss-publish-switch small { color: #42586a; font-weight: 500; }
+.ss-publish-status { margin-top: 18px; color: #1d633e; font-size: 14px; font-weight: 700; }
+.ss-publish-error { margin-top: 16px; color: #9f2531; font-size: 14px; }
+.ss-publish-meta { margin-top: 10px; color: #42586a; font-size: 13px; line-height: 1.5; }
+.ss-publish-signout { margin-top: 24px; color: #42586a; }
+.ss-guest-area-reports { padding: 18px 0; border-bottom: 1px solid #dbe2e8; }
+.ss-guest-area-reports h3 { font-size: 16px; font-weight: 800; margin-bottom: 10px; }
+.ss-guest-report { display: flex; align-items: center; gap: 10px; padding: 14px 0 6px; }
+.ss-guest-report > div { min-width: 0; display: grid; gap: 3px; overflow-wrap: anywhere; }
+.ss-guest-report strong { font-size: 15px; }
+.ss-guest-report span, .ss-guest-report small { font-size: 12px; color: #42586a; }
+.ss-publish-demo-action { margin-top: 14px; width: 100%; background: #e8f1f7; color: #203d56; }
+.ss-publish-demo { padding: 10px 0 18px; color: #7d3030; font-size: 14px; font-weight: 700; }
+.ss-publish-content > h3 { font-size: 18px; font-weight: 800; }
+.ss-publish-area-name { margin-bottom: 18px; color: #42586a; }
+.ss-publish-confirmation { display: grid; gap: 10px; padding: 20px 0; }
+.ss-publish-confirmation > svg { color: #287046; }
+@media (min-width: 600px) { .ss-publish-overlay { align-items: center; } .ss-publish-dialog { border-radius: 8px; } }

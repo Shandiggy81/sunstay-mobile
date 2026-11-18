@@ -1,12 +1,17 @@
+import { areaReportNote, currentAreaReports } from './venueAreaReports.js';
+
 /**
- * Live warmth status for a venue: only what the venue switched on through the
- * partner preview counts as "on now". A venue row's stored fireplaceOn /
+ * Current published area reports take precedence over device-local preview
+ * switches. A venue row's stored fireplaceOn /
  * heatersOn is not live (it was seed data and never changes), so it is
  * ignored: a stored "on" would contradict the owner turning it off.
  * `liveFeatures` is the venue's entry from the live venue-feature map.
  */
-export function liveWarmth(liveFeatures) {
+export function liveWarmth(liveFeatures, now = Date.now()) {
     const live = liveFeatures || {};
+    if (Array.isArray(live.publishedReports)) return {
+        fireplaceOn: false, heatersOn: currentAreaReports(live.publishedReports, now).some(report => report.heaters_on),
+    };
     return { fireplaceOn: live.fireplaceOn === true, heatersOn: live.heatersOn === true };
 }
 
@@ -17,8 +22,9 @@ export function venueFeaturePinState(_venue, liveFeatures) {
 }
 
 /** The one-line live note for the card and list row, or null. */
-export function liveWarmthNote(liveFeatures, { fireplaceLabel = 'Fireplace lit now' } = {}) {
-    const { fireplaceOn, heatersOn } = liveWarmth(liveFeatures);
+export function liveWarmthNote(liveFeatures, { fireplaceLabel = 'Fireplace lit now', now = Date.now() } = {}) {
+    if (Array.isArray(liveFeatures?.publishedReports)) return areaReportNote(liveFeatures, now);
+    const { fireplaceOn, heatersOn } = liveWarmth(liveFeatures, now);
     if (fireplaceOn && heatersOn) return `${fireplaceLabel} · heaters on`;
     if (fireplaceOn) return fireplaceLabel;
     if (heatersOn) return 'Heaters on now';

@@ -2,7 +2,9 @@ import { venueSourceNote } from '../utils/venueSource';
 import { footerPrimaryAction, websiteHostLabel } from '../utils/venueFooterActions.js';
 import React, { memo, useState, useMemo, useRef, useId, useLayoutEffect, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls, useMotionValue, useTransform, useSpring } from 'framer-motion';
-import { X, Wind, Globe, Navigation, ExternalLink, ChevronDown, MapPin } from 'lucide-react';
+import { X, Wind, Globe, Navigation, ExternalLink, ChevronDown, MapPin, Store } from 'lucide-react';
+import GuestAreaHeaters from './GuestAreaHeaters.jsx';
+import { venueKind } from '../utils/venueKind.js';
 import VenueDetailErrorBoundary from './VenueDetailErrorBoundary';
 import ForecastErrorBoundary from './common/ForecastErrorBoundary';
 import WindComfortPanel from './WindComfortPanel';
@@ -363,7 +365,7 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
 // `preview`: the partner preview's guest view. The same card, drawn as a region
 // inside that panel instead of a modal sheet: no focus grab or return, no
 // backdrop, drag, tilt or slide-in, and no Escape/Tab handling of its own.
-function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture, stayMatch, preview = false }) {
+function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShowOwnerDashboard, setShowVenueManager, setSelectedVenue, liveVenueFeatures, onSheetGesture, stayMatch, preview = false }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [allSidesOpen, setAllSidesOpen] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -768,7 +770,11 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       {scoreWindWord ? <small data-score-wind><span className="sr-only">Wind: </span>{scoreWindWord}</small> : null}
                     </span>
                   </VenueInfoHeader>
-                  {liveNote ? <div role="status" className="ss-venue-live-note"><ClayIcon name="fireplace" size={28} /><span>{liveNote}<small>Set by the venue</small></span></div> : null}
+                  {!preview && !['stay', 'other'].includes(venueKind(venue)) ? <>
+                    {setShowVenueManager ? <button type="button" className="ss-publish-manage" onClick={event => { event.currentTarget.focus({ preventScroll: true }); setShowVenueManager(true); }}><Store size={18} aria-hidden="true" />Manage this venue</button> : null}
+                    <GuestAreaHeaters venue={venue} reports={liveFeaturesForVenue?.publishedReports} />
+                  </> : null}
+                  {liveNote && !liveFeaturesForVenue?.publishedReports ? <div role="status" className="ss-venue-live-note"><ClayIcon name="fireplace" size={28} /><span>{liveNote}<small>Partner preview on this device</small></span></div> : null}
 
                   <div className={`ss-venue-sun-block${outside?.verdict ? ' has-verdict' : ''}`}>
                     <OutsideVerdict model={outside} />

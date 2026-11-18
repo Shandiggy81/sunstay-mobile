@@ -85,7 +85,8 @@ import { createDebouncer } from '../../utils/debounce';
 import { CITY_BUILDINGS_ATTRIBUTION } from '../../utils/cityBuildings.js';
 import ClayIcon from '../common/ClayIcon';
 import MapTimeControls from './MapTimeControls.jsx';
-import { venueFeaturePinState } from '../../utils/venueFeaturePin.js';
+import { liveWarmth, venueFeaturePinState } from '../../utils/venueFeaturePin.js';
+import { areaReportPinLabel } from '../../utils/venueAreaReports.js';
 import { isHoverPointer, orphanedPinHover } from '../../utils/listMapPairing.js';
 import { viewportBboxFromCanvas } from '../../utils/viewportBbox.js';
 import {
@@ -123,11 +124,13 @@ const PIN_STATES = {
 };
 
 function getPinStateKey(venue, weather, liveVenueFeatures, weatherColorFn, cozyFilterActive, microReading, weatherUnavailable) {
+    if (areaReportPinLabel('', liveVenueFeatures?.[venue.id])) return 'heater';
     // Cozy filter is a user intent overlay, not a weather recompute.
     if (cozyFilterActive) {
         const live = liveVenueFeatures?.[venue.id] || {};
-        if (live.fireplaceOn === true) return 'heater';
-        if (live.heatersOn === true || live.roofClosed === true || venue.hasCozy) return 'cozy';
+        const warmth = liveWarmth(live);
+        if (warmth.fireplaceOn) return 'heater';
+        if (warmth.heatersOn || live.roofClosed === true || venue.hasCozy) return 'cozy';
     }
 
     // A fire or heaters the venue switched on now is fresher than any modelled
@@ -314,13 +317,15 @@ function paintMarkerEl(el, view) {
     bubble.style.color = view.text;
     paintPinIcon(icon, view);
     paintMomentBadge(bubble, view.momentBadge);
-    score.textContent = view.scoreText;
-    score.style.display = view.scoreText ? '' : 'none';
+    const scoreText = view.scoreText || (view.staffReportLabel ? sunPinView({ pinKey: 'heater', score: 0 }).scoreText : '');
+    score.textContent = scoreText;
+    score.style.display = scoreText ? '' : 'none';
     paintPinScoreRing(score, view);
     tail.innerHTML = PIN_TAIL_SVG(view.bg, view.border);
-    el.setAttribute('aria-label', view.momentBadge
+    el.setAttribute('aria-label', view.staffReportLabel ?? (view.momentBadge
         ? `${view.venueName}, ${view.momentBadge.label}, ${view.label}`
-        : view.label);
+        : view.label));
+    el.dataset.staffReport = view.staffReportLabel ? 'current' : 'none';
     el.dataset.sunTier = view.tier;
     el.dataset.highlighted = view.raised ? 'true' : 'false';
     el.style.zIndex = String(view.zIndex ?? 1);
@@ -361,10 +366,11 @@ function repaintVenueMarker(record) {
         }),
         momentBadge: record.momentBadge,
         venueName: record.venueName,
+        staffReportLabel: record.staffReportLabel,
     });
 }
 
-function createMarkerEl(view) {
+export function createMarkerEl(view) {
     const el = document.createElement('div');
     el.className = 'ss-sun-pin';
     el.setAttribute('role', 'button');
@@ -1887,18 +1893,19 @@ const VenueMap = forwardRef(({
                     const highlighted = highlightedVenueIdRef.current != null && highlightedVenueIdRef.current === String(venueId);
                     const momentBadge = mapMomentBadge(venueId, activeSunMoment, sunMomentsById);
                     const venueName = String(venue.venueName || venue.name || venue.title || 'Venue');
+                    const staffReportLabel = areaReportPinLabel(venueName, live?.[venueId]);
                     const night = Boolean(isNightRef.current);
                     const afterDark = Boolean(nightModeRef.current);
                     const view = {
                         ...sunPinView({ pinKey, score, emoji, iconUrl, selected, highlighted, night, nightMode: afterDark }),
-                        momentBadge, venueName,
+                        momentBadge, venueName, staffReportLabel,
                     };
                     specs.push({
                         id: `venue-${venueId}`,
                         update(existing) {
                             if (existing.pinKey !== pinKey || existing.score !== score
                                 || existing.emoji !== emoji || existing.iconUrl !== iconUrl
-                                || existing.momentBadge !== momentBadge || existing.venueName !== venueName
+                                || existing.momentBadge !== momentBadge || existing.venueName !== venueName || existing.staffReportLabel !== staffReportLabel
                                 || existing.selected !== selected || Boolean(existing.highlighted) !== highlighted
                                 || Boolean(existing.night) !== night || Boolean(existing.nightMode) !== afterDark) {
                                 paintMarkerEl(existing.el, view);
@@ -1910,6 +1917,7 @@ const VenueMap = forwardRef(({
                                 existing.highlighted = highlighted;
                                 existing.momentBadge = momentBadge;
                                 existing.venueName = venueName;
+                                existing.staffReportLabel = staffReportLabel;
                                 existing.night = night;
                                 existing.nightMode = afterDark;
                             }
@@ -1936,7 +1944,7 @@ const VenueMap = forwardRef(({
                             const marker = new mapboxgl.Marker({ element: el, ...MAP_SURFACE_MARKER })
                                 .setLngLat([venueLng, venueLat])
                                 .addTo(instance);
-                            return { marker, el, pinKey, score, emoji, iconUrl, selected, highlighted, night, nightMode: afterDark, momentBadge, venueName, venueId: String(venueId), isCluster: false, generation };
+                            return { marker, el, pinKey, score, emoji, iconUrl, selected, highlighted, night, nightMode: afterDark, momentBadge, venueName, staffReportLabel, venueId: String(venueId), isCluster: false, generation };
                         },
                     });
                 }
