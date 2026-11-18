@@ -1,5 +1,5 @@
 import './VenueCard.css';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { PARTNER_PREVIEW_NOTE } from '../utils/partnerTools.js';
 import { formatHappyHourRange } from '../utils/happyHour.js';
 import { X, Share2, Heart, ChevronRight, Check, Armchair, Users, Flame, Umbrella, Accessibility, Clock, CalendarDays, Camera, Store, MapPin } from 'lucide-react';
@@ -106,9 +106,10 @@ export function VenueSunCaption({ source, buildingData, sunrise, sunset, timeZon
 
 // ── 4. Today's sun ──────────────────────────────────────────
 export function TodaysSun({ forecast, sentence }) {
+  const headingId = useId();
   return (
-    <section aria-labelledby="todays-sun-heading" className="flex flex-col gap-3">
-      <h3 id="todays-sun-heading" className={SECTION_TITLE}>Today&rsquo;s sun</h3>
+    <section aria-labelledby={headingId} className="flex flex-col gap-3">
+      <h3 id={headingId} className={SECTION_TITLE}>Today&rsquo;s sun</h3>
       {sentence ? <p className="text-[14px] font-medium leading-relaxed text-slate-500">{sentence}</p> : null}
       <LiveSunTimeline forecast={forecast} />
     </section>
@@ -117,12 +118,13 @@ export function TodaysSun({ forecast, sentence }) {
 
 // Today's evening forecast uses the card's real clock, independently of map preview time.
 export function TonightFeelSection({ view }) {
+  const headingId = useId();
   if (!view) return null;
   return (
-    <section aria-labelledby="tonight-feel-heading" data-tonight-feel className="ss-venue-summary-row">
+    <section aria-labelledby={headingId} data-tonight-feel className="ss-venue-summary-row">
       <ClayIcon name="night" size={32} />
       <div className="min-w-0">
-        <h3 id="tonight-feel-heading">Tonight: {view.verdict}</h3>
+        <h3 id={headingId}>Tonight: {view.verdict}</h3>
         <p>{view.detail}</p>
         {view.warmth.length > 0 ? <p className="flex flex-wrap gap-x-3">
           {view.warmth.map(item => <span key={item.icon} className="inline-flex items-center gap-1"><ClayIcon name={item.icon} size={22} />{item.text}</span>)}
@@ -134,11 +136,12 @@ export function TonightFeelSection({ view }) {
 }
 
 export function HourByHour({ items, forecastLabel }) {
+  const headingId = useId();
   if (!items?.length) return null;
   return (
-    <section aria-labelledby="hour-by-hour-heading" className="ss-venue-hourly">
+    <section aria-labelledby={headingId} className="ss-venue-hourly">
       <div className="ss-venue-section-heading">
-        <h3 id="hour-by-hour-heading" className={SECTION_TITLE}>Hour by hour</h3>
+        <h3 id={headingId} className={SECTION_TITLE}>Hour by hour</h3>
         <span>{forecastLabel}</span>
       </div>
       <div role="group" aria-label="Hour by hour forecast">
@@ -226,10 +229,11 @@ export function VenueSourceNote({ note }) {
 }
 
 export function HappyHourSection({ happyHour, fromPartnerPreview = false }) {
+  const headingId = useId();
   if (!happyHour) return null;
-  return <section aria-labelledby="happy-hour-heading" className="ss-venue-fact">
+  return <section aria-labelledby={headingId} data-venue-section="specials" className="ss-venue-fact">
     <Clock size={22} aria-hidden="true" /><div>
-      <h4 id="happy-hour-heading">{happyHour.start ? 'Happy hour' : 'Specials'}</h4>
+      <h4 id={headingId}>{happyHour.start ? 'Happy hour' : 'Specials'}</h4>
       {happyHour.deal ? <p>{happyHour.deal}</p> : null}
       {happyHour.start && happyHour.end ? <p className="ss-venue-fact-detail">
         {Array.isArray(happyHour.days) && happyHour.days.length ? `${happyHour.days.join(', ')} · ` : ''}
@@ -241,9 +245,10 @@ export function HappyHourSection({ happyHour, fromPartnerPreview = false }) {
 }
 
 export function PartnerExtrasSection({ events = [], outdoor = [] }) {
+  const headingId = useId();
   if (!events.length && !outdoor.length) return null;
-  return <section aria-labelledby="partner-extras-heading">
-    <h4 id="partner-extras-heading" className="sr-only">{events.length ? 'On here' : 'Outdoor setup'}</h4>
+  return <section aria-labelledby={headingId}>
+    <h4 id={headingId} className="sr-only">{events.length ? 'On here' : 'Outdoor setup'}</h4>
     {events.length ? <ul>{events.map(event => <li key={event.id} className="ss-venue-fact">
       <CalendarDays size={22} aria-hidden="true" /><div><p>{event.title}</p><p className="ss-venue-fact-detail">{event.when} · {event.kindLabel}</p></div>
     </li>)}</ul> : null}

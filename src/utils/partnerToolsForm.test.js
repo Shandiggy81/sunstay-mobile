@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { partnerEventMaxDate, partnerHappyHourError } from './partnerToolsForm.js';
+import { partnerEventMaxDate, partnerHappyHourError, partnerSpecialSave } from './partnerToolsForm.js';
 
 test('event date limit is 60 calendar days across DST, leap days and year end', () => {
     assert.equal(partnerEventMaxDate('2026-09-20'), '2026-11-19');
@@ -23,4 +23,13 @@ test('happy hour explains partial or reversed schedules and empty deals', () => 
         assert.match(partnerHappyHourError({ days: ['Mon'], start: '16:00', end, deal: '' }), /later/);
     }
     assert.match(partnerHappyHourError({ days: [], start: '', end: '', deal: '  ' }), /Add a deal/);
+});
+
+test('the special autosaves when valid, clears when empty and explains a half-set schedule', () => {
+    assert.deepEqual(partnerSpecialSave({ days: [], start: '', end: '', deal: ' Mulled wine $12 ' }),
+        { save: { days: [], start: '', end: '', deal: 'Mulled wine $12' } });
+    assert.deepEqual(partnerSpecialSave({ days: [], start: '', end: '', deal: '  ' }), { save: null });
+    assert.match(partnerSpecialSave({ days: ['Mon'], start: '16:00', end: '', deal: '$8 pints' }).error, /both times/);
+    assert.deepEqual(partnerSpecialSave({ days: ['Fri'], start: '16:00', end: '18:00', deal: '' }),
+        { save: { days: ['Fri'], start: '16:00', end: '18:00', deal: '' } });
 });

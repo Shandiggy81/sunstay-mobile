@@ -71,6 +71,13 @@ describe('§5 row 1: facade sides only', () => {
     const [entry] = stayRoomTypesDisplay(stay([north], { typeCategory: 'Residential' }), { now: NOW }).entries;
     assert.equal(entry.evidenceLabel, 'Modelled · not yet confirmed by the owner');
   });
+
+  it('says host for a short stay, including legacy rows', () => {
+    for (const typeCategory of ['Short stay', 'shortstay']) {
+      const [entry] = stayRoomTypesDisplay(stay([north], { typeCategory }), { now: NOW }).entries;
+      assert.equal(entry.evidenceLabel, 'Modelled · not yet confirmed by the host');
+    }
+  });
 });
 
 describe('§5 row 2: room types, all facts modelled', () => {

@@ -88,6 +88,6 @@
 .ss-venue-detail-card [class*='text-[15px]'], .ss-venue-detail-card [class*='text-[16px]'] { font-size: 14px; }
 .ss-venue-detail-card [class*='text-[18px]'], .ss-venue-detail-card [class*='text-[19px]'], .ss-venue-detail-card [class*='text-[20px]'] { font-size: 17px; }
 .ss-venue-detail-card [class*='text-[26px]'], .ss-venue-detail-card [class*='text-[32px]'] { font-size: 22px; }
-.ss-venue-detail-card .ss-venue-sun-block > section[aria-labelledby='stay-heading'] { margin-top: 4px; }
+.ss-venue-detail-card .ss-venue-sun-block > section.ss-venue-stay { margin-top: 4px; }
 /* The optional weather drill-down uses the same type scale and neutral/gold surfaces. */
 .ss-venue-weather-details > .grid > div, .ss-venue-weather-details > div.border { border: 0; border-radius: 0; border-bottom: 1px solid #f1ece2; box-shadow: none; padding: 12px 0; }

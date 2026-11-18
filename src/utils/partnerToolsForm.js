@@ -17,3 +17,16 @@ export function partnerHappyHourError({ days, start, end, deal }) {
     if (!hasSchedule && !deal.trim()) return 'Add a deal or choose days and times.';
     return null;
 }
+
+/**
+ * What autosaving the special should do with the form as it stands: clear the
+ * saved special when the form is empty, save it when it's valid, and otherwise
+ * keep the last saved one and explain why.
+ * @returns {{ save: object|null } | { error: string }}
+ */
+export function partnerSpecialSave(form) {
+    const empty = !form.deal.trim() && !form.days.length && !form.start && !form.end;
+    if (empty) return { save: null };
+    const error = partnerHappyHourError(form);
+    return error ? { error } : { save: { ...form, deal: form.deal.trim() } };
+}
