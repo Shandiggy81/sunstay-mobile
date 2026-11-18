@@ -1,17 +1,37 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { X } from 'lucide-react';
-import FohWeatherWidget from './FohWeatherWidget.jsx';
+import { Eye, PencilLine, X } from 'lucide-react';
 import PartnerSunToday from './PartnerSunToday.jsx';
 import PartnerToolsEditor from './PartnerToolsEditor.jsx';
+import { PartnerSpecialEditor, PartnerToday, PartnerTodoList } from './PartnerToday.jsx';
+import { PartnerGuestView, PartnerListingCheck } from './PartnerWalkthrough.jsx';
 import ClayIcon from './common/ClayIcon.jsx';
+import { usePartnerTools } from '../hooks/usePartnerTools.js';
 import { ownerSwitchDefaults } from '../utils/venueFeaturePin.js';
+import { partnerServiceHours, partnerTodayTasks } from '../utils/partnerToday.js';
 import { partnerStatusGroups, partnerSunHint, partnerTagIcon, partnerTagSuggestions, partnerType } from '../utils/partnerVenueControls.js';
+import { PARTNER_DRAFT_KEY, heatingConflict, offeringChanges, partnerDraftFor, resolveHeating, restorePartnerDrafts, updatePartnerDraft, venueWithHeating } from '../utils/partnerWalkthrough.js';
+import './PartnerPreview.css';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABELS = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 const PREVIEW_NOTE = 'Preview updated on this device';
+// Below this width the guest view is one tap away instead of beside the editor (PartnerPreview.css).
+const SIDE_BY_SIDE = '(min-width: 1024px)';
+const SECTION_FOR_TASK = { heating: 'partner-check-heading', hours: 'partner-hours-heading', outdoor: 'partner-outdoor-heading' };
+
+// The listing-check answer stays on this device, like the rest of the partner preview.
+function readDrafts() {
+    try { return restorePartnerDrafts(localStorage.getItem(PARTNER_DRAFT_KEY)); } catch { return {}; }
+}
+function writeDrafts(map) {
+    try {
+        if (Object.keys(map).length) localStorage.setItem(PARTNER_DRAFT_KEY, JSON.stringify(map));
+        else localStorage.removeItem(PARTNER_DRAFT_KEY);
+    } catch { /* Private mode or blocked storage: the answer lasts while the panel is open. */ }
+}
+const sideBySide = () => typeof window !== 'undefined' && window.matchMedia?.(SIDE_BY_SIDE).matches;
 
 function StatusTile({ label, icon, value, onChange }) {
     return <button type="button" className="ss-partner-toggle" role="switch" aria-checked={value} onClick={() => onChange(!value)}>
@@ -27,6 +47,11 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const type = partnerType(venue);
     const reduceMotion = useReducedMotion();
     const panelRef = useRef(null);
+    const contentRef = useRef(null);
+    const frameRef = useRef(null);
+    const specialRef = useRef(null);
+    const editScrollRef = useRef(0);
+    const returningRef = useRef(false);
     const [now, setNow] = useState(() => new Date());
     const [hours, setHours] = useState(() => Object.fromEntries(DAYS.map(day => [day,
         venue.hours?.[day] && typeof venue.hours[day] === 'object' ? { ...venue.hours[day] }
@@ -36,9 +61,20 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const [hoursStatus, setHoursStatus] = useState('');
     const [vibeStatus, setVibeStatus] = useState('');
     const [customTag, setCustomTag] = useState('');
+    // The heating check reads the listing as it was when the panel opened, so
+    // previewing tags below doesn't make the question vanish mid-answer.
+    const [conflict] = useState(() => heatingConflict(venue));
+    const [drafts, setDrafts] = useState(readDrafts);
+    const heating = conflict ? partnerDraftFor(drafts, venueId) : null;
+    const { tools, update } = usePartnerTools(venueId);
+    // Phone and narrow windows show one view at a time; wide windows show both.
+    const [view, setView] = useState('edit');
+    const [guestChecked, setGuestChecked] = useState(false);
     const [activeTags, setActiveTags] = useState(() => {
         const tags = Array.isArray(venue.tags) ? venue.tags : Array.isArray(venue.vibe) ? venue.vibe : venue.vibe ? [venue.vibe] : [];
-        return [...new Set(tags.filter(tag => typeof tag === 'string' && tag.trim()))].slice(0, 8);
+        const own = [...new Set(tags.filter(tag => typeof tag === 'string' && tag.trim()))];
+        // A heating answer from an earlier visit already shapes the tags shown below.
+        return (heating ? resolveHeating({ ...venue, tags: own }, heating).tags : own).slice(0, 8);
     });
     // Tags from the last "Preview tags", kept on this device; they drive the switches below.
     const [previewedTags, setPreviewedTags] = useState(null);
@@ -49,6 +85,11 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const groups = partnerStatusGroups(venue, previewedTags);
     const sunHint = partnerSunHint(venue, previewedTags);
     const suggestions = partnerTagSuggestions(venue);
+    // The guest card with this preview's answers on it.
+    const guestVenue = useMemo(() => venueWithHeating(venue, heating), [venue, heating]);
+    const removed = heating ? offeringChanges(venue, guestVenue).removed : [];
+    const tasks = partnerTodayTasks({ venue: guestVenue, tools, heatingConflict: conflict, heatingAnswered: Boolean(heating),
+        hoursKnown: Boolean(partnerServiceHours(venue)), guestChecked });
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 60000);
@@ -90,16 +131,83 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     };
     const hasHours = DAYS.some(day => hours[day].open || hours[day].close);
 
+    const chooseHeating = choice => {
+        const next = updatePartnerDraft(drafts, venueId, choice);
+        setDrafts(next);
+        writeDrafts(next);
+        setActiveTags(tags => resolveHeating({ ...venue, tags }, choice).tags.slice(0, 8));
+    };
+
+    // Scroll the guest card to its Specials line, so the manager sees the change.
+    const revealSpecial = useCallback(() => {
+        const frame = frameRef.current;
+        const scroller = frame?.querySelector('[data-venue-card-scroller]');
+        const target = frame?.querySelector('section[aria-labelledby="happy-hour-heading"]');
+        if (!scroller || !target || !frame.getClientRects().length) return;
+        const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 96;
+        scroller.scrollTo({ top: Math.max(0, top), behavior: 'instant' });
+        target.classList.add('ss-partner-flash');
+        setTimeout(() => target.classList.remove('ss-partner-flash'), 1600);
+    }, []);
+    // Phone: one tap to the guest view and back. The editor stays mounted while
+    // hidden, so every unsaved field is kept, and its scroll position comes back.
+    const showView = next => {
+        if (next === view) return;
+        if (next === 'guest') {
+            editScrollRef.current = contentRef.current?.scrollTop ?? 0;
+            setGuestChecked(true);
+        } else returningRef.current = true;
+        setView(next);
+    };
+    useLayoutEffect(() => {
+        if (view === 'guest') revealSpecial();
+        else if (returningRef.current) {
+            returningRef.current = false;
+            contentRef.current?.scrollTo({ top: editScrollRef.current, behavior: 'instant' });
+        }
+    }, [view, revealSpecial]);
+    // Wide windows: a new special shows in the guest view beside the editor as it saves.
+    const deal = tools?.happyHour?.deal ?? '';
+    const firstDeal = useRef(true);
+    useEffect(() => {
+        if (firstDeal.current) { firstDeal.current = false; return; }
+        if (deal && sideBySide()) revealSpecial();
+    }, [deal, revealSpecial]);
+
+    const scrollEditorTo = element => {
+        const content = contentRef.current;
+        if (!content || !element) return;
+        content.scrollTo({ top: element.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop - 12 });
+    };
+    const openTask = target => {
+        if (target === 'guest') {
+            setGuestChecked(true);
+            if (sideBySide()) { revealSpecial(); frameRef.current?.closest('section')?.querySelector('h3')?.focus({ preventScroll: true }); }
+            else showView('guest');
+            return;
+        }
+        if (target === 'special') {
+            scrollEditorTo(specialRef.current?.closest('section'));
+            specialRef.current?.focus({ preventScroll: true });
+            return;
+        }
+        if (target === 'hours') setShowHoursEdit(true);
+        const heading = panelRef.current?.querySelector(`#${SECTION_FOR_TASK[target]}`);
+        scrollEditorTo(heading?.closest('section'));
+        heading?.closest('section')?.querySelector('input, button')?.focus({ preventScroll: true });
+    };
+
     return createPortal(<div className="ss-partner-overlay" onClick={onClose} onKeyDown={event => {
         if (event.key === 'Escape') { event.stopPropagation(); onClose(); }
         if (event.key === 'Tab') {
-            const controls = [...panelRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]')];
+            const controls = [...panelRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]')]
+                .filter(element => element.getClientRects().length);
             const first = controls[0], last = controls.at(-1);
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
         }
     }}>
-        <motion.section ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="partner-preview-title" className="ss-partner-panel"
+        <motion.section ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="partner-preview-title" className="ss-partner-panel ss-partner-panel--guest"
             initial={reduceMotion ? false : { y: 32, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }}
             onClick={event => event.stopPropagation()}>
             <header className="ss-partner-header">
@@ -109,10 +217,13 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                 </div></div>
                 <button type="button" className="ss-partner-close" onClick={onClose} aria-label="Close partner preview"><X size={20} aria-hidden="true" /></button>
             </header>
-            <div className="ss-partner-content">
-                <aside role="note" className="ss-partner-notice"><ClayIcon name="house" size={32} /><p><strong>Preview only.</strong> Changes stay on this device until partner editing launches.</p></aside>
+            <div className="ss-partner-body" data-view={view}>
+            <div ref={contentRef} className="ss-partner-content">
+                <PartnerToday venue={venue} now={now} />
+                <PartnerSpecialEditor ref={specialRef} tools={tools} update={update} />
+                <PartnerTodoList tasks={tasks} onTask={openTask} />
+                {conflict ? <PartnerListingCheck conflict={conflict} heating={heating} onHeatingChange={chooseHeating} /> : null}
                 <PartnerSunToday venue={venue} now={now} />
-                <FohWeatherWidget venue={venue} hours={hours} now={now} />
                 {(groups.length > 0 || sunHint) && <section className="ss-partner-card" aria-labelledby="partner-status-heading">
                     <h3 id="partner-status-heading">Live status preview</h3>
                     <p className="ss-partner-help">Try a status to preview your map pin on this device. Guests won’t see these changes.</p>
@@ -125,7 +236,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                 </section>}
                 <section className="ss-partner-card" aria-labelledby="partner-hours-heading">
                     <div className="ss-partner-section-heading"><ClayIcon name="clock" size={40} /><h3 id="partner-hours-heading">Service hours</h3></div>
-                    <p className="ss-partner-help">{hasHours ? 'Use your actual opening hours to preview relevant weather tips.' : 'Hours not supplied. Add your opening hours to preview relevant weather tips.'}</p>
+                    <p className="ss-partner-help">{hasHours ? 'Use your actual opening hours to preview your next service and its weather.' : 'Set your opening hours here to preview your next service and its weather.'}</p>
                     <button type="button" className="ss-partner-button ss-partner-button--soft" aria-expanded={showHoursEdit} onClick={() => setShowHoursEdit(value => !value)}>{showHoursEdit ? 'Hide service hours' : 'Edit service hours'}</button>
                     {showHoursEdit && <div className="ss-partner-hours">
                         {DAYS.map(day => <div key={day} className="ss-partner-day"><span>{DAY_LABELS[day]}</span>
@@ -155,6 +266,14 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                 <section className="ss-partner-card ss-partner-invite"><ClayIcon name="sun" size={56} /><h3>Want this live for your guests?</h3><p>Let’s bring your venue’s sun story to SunStay.</p>
                     <a className="ss-partner-button" href={`mailto:sunstayglobal@gmail.com?subject=${encodeURIComponent(`SunStay partner enquiry: ${venueName}`)}`}>Become a SunStay partner</a>
                 </section>
+            </div>
+            <div className="ss-partner-guest-column">
+                <PartnerGuestView ref={frameRef} venue={guestVenue} liveVenueFeatures={liveVenueFeatures} removed={removed} onBack={() => showView('edit')} />
+            </div>
+            </div>
+            <div className="ss-partner-viewbar" role="group" aria-label="Partner preview view">
+                <button type="button" aria-pressed={view === 'edit'} onClick={() => showView('edit')}><PencilLine size={18} aria-hidden="true" />Edit</button>
+                <button type="button" aria-pressed={view === 'guest'} onClick={() => showView('guest')}><Eye size={18} aria-hidden="true" />Guest view</button>
             </div>
         </motion.section>
     </div>, document.body);

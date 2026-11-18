@@ -358,7 +358,10 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
 }
 
 // ── Main VenueCard ────────────────────────────────────────────
-function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture, stayMatch }) {
+// `preview`: the partner preview's guest view. The same card, drawn as a region
+// inside that panel instead of a modal sheet: no focus grab or return, no
+// backdrop, drag, tilt or slide-in, and no Escape/Tab handling of its own.
+function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShowOwnerDashboard, setSelectedVenue, liveVenueFeatures, onSheetGesture, stayMatch, preview = false }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [allSidesOpen, setAllSidesOpen] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -380,6 +383,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   }, [venue?.id]);
 
   useLayoutEffect(() => {
+    if (preview) return undefined;
     cancelAnimationFrame(returnFocusFrame.current);
     if (!openerRef.current) openerRef.current = document.activeElement;
     const panel = dialogRef.current;
@@ -447,7 +451,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const rotateX = useSpring(useTransform(mouseY, [-0.5, 0.5], [4, -4]), { stiffness: 200, damping: 25 });
   const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-4, 4]), { stiffness: 200, damping: 25 });
   const cardRectRef = useRef(null);
-  const enableTilt = useMemo(() => canUsePointerTilt(), []);
+  const enableTilt = useMemo(() => !preview && canUsePointerTilt(), [preview]);
   function handlePointerEnter(e) {
     if (!enableTilt) return;
     cardRectRef.current = e.currentTarget.getBoundingClientRect();
@@ -648,8 +652,9 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     ? () => { setShowOwnerDashboard(true); setSelectedVenue?.(venue); }
     : null;
 
-  const overlayMotionProps = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.25 } };
-  const articleMotionProps = {
+  const overlayMotionProps = preview ? { initial: false }
+    : { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.25 } };
+  const articleMotionProps = preview ? { initial: false } : {
     drag: 'y',
     dragControls,
     dragListener: false,
@@ -672,12 +677,12 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
         key={venueOverlayPresenceKey(venue?.id)}
         {...overlayMotionProps}
         ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${displayName} details`}
-        onKeyDown={handleDialogKeyDown}
-        className="absolute inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950/55"
-        onClick={onClose}
+        role={preview ? 'region' : 'dialog'}
+        aria-modal={preview ? undefined : 'true'}
+        aria-label={preview ? `${displayName} guest card preview` : `${displayName} details`}
+        onKeyDown={preview ? undefined : handleDialogKeyDown}
+        className={`absolute inset-0 z-[110] flex flex-col overflow-hidden${preview ? '' : ' bg-slate-950/55'}`}
+        onClick={preview ? undefined : onClose}
       >
         <motion.article
           {...articleMotionProps}
@@ -735,7 +740,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
               canShare={share.canShare}
               saved={saved}
               onToggleSave={toggleSaved}
-              onDragStart={(e) => dragControls.start(e)}
+              onDragStart={preview ? undefined : (e) => dragControls.start(e)}
             />
 
             <div className="relative z-[1] bg-white pb-4">

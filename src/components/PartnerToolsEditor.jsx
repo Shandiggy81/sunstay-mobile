@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import ClayIcon from './common/ClayIcon.jsx';
 import { usePartnerTools } from '../hooks/usePartnerTools.js';
-import { EVENT_DAYS_AHEAD, EVENT_KINDS, MAX_EVENTS, PARTNER_DAYS, partnerClock, upcomingPartnerEvents } from '../utils/partnerTools.js';
-import { partnerEventMaxDate, partnerHappyHourError } from '../utils/partnerToolsForm.js';
+import { EVENT_DAYS_AHEAD, EVENT_KINDS, MAX_EVENTS, partnerClock, upcomingPartnerEvents } from '../utils/partnerTools.js';
+import { partnerEventMaxDate } from '../utils/partnerToolsForm.js';
 import './PartnerToolsEditor.css';
 
-const EMPTY_HAPPY_HOUR = { days: [], start: '', end: '', deal: '' };
 const EMPTY_EVENT = { title: '', kind: 'live-music', date: '', start: '' };
 const ACCESS_CHOICES = [
     ['access_step_free_entry', 'Step-free entry'],
@@ -33,13 +32,10 @@ function Heading({ id, icon, children }) {
 
 export default function PartnerToolsEditor({ venueId }) {
     const { tools, update } = usePartnerTools(venueId);
-    const [happyHour, setHappyHour] = useState(() => ({ ...EMPTY_HAPPY_HOUR, ...tools?.happyHour,
-        start: tools?.happyHour?.start ?? '', end: tools?.happyHour?.end ?? '', deal: tools?.happyHour?.deal ?? '' }));
     const [event, setEvent] = useState(EMPTY_EVENT);
     const [access, setAccess] = useState(() => tools?.access ?? {});
     const [outdoor, setOutdoor] = useState(() => tools?.outdoor ?? {});
     const [saved, setSaved] = useState({});
-    const [happyError, setHappyError] = useState(null);
     const { today } = partnerClock();
     const maxDate = partnerEventMaxDate(today);
     // Keep earlier events today editable while sharing the guest card's labels.
@@ -48,7 +44,6 @@ export default function PartnerToolsEditor({ venueId }) {
     const edit = (section, setter, patch) => {
         setter(previous => ({ ...previous, ...patch }));
         setSaved(previous => ({ ...previous, [section]: false }));
-        if (section === 'happyHour') setHappyError(null);
     };
     const save = (section, value) => {
         update(section, value);
@@ -60,32 +55,8 @@ export default function PartnerToolsEditor({ venueId }) {
         <button type="button" className="ss-partner-button ss-partner-button--soft" onClick={clear}>Clear</button>
     </div>;
 
+    // Specials and happy hour are edited in PartnerSpecialEditor (PartnerToday.jsx), near the top.
     return <>
-        <section className="ss-partner-card ss-partner-tools-card" aria-labelledby="partner-happy-heading">
-            <Heading id="partner-happy-heading" icon="pint">Specials &amp; happy hour</Heading>
-            <form onSubmit={event => {
-                event.preventDefault();
-                const error = partnerHappyHourError(happyHour);
-                setHappyError(error);
-                if (!error) save('happyHour', happyHour);
-            }}>
-                <fieldset className="ss-partner-days"><legend>Happy hour days</legend><div>
-                    {PARTNER_DAYS.map(day => <button type="button" key={day} aria-pressed={happyHour.days.includes(day)}
-                        onClick={() => edit('happyHour', setHappyHour, { days: happyHour.days.includes(day)
-                            ? happyHour.days.filter(value => value !== day) : [...happyHour.days, day] })}>{day}</button>)}
-                </div></fieldset>
-                <div className="ss-partner-form-row">
-                    <label>Happy hour starts<input type="time" value={happyHour.start} onChange={event => edit('happyHour', setHappyHour, { start: event.target.value })} /></label>
-                    <label>Happy hour ends<input type="time" value={happyHour.end} onChange={event => edit('happyHour', setHappyHour, { end: event.target.value })} /></label>
-                </div>
-                <label>Deal or special<input type="text" maxLength={80} value={happyHour.deal} onChange={event => edit('happyHour', setHappyHour, { deal: event.target.value })} /></label>
-                <p className="ss-partner-help">Up to 80 characters. A deal can be saved without days or times.</p>
-                {happyError && <p role="alert" className="ss-partner-form-error">{happyError}</p>}
-                {actions('happyHour', () => { setHappyHour(EMPTY_HAPPY_HOUR); setHappyError(null); save('happyHour', null); })}
-            </form>
-            {confirmation('happyHour')}
-        </section>
-
         <section className="ss-partner-card ss-partner-tools-card" aria-labelledby="partner-events-heading">
             <Heading id="partner-events-heading" icon="live-music">Tonight &amp; events</Heading>
             <p className="ss-partner-help">{events.length}/{MAX_EVENTS} events · today to {EVENT_DAYS_AHEAD} days ahead · Melbourne time</p>
