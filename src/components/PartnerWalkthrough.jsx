@@ -34,7 +34,7 @@ export function PartnerListingCheck({ conflict, heating, onHeatingChange }) {
  * changes, like Shopify's live storefront beside its editor. Guests still see
  * the current listing; nothing here is published.
  */
-export const PartnerGuestView = forwardRef(function PartnerGuestView({ venue, liveVenueFeatures, removed, onBack }, frameRef) {
+export const PartnerGuestView = forwardRef(function PartnerGuestView({ venue, liveVenueFeatures, removed, onBack, stayDate = null }, frameRef) {
     return <section className="ss-partner-guest" aria-labelledby="partner-guest-heading">
         <div className="ss-partner-check-head">
             <h3 id="partner-guest-heading" tabIndex={-1}>Guest view</h3>
@@ -44,7 +44,9 @@ export const PartnerGuestView = forwardRef(function PartnerGuestView({ venue, li
         {removed.length ? <p className="ss-partner-guest-removed">Off your card in this preview: {removed.map((label, index) =>
             <span key={label}>{index ? ', ' : ''}<s>{label}</s></span>)}</p> : null}
         <div ref={frameRef} className="ss-partner-guest-frame">
-            <VenueCard preview venue={venue} liveVenueFeatures={liveVenueFeatures} onClose={onBack} />
+            {/* A stay's chosen date reaches the card the way a guest's stay search does. */}
+            <VenueCard preview venue={venue} liveVenueFeatures={liveVenueFeatures} onClose={onBack}
+                stayMatch={stayDate ? { daily: { date: stayDate } } : undefined} />
         </div>
     </section>;
 });

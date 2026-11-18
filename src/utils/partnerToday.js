@@ -12,7 +12,7 @@ import { DEFAULT_TIME_ZONE } from './balconySunEngine.js';
 import { getBadgeState } from './dataBadgeState.js';
 import { isMicroclimateEntryExpired, isMicroclimateEntryStale, timestampMs } from './microclimateProvenance.js';
 import { finiteOrNull } from './finiteOrNull.js';
-import { outdoorChips } from './partnerTools.js';
+import { outdoorChips, upcomingPartnerEvents } from './partnerTools.js';
 import { partnerWeatherTips } from './partnerWeatherTips.js';
 import { parseVenueDateTime, venueTimeAt, venueTimeParts } from './venueTime.js';
 import { venueHoursView } from './venueHours.js';
@@ -58,6 +58,19 @@ function parseDays(spec) {
     return days.length ? days : null;
 }
 
+// Where a part's day words start, so a short area name in front ("Rooftop bar Tue–Sun…") can be read off.
+const DAY_START = /\b(?:daily|every day|weekdays|weekends|mon(?:day)?|tues?(?:day)?|wed(?:nesday)?|thu(?:rs?(?:day)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/;
+
+/** The days part of "rooftop bar tue-sun", with the area it names (one to three plain words), or null. */
+function splitArea(spec) {
+    if (parseDays(spec)) return { area: null, days: spec };
+    const start = DAY_START.exec(spec);
+    if (!start || start.index === 0) return null;
+    const area = spec.slice(0, start.index).trim();
+    if (!/^[a-z][a-z' ]*$/.test(area) || area.split(' ').length > 3) return null;
+    return { area, days: spec.slice(start.index) };
+}
+
 function parseClock(token, closing) {
     if (token === 'midday' || token === 'noon') return '12:00';
     if (token === 'midnight') return closing ? '24:00' : '00:00';
@@ -74,12 +87,16 @@ function parseClock(token, closing) {
  * A listing's opening-hours text as a weekly map, or null unless every part
  * reads plainly. "late" closes become `{ close: '24:00', late: true }`, so the
  * weather for a late night is read up to midnight. Days the text doesn't
- * mention stay unknown (absent), not closed.
+ * mention stay unknown (absent), not closed. One area named in front of the
+ * days ("Rooftop bar Tue–Sun 12pm–late") is read off and returned as `area`;
+ * two different areas mean the text isn't one service, so it isn't read.
+ * @returns {{ hours: object, area: string|null } | null}
  */
-export function parseListedHours(text) {
+export function parseListedService(text) {
     if (typeof text !== 'string' || !text.trim()) return null;
     const clean = text.toLowerCase().replace(/[–—]/g, '-').replace(/\s*-\s*/g, '-').replace(/\.\s*$/, '').trim();
     const out = {};
+    const areas = new Set();
     for (const raw of clean.split(';')) {
         const part = raw.trim();
         if (!part) continue;
@@ -91,13 +108,22 @@ export function parseListedHours(text) {
             continue;
         }
         const match = /^(.+?) (\S+)-(\S+)$/.exec(part);
-        const days = match && parseDays(match[1]);
+        const split = match && splitArea(match[1]);
+        const days = split && parseDays(split.days);
         const open = match && parseClock(match[2], false);
         const close = match && parseClock(match[3], true);
         if (!days || !open || !close || open === close) return null;
+        if (split.area) areas.add(split.area);
         for (const day of days) out[day] = close === 'late' ? { open, close: '24:00', closed: false, late: true } : { open, close, closed: false };
     }
-    return Object.keys(out).length ? out : null;
+    if (!Object.keys(out).length || areas.size > 1) return null;
+    const [area = null] = areas;
+    return { hours: out, area: area && `${area[0].toUpperCase()}${area.slice(1)}` };
+}
+
+/** The weekly map from parseListedService, without the area. */
+export function parseListedHours(text) {
+    return parseListedService(text)?.hours ?? null;
 }
 
 function hasWeeklyMap(hours) {
@@ -107,15 +133,16 @@ function hasWeeklyMap(hours) {
 
 /**
  * The hours to plan the next service from: the partner's own map first, then
- * the listing text. `source` says which, and whether the listing was checked.
- * @returns {{ hours: object, source: 'set'|'listing'|'listing-unconfirmed' } | null}
+ * the listing text. `source` says which, and whether the listing was checked;
+ * `area` names the part of the venue the listing's hours are for, if it says.
+ * @returns {{ hours: object, source: 'set'|'listing'|'listing-unconfirmed', area: string|null } | null}
  */
 export function partnerServiceHours(venue) {
-    if (hasWeeklyMap(venue?.hours)) return { hours: venue.hours, source: 'set' };
+    if (hasWeeklyMap(venue?.hours)) return { hours: venue.hours, source: 'set', area: null };
     const text = [venue?.opening_hours, venue?.openingHours, venue?.hours].find(value => typeof value === 'string' && value.trim());
-    const hours = parseListedHours(text);
-    if (!hours) return null;
-    return { hours, source: venueHoursView(venue).verified ? 'listing' : 'listing-unconfirmed' };
+    const listed = parseListedService(text);
+    if (!listed) return null;
+    return { hours: listed.hours, source: venueHoursView(venue).verified ? 'listing' : 'listing-unconfirmed', area: listed.area };
 }
 
 function clockMinutes(value, closing = false) {
@@ -258,7 +285,7 @@ export function partnerTodayView({ venue, forecast, now, timeZone = venue?.timeZ
     const tip = service && usableForecast(forecast) ? partnerWeatherTips({ venue, forecast, hours: hours.hours, now, timeZone })[0] ?? null : null;
     return {
         dateLabel: venueDateLabel(now, timeZone),
-        service: service ? { ...service, source: hours.source } : null,
+        service: service ? { ...service, source: hours.source, area: hours.area } : null,
         weather,
         forecastMissing: !usableForecast(forecast),
         tip: tip ? { icon: tip.icon, text: tip.text, timeLabel: tip.timeLabel } : null,
@@ -294,7 +321,7 @@ export function partnerDataStatus({ forecastFetchedAt = null, reading = null, no
  * What to do before service, in order. `target` names the section a row opens.
  * @returns {Array<{ key: string, title: string, detail: string, icon: string, done: boolean, target: string }>}
  */
-export function partnerTodayTasks({ venue, tools = null, heatingConflict = null, heatingAnswered = false, hoursKnown = true, guestChecked = false }) {
+export function partnerTodayTasks({ venue, tools = null, heatingConflict = null, heatingAnswered = false, hoursKnown = true, guestChecked = false, eventsTask = false, today = null }) {
     const tasks = [];
     if (heatingConflict) {
         tasks.push({ key: 'heating', icon: 'heater', target: 'heating', done: heatingAnswered,
@@ -308,6 +335,12 @@ export function partnerTodayTasks({ venue, tools = null, heatingConflict = null,
     const deal = typeof tools?.happyHour?.deal === 'string' ? tools.happyHour.deal.trim() : '';
     tasks.push({ key: 'special', icon: 'pint', target: 'special', done: Boolean(deal),
         title: deal ? 'Special added' : 'Add a special', detail: deal ? `“${deal}”` : 'Shows on your guest card under Specials' });
+    // Pubs and bars live by what's on: the event editor is one tap from the first screen.
+    if (eventsTask) {
+        const event = upcomingPartnerEvents(tools?.events, { today, nowMinutes: 0, limit: 1 })[0] ?? null;
+        tasks.push({ key: 'events', icon: 'live-music', target: 'events', done: Boolean(event),
+            title: event ? 'Event added' : 'Add what’s on tonight', detail: event ? `“${event.title}” · ${event.when}` : 'Shows on your guest card under On here' });
+    }
     if (!venueOfferings(venue).length && !outdoorChips(tools?.outdoor).length) {
         tasks.push({ key: 'setup', icon: 'garden-table', target: 'outdoor', done: false,
             title: 'Add your outdoor setup', detail: 'Your guest card lists no features yet' });

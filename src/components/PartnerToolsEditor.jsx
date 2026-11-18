@@ -30,7 +30,7 @@ function Heading({ id, icon, children }) {
     return <div className="ss-partner-section-heading"><ClayIcon name={icon} size={40} /><h3 id={id}>{children}</h3></div>;
 }
 
-export default function PartnerToolsEditor({ venueId }) {
+export default function PartnerToolsEditor({ venueId, showEvents = true, showOutdoor = true }) {
     const { tools, update } = usePartnerTools(venueId);
     const [event, setEvent] = useState(EMPTY_EVENT);
     const [access, setAccess] = useState(() => tools?.access ?? {});
@@ -57,7 +57,7 @@ export default function PartnerToolsEditor({ venueId }) {
 
     // Specials and happy hour are edited in PartnerSpecialEditor (PartnerToday.jsx), near the top.
     return <>
-        <section className="ss-partner-card ss-partner-tools-card" aria-labelledby="partner-events-heading">
+        {showEvents ? <section className="ss-partner-card ss-partner-tools-card" aria-labelledby="partner-events-heading">
             <Heading id="partner-events-heading" icon="live-music">Tonight &amp; events</Heading>
             <p className="ss-partner-help">{events.length}/{MAX_EVENTS} events · today to {EVENT_DAYS_AHEAD} days ahead · Melbourne time</p>
             {events.length > 0 && <ul className="ss-partner-events">{events.map(event => <li key={event.id}>
@@ -86,7 +86,7 @@ export default function PartnerToolsEditor({ venueId }) {
             </form>
             {events.length >= MAX_EVENTS && <p className="ss-partner-help">Remove an event to add another.</p>}
             {confirmation('events')}
-        </section>
+        </section> : null}
 
         <section className="ss-partner-card ss-partner-tools-card" aria-labelledby="partner-access-heading">
             <Heading id="partner-access-heading" icon="wheelchair">Access facts</Heading>
@@ -104,7 +104,7 @@ export default function PartnerToolsEditor({ venueId }) {
             {confirmation('access')}
         </section>
 
-        <section className="ss-partner-card ss-partner-tools-card" aria-labelledby="partner-outdoor-heading">
+        {showOutdoor ? <section className="ss-partner-card ss-partner-tools-card" aria-labelledby="partner-outdoor-heading">
             <Heading id="partner-outdoor-heading" icon="garden-table">Outdoor setup</Heading>
             <form onSubmit={event => { event.preventDefault(); save('outdoor', { ...outdoor, seats: numberOrNull(outdoor.seats) }); }}>
                 <label>Outdoor seats<input type="number" min={0} max={2000} step={1} value={outdoor.seats ?? ''} onChange={event => edit('outdoor', setOutdoor, { seats: event.target.value })} /></label>
@@ -113,6 +113,6 @@ export default function PartnerToolsEditor({ venueId }) {
                 {actions('outdoor', () => { setOutdoor({}); save('outdoor', null); })}
             </form>
             {confirmation('outdoor')}
-        </section>
+        </section> : null}
     </>;
 }

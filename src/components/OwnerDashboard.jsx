@@ -1,15 +1,22 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Eye, PencilLine, X } from 'lucide-react';
 import PartnerSunToday from './PartnerSunToday.jsx';
 import PartnerToolsEditor from './PartnerToolsEditor.jsx';
 import { PartnerSpecialEditor, PartnerToday, PartnerTodoList } from './PartnerToday.jsx';
 import { PartnerGuestView, PartnerListingCheck } from './PartnerWalkthrough.jsx';
+import { PartnerHome, PartnerPool, PartnerRoomSun } from './PartnerStay.jsx';
 import ClayIcon from './common/ClayIcon.jsx';
 import { usePartnerTools } from '../hooks/usePartnerTools.js';
 import { ownerSwitchDefaults } from '../utils/venueFeaturePin.js';
 import { partnerServiceHours, partnerTodayTasks } from '../utils/partnerToday.js';
+import { partnerClock, upcomingPartnerEvents } from '../utils/partnerTools.js';
+import { DEFAULT_TIME_ZONE } from '../utils/balconySunEngine.js';
+import {
+    PARTNER_STAY_KEY, clampStayDate, partnerProfile, partnerStayTasks, restoreStayDrafts, roomTypesFor,
+    stayDateRange, stayGuestVenue, updateStayDraft,
+} from '../utils/partnerStay.js';
 import { partnerStatusGroups, partnerSunHint, partnerTagIcon, partnerTagSuggestions, partnerType } from '../utils/partnerVenueControls.js';
 import { PARTNER_DRAFT_KEY, heatingConflict, offeringChanges, partnerDraftFor, resolveHeating, restorePartnerDrafts, updatePartnerDraft, venueWithHeating } from '../utils/partnerWalkthrough.js';
 import './PartnerPreview.css';
@@ -19,7 +26,13 @@ const DAY_LABELS = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri',
 const PREVIEW_NOTE = 'Preview updated on this device';
 // Below this width the guest view is one tap away instead of beside the editor (PartnerPreview.css).
 const SIDE_BY_SIDE = '(min-width: 1024px)';
-const SECTION_FOR_TASK = { heating: 'partner-check-heading', hours: 'partner-hours-heading', outdoor: 'partner-outdoor-heading' };
+const SECTION_FOR_TASK = { heating: 'partner-check-heading', hours: 'partner-hours-heading', outdoor: 'partner-outdoor-heading', events: 'partner-events-heading' };
+// Where the guest view opens for each first screen: the special for a venue, the room or home sun for a stay.
+const GUEST_FOCUS = { service: '[data-venue-section="specials"]', rooms: '.ss-venue-stay', home: '.ss-venue-stay' };
+// Short enough to read whole in the phone's field.
+const SPECIAL_PLACEHOLDER = { cafe: 'e.g. Coffee + pastry $9 before 10am', bakery: 'e.g. Pastry + coffee $9 before 10am' };
+const SPECIAL_ICON = { cafe: 'coffee', bakery: 'coffee', bar: 'cocktail', hotel: 'cocktail', 'serviced-apartment': 'cocktail' };
+const WHATS_ON_FRONT = new Set(['pub', 'bar']);
 
 // The listing-check answer stays on this device, like the rest of the partner preview.
 function readDrafts() {
@@ -30,6 +43,13 @@ function writeDrafts(map) {
         if (Object.keys(map).length) localStorage.setItem(PARTNER_DRAFT_KEY, JSON.stringify(map));
         else localStorage.removeItem(PARTNER_DRAFT_KEY);
     } catch { /* Private mode or blocked storage: the answer lasts while the panel is open. */ }
+}
+// Room types, the pool and the garden answer for stays, on this device too.
+function readStayDrafts() {
+    try { return restoreStayDrafts(localStorage.getItem(PARTNER_STAY_KEY)); } catch { return {}; }
+}
+function writeStayDrafts(map) {
+    try { localStorage.setItem(PARTNER_STAY_KEY, JSON.stringify(map)); } catch { /* Kept while the panel is open. */ }
 }
 const sideBySide = () => typeof window !== 'undefined' && window.matchMedia?.(SIDE_BY_SIDE).matches;
 
@@ -45,6 +65,11 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const venueId = venue.id;
     const venueName = venue.venueName || venue.name || 'Your venue';
     const type = partnerType(venue);
+    // Which first screen: a venue's service, a hotel's room types, or a short-stay home.
+    const profile = partnerProfile(venue);
+    const roomNameRef = useRef(null);
+    const poolRef = useRef(null);
+    const gardenRef = useRef(null);
     const reduceMotion = useReducedMotion();
     const panelRef = useRef(null);
     const contentRef = useRef(null);
@@ -88,11 +113,28 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const groups = partnerStatusGroups(venue, previewedTags);
     const sunHint = partnerSunHint(venue, previewedTags);
     const suggestions = partnerTagSuggestions(venue);
+    const [stayDrafts, setStayDrafts] = useState(readStayDrafts);
+    const [roomsEditorOpen, setRoomsEditorOpen] = useState(false);
+    const stayDraft = stayDrafts[venueId] ?? null;
+    const stayRange = stayDateRange(now, venue.timeZone ?? venue.timezone ?? DEFAULT_TIME_ZONE);
+    const stayDate = clampStayDate(stayDraft?.date, stayRange);
+    const rooms = useMemo(() => (profile.lead === 'rooms' ? roomTypesFor(venue, stayDraft, stayDate) : null), [profile.lead, venue, stayDraft, stayDate]);
+    const updateStay = patch => setStayDrafts(previous => {
+        const next = updateStayDraft(previous, venueId, patch);
+        writeStayDrafts(next);
+        return next;
+    });
+    const updateRoom = (index, patch) => updateStay({ rooms: rooms.map((room, at) => at === index ? { ...room, ...patch } : room) });
     // The guest card with this preview's answers on it.
-    const guestVenue = useMemo(() => venueWithHeating(venue, heating), [venue, heating]);
-    const removed = heating ? offeringChanges(venue, guestVenue).removed : [];
-    const tasks = partnerTodayTasks({ venue: guestVenue, tools, heatingConflict: conflict, heatingAnswered: Boolean(heating),
-        hoursKnown: Boolean(partnerServiceHours(venue)), guestChecked });
+    const guestVenue = useMemo(() => stayGuestVenue(venueWithHeating(venue, heating), { rooms, garden: stayDraft?.garden ?? null }),
+        [venue, heating, rooms, stayDraft?.garden]);
+    // What's off the card, unless an answer only renamed it ("Garden" to "Shared garden").
+    const changes = offeringChanges(venue, guestVenue);
+    const removed = changes.removed.filter(label => !changes.added.some(added => added.toLowerCase().includes(label.toLowerCase())));
+    const tasks = profile.lead === 'service'
+        ? partnerTodayTasks({ venue: guestVenue, tools, heatingConflict: conflict, heatingAnswered: Boolean(heating),
+            hoursKnown: Boolean(partnerServiceHours(venue)), guestChecked, eventsTask: WHATS_ON_FRONT.has(profile.key), today: partnerClock(now).today })
+        : partnerStayTasks({ profile, venue, date: stayDate, rooms: rooms ?? [], pool: stayDraft?.pool ?? null, garden: stayDraft?.garden ?? null, guestChecked });
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 60000);
@@ -141,17 +183,17 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
         setActiveTags(tags => resolveHeating({ ...venue, tags }, choice).tags.slice(0, 8));
     };
 
-    // Scroll the guest card to its Specials line, so the manager sees the change.
-    const revealSpecial = useCallback(() => {
+    // Scroll the guest card to what this first screen changes (its Specials line, or a stay's sun), so the manager sees it.
+    const revealSpecial = useCallback((selector = GUEST_FOCUS[profile.lead]) => {
         const frame = frameRef.current;
         const scroller = frame?.querySelector('[data-venue-card-scroller]');
-        const target = frame?.querySelector('[data-venue-section="specials"]');
+        const target = frame?.querySelector(selector);
         if (!scroller || !target || !frame.getClientRects().length) return;
         const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 96;
         scroller.scrollTo({ top: Math.max(0, top), behavior: 'instant' });
         target.classList.add('ss-partner-flash');
         setTimeout(() => target.classList.remove('ss-partner-flash'), 1600);
-    }, []);
+    }, [profile.lead]);
     // Phone: one tap to the guest view and back. The editor stays mounted while
     // hidden, so every unsaved field is kept, and its scroll position comes back.
     const guestHeading = () => frameRef.current?.closest('section')?.querySelector('h3');
@@ -186,7 +228,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
     const firstDeal = useRef(true);
     useEffect(() => {
         if (firstDeal.current) { firstDeal.current = false; return; }
-        if (deal && sideBySide()) revealSpecial();
+        if (deal && sideBySide()) revealSpecial(GUEST_FOCUS.service);
     }, [deal, revealSpecial]);
 
     const scrollEditorTo = element => {
@@ -204,6 +246,18 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
         if (target === 'special') {
             scrollEditorTo(specialRef.current?.closest('section'));
             specialRef.current?.focus({ preventScroll: true });
+            return;
+        }
+        if (target === 'rooms') {
+            flushSync(() => setRoomsEditorOpen(true));
+            scrollEditorTo(roomNameRef.current?.closest('fieldset'));
+            roomNameRef.current?.focus({ preventScroll: true });
+            return;
+        }
+        if (target === 'pool' || target === 'garden') {
+            const element = target === 'pool' ? poolRef.current : gardenRef.current?.querySelector('button');
+            scrollEditorTo(element?.closest('section, .ss-partner-garden'));
+            element?.focus({ preventScroll: true });
             return;
         }
         if (target === 'hours') setShowHoursEdit(true);
@@ -234,11 +288,25 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
             </header>
             <div className="ss-partner-body" data-view={view}>
             <div ref={contentRef} className="ss-partner-content">
-                <PartnerToday venue={venue} now={now} />
-                <PartnerSpecialEditor ref={specialRef} tools={tools} update={update} />
-                <PartnerTodoList tasks={tasks} onTask={openTask} />
+                {profile.lead === 'service' ? <>
+                    <PartnerToday venue={venue} now={now} whatsOn={WHATS_ON_FRONT.has(profile.key)
+                        ? { next: upcomingPartnerEvents(tools?.events, partnerClock(now))[0] ?? null, onAdd: () => openTask('events') } : null} />
+                    <PartnerSpecialEditor ref={specialRef} tools={tools} update={update} placeholder={SPECIAL_PLACEHOLDER[profile.key]} icon={SPECIAL_ICON[profile.key]} />
+                    <PartnerTodoList tasks={tasks} onTask={openTask} />
+                </> : profile.lead === 'rooms' ? <>
+                    <PartnerRoomSun ref={roomNameRef} venue={venue} date={stayDate} range={stayRange} rooms={rooms} editorOpen={roomsEditorOpen}
+                        onEditor={setRoomsEditorOpen} onDate={date => updateStay({ date })} onRoom={updateRoom} />
+                    <PartnerPool venue={venue} date={stayDate} answer={stayDraft?.pool ?? null} onAnswer={pool => updateStay({ pool })} firstRef={poolRef} />
+                    <PartnerTodoList tasks={tasks} onTask={openTask} heading="Before you host" />
+                    {profile.specials ? <PartnerSpecialEditor ref={specialRef} tools={tools} update={update} icon={SPECIAL_ICON[profile.key]}
+                        note={`Your listing mentions a ${profile.offer}, so specials and events stay here.`} /> : null}
+                </> : <>
+                    <PartnerHome venue={venue} date={stayDate} range={stayRange} garden={stayDraft?.garden ?? null}
+                        onDate={date => updateStay({ date })} onGarden={garden => updateStay({ garden })} gardenRef={gardenRef} />
+                    <PartnerTodoList tasks={tasks} onTask={openTask} heading="Before you host" />
+                </>}
                 {conflict ? <PartnerListingCheck conflict={conflict} heating={heating} onHeatingChange={chooseHeating} /> : null}
-                <PartnerSunToday venue={venue} now={now} />
+                {profile.lead === 'home' ? null : <PartnerSunToday venue={venue} now={now} />}
                 {(groups.length > 0 || sunHint) && <section className="ss-partner-card" aria-labelledby="partner-status-heading">
                     <h3 id="partner-status-heading">Live status preview</h3>
                     <p className="ss-partner-help">Try a status to preview your map pin on this device. Guests won’t see these changes.</p>
@@ -249,7 +317,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                         {group.controls.map(({ key: controlKey, ...control }) => <StatusTile key={controlKey} {...control} value={status[controlKey]} onChange={value => toggleStatus(controlKey, value)} />)}
                     </fieldset>)}
                 </section>}
-                <section className="ss-partner-card" aria-labelledby="partner-hours-heading">
+                {profile.lead === 'service' ? <section className="ss-partner-card" aria-labelledby="partner-hours-heading">
                     <div className="ss-partner-section-heading"><ClayIcon name="clock" size={40} /><h3 id="partner-hours-heading">Service hours</h3></div>
                     <p className="ss-partner-help">{hasHours ? 'Use your actual opening hours to preview your next service and its weather.' : 'Set your opening hours here to preview your next service and its weather.'}</p>
                     <button type="button" className="ss-partner-button ss-partner-button--soft" aria-expanded={showHoursEdit} onClick={() => setShowHoursEdit(value => !value)}>{showHoursEdit ? 'Hide service hours' : 'Edit service hours'}</button>
@@ -265,8 +333,9 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                         <button type="button" className="ss-partner-button" onClick={() => { onVenueUpdate?.({ ...venue, hours }); setHoursStatus(PREVIEW_NOTE); }}>Preview service hours</button>
                     </div>}
                     <p role="status" className="ss-partner-save-status">{hoursStatus}</p>
-                </section>
-                <PartnerToolsEditor venueId={venueId} />
+                </section> : null}
+                {/* Events where the property offers them; outdoor furniture and heaters are a venue's, not a stay's. */}
+                <PartnerToolsEditor venueId={venueId} showEvents={profile.events} showOutdoor={profile.lead === 'service'} />
                 <section className="ss-partner-card" aria-labelledby="partner-tags-heading">
                     <div className="ss-partner-section-heading"><ClayIcon name="sparkles" size={40} /><div><h3 id="partner-tags-heading">Your venue’s tags</h3><p>{activeTags.length}/8 tags · preview only</p></div></div>
                     <div className="ss-partner-tags">{activeTags.map(tag => <button type="button" key={tag} aria-label={`Remove ${tag}`} onClick={() => setActiveTags(tags => tags.filter(value => value !== tag))}>
@@ -283,7 +352,8 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
                 </section>
             </div>
             <div className="ss-partner-guest-column">
-                <PartnerGuestView ref={frameRef} venue={guestVenue} liveVenueFeatures={liveVenueFeatures} removed={removed} onBack={() => showView('edit')} />
+                <PartnerGuestView ref={frameRef} venue={guestVenue} liveVenueFeatures={liveVenueFeatures} removed={removed} onBack={() => showView('edit')}
+                    stayDate={profile.lead !== 'service' && stayDate !== stayRange.today ? stayDate : null} />
             </div>
             </div>
             <div className="ss-partner-viewbar" role="group" aria-label="Partner preview view">

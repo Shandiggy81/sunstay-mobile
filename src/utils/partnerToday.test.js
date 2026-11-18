@@ -6,7 +6,7 @@ import { getBadgeState } from './dataBadgeState.js';
 import { readMicroclimate } from './microclimate.js';
 import { freshMicroclimateEntry } from './microclimateProvenance.js';
 import {
-    clockLabel, nextService, parseListedHours, partnerDataStatus, partnerServiceHours, partnerTodayTasks,
+    clockLabel, nextService, parseListedHours, parseListedService, partnerDataStatus, partnerServiceHours, partnerTodayTasks,
     partnerTodayView, serviceWeather, venueDateLabel,
 } from './partnerToday.js';
 
@@ -109,7 +109,7 @@ test('listing hours are read only when every part is plain', () => {
 
 test('the partner’s own hours win over the listing, and an unchecked listing says so', () => {
     const own = { mon: { open: '11:00', close: '15:00', closed: false } };
-    assert.deepEqual(partnerServiceHours({ ...tulk, hours: own }), { hours: own, source: 'set' });
+    assert.deepEqual(partnerServiceHours({ ...tulk, hours: own }), { hours: own, source: 'set', area: null });
     assert.equal(partnerServiceHours({ opening_hours: 'Daily 12pm–1am.' }).source, 'listing-unconfirmed');
     // An all-blank editor map doesn't count as hours.
     assert.equal(partnerServiceHours({ hours: { mon: { open: '', close: '', closed: false } } }), null);
@@ -189,4 +189,30 @@ test('a reading over an hour old is stale without an expiry time; no data claims
     assert.equal(partnerDataStatus({ reading: { id: 'dv-20', sun_now: 0.9 }, now }).reading.text,
         'Venue reading has no update time · left off your guest card until it refreshes');
     assert.deepEqual(partnerDataStatus({ now }), { forecast: null, reading: null });
+});
+
+test('one area named before the days is read off; two areas are not one service', () => {
+    const corner = byId('dv-18'); // "Rooftop bar Tue–Sun 12pm–late; closed Mon."
+    const listed = parseListedService(corner.opening_hours);
+    assert.equal(listed.area, 'Rooftop bar');
+    assert.deepEqual(listed.hours.mon, { open: '', close: '', closed: true });
+    assert.deepEqual(listed.hours.tue, { open: '12:00', close: '24:00', closed: false, late: true });
+    const view = partnerTodayView({ venue: corner, forecast: null, now: melbourne(19, 12, 15) });
+    assert.deepEqual([view.service.label, view.service.span, view.service.area], ['Opens 12pm tomorrow', '12pm–late', 'Rooftop bar']);
+    assert.equal(parseListedService('Mon–Fri 8am–5pm.').area, null);
+    for (const text of ['Bar Mon–Fri 4pm–11pm; kitchen Sat 12pm–9pm', 'Hotel always open; Stretch on Six (Level 6) 6am–9pm daily.',
+        'The big upstairs room Fri 5pm–late']) {
+        assert.equal(parseListedService(text), null, text);
+    }
+});
+
+test('pubs and bars get an event task; it is done once something is on', () => {
+    const corner = byId('dv-18');
+    const none = partnerTodayTasks({ venue: corner, eventsTask: true, today: '2026-10-19' });
+    assert.deepEqual(none.find(task => task.key === 'events'), { key: 'events', icon: 'live-music', target: 'events', done: false,
+        title: 'Add what’s on tonight', detail: 'Shows on your guest card under On here' });
+    const tools = { events: [{ id: 'e1', title: 'Local bands', kind: 'live-music', date: '2026-10-19', start: '20:00' }] };
+    const added = partnerTodayTasks({ venue: corner, tools, eventsTask: true, today: '2026-10-19' }).find(task => task.key === 'events');
+    assert.deepEqual([added.done, added.title, added.detail], [true, 'Event added', '“Local bands” · Tonight 8pm']);
+    assert.equal(partnerTodayTasks({ venue: tulk }).some(task => task.key === 'events'), false);
 });

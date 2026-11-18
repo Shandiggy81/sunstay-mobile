@@ -34,7 +34,7 @@ function useVenueForecast(venue) {
 }
 
 /** Today: the date and the next service with its weather (Jobber's next-visit card). */
-export function PartnerToday({ venue, now }) {
+export function PartnerToday({ venue, now, whatsOn = null }) {
     const forecast = useVenueForecast(venue);
     const { byId } = useMicroclimateState();
     const view = partnerTodayView({ venue, forecast: forecast?.data ?? null, now });
@@ -64,20 +64,28 @@ export function PartnerToday({ venue, now }) {
             {view.tip ? <p className="ss-partner-service-tip"><ClayIcon name={view.tip.icon} size={28} /><span><strong>{view.tip.timeLabel}</strong> {view.tip.text}</span></p> : null}
             {service ? <div className="ss-partner-service-source">
                 {!view.forecastMissing ? <DataBadge kind="forecast" updatedAt={forecast?.fetchedAt} source="Open-Meteo" /> : null}
-                <span>{SOURCE_LINE[service.source]}</span>
+                <span>{service.area && service.source !== 'set'
+                    ? `${service.area} hours from your listing${service.source === 'listing-unconfirmed' ? ', not yet confirmed' : ''}`
+                    : SOURCE_LINE[service.source]}</span>
             </div> : null}
             {status.reading ? <p className="ss-partner-service-reading" data-status={status.reading.status}>
                 {status.reading.status === 'fresh' ? <DataBadge kind="calculated" updatedAt={status.reading.updatedAt} source="SunStay venue reading" /> : null}
                 <span>{status.reading.text}</span>
             </p> : null}
+            {/* Pubs and bars: what's on sits with the next service, one tap from adding it. */}
+            {whatsOn ? <div className="ss-partner-service-on">
+                <ClayIcon name="live-music" size={28} />
+                <p><strong>What’s on</strong> {whatsOn.next ? `${whatsOn.next.title} · ${whatsOn.next.when}` : 'Nothing added yet'}</p>
+                <button type="button" className="ss-partner-button ss-partner-button--soft" onClick={whatsOn.onAdd}>{whatsOn.next ? 'Add another' : 'Add an event'}</button>
+            </div> : null}
         </article>
     </section>;
 }
 
 /** What to do before service (Jobber's To do list). Every row opens the part of the preview that does the job. */
-export function PartnerTodoList({ tasks, onTask }) {
+export function PartnerTodoList({ tasks, onTask, heading = 'Before service' }) {
     return <section className="ss-partner-todo-section" aria-labelledby="partner-todo-heading">
-        <h3 className="ss-partner-todo-heading" id="partner-todo-heading">Before service</h3>
+        <h3 className="ss-partner-todo-heading" id="partner-todo-heading">{heading}</h3>
         <ul className="ss-partner-todo">{tasks.map(task => <li key={task.key}>
             <button type="button" onClick={() => onTask(task.target)} data-done={task.done || undefined}>
                 <ClayIcon name={task.icon} size={32} />
@@ -93,7 +101,7 @@ export function PartnerTodoList({ tasks, onTask }) {
  * same partner tools the guest card's Specials line already reads. Days and
  * times turn it into a happy hour.
  */
-export const PartnerSpecialEditor = forwardRef(function PartnerSpecialEditor({ tools, update }, inputRef) {
+export const PartnerSpecialEditor = forwardRef(function PartnerSpecialEditor({ tools, update, placeholder = 'e.g. Mulled wine $12 from 5pm', note = null, icon = 'pint' }, inputRef) {
     const [form, setForm] = useState(() => ({ ...EMPTY_SPECIAL, ...tools?.happyHour,
         days: tools?.happyHour?.days ?? [], start: tools?.happyHour?.start ?? '', end: tools?.happyHour?.end ?? '', deal: tools?.happyHour?.deal ?? '' }));
     const [showTimes, setShowTimes] = useState(() => Boolean(tools?.happyHour?.start));
@@ -121,12 +129,13 @@ export const PartnerSpecialEditor = forwardRef(function PartnerSpecialEditor({ t
 
     return <section className="ss-partner-card ss-partner-tools-card ss-partner-special" aria-labelledby="partner-special-heading">
         <div className="ss-partner-check-head">
-            <div className="ss-partner-section-heading"><ClayIcon name="pint" size={40} /><h3 id="partner-special-heading">Special</h3></div>
+            <div className="ss-partner-section-heading"><ClayIcon name={icon} size={40} /><h3 id="partner-special-heading">Special</h3></div>
             <span className="ss-partner-preview-pill">Preview only</span>
         </div>
+        {note ? <p className="ss-partner-help ss-partner-special-note">{note}</p> : null}
         <label className="ss-partner-special-label" htmlFor="partner-special-deal">What’s on special?</label>
         <input ref={inputRef} id="partner-special-deal" type="text" maxLength={80} autoComplete="off" value={form.deal}
-            placeholder="e.g. Mulled wine $12 from 5pm" aria-describedby="partner-special-help"
+            placeholder={placeholder} aria-describedby="partner-special-help"
             onChange={event => edit({ deal: event.target.value })} onBlur={flush} />
         <p id="partner-special-help" className="ss-partner-help">{form.deal.trim().length}/80 · shows on your guest card under Specials · saved on this device as you type</p>
         <button type="button" className="ss-partner-button ss-partner-button--soft ss-partner-special-toggle" aria-expanded={showTimes}

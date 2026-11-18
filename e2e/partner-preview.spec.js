@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { FAKE_SUPABASE_URL } from './fixtures/supabase.js';
+import { SHORT_STAY_FIXTURE } from './fixtures/shortStay.js';
+import { demoVenues } from '../src/data/demoVenues.js';
 import { weather as sunny } from './fixtures/weather.js';
 
 // Monday 19 October 2026, Melbourne daylight time (UTC+11).
@@ -18,7 +20,7 @@ rainy.hourly.time.forEach((time, i) => {
   rainy.hourly.precipitation[i] = wet ? 1.4 : 0;
 });
 
-async function openPartnerPreview(page, baseURL, { venue, name, now, forecast, rows = null }) {
+async function openPartnerPreview(page, baseURL, { venue, name, now, forecast, rows = null, venues = null }) {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.clock.setFixedTime(now);
@@ -29,6 +31,8 @@ async function openPartnerPreview(page, baseURL, { venue, name, now, forecast, r
     if (forecast && url.origin === 'https://api.open-meteo.com' && url.pathname === '/v1/forecast') return route.fulfill({ json: forecast });
     // Venue readings (venues_in_bbox rows) only when a test supplies them.
     if (rows && url.origin === FAKE_SUPABASE_URL && url.pathname.endsWith('/rpc/venues_in_bbox')) return route.fulfill({ json: rows });
+    // Venue rows only when a test supplies them (the demo list plus a short-stay home).
+    if (venues && url.origin === FAKE_SUPABASE_URL && url.pathname.endsWith('/rest/v1/venues')) return route.fulfill({ json: venues });
     // Venues stay on the demo list; nothing else leaves the browser (no forecast when `forecast` is null).
     return route.abort('blockedbyclient');
   });
@@ -37,7 +41,8 @@ async function openPartnerPreview(page, baseURL, { venue, name, now, forecast, r
   await expect(card).toBeVisible();
   await card.getByRole('button', { name: new RegExp(`^Run ${name}\\?`) }).click();
   const panel = page.getByRole('dialog', { name });
-  await expect(panel.getByRole('heading', { name: 'Today', exact: true })).toBeVisible();
+  // Each partner type opens on its own heading: Today for a venue, Room sun for a hotel, Your home for a short stay.
+  await expect(panel.getByRole('heading', { name: /^(Today|Room sun|Your home)$/ })).toBeVisible();
   return { errors, card, panel };
 }
 
@@ -242,6 +247,127 @@ test.describe('wide window', () => {
     await expect(specials).toContainText(SPECIAL);
     await expect(specials).toBeInViewport();
     await expectOwnIds(page, 'Mr Tulk');
+    expect(errors).toEqual([]);
+  });
+});
+
+// One first screen per partner type, from the existing classification, each with one owner task done.
+test.describe('partner types', () => {
+  const open = async (page, baseURL, venue, name) => {
+    const opened = await openPartnerPreview(page, baseURL, { venue, name, now: melbourne(12, 15), forecast: sunny, venues: [...demoVenues, SHORT_STAY_FIXTURE] });
+    return { ...opened, panel: page.getByRole('dialog', { name, exact: true }) };
+  };
+
+  test('hotel: two room types compared on a date, the shared pool kept apart', async ({ page, baseURL }) => {
+    const { errors, panel } = await open(page, baseURL, 'dv-17', 'Lancemore Crossley St');
+    await expect(panel.getByRole('heading', { name: 'Room sun', exact: true })).toBeVisible();
+    await expect(panel.getByRole('article', { name: /^Next service|^Open now|^Opens|^Hours not set/ })).toHaveCount(0);
+    // It starts from the sunniest and shadiest sides on today's date, unnamed, and says what isn't known.
+    const compare = panel.getByRole('article', { name: 'Room type A gets 4h 49m more sun on Mon 19 Oct' });
+    await expect(compare).toContainText('North side · Level 5');
+    await expect(compare).toContainText('Room name not set · A and B');
+    await expect(compare).toContainText('Sun modelled at Level 5 only · A and B');
+    await expect(panel.getByRole('region', { name: 'Shared pool' })).toContainText('Not recorded. Guests aren’t told about a pool.');
+    // A lobby bar in the listing keeps specials and events; outdoor furniture and service hours are a venue's.
+    await expect(panel.getByText('Your listing mentions a lobby bar, so specials and events stay here.')).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'Tonight & events' })).toHaveCount(1);
+    await expect(panel.getByRole('heading', { name: 'Outdoor setup' })).toHaveCount(0);
+    await expect(panel.getByRole('heading', { name: 'Service hours' })).toHaveCount(0);
+
+    await panel.getByLabel('Date to check').fill('2026-11-21');
+    await panel.getByRole('button', { name: /^Name the two room types/ }).click();
+    await expect(panel.getByLabel('Room name').first()).toBeFocused();
+    const rooms = panel.locator('.ss-partner-room-fields');
+    // Typed key by key, as a manager would: the space between words must survive each save.
+    await rooms.nth(0).getByLabel('Room name').pressSequentially('King room');
+    await expect(rooms.nth(0).getByLabel('Room name')).toHaveValue('King room');
+    await rooms.nth(0).getByLabel('Side of the building').selectOption('dv-17-facade-0');
+    await rooms.nth(0).getByRole('button', { name: 'Balcony', exact: true }).click();
+    await rooms.nth(1).getByLabel('Room name').fill('Twin room');
+    await rooms.nth(1).getByLabel('Side of the building').selectOption('dv-17-facade-2');
+    await rooms.nth(1).getByRole('button', { name: 'Window only' }).click();
+    await expectTouchTargets(panel.locator('.ss-partner-room-fields button, .ss-partner-room-fields input, .ss-partner-room-fields select, .ss-partner-stay-date input'));
+    const done = panel.getByRole('article', { name: 'King room gets 1h 41m more sun on Sat 21 Nov' });
+    await expect(done).toContainText('3h 43m');
+    await expect(done).toContainText('Balcony roof not modelled · A');
+    await expect(panel.getByRole('button', { name: /^Room types compared/ })).toHaveAttribute('data-done', 'true');
+    await panel.getByRole('region', { name: 'Shared pool' }).getByRole('button', { name: 'Rooftop pool' }).click();
+    await expect(panel.getByRole('region', { name: 'Shared pool' })).toContainText('Up to 14h 10m of sun on Sat 21 Nov under open sky');
+    await expect(panel.getByRole('region', { name: 'Shared pool' })).toContainText('Nearby towers not modelled');
+
+    // The guest card now shows the two room types for that date, still marked modelled.
+    await panel.getByRole('group', { name: 'Partner preview view' }).getByRole('button', { name: 'Guest view' }).tap();
+    const guest = panel.getByRole('region', { name: 'Lancemore Crossley St guest card preview' });
+    const stay = guest.getByRole('region', { name: 'Balcony and window sun' });
+    await expect(stay).toContainText('Modelled · Hotel-confirmed (next) · On-site checked (not yet)');
+    await expect(stay).toContainText('King room');
+    await expect(stay).toContainText('Twin room');
+    await expect(stay).toContainText('Sat 21 Nov');
+    await expectOwnIds(page, 'Lancemore Crossley St');
+
+    // Closing and reopening keeps the answers on this device.
+    await panel.getByRole('button', { name: 'Close partner preview' }).click();
+    await page.getByRole('article', { name: 'Lancemore Crossley St', exact: true }).getByRole('button', { name: /^Run Lancemore Crossley St\?/ }).click();
+    await expect(panel.getByRole('article', { name: 'King room gets 1h 41m more sun on Sat 21 Nov' })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('short stay: one home, its private balcony’s sun, and a garden the host places', async ({ page, baseURL }) => {
+    const { errors, panel } = await open(page, baseURL, SHORT_STAY_FIXTURE.id, SHORT_STAY_FIXTURE.venueName);
+    await expect(panel.getByRole('heading', { name: 'Your home', exact: true })).toBeVisible();
+    const balcony = panel.getByRole('article', { name: 'Private balcony · 6h 28m of sun' });
+    await expect(balcony).toContainText('North-west side · Level 1');
+    await expect(panel.locator('.ss-partner-stay .ss-partner-unknowns')).toContainText('Whether the garden is private or shared');
+    // A home doesn't have specials, events, service hours or outdoor furniture to manage.
+    for (const heading of ['Special', 'Tonight & events', 'Service hours', 'Outdoor setup']) {
+      await expect(panel.getByRole('heading', { name: heading, exact: true })).toHaveCount(0);
+    }
+    await panel.getByRole('button', { name: /^Who can use the garden\?/ }).click();
+    await expect(panel.getByRole('button', { name: 'Only these guests' })).toBeFocused();
+    await panel.getByRole('button', { name: 'Shared with other residents' }).click();
+    await expect(panel.getByRole('article', { name: 'Other outdoor areas' })).toContainText('Shared garden');
+    await expect(panel.getByRole('button', { name: /^Garden answered/ })).toHaveAttribute('data-done', 'true');
+    await expectTouchTargets(panel.locator('.ss-partner-garden button, .ss-partner-stay-date input'));
+
+    await panel.getByRole('group', { name: 'Partner preview view' }).getByRole('button', { name: 'Guest view' }).tap();
+    const guest = panel.getByRole('region', { name: `${SHORT_STAY_FIXTURE.venueName} guest card preview` });
+    await expect(guest.getByText('Shared garden', { exact: true })).toHaveCount(1);
+    await expect(guest.getByText('Garden', { exact: true })).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
+  test('pub: the listing’s bar hours are read, and what’s on is one tap from the first screen', async ({ page, baseURL }) => {
+    const { errors, panel } = await open(page, baseURL, 'dv-18', 'The Corner Hotel');
+    const service = panel.getByRole('article', { name: 'Opens 12pm tomorrow' });
+    await expect(service).toContainText('12pm–late');
+    await expect(service).toContainText('Rooftop bar hours from your listing');
+    await expect(service).toContainText('What’s on Nothing added yet');
+    await service.getByRole('button', { name: 'Add an event' }).click();
+    await expect(panel.getByLabel('Event title')).toBeFocused();
+    await panel.getByLabel('Event title').fill('Local bands');
+    await panel.getByLabel('Event kind').selectOption('live-music');
+    await panel.getByLabel('Event date').fill('2026-10-20');
+    await panel.getByLabel('Event starts').fill('20:00');
+    await panel.getByRole('button', { name: 'Add event' }).click();
+    await expect(service).toContainText('What’s on Local bands · Tomorrow 8pm');
+    await expect(panel.getByRole('button', { name: /^Event added/ })).toContainText('“Local bands” · Tomorrow 8pm');
+    await panel.getByRole('group', { name: 'Partner preview view' }).getByRole('button', { name: 'Guest view' }).tap();
+    await expect(panel.getByRole('region', { name: 'The Corner Hotel guest card preview' }).locator('.ss-venue-fact').filter({ hasText: 'Local bands' }))
+      .toContainText('Tomorrow 8pm · Live music');
+    expect(errors).toEqual([]);
+  });
+
+  test('café: the morning service and a café special; no what’s-on row', async ({ page, baseURL }) => {
+    const { errors, panel } = await open(page, baseURL, 'dv-14', 'Industry Beans Fitzroy');
+    await expect(panel.getByRole('article', { name: 'Open now · until 3:30pm' })).toContainText('7am–3:30pm');
+    await expect(panel.locator('.ss-partner-service-on')).toHaveCount(0);
+    const special = panel.getByLabel('What’s on special?');
+    await expect(special).toHaveAttribute('placeholder', 'e.g. Coffee + pastry $9 before 10am');
+    await special.fill('Flat white and a pastry $9 before 10am');
+    await expect(panel.getByText('Saved on this device · Preview only')).toBeVisible();
+    await panel.getByRole('group', { name: 'Partner preview view' }).getByRole('button', { name: 'Guest view' }).tap();
+    await expect(panel.getByRole('region', { name: 'Industry Beans Fitzroy guest card preview' }).getByRole('region', { name: 'Specials', exact: true }))
+      .toContainText('Flat white and a pastry $9 before 10am');
     expect(errors).toEqual([]);
   });
 });

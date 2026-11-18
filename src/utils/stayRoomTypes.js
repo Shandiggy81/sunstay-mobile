@@ -110,7 +110,9 @@ export function stayRoomTypesDisplay(venue, { now = new Date() } = {}) {
   const roomTypes = Array.isArray(venue?.roomTypes) ? venue.roomTypes : [];
   const mode = stayRoomTypeMode(roomTypes);
   const facadeMode = mode === STAY_SUN_MODES.FACADE_SIDES;
-  const confirmer = String(venue?.typeCategory ?? '').toLowerCase() === 'residential' ? 'owner' : 'hotel';
+  // Who would confirm it: a home's owner, a short stay's host, otherwise the hotel.
+  const category = String(venue?.typeCategory ?? '').toLowerCase();
+  const confirmer = category === 'residential' ? 'owner' : category === 'short stay' || category === 'shortstay' ? 'host' : 'hotel';
   const entries = roomTypes.map((entry, index) => {
     const evidence = roomTypeEvidence(entry, { now });
     const level = hasLevel(entry?.floorLevel) ? `Level ${String(entry.floorLevel).trim()}` : null;
