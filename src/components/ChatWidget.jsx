@@ -22,6 +22,7 @@ import { melbourneHourNow } from '../utils/microclimate';
 import { venueDisplayScore } from '../utils/venueDisplayScore';
 import { venueIcon } from '../utils/clayIcons';
 import { sunnyFocusVenues } from '../utils/venueAmenities';
+import { sunnyWarmthAnswer } from '../utils/sunnyWarmth';
 import { venuesNamedInText, withNamedVenues } from '../utils/venueNameMatch.js';
 import { listSunStatus, venueSunForecast } from '../utils/venueSun';
 import {
@@ -439,6 +440,15 @@ const ChatWidget = ({
     setInputValue('');
     addUserMsg(text);
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+
+    // Fireplace and outdoor-heater asks are answered from the venue rows, so
+    // Sunny only names venues whose records show every feature asked for.
+    const warm = sunnyWarmthAnswer(text, venues);
+    if (warm) {
+      await addBotMsg(warm.reply);
+      if (warm.venues.length) await addVenueCards(warm.venues, { dog: warm.dog });
+      return;
+    }
 
     const history = [...messages, { type: 'user', text }];
     const handled = await askSunny(history);
