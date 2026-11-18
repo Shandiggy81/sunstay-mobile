@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { compassArcPath, compassPointAt, sunCompassView } from '../utils/sunCompass.js';
+import { compassArcPath, compassPointAt, sideWind, sunCompassView } from '../utils/sunCompass.js';
+import { compassPoint } from '../utils/comfortDisplay.js';
 import { stayRoomDisplay } from '../utils/stayRoomTypes.js';
 import './SunCompass.css';
 
@@ -11,7 +12,7 @@ const ARC_RADIUS = 42, SUN_RADIUS = 58;
  * sun reaches it now, with the sun marked on its bearing. The list beside it
  * carries the same facts in words; the drawing is decorative.
  */
-export default function SunCompass({ rooms, venue, date = null, now }) {
+export default function SunCompass({ rooms, venue, date = null, now, wind = null }) {
     const view = useMemo(() => sunCompassView({
         rooms, venue, date, now,
         titleFor: (room) => {
@@ -22,6 +23,11 @@ export default function SunCompass({ rooms, venue, date = null, now }) {
     const sunAt = view.sun ? compassPointAt(view.sun.bearing, SUN_RADIUS) : null;
     const rayFrom = view.sun ? compassPointAt(view.sun.bearing, 20) : null;
     const rayTo = view.sun ? compassPointAt(view.sun.bearing, SUN_RADIUS - 10) : null;
+    // Wind is today's, so it is only drawn when the compass shows now.
+    const windFrom = view.live && Number.isFinite(wind?.from) ? wind.from : null;
+    const windTail = windFrom === null ? null : compassPointAt(windFrom, 36);
+    const windTip = windFrom === null ? null : compassPointAt(windFrom, 19);
+    const windName = windFrom === null ? null : compassPoint(windFrom);
 
     return (
         <div className="ss-compass" data-sun-compass>
@@ -35,6 +41,12 @@ export default function SunCompass({ rooms, venue, date = null, now }) {
                 {view.sides.map(side => (
                     <path key={side.id} d={compassArcPath(side.bearing, view.spread, ARC_RADIUS)} className="ss-compass__side" data-state={side.state} />
                 ))}
+                {windTip ? (
+                    <g className="ss-compass__wind">
+                        <line x1={windTail.x} y1={windTail.y} x2={windTip.x} y2={windTip.y} />
+                        <circle cx={windTip.x} cy={windTip.y} r="3" />
+                    </g>
+                ) : null}
                 {sunAt ? (
                     <>
                         <line x1={rayFrom.x} y1={rayFrom.y} x2={rayTo.x} y2={rayTo.y} className="ss-compass__ray" />
@@ -54,11 +66,15 @@ export default function SunCompass({ rooms, venue, date = null, now }) {
                             <span>
                                 <strong>{side.title}</strong>
                                 <span>{side.status}{side.totalMinutes > 0 ? ` · ${side.total}${view.live ? ' today' : ''}` : ''}</span>
+                                {windFrom !== null && sideWind(side.bearing, windFrom) ? <span className="ss-compass__side-wind" data-side-wind={sideWind(side.bearing, windFrom).key}>{sideWind(side.bearing, windFrom).text}</span> : null}
                             </span>
                         </li>
                     ))}
                 </ul>
-                <p className="ss-compass__note">Clear-sky estimate from the sun’s path and nearby buildings.</p>
+                <p className="ss-compass__note">
+                    Clear-sky estimate from the sun’s path and nearby buildings.
+                    {windFrom !== null ? ` Wind${windName ? ` from ${windName}` : ''}${Number.isFinite(wind?.kmh) ? `, ${Math.round(wind.kmh)} km/h in the open` : ''}: by side it is an estimate from the way each side faces.` : ''}
+                </p>
             </div>
         </div>
     );

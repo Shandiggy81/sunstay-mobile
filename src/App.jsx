@@ -17,6 +17,9 @@ import { FOOD_TYPE_FILTERS, isFoodTypeFilter, matchesFoodTypeFilters } from './u
 import { venueTypeLabel } from './utils/venueTypeLabel';
 import { filterChoiceKey } from './utils/filterRefit';
 import { DEFAULT_TIME_ZONE, venueLocalDate } from './utils/balconySunEngine';
+import { miniStrip, outsideToday, shadeByHour, venueDayWind } from './utils/outsideToday.js';
+import { localTimeToSliderMinutes } from './utils/todMinutes.js';
+import OutsideMiniStrip from './components/OutsideMiniStrip.jsx';
 import { activeSunMoments, createSunMomentsJob, isSunMomentFilter, sameSunMomentInputs, SUN_MOMENT_FILTERS, sunMomentEmptyState, sunMomentsByVenue, venueMatchesSunMoments } from './utils/sunMomentFilters';
 import { runWhenIdle } from './utils/idleJob';
 import { useSunHorizons } from './hooks/useSunHorizons';
@@ -234,7 +237,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     const micro = useVenueMicroclimate(venue.id);
     // The raw row behind it: its measured wind shelter feeds the wind chip and
     // feels-like, the same way the venue card does.
-    const { byId: microById } = useMicroclimateState();
+    const { byId: microById, todMinutes } = useMicroclimateState();
     const microEntry = useMemo(() => lookupMicroclimateEntry(microById, venue.id), [microById, venue.id]);
     const liveWeather = weatherUnavailableFlag || weatherError || weather?.unavailable || weather?.source === 'demo'
         ? null
@@ -263,6 +266,23 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
         timeZone: venue.timeZone ?? venue.timezone ?? undefined,
     });
     const cafeSun = Boolean(cafeHorizon) && rowSun !== ROW_SUN_FAILED;
+    // The venue card's "Today outside" strip in miniature: the day's sun over
+    // its wind, from the same model (utils/outsideToday.js). Cafés with a
+    // horizon keep their own sun graph, and stays have sides, not one answer.
+    const rowTimeZone = venue.timeZone ?? venue.timezone ?? DEFAULT_TIME_ZONE;
+    const rowWind = useMemo(() => {
+        if (cafeHorizon || isStayVenue(venue) || !liveWeather) return null;
+        let dayKey = null;
+        try { dayKey = venueLocalDate(new Date(), rowTimeZone); } catch { return null; }
+        return venueDayWind({ weather: liveWeather, venue, microclimate: microEntry, dayKey, timeZone: rowTimeZone });
+    }, [cafeHorizon, venue, liveWeather, microEntry, rowTimeZone]);
+    const outsideStrip = useMemo(() => (rowWind ? miniStrip(outsideToday({
+        forecast: sunForecast,
+        shade: shadeByHour({ curve: microEntry?.sun_hour_fraction ?? null, timeZone: rowTimeZone }),
+        windRows: rowWind.rows,
+        selectedMinutes: todMinutes,
+        nowSliderMinutes: localTimeToSliderMinutes(new Date()),
+    })) : null), [rowWind, sunForecast, microEntry, rowTimeZone, todMinutes]);
     const cafeSunLine = cafeSun ? rowSunLine(rowSun) : null;
     const visibleChips = momentMatch || cafeSun ? chips.filter(chip => chip.key !== 'sun') : chips;
     const sunLine = listRowSunLine({
@@ -349,6 +369,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                     ))}
                 </div>
             </div>
+            {!cafeSun && !(stayMoment && isStay) ? <OutsideMiniStrip strip={outsideStrip} /> : null}
             {cafeSun && (
                 <div className="ss-vlc-sun" data-row-sun={rowSun ? 'ready' : 'pending'} aria-hidden="true">
                     {rowSun ? <CafeRowSunGraph sun={rowSun.sun} /> : <span className="ss-vlc-sun-graph ss-vlc-sun-graph--pending" />}

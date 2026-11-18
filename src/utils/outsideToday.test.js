@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { outsideToday, rowsForLocalDay, shadeByHour, verdictWindLevel } from './outsideToday.js';
+import { miniStrip, outsideToday, rowsForLocalDay, shadeByHour, venueDayWind, verdictWindLevel } from './outsideToday.js';
 import { deriveSunForecast } from './sunForecastState.js';
 import { windWord } from './venueConditionChips.js';
 import { generateHourlyForecast, measuredWindOptions } from '../data/windIntelligence.js';
@@ -289,5 +289,57 @@ describe('outsideToday', () => {
         assert.equal(outsideToday({ forecast, windRows: rows, selectedMinutes: 11 * 60 + 5 }).isNow, true);
         assert.equal(outsideToday({ forecast, windRows: rows, selectedMinutes: NaN }).isNow, true);
         assert.equal(JSON.stringify([forecast, rows]), before);
+    });
+});
+
+describe('venueDayWind', () => {
+    const weatherFor = hourly => ({ main: { temp: 20, humidity: 50 }, wind: { speed: 20 / 3.6, deg: 350 }, windGusts: 30, hourly, utcOffsetSeconds: OFFSET });
+
+    it('gives the venue one wind row for each hour of its local day', () => {
+        const day = venueDayWind({ weather: weatherFor(hourlyBlock()), venue: VENUE, dayKey: DAY, timeZone: TZ });
+        assert.deepEqual(day.rows.map(row => row.hour), Array.from({ length: 24 }, (_, hour) => hour));
+        assert.equal(day.openAirKmh, 20);
+        assert.equal(day.direction, 350);
+        assert.equal(day.factor.source, 'type');
+        // The same rows the card tests build by hand.
+        assert.deepEqual(day.rows.map(row => row.wind), rowsFor(hourlyBlock()).map(row => row.wind));
+    });
+
+    it('uses a fresh measured shelter and keeps only today when the forecast starts late', () => {
+        const entry = { wind_shelter_score: 0.1, weather_computed_at: new Date(Date.now() - 600000).toISOString() };
+        const day = venueDayWind({ weather: weatherFor(hourlyBlock({ from: 14 })), venue: VENUE, microclimate: entry, dayKey: DAY, timeZone: TZ });
+        assert.equal(day.factor.source, 'measured');
+        assert.deepEqual(day.rows.map(row => row.hour), [14, 15, 16, 17, 18, 19, 20, 21, 22, 23]);
+    });
+
+    it('returns null without an hourly forecast, a temperature, a day or a real time zone', () => {
+        const weather = weatherFor(hourlyBlock());
+        for (const input of [undefined, {}, { weather: null, venue: VENUE, dayKey: DAY }, { weather: { ...weather, hourly: null }, venue: VENUE, dayKey: DAY },
+            { weather: { ...weather, main: {} }, venue: VENUE, dayKey: DAY }, { weather, venue: VENUE, dayKey: null }, { weather, venue: VENUE, dayKey: DAY, timeZone: 'Not/AZone' }]) {
+            assert.equal(venueDayWind(input), null);
+        }
+    });
+});
+
+describe('miniStrip', () => {
+    it('draws the row’s day as two banded backgrounds with the chosen hour marked', () => {
+        const hourly = hourlyBlock({ cloud: hour => (hour === 13 ? 95 : 10), wind: hour => (hour >= 14 ? 60 : 20) });
+        const model = outsideToday({ forecast: forecastAt(11, hourly), windRows: rowsFor(hourly) });
+        const strip = miniStrip(model);
+        assert.equal(strip.marker, model.marker);
+        // 16 hours, one band each: night, sun, a cloudy 1pm, night.
+        assert.equal(strip.sun.match(/#[0-9a-f]{6}/g).length, 16);
+        assert.match(strip.sun, /^linear-gradient\(to right, #334155 0\.00% 6\.25%, #f59e0b 6\.25% 12\.50%/);
+        assert.ok(strip.sun.includes('#cbd5e1 50.00% 56.25%'));
+        assert.ok(strip.sun.endsWith('#334155 93.75% 100.00%)'));
+        // Light wind until 2pm, then windy.
+        assert.ok(strip.wind.includes('#cbd5e1 0.00% 6.25%'));
+        assert.ok(strip.wind.includes('#475569 56.25% 62.50%'));
+    });
+
+    it('leaves the wind out when there is none, and returns null without lanes', () => {
+        const hourly = hourlyBlock();
+        assert.equal(miniStrip(outsideToday({ forecast: forecastAt(11, hourly), windRows: [] })).wind, null);
+        for (const bad of [null, undefined, {}, { lanes: [] }]) assert.equal(miniStrip(bad), null);
     });
 });
