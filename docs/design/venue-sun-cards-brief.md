@@ -100,3 +100,11 @@ and a premium B2B offer for hotel groups. Until a record exists, no tick.
 4. Compact list/map card variant.
 5. Other venue types.
 6. Hotel/room card (needs per-room-type data model — propose first).
+
+Stage 5 notes (`utils/venueSunCardType.js`): a venue gets the Rooftop, Beer Garden or
+Courtyard card only when its own `typeLabel` names that space; a pub or bar whose label
+names none keeps "Sun moments today", so no card claims an outdoor space the listing
+doesn't. These cards keep the sun moments panel and add the headline, per-type
+"Best for" copy (`BEST_FOR_COPY`), the sunniest months and the §3 tiles
+(`venueSunCardTiles`). Covered seating waits on `covered_outdoor_seating` + `_source`
+(venue-attributes proposal); Views has no field yet, so the rooftop card has no Views tile.

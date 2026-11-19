@@ -17,3 +17,10 @@ test('without outdoor tables in the facts every offering stays', () => {
     assert.deepEqual(offeringsBesideCafeFacts(offerings), offerings);
     assert.equal(offeringsBesideCafeFacts(null, ['outdoor-tables']), null);
 });
+
+test('a beer garden or rooftop tile replaces the tag row that repeats it', () => {
+    const rows = venueOfferings({ tags: ['Beer Garden', 'Rooftop', 'Outdoor Seating', 'Craft Beer'] });
+    assert.deepEqual(offeringsBesideCafeFacts(rows, ['beer-garden']).map((row) => row.label), ['Rooftop', 'Outdoor seating', 'Craft beer']);
+    assert.deepEqual(offeringsBesideCafeFacts(rows, ['rooftop', 'wind-sheltered']).map((row) => row.label), ['Beer garden', 'Outdoor seating', 'Craft beer']);
+    assert.deepEqual(offeringsBesideCafeFacts(rows, ['heaters', 'covered']), rows);
+});

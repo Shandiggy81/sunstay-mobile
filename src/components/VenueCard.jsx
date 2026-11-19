@@ -13,7 +13,8 @@ import { stayRoomTypesDisplay } from '../utils/stayRoomTypes.js';
 import SunMomentsPanel from './SunMomentsPanel.jsx';
 import CafeSunSection, { CafeSunMonths, CafeSunFacts } from './CafeSunSection.jsx';
 import { useVenueSunProfile } from '../hooks/useVenueSunProfile';
-import { cafeCardTiles, isCafeVenue } from '../utils/cafeCardTiles.js';
+import { cafeCardTiles, isCafeVenue, venueSunCardTiles } from '../utils/cafeCardTiles.js';
+import { SUN_CARD_TYPES, venueSunCardType } from '../utils/venueSunCardType.js';
 import { cardSunWindows, forecastForSunWindows, rainDuringSun, roundedSunDay } from '../utils/sunWindowsCard.js';
 import { outdoorSunDay, roomsBySunToday, sunMomentsFromDay } from '../utils/sunMoments.js';
 import { outdoorSunSummary } from '../utils/outdoorSunSummary.js';
@@ -581,6 +582,9 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   // Cafés get the café sun card, whose windows are rounded to whole minutes
   // so the stat row, the sentence and the headline all show the same total.
   const isCafe = !showStay && isCafeVenue(venue);
+  // Rooftops, beer gardens and courtyards named in the venue's own label keep the
+  // sun moments, under their own headline, best-for copy and tiles (brief stage 5).
+  const outdoorCardType = showStay || isCafe ? null : venueSunCardType(venue);
   let todayKey = null;
   try { todayKey = venueLocalDate(now, venueTimeZone); } catch { /* bad time zone: no section */ }
   // Recomputed when the venue's day changes, not every minute.
@@ -651,7 +655,9 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const cardSun = outdoorDay ? cardSunWindows(outdoorDay) : null;
   // Stay cards can show another date's rooms, so today's rain only goes on outdoor sun cards.
   const rain = sunSection === 'stay' ? null : rainDuringSun({ forecast: liveWeather ? forecast : null, sun: cardSun });
-  const cafeFactKeys = sunSection === 'cafe' ? cafeCardTiles(venue, { microclimate: microclimateEntry, now }).map((tile) => tile.key) : [];
+  const typedMoments = sunSection === 'moments' && outdoorCardType ? outdoorCardType : null;
+  const cafeFactKeys = sunSection === 'cafe' ? cafeCardTiles(venue, { microclimate: microclimateEntry, now }).map((tile) => tile.key)
+    : typedMoments ? venueSunCardTiles(venue, { type: typedMoments, microclimate: microclimateEntry, now }).map((tile) => tile.key) : [];
   const sky = forecastForSunWindows({ forecast: liveWeather ? forecast : null, sun: cardSun });
   const sunSource = sunSourceConfidence({ horizon: sunHorizon, geometryConfidence: geometryConfidence ?? microclimateEntry?.geometry_confidence ?? null, dataSource: venue?.data_source });
   const forecastLabel = getBadgeDisplayText(getBadgeState({ kind: 'forecast', updatedAt: weatherFetchedAt, now })).visibleLabel;
@@ -826,7 +832,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     {sunSection === 'moments' ? (
                       <ForecastErrorBoundary>
                         <section aria-labelledby={headingIds.moments} className="flex flex-col gap-3">
-                          <h3 id={headingIds.moments} className={SECTION_TITLE}>Sun moments today</h3>
+                          <h3 id={headingIds.moments} className={SECTION_TITLE}>{typedMoments ? SUN_CARD_TYPES[typedMoments].title : 'Sun moments today'}</h3>
                           <SunMomentsPanel daily={outdoorDay} summary={outdoorMoments} timeZone={venueTimeZone} now={now} label="sun at this venue" compact />
                         </section>
                       </ForecastErrorBoundary>
@@ -862,12 +868,14 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                   <ForecastErrorBoundary><HourByHour items={hours} forecastLabel={forecastLabel} /></ForecastErrorBoundary>
                   <TonightFeelSection view={tonight} />
                   {sunSection === 'cafe' ? <CafeSunMonths venue={venue} daily={outdoorDay} horizon={sunHorizon} timeZone={venueTimeZone} /> : null}
-                  {sunSection === 'moments' && venuePerfectFor(outdoorMoments) ? <div className="ss-venue-summary-row"><ClayIcon name="sun" size={32} /><p>Best for {venuePerfectFor(outdoorMoments)}</p></div> : null}
+                  {typedMoments ? <CafeSunMonths venue={venue} daily={outdoorDay} horizon={sunHorizon} timeZone={venueTimeZone} venueType={typedMoments} /> : null}
+                  {sunSection === 'moments' && !typedMoments && venuePerfectFor(outdoorMoments) ? <div className="ss-venue-summary-row"><ClayIcon name="sun" size={32} /><p>Best for {venuePerfectFor(outdoorMoments)}</p></div> : null}
 
                   <section aria-labelledby={headingIds.goodToKnow} className="ss-venue-good-to-know">
                     <h3 id={headingIds.goodToKnow} className={SECTION_TITLE}>Good to know</h3>
                     {description ? <p className="ss-venue-description">{description}</p> : null}
                     {sunSection === 'cafe' ? <CafeSunFacts venue={venue} microclimateEntry={microclimateEntry} now={now} /> : null}
+                    {typedMoments ? <CafeSunFacts venue={venue} microclimateEntry={microclimateEntry} now={now} venueType={typedMoments} /> : null}
                     <VenueOfferingsList key={venue?.id} offerings={offeringsBesideCafeFacts(offerings, cafeFactKeys)} amenities={amenities} />
                     {address || (onCenter && hasValidCoordinates) ? <div className="ss-venue-fact"><MapPin size={22} aria-hidden="true" /><span>{address ?? displayName}</span>
                       {onCenter && hasValidCoordinates ? <button type="button" onClick={() => onCenter(venue)} className="ss-venue-text-action">Map</button>

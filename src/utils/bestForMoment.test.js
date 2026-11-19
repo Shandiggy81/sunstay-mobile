@@ -65,3 +65,17 @@ describe('bestForMoment', () => {
         assert.equal(bestForMoment(sun([['10:00', '09:00']])), null);
     });
 });
+
+describe('bestForMoment per sun card type', () => {
+    it('speaks each card type’s language for the same sun', () => {
+        const day = sun([['12:00', '14:30'], ['18:10', '19:40']]);
+        assert.equal(bestForMoment(day, { venueType: 'beer-garden' }).text, 'Best for long lunches + sunset pints');
+        assert.equal(bestForMoment(day, { venueType: 'rooftop' }).text, 'Best for a sunny lunch + sunset drinks');
+        assert.equal(bestForMoment(day, { venueType: 'courtyard' }).text, 'Best for a sunny lunch + golden-hour drinks');
+        assert.equal(bestForMoment(day, { venueType: 'cafe' }).text, 'Best for a sunny lunch + golden-hour sun');
+    });
+
+    it('falls back to the moment titles for any other type', () => {
+        assert.equal(bestForMoment(sun([['12:00', '14:30']]), { venueType: 'pub' }).text, 'Best for long lunch');
+    });
+});

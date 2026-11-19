@@ -17,13 +17,31 @@ const MINUTE = 60_000;
 export const BEST_FOR_MIN_SHARE = 0.5;
 export const BEST_FOR_MAX_MOMENTS = 2;
 
-/** Copy per venue type. Café copy comes first; other types use the moment titles until they get their own. */
+/** Copy per sun card type (utils/venueSunCardType); any other type uses the moment titles. */
 export const BEST_FOR_COPY = Object.freeze({
     cafe: Object.freeze({
         coffee: 'morning coffee',
         lunch: 'a sunny lunch',
         afternoon: 'afternoon tea',
         sunset: 'golden-hour sun',
+    }),
+    'beer-garden': Object.freeze({
+        coffee: 'morning sun',
+        lunch: 'long lunches',
+        afternoon: 'afternoon pints',
+        sunset: 'sunset pints',
+    }),
+    rooftop: Object.freeze({
+        coffee: 'morning sun',
+        lunch: 'a sunny lunch',
+        afternoon: 'afternoon drinks',
+        sunset: 'sunset drinks',
+    }),
+    courtyard: Object.freeze({
+        coffee: 'morning sun',
+        lunch: 'a sunny lunch',
+        afternoon: 'afternoon drinks',
+        sunset: 'golden-hour drinks',
     }),
     default: Object.freeze(Object.fromEntries(SUN_MOMENTS.map((m) => [m.key, m.title.toLowerCase()]))),
 });
