@@ -106,14 +106,24 @@ export function venueOfferings(venue) {
     return [...known.map(({ order, ...rest }) => rest), ...unknown];
 }
 
+// A sun-card tile and the tag row it repeats: the tile wins.
+const FACT_OFFERING = Object.freeze({
+    'outdoor-tables': 'outdoor seating',
+    'beer-garden': 'beer garden',
+    rooftop: 'rooftop',
+});
+
 /**
- * Offerings to list beside a café's facts: "Outdoor seating" is left out when
- * the facts already show the outdoor tables with a seat count.
+ * Offerings to list beside a sun card's facts: a row the facts already show is
+ * left out ("Outdoor seating" beside the outdoor tables with a seat count, and
+ * "Beer garden" or "Rooftop" beside the tile for the space the card is named for).
  *
  * @param {ReturnType<typeof venueOfferings>} offerings
- * @param {string[]} factKeys  cafeCardTiles() keys shown on the card
+ * @param {string[]} factKeys  venueSunCardTiles() keys shown on the card
  */
 export function offeringsBesideCafeFacts(offerings, factKeys = []) {
-    if (!Array.isArray(offerings) || !factKeys.includes('outdoor-tables')) return offerings;
-    return offerings.filter((row) => row.key !== 'outdoor seating');
+    if (!Array.isArray(offerings)) return offerings;
+    const shown = new Set(factKeys.map((key) => FACT_OFFERING[key]).filter(Boolean));
+    if (shown.size === 0) return offerings;
+    return offerings.filter((row) => !shown.has(row.key));
 }

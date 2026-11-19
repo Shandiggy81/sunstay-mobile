@@ -114,9 +114,15 @@ test('Sun moments card: remaining never exceeds the venue total at 390×844', as
   const { errors, seen } = await boot(page, baseURL, melbourne(11), { horizon: HORIZON });
   await expect.poll(() => seen.supabase, { message: 'smoke build uses the fake Supabase client' }).toBeGreaterThan(0);
   const card = await openVenue(page);
-  const moments = card.locator('section', { has: page.getByRole('heading', { name: 'Sun moments today' }) });
+  // Wonderland Bar's label is "Beer Garden", so its sun moments carry the
+  // stage-5 headline, best-for copy and tiles (docs/design/venue-sun-cards-brief.md §3).
+  const moments = card.locator('section', { has: page.getByRole('heading', { name: 'Beer Garden Sun', exact: true }) });
   await expect(moments).toBeVisible();
   expect(seen.horizon).toBeGreaterThan(0);
+  await expect(card.locator('[data-cafe-best-for]')).toHaveText(/^Best for (morning sun|long lunches|afternoon pints|sunset pints)( \+ (long lunches|afternoon pints|sunset pints))?$/);
+  await expect(card.getByRole('list', { name: 'At this beer garden', exact: true }).locator('[data-cafe-tile]')).toHaveText(['Beer garden']);
+  // The tile replaces the "Beer garden" tag row rather than repeating it.
+  await expect(card.getByText('Beer garden', { exact: true })).toHaveCount(1);
 
   const hero = await moments.getByText(/of sun at this venue today$/).locator('xpath=preceding-sibling::p[1]').innerText();
   const total = minutes(hero);
@@ -167,7 +173,7 @@ for (const timezoneId of ['Europe/London', 'America/Los_Angeles']) {
       await page.unroute('**/*');
       const second = await boot(page, baseURL, melbourne(11), { horizon: HORIZON });
       card = await openVenue(page);
-      await expect(card.getByRole('heading', { name: 'Sun moments today', exact: true })).toBeVisible();
+      await expect(card.getByRole('heading', { name: 'Beer Garden Sun', exact: true })).toBeVisible();
       await expect(sunTile()).toHaveText(/^Sun from 1[12]:\d{2}(am|pm)$|^Sun until \d/);
       const screenshot = testInfo.outputPath('melbourne-sun-from-overseas-390.png');
       await page.screenshot({ path: screenshot });

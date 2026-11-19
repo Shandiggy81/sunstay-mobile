@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { cafeCardTiles, isCafeVenue, MAX_CAFE_TILES, WIND_SHELTERED_MIN_SCORE } from './cafeCardTiles.js';
+import { cafeCardTiles, isCafeVenue, MAX_CAFE_TILES, TILE_ORDER, venueSunCardTiles, WIND_SHELTERED_MIN_SCORE } from './cafeCardTiles.js';
 
 const NOW = Date.parse('2026-10-20T02:00:00Z');
 const MINUTE = 60_000;
@@ -125,5 +125,54 @@ describe('cafeCardTiles', () => {
 
     it('returns nothing without a venue', () => {
         assert.deepEqual(cafeCardTiles(null), []);
+    });
+});
+
+describe('venueSunCardTiles (stage 5 card types)', () => {
+    const sourced = {
+        covered_outdoor_seating: true, covered_outdoor_seating_source: 'venue-confirmed',
+        dog_friendly: true, dog_friendly_source: 'venue-confirmed', pram_friendly: true, pram_friendly_source: 'venue-confirmed',
+        outdoor_heaters: true, outdoor_heaters_source: 'venue-confirmed', fireplace: true, fireplace_source: 'venue-confirmed',
+    };
+    const tiles = (type, venue, microclimate = null) => keys(venueSunCardTiles({ typeCategory: 'Bar', ...venue }, { type, microclimate, now: NOW }));
+
+    it('names the space the card is for, and nothing unsourced', () => {
+        assert.deepEqual(tiles('beer-garden', { typeLabel: 'Beer Garden', tags: ['Pet Friendly', 'Heaters', 'Covered'], heating: 'heated outdoor' }), ['beer-garden']);
+        assert.deepEqual(tiles('rooftop', { typeLabel: 'Rooftop Bar', tags: ['Views', 'Heaters'] }), ['rooftop']);
+        assert.deepEqual(tiles('courtyard', { typeLabel: 'Courtyard Bar', hasFireplace: true, tags: ['Fireplace'] }), []);
+    });
+
+    it('keeps the brief’s order per type and at most four', () => {
+        const all = { ...sourced, outdoor_seats: 40 };
+        assert.deepEqual(tiles('beer-garden', all, fresh(0.9)), ['beer-garden', 'covered', 'dog-friendly', 'heaters']);
+        assert.deepEqual(tiles('rooftop', all, fresh(0.9)), ['rooftop', 'wind-sheltered', 'heaters']);
+        assert.deepEqual(tiles('courtyard', all, fresh(0.9)), ['heaters', 'fireplace', 'wind-sheltered', 'covered']);
+        assert.deepEqual(tiles('cafe', all, fresh(0.9)), ['outdoor-tables', 'dog-friendly', 'pram-friendly', 'wind-sheltered']);
+        for (const order of Object.values(TILE_ORDER)) assert.ok(order.length <= 6);
+    });
+
+    it('needs a fresh, high wind-shelter reading on rooftops and courtyards too', () => {
+        assert.deepEqual(tiles('rooftop', {}, fresh(0.59)), ['rooftop']);
+        assert.deepEqual(tiles('courtyard', {}, { wind_shelter_score: 0.9 }), []);
+        assert.deepEqual(tiles('courtyard', {}, fresh(0.6)), ['wind-sheltered']);
+    });
+
+    it('gives the café card exactly what cafeCardTiles gives', () => {
+        const venue = { ...CLUE_CAFE, ...sourced };
+        assert.deepEqual(venueSunCardTiles(venue, { type: 'cafe', microclimate: fresh(0.8), now: NOW }), cafeCardTiles(venue, { microclimate: fresh(0.8), now: NOW }));
+    });
+
+    it('returns nothing for an unknown type or no venue', () => {
+        assert.deepEqual(venueSunCardTiles({ typeLabel: 'Classic Pub', ...sourced }, { type: 'pub', now: NOW }), []);
+        assert.deepEqual(venueSunCardTiles(null, { type: 'rooftop' }), []);
+    });
+
+    it('only names clay icons that exist', () => {
+        const all = { ...sourced, outdoor_seats: 12 };
+        for (const type of Object.keys(TILE_ORDER)) {
+            for (const tile of venueSunCardTiles(all, { type, microclimate: fresh(0.9), now: NOW })) {
+                assert.ok(existsSync(new URL(`../assets/clay/${tile.icon}.webp`, import.meta.url)), `${type}: ${tile.icon}`);
+            }
+        }
     });
 });

@@ -156,11 +156,12 @@ test('after dark the verdict says so and offers no times; building shade shows i
   await expect(card.locator('[data-outside-times]')).toHaveCount(0);
   expect(errors, 'Unhandled browser errors').toEqual([]);
 
-  // With a stored horizon the strip shows the buildings' shade, beside Sun moments.
+  // With a stored horizon the strip shows the buildings' shade, beside the sun
+  // moments (titled Beer Garden Sun: the venue's own label is "Beer Garden").
   await page.unroute('**/*');
   ({ errors } = await boot(page, baseURL, melbourne(11), { horizon: HORIZON }));
   card = await openVenue(page);
-  await expect(card.getByRole('heading', { name: 'Sun moments today', exact: true })).toBeVisible();
+  await expect(card.getByRole('heading', { name: 'Beer Garden Sun', exact: true })).toBeVisible();
   const strip = card.locator('[data-outside-today]');
   await expect(strip.locator('.ss-outside__cells > [data-sun="shade"]').first()).toBeAttached();
   await expect(strip.locator('.ss-outside__cells > [data-sun="sun"]').first()).toBeAttached();

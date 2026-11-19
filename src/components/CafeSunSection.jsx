@@ -9,7 +9,8 @@ import { cardSunWindows, forecastForSunWindows } from '../utils/sunWindowsCard.j
 import { layoutSunWindows } from '../utils/sunWindowsGraph.js';
 import { sunSourceConfidence } from '../utils/sunSourceConfidence.js';
 import { bestForMoment } from '../utils/bestForMoment.js';
-import { cafeCardTiles } from '../utils/cafeCardTiles.js';
+import { venueSunCardTiles } from '../utils/cafeCardTiles.js';
+import { SUN_CARD_TYPES } from '../utils/venueSunCardType.js';
 import { createMonthlySunAverageJob, monthShortName, sunniestMonthsInOrder } from '../utils/monthlySunAverage.js';
 import { horizonToObstructions } from '../utils/sunMoments.js';
 import { runWhenIdle } from '../utils/idleJob.js';
@@ -49,9 +50,10 @@ function useSunniestMonths({ lat, lng, horizon, year, timeZone }) {
  * minute-rounded windows. Every number comes from the same `daily`, and the
  * headline is the graph's own total.
  */
-export function CafeSunMonths({ venue, daily, horizon, timeZone }) {
+// Also the sunniest months and "Best for" row of the stage-5 cards; `venueType` picks the copy.
+export function CafeSunMonths({ venue, daily, horizon, timeZone, venueType = 'cafe' }) {
   const sun = useMemo(() => cardSunWindows(daily), [daily]);
-  const bestFor = useMemo(() => bestForMoment(sun), [sun]);
+  const bestFor = useMemo(() => bestForMoment(sun, { venueType }), [sun, venueType]);
   const months = useSunniestMonths({ lat: Number(venue?.lat), lng: Number(venue?.lng), horizon, year: Number(sun?.date?.slice(0, 4)), timeZone });
   const monthNames = Array.isArray(months) ? sunniestMonthsInOrder(months).map(monthShortName) : [];
   if (!sun || (months !== null && !monthNames.length && !bestFor)) return null;
@@ -64,10 +66,10 @@ export function CafeSunMonths({ venue, daily, horizon, timeZone }) {
   </div>;
 }
 
-export function CafeSunFacts({ venue, microclimateEntry, now }) {
-  const tiles = cafeCardTiles(venue, { microclimate: microclimateEntry, now });
+export function CafeSunFacts({ venue, microclimateEntry, now, venueType = 'cafe' }) {
+  const tiles = venueSunCardTiles(venue, { type: venueType, microclimate: microclimateEntry, now });
   if (!tiles.length) return null;
-  return <ul aria-label="At this café">{tiles.map(tile => {
+  return <ul aria-label={SUN_CARD_TYPES[venueType]?.factsLabel ?? 'At this café'}>{tiles.map(tile => {
     const Icon = tile.key === 'outdoor-tables' ? Armchair : tile.key === 'wind-sheltered' ? Wind : Check;
     return <li key={tile.key} data-cafe-tile={tile.key} className="ss-venue-fact">
       <Icon size={22} aria-hidden="true" /><div><span>{tile.label}</span>
