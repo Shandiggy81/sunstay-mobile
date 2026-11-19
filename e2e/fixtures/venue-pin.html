@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en-AU">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Isolated pin renderer</title></head>
+<body style="margin:0;background:#f1f5f9;color:#0f172a;font-family:Arial,sans-serif">
+  <main style="padding:24px"><h1 style="font-size:20px">Map pin renderer fixture</h1><p>No basemap or Mapbox camera in this test.</p><div id="pin" style="display:flex;justify-content:center;padding:64px 0"></div><p id="report"></p></main>
+  <script type="module">
+    import '/src/index.css';
+    import { createMarkerEl } from '/src/components/Map/VenueMap.jsx';
+    import { sunPinView } from '/src/utils/sunPin.js';
+    import { areaReportPinLabel } from '/src/utils/venueAreaReports.js';
+    import { clayPinUrlFor, clayPinUrls } from '/src/utils/clayVenuePins.js';
+    const icons = clayPinUrls(import.meta.glob('/src/assets/clay/pins/*.webp', { eager: true, import: 'default' }));
+    window.renderPublishedPin = (report, score = 70) => {
+      const label = areaReportPinLabel('Mr Tulk', { publishedReports: [report] });
+      const el = createMarkerEl({ ...sunPinView({ pinKey: label ? 'heater' : 'default', score,
+        iconUrl: clayPinUrlFor({ typeLabel: 'Cafe', emoji: '\u2615' }, icons) }), venueName: 'Mr Tulk', staffReportLabel: label });
+      document.getElementById('pin').replaceChildren(el);
+      document.getElementById('report').textContent = label ?? 'No current staff report';
+    };
+  </script>
+</body>
+</html>
