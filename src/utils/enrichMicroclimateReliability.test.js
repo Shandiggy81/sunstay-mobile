@@ -110,6 +110,20 @@ test('1081 profiles page without skips and bulk write in <=200 chunks', async ()
   assert.ok(writes.flat().every(validWrite));
   assert.equal(reads[0].cutoff, '2026-11-17T02:22:00.000Z');
 });
+
+test('absent settings keep default 200-row read pages and a 30-minute TTL', async () => {
+  const rows = Array.from({ length: 201 }, (_, i) => profile(String(i).padStart(4, '0')));
+  for (const settings of [{}, { pageSize: '200' }, { ttlMinutes: '30' }]) {
+    const batches = [];
+    const { result, reads } = await run(rows, { pageSize: undefined, ttlMinutes: undefined, ...settings,
+      writeBatch: async (batch, ttl) => { batches.push({ count: batch.length, ttl }); return batch.length; } });
+    assert.equal(result.ok, true);
+    assert.equal(result.updated, 201);
+    assert.equal(result.invalid_config_field, null);
+    assert.deepEqual(reads.map(r => r.limit), [200, 200]);
+    assert.deepEqual(batches, [{ count: 200, ttl: 30 }, { count: 1, ttl: 30 }]);
+  }
+});
 test('partial weather skips only bad rows and never writes fallback weather', async () => {
   const a = profile('a'), b = profile('b'); b.venues = { lat: -38.5, lng: 145.5 };
   const bad = weather(b.venues); bad.current.wind_speed_10m = null;
@@ -126,8 +140,20 @@ test('bulk failure or wrong count stops processing without success or retry', as
   }
 });
 test('capacity and malformed paging are explicit failures', async () => {
-  const { result } = await run(Array.from({ length: 2001 }, (_, i) => profile(String(i).padStart(5, '0'))));
-  assert.equal(result.selected, 2000); assert.equal(result.capped, true); assert.equal(result.ok, false);
+  const rows = Array.from({ length: 2001 }, (_, i) => profile(String(i).padStart(5, '0')));
+  for (const pageSize of [50, '600']) {
+    const { result, reads, writes } = await run(rows, { pageSize });
+    assert.equal(result.selected, LIMITS.maxRows);
+    assert.equal(result.updated, LIMITS.maxRows);
+    assert.equal(result.pages, pageSize === 50 ? LIMITS.maxPages : 4);
+    assert.equal(result.pages, reads.length);
+    assert.equal(result.capped, true);
+    assert.equal(result.code, 'capacity');
+    assert.equal(result.ok, false);
+    assert.ok(reads.every(r => r.limit <= 500));
+    assert.ok(writes.every(batch => batch.length <= 200));
+    assert.equal(new Set(writes.flat().map(row => row.venue_id)).size, LIMITS.maxRows);
+  }
   const bad = await run([], { selectPage: async () => [profile('a'), profile('a')] });
   assert.equal(bad.result.code, 'invalid_page');
 });
@@ -151,11 +177,58 @@ test('bad configuration, invalid venue coordinates and empty selection', async (
   assert.equal((await run([p])).result.skipped, 1);
 });
 
+test('invalid batch settings identify only ENRICH_BATCH_SIZE before selection', async () => {
+  for (const pageSize of [0, 49, -1, 600.5, '', ' ', null, NaN, Infinity, -Infinity,
+    'NaN', 'Infinity', '600oops', Number.MAX_SAFE_INTEGER + 1, 'batch-value-must-not-be-logged']) {
+    let calls = 0;
+    const { result } = await run([], { pageSize, selectPage: async () => { calls++; return []; } });
+    assert.equal(result.code, 'invalid_config');
+    assert.equal(result.invalid_config_field, 'ENRICH_BATCH_SIZE');
+    assert.equal(result.selected, 0);
+    assert.equal(result.updated, 0);
+    assert.equal(result.weather_attempts, 0);
+    assert.equal(JSON.stringify(result).includes('batch-value-must-not-be-logged'), false);
+    assert.equal(calls, 0);
+  }
+});
+
+test('invalid TTL settings identify only ENRICH_TTL_MINUTES before selection', async () => {
+  for (const ttlMinutes of [0, 29, 31, 60, 30.5, '', ' ', null, NaN, Infinity, -Infinity,
+    'NaN', 'Infinity', '30minutes', 'ttl-value-must-not-be-logged']) {
+    let calls = 0;
+    const { result } = await run([], { pageSize: '600', ttlMinutes,
+      selectPage: async () => { calls++; return []; } });
+    assert.equal(result.code, 'invalid_config');
+    assert.equal(result.invalid_config_field, 'ENRICH_TTL_MINUTES');
+    assert.equal(result.selected, 0);
+    assert.equal(result.updated, 0);
+    assert.equal(result.weather_attempts, 0);
+    assert.equal(JSON.stringify(result).includes('ttl-value-must-not-be-logged'), false);
+    assert.equal(calls, 0);
+  }
+});
+
+test('two invalid settings report the batch field first without either value', async () => {
+  const { result } = await run([], { pageSize: 'private-batch-value', ttlMinutes: 'private-ttl-value' });
+  const log = JSON.stringify({ event: 'microclimate_enrichment', ...result });
+  assert.equal(result.code, 'invalid_config');
+  assert.equal(result.invalid_config_field, 'ENRICH_BATCH_SIZE');
+  assert.equal(log.includes('private-batch-value'), false);
+  assert.equal(log.includes('private-ttl-value'), false);
+});
+
 test('overall invocation deadline stops a stalled selection and prevents writes', async () => {
   let writes = 0;
-  const { result } = await run([], { deadline: performance.now() + 15,
-    selectPage: async () => new Promise(() => {}), writeBatch: async () => { writes++; } });
+  const reads = [];
+  const { result } = await run([], { pageSize: '600', deadline: performance.now() + 15,
+    selectPage: async args => { reads.push(args); return new Promise(() => {}); },
+    writeBatch: async () => { writes++; } });
   assert.equal(result.ok, false); assert.equal(writes, 0);
+  assert.equal(result.code, 'timeout');
+  assert.equal(result.weather_attempts, 0);
+  assert.equal(result.invalid_config_field, null);
+  assert.equal(reads[0].limit, 500);
+  assert.equal(LIMITS.invocationMs, 45000);
   assert.ok(result.elapsed_ms < 1000);
 });
 test('cardinality failure leaves existing weather untouched', async () => {
@@ -196,6 +269,39 @@ function orderedPage(rows, { after, cutoff, limit }) {
   return rows.filter(r => expiry(r) <= Date.parse(cutoff) && (!after || compare(r, after) > 0))
     .sort(compare).slice(0, limit);
 }
+
+test('legacy 600-row batch hint stays bounded and refreshes 1081 profiles across three scheduled cycles', async () => {
+  const rows = Array.from({ length: 1081 }, (_, i) => ({ ...profile(String(i).padStart(4, '0')),
+    expires_at: new Date(now.getTime() + 10 * 60000).toISOString() }));
+  const byId = new Map(rows.map(row => [row.venue_id, row]));
+  for (const elapsed of [0, 20, 40]) {
+    const time = new Date(now.getTime() + elapsed * 60000);
+    const limits = [], batches = [];
+    assert.ok(rows.every(row => Date.parse(row.expires_at) > time.getTime()));
+    const { result } = await run(rows, { pageSize: '600', ttlMinutes: '30', wallNow: () => time,
+      selectPage: async args => { limits.push(args.limit); return orderedPage(rows, args); },
+      fetchImpl: async () => {
+        const reading = weather(); reading.current.time = time.getTime() / 1000;
+        return response(reading);
+      },
+      writeBatch: async (batch, ttl) => {
+        assert.equal(ttl, 30);
+        batches.push(batch.length);
+        for (const row of batch) byId.get(row.venue_id).expires_at = new Date(time.getTime() + ttl * 60000).toISOString();
+        return batch.length;
+      },
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.selected, 1081);
+    assert.equal(result.updated, 1081);
+    assert.equal(result.unprocessed, 0);
+    assert.equal(result.skipped, 0);
+    assert.equal(result.capped, false);
+    assert.equal(result.write_outcome_unknown, false);
+    assert.deepEqual(limits, [500, 500, 500]);
+    assert.deepEqual(batches, [200, 200, 200, 200, 200, 81]);
+  }
+});
 
 test('oldest-expiry paging crosses null and timestamp ties without missing or duplicating rows', async () => {
   const rows = Array.from({ length: 151 }, (_, i) => ({ ...profile(String(150-i).padStart(4, '0')),

@@ -72,8 +72,10 @@ issued one RPC per venue. The new path:
 - Selects null expiry or expiry <= invocation start +22 minutes, using a fixed
   cutoff. Pages by expiry (null first, oldest first), then venue ID for ties
   (composite keyset, not OFFSET); gathers pages before
-  any writes. Default page size 200; allowed 50–500. Hard caps: 2,000 profiles
-  and 40 pages. There is deliberately no self-invocation or schedule change.
+  any writes. Default page size 200. Configured hints must be safe integers >=50;
+  the effective page size is capped at 500 so legacy whole-run settings such as
+  600 remain compatible without increasing per-request work. Hard caps: 2,000
+  profiles and 40 pages. There is deliberately no self-invocation or schedule change.
 - Deduplicates requested 0.05-degree cells across all selected pages. Fetches
   at most 80 locations per request, then writes valid rows in batches <=200.
 - Requires response cardinality to equal the requested chunk. Associates by
@@ -102,6 +104,10 @@ issued one RPC per venue. The new path:
   outcome, capacity flag and elapsed milliseconds. No raw errors, credentials,
   request bodies, URLs or provider response bodies. Partial/capped/failed runs
   return 503 with `ok:false`; fully completed runs return 200.
+- Configuration failures keep `code: invalid_config`; `invalid_config_field`
+  contains only `ENRICH_BATCH_SIZE` or `ENRICH_TTL_MINUTES`, never the supplied
+  value. It is null otherwise. Batch size is checked first if both settings
+  are invalid. Absent settings still default to page size 200 and TTL 30.
 
 Open-Meteo coordinate/unit documentation: https://open-meteo.com/en/docs
 
@@ -224,8 +230,9 @@ It is an explicit supplemental check, not part of npm test or hosted CI.
    checking and the browser suite. Record the deployed old function revision
    and known-good bundle for rollback. Do not infer it equals latest main.
 3. Verify cadence really is 20 minutes and pg_net timeout 60 seconds, eligible
-   count <2,000, observed cell dispersion, valid ENRICH_BATCH_SIZE (50–500 or
-   unset), ENRICH_TTL_MINUTES (30 or unset), and production p95/p99 timings.
+   count <2,000, observed cell dispersion, valid ENRICH_BATCH_SIZE (safe integer
+   >=50 or unset, capped to 500 per page), ENRICH_TTL_MINUTES (30 or unset), and
+   production p95/p99 timings.
    No settings or schedules were changed in this task.
 4. With separate migration approval, apply ONLY the additive migration to the
    approved development target. Verify anon/authenticated denial, service-role
