@@ -4917,11 +4917,11 @@ body,
 
 .ss-filter-sheet-handle { display: flex; align-items: center; justify-content: center; height: 22px; flex-shrink: 0; }
 .ss-filter-sheet-handle span { width: 40px; height: 5px; border-radius: var(--radius-pill); background: #d9d3c7; }
-.ss-filter-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 16px 18px; border-bottom: 1px solid var(--color-warm-rule); flex-shrink: 0; }
-.ss-filter-sheet-head h3 { font-size: var(--text-title); font-weight: 800; letter-spacing: 0; line-height: 1.2; }
+.ss-filter-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ss-space-3); padding: var(--ss-space-1) var(--ss-gutter) var(--ss-space-4); border-bottom: 1px solid var(--color-warm-rule); flex-shrink: 0; }
+.ss-filter-sheet-head h3 { font-size: var(--text-title); font-weight: 800; line-height: 1.25; }
 .ss-filter-sheet-head p { margin-top: 5px; font-size: var(--text-body); font-weight: 600; color: #64748b; }
 .ss-filter-sheet-close { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: var(--radius-round); border: 1px solid #ece6d9; background: white; color: #0f172a; flex-shrink: 0; }
-.ss-filter-sheet-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 18px 16px 12px; }
+.ss-filter-sheet-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: var(--ss-space-4) var(--ss-gutter) var(--ss-space-3); }
 .ss-filter-sheet-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ss-filter-sheet h4 { font-size: var(--text-section); font-weight: 800; letter-spacing: 0; }
 .ss-filter-sheet-section-head > span { font-size: var(--text-caption); font-weight: 600; color: #64748b; }
@@ -4937,7 +4937,7 @@ body,
 .ss-filter-group { border-bottom: 1px solid var(--color-warm-rule); }
 .ss-filter-group-toggle { display: flex; width: 100%; min-height: 52px; align-items: center; gap: 10px; border: 0; background: white; padding: 8px 0; color: #0f172a; text-align: left; font-size: var(--text-body); font-weight: 700; }
 .ss-filter-group-toggle > img { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
-.ss-filter-group-title { flex: 1; min-width: 0; }
+.ss-filter-group-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .ss-filter-group-count { color: #64748b; font-size: var(--text-caption); font-weight: 600; white-space: nowrap; }
 .ss-filter-group-count--selected { color: var(--color-gold-text); font-weight: 700; }
 .ss-filter-group-toggle > svg { flex-shrink: 0; }
@@ -4947,10 +4947,10 @@ body,
 .ss-filter-chip--row { width: 100%; min-height: 48px; border: 0; border-bottom: 1px solid var(--color-warm-rule); border-radius: 0; padding: 8px 10px; gap: 10px; }
 .ss-filter-chip--row > span:not(.ss-filter-chip-emoji) { min-width: 0; flex: 1; }
 .ss-filter-chip--row .ss-filter-chip-icon { width: 28px; height: 28px; }
-.ss-filter-sheet-footer { display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--color-warm-rule); background: white; }
+.ss-filter-sheet-footer { display: flex; align-items: center; gap: var(--ss-space-3); flex-shrink: 0; padding: var(--ss-space-3) var(--ss-gutter) calc(var(--ss-space-3) + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--color-warm-rule); background: var(--ss-surface-overlay); }
 .ss-filter-sheet-clear { min-height: 44px; min-width: 76px; padding: 8px; border: 0; background: white; color: var(--color-gold-text); font-size: var(--text-body); font-weight: 700; }
 .ss-filter-sheet-clear:disabled { color: #64748b; cursor: default; }
-.ss-filter-sheet-apply { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: 1; min-width: 0; min-height: 52px; padding: 12px 16px; border: 0; border-radius: var(--radius-pill); background: #0f172a; color: white; font-size: var(--text-body); font-weight: 700; }
+.ss-filter-sheet-apply { display: flex; align-items: center; justify-content: space-between; gap: var(--ss-space-2); flex: 1; min-width: 0; min-height: 52px; padding: var(--ss-space-3) var(--ss-space-4); border: 0; }
 .ss-filter-sheet button:focus-visible { outline: 2px solid var(--color-gold-text); outline-offset: 2px; }
 
 
