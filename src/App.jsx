@@ -63,6 +63,7 @@ import { ENABLE_MANUAL_VENUE_REFRESH } from './utils/manualVenueRefresh';
 import MascotPullRefresh from './components/MascotPullRefresh';
 import VenueRefreshButton from './components/VenueRefreshButton';
 import { useVenueFeatures } from './hooks/useVenueFeatures';
+import { usePublishedVenueReports } from './hooks/usePublishedVenueReports.js';
 import SplashScreen from './components/SplashScreen';
 import { getWindWarning } from './data/windIntelligence';
 import { getComfortLevel } from './utils/weatherService';
@@ -102,6 +103,7 @@ import { ROW_SUN_FAILED, setCafeRowSunScrolling, useCafeRowSun, useMinuteNow } f
 const VenueMap = lazy(() => import('./components/Map/VenueMap'));
 const FilterSheet = lazy(() => import('./components/FilterSheet'));
 const OwnerDashboard = lazy(() => import('./components/OwnerDashboard'));
+const VenueManagerPanel = lazy(() => import('./components/VenueManagerPanel.jsx'));
 const HotelSunReport = lazy(() => import('./components/HotelSunReport.jsx'));
 
 // Filter ID constants (cozy-mode, sunny-mode) live in utils/filterIds.
@@ -602,7 +604,8 @@ const AppContent = () => {
             return { ok: false, error };
         }
     }, [refetch]);
-    const { liveVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
+    const { liveVenueFeatures: previewVenueFeatures, updateLiveVenueFeature } = useVenueFeatures();
+    const { features: liveVenueFeatures } = usePublishedVenueReports(previewVenueFeatures);
     const { setFallbackBbox } = useMicroclimateActions();
 
     // Seed the microclimate fetch with the whole map area, so the list has
@@ -651,6 +654,7 @@ const AppContent = () => {
     // All other tag IDs (from FILTER_CATEGORIES) are also held here.
     const [activeFilters, setActiveFilters]           = useState([]);
     const [showOwnerDashboard, setShowOwnerDashboard] = useState(false);
+    const [showVenueManager, setShowVenueManager] = useState(false);
 
     // NOTE: The old `activeFilter` string state ('All' | 'Cozy' | 'Sunny') has
     // been retired. Use activeFilters.includes(FILTER_COZY) and
@@ -1586,6 +1590,7 @@ const AppContent = () => {
                             onCenter={handleCenterOnMap}
                             cozyWeatherActive={cozyWeatherActive}
                             setShowOwnerDashboard={setShowOwnerDashboard}
+                            setShowVenueManager={setShowVenueManager}
                             setSelectedVenue={setSelectedVenue}
                             onSheetGesture={setVenueSheetDragging}
                         />
@@ -1596,13 +1601,18 @@ const AppContent = () => {
                             <Suspense fallback={null}>
                                 <OwnerDashboard
                                     venue={selectedVenue}
-                                    liveVenueFeatures={liveVenueFeatures}
+                                    liveVenueFeatures={previewVenueFeatures}
                                     setLiveVenueFeatures={updateLiveVenueFeature}
                                     onClose={handleOwnerDashboardClose}
                                     onVenueUpdate={handleSelectedVenueUpdate}
                                 />
                             </Suspense>
                         )}
+                        {showVenueManager && selectedVenue ? (
+                            <Suspense fallback={null}>
+                                <VenueManagerPanel key={selectedVenue.id} venue={selectedVenue} onClose={() => setShowVenueManager(false)} />
+                            </Suspense>
+                        ) : null}
                     </AnimatePresence>
 
                     <Suspense fallback={null}>
