@@ -161,7 +161,7 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
                         paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
                     }}
                 >
-                    <div className="fixed inset-0 bg-slate-950/70 " aria-hidden="true" />
+                    <div className="fixed inset-0 bg-slate-950/75" aria-hidden="true" />
 
                     <motion.div
                         role="dialog"

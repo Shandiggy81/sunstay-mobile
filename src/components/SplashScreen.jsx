@@ -8,12 +8,6 @@ import {
 // How long the exit animation runs before the parent should fully unmount us.
 const EXIT_ANIM_MS = 700;
 
-// A 24×43 pre-blurred copy of the poster (274 bytes), inlined so the screen is
-// warm and colourful from the first frame while the full poster downloads.
-// The poster is shown whole (contain); this fills the space around it on
-// phones taller or wider than the 9:16 artwork.
-const BACKDROP = 'data:image/webp;base64,UklGRgoBAABXRUJQVlA4IP4AAAAQCACdASoYACsAPrVKnkonJCKhtVQIAOAWiWwAnTLLvwhmO3Ake8zt9KEbCXWWXXMMRL5l43oJsayzfzrf1Nlk6OL8VMXWbDAAAP70Mrtetq+/8V890ydjSaZ6+WV1AEVzZ+sPNEevmgVUXosYRbJnR1KI8fWjR28xwDGPrKUmrdnzroUOz5idQvmP7MH9gy3S2Ab/DHR7B4vW3RHbpEZtUTuoGYvxXDFbA7Vq22OUCgyOHfjrIO1OVRLbB8+aJoHlNkGV5XHHgjqXjdpNA1qy9YPIFiVQimqC+mR5Yg/b/vWz5z/VdMrC7KWVKXzaex2NJDMglbKoAJJLHAAAAA==';
-
 export default function SplashScreen({ isReady = false, onComplete }) {
   const reducedMotion = useReducedMotion();
   const [minElapsed, setMinElapsed] = useState(false);
@@ -75,11 +69,9 @@ export default function SplashScreen({ isReady = false, onComplete }) {
             inset: 0,
             zIndex: 99999,
             overflow: 'hidden',
-            background: `#0D1B2A url("${BACKDROP}") center / cover no-repeat`,
+            background: 'var(--color-ink)',
           }}
         >
-          {/* Darken the blurred fill a touch so the poster's edges read clearly. */}
-          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'rgba(13, 27, 42, 0.28)' }} />
           {/* Tapping anywhere skips the intro. */}
           <button
             type="button"
