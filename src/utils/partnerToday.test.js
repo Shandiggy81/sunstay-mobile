@@ -216,3 +216,25 @@ test('pubs and bars get an event task; it is done once something is on', () => {
     assert.deepEqual([added.done, added.title, added.detail], [true, 'Event added', '“Local bands” · Tonight 8pm']);
     assert.equal(partnerTodayTasks({ venue: tulk }).some(task => task.key === 'events'), false);
 });
+
+test('a reading from another day says which day and how old, never just a time', () => {
+    // The helper at the top builds October dates; these are November's (still UTC+11).
+    const november = (day, hour, minute = 0) => new Date(Date.UTC(2026, 10, day, hour - 11, minute));
+    // Production on Mon 23 Nov 2026 at 6:50am: the newest reading was computed Wed 18 Nov at 11:40am.
+    const monday = november(23, 6, 50);
+    const old = { id: 'dv-20', sun_now: 0.9, weather_computed_at: '2026-11-18T00:40:22Z' };
+    assert.equal(partnerDataStatus({ reading: old, now: monday }).reading.text,
+        'Venue reading from Wed 18 Nov, 11:40am is 4 days old · left off your guest card until it refreshes');
+    // Last night's reading the next morning, and a day and a bit later.
+    const lastNight = { id: 'dv-20', sun_now: 0.4, weather_computed_at: november(22, 21).toISOString() };
+    assert.equal(partnerDataStatus({ reading: lastNight, now: november(23, 7) }).reading.text,
+        'Venue reading from Sun 22 Nov, 9pm is 10 hours old · left off your guest card until it refreshes');
+    assert.match(partnerDataStatus({ reading: lastNight, now: november(24, 3) }).reading.text, /from Sun 22 Nov, 9pm is a day old/);
+    // Same day: the time alone, with the hours once it's two or more.
+    const morning = { id: 'dv-20', sun_now: 0.9, weather_computed_at: november(19, 7, 15).toISOString() };
+    assert.match(partnerDataStatus({ reading: morning, now: november(19, 12, 15) }).reading.text, /^Venue reading from 7:15am is 5 hours old/);
+    // An expiry on another day carries the day too.
+    const expired = { ...old, expires_at: '2026-11-18T01:10:22Z' };
+    assert.equal(partnerDataStatus({ reading: expired, now: monday }).reading.text,
+        'Venue reading expired Wed 18 Nov, 12:10pm · left off your guest card until it refreshes');
+});
