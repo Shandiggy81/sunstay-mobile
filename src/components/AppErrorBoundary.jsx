@@ -37,16 +37,16 @@ class AppErrorBoundary extends Component {
                     role={view.role}
                     className={`w-full max-w-md p-8 text-center ${view.cardClass}`}
                 >
-                    <h1 className="text-2xl font-black tracking-tight text-slate-900">
+                    <h1 className="text-2xl font-extrabold tracking-normal text-slate-900">
                         {view.title}
                     </h1>
-                    <p className="mt-2 text-sm font-medium text-slate-600">
+                    <p className="mt-2 text-sm font-semibold text-slate-600">
                         The app hit an unexpected error. Reload to try again.
                     </p>
                     <button
                         type="button"
                         onClick={this.handleReload}
-                        className="mt-6 min-h-11 rounded-xl bg-amber-500 px-6 text-sm font-bold text-slate-900 shadow-sm transition-colors hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                        className="mt-6 min-h-11 rounded-xl bg-amber-500 px-6 text-sm font-bold text-slate-900 shadow-e1 transition-colors hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
                     >
                         {view.reloadLabel}
                     </button>

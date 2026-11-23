@@ -68,7 +68,7 @@ export default function MascotReaction({ lat = DEFAULT_LAT, lng = DEFAULT_LNG })
             <div style={{
               width: 120,
               height: 120,
-              borderRadius: '50%',
+              borderRadius: 'var(--radius-round)',
               overflow: 'hidden',
               background: '#fff',
               border: '4px solid #F59E0B'
@@ -79,11 +79,11 @@ export default function MascotReaction({ lat = DEFAULT_LAT, lng = DEFAULT_LNG })
               background: '#F59E0B',
               color: '#000',
               padding: '4px 12px',
-              borderRadius: 20,
+              borderRadius: 'var(--radius-card)',
               fontSize: '0.8rem',
               fontWeight: 'bold',
               marginTop: -10,
-              boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+              boxShadow: 'var(--shadow-e1)'
             }}>
               Yikes! Heavy Rain
             </div>
@@ -108,7 +108,7 @@ export default function MascotReaction({ lat = DEFAULT_LAT, lng = DEFAULT_LNG })
             <div style={{
               width: 120,
               height: 120,
-              borderRadius: '50%',
+              borderRadius: 'var(--radius-round)',
               overflow: 'hidden',
               background: '#fff',
               border: '4px solid #14B8A6'
@@ -119,11 +119,11 @@ export default function MascotReaction({ lat = DEFAULT_LAT, lng = DEFAULT_LNG })
               background: '#14B8A6',
               color: '#fff',
               padding: '4px 12px',
-              borderRadius: 20,
+              borderRadius: 'var(--radius-card)',
               fontSize: '0.8rem',
               fontWeight: 'bold',
               marginTop: -10,
-              boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+              boxShadow: 'var(--shadow-e1)'
             }}>
               Golden Hour!
             </div>

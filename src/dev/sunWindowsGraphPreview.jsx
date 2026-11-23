@@ -80,8 +80,8 @@ if (import.meta.env.DEV) {
   createRoot(document.getElementById('sun-windows-graph-preview')).render(
     <main className={`min-h-screen font-sans ${requested === 'dark' ? 'bg-ink text-surface' : 'bg-surface text-ink'}`}>
       <header className="mx-auto max-w-xl px-4 pb-2 pt-6">
-        <p className={`text-xs font-bold uppercase tracking-wide ${requested === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Development preview</p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Sun windows</h1>
+        <p className={`text-xs font-bold uppercase tracking-normal ${requested === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>Development preview</p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-normal">Sun windows</h1>
         <p className={`mt-2 text-sm leading-relaxed ${requested === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
           Fabricated fixtures to review the graph. No venue, weather or map services are contacted. “Now” uses a fixed example clock.
         </p>

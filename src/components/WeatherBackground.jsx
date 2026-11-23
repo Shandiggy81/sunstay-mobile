@@ -16,8 +16,8 @@ const THEMES = {
         particles: '#93c5fd',
     },
     cloudy: {
-        gradient: 'linear-gradient(135deg, #6b7280 0%, #9ca3af 50%, #d1d5db 100%)',
-        particles: '#e5e7eb',
+        gradient: 'linear-gradient(135deg, #64748b 0%, #94a3b8 50%, #cbd5e1 100%)',
+        particles: '#e2e8f0',
     },
     default: {
         gradient: 'linear-gradient(135deg, #fef9c3 0%, #fde68a 50%, #fcd34d 100%)',

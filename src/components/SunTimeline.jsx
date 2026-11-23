@@ -37,17 +37,17 @@ const SunTimeline = ({ sunData, weatherCode }) => {
     ? 'linear-gradient(90deg, #38bdf8, #818cf8)'
     : isCloud
     ? 'linear-gradient(90deg, #94a3b8, #cbd5e1)'
-    : 'linear-gradient(90deg, #f59e0b, #f97316, #fbbf24)';
+    : 'linear-gradient(90deg, var(--color-accent), var(--color-gold-fill), var(--color-gold-highlight))';
 
   const hourLabels = ['6a', '9a', '12p', '3p', '6p', '9p'];
   const hourPositions = [0, 20, 40, 60, 80, 100];
 
   return (
     <div className="w-full mt-1">
-      <div className="relative w-full h-3 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+      <div className="relative w-full h-3 rounded-pill" style={{ background: 'rgba(255,255,255,0.06)' }}>
         {/* Golden window bar */}
         <div
-          className="absolute top-0 h-full rounded-full"
+          className="absolute top-0 h-full rounded-pill"
           style={{
             left: `${left}%`,
             width: `${width}%`,
@@ -78,7 +78,7 @@ const SunTimeline = ({ sunData, weatherCode }) => {
               transform: 'translate(-50%, -50%)',
               width: 14,
               height: 14,
-              borderRadius: '50%',
+              borderRadius: 'var(--radius-round)',
               background: isRain ? '#38bdf8' : '#fbbf24',
               border: '2px solid rgba(255,255,255,0.9)',
               boxShadow: isRain
@@ -88,7 +88,7 @@ const SunTimeline = ({ sunData, weatherCode }) => {
             }}
           >
             <div style={{
-              position: 'absolute', inset: -4, borderRadius: '50%',
+              position: 'absolute', inset: -4, borderRadius: 'var(--radius-round)',
               background: isRain ? 'rgba(56,189,248,0.2)' : 'rgba(251,191,36,0.2)',
               animation: 'pulse 2s ease-in-out infinite',
             }} />
@@ -99,7 +99,7 @@ const SunTimeline = ({ sunData, weatherCode }) => {
       {/* Hour labels */}
       <div className="relative w-full mt-1.5 flex justify-between">
         {hourLabels.map((label, i) => (
-          <span key={i} style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', fontWeight: 700 }}>
+          <span key={i} style={{ fontSize: 'var(--text-caption)', color: 'rgba(255,255,255,0.25)', fontWeight: 700 }}>
             {label}
           </span>
         ))}

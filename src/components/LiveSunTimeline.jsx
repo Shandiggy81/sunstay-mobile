@@ -55,7 +55,7 @@ export default function LiveSunTimeline({ forecast }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="relative h-4" role="img" aria-label={`Sun timeline for today. Now ${formatHour(nowH)}.`}>
-        <div className="absolute inset-0 overflow-hidden rounded-full bg-slate-800">
+        <div className="absolute inset-0 overflow-hidden rounded-pill bg-slate-800">
           {segments.map((seg) => (
             <div
               key={seg.start}
@@ -67,7 +67,7 @@ export default function LiveSunTimeline({ forecast }) {
         {showNow ? (
           <span
             aria-hidden="true"
-            className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-slate-900 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.35)]"
+            className="absolute top-1/2 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-pill border-[3px] border-slate-900 bg-white shadow-e2"
             style={{ left: `${pct(nowH)}%` }}
           />
         ) : null}
@@ -77,7 +77,7 @@ export default function LiveSunTimeline({ forecast }) {
         {HOUR_LABELS.map((h) => (
           <span
             key={h}
-            className="absolute -translate-x-1/2 text-[11px] font-semibold tabular-nums text-slate-600"
+            className="absolute -translate-x-1/2 text-caption font-semibold tabular-nums text-slate-600"
             style={{ left: `${pct(h)}%` }}
           >
             {formatHour(h)}
@@ -87,14 +87,14 @@ export default function LiveSunTimeline({ forecast }) {
 
       <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5">
         {presentTypes.map((type) => (
-          <span key={type} className="flex items-center gap-1.5 text-[12px] font-medium text-slate-600">
-            <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: SEGMENT_STYLE[type].bg }} aria-hidden="true" />
+          <span key={type} className="flex items-center gap-1.5 text-caption font-semibold text-slate-600">
+            <span className="h-2.5 w-2.5 rounded-control" style={{ background: SEGMENT_STYLE[type].bg }} aria-hidden="true" />
             {SEGMENT_STYLE[type].label}
           </span>
         ))}
         {showNow ? (
-          <span className="flex items-center gap-1.5 text-[12px] font-medium text-slate-600">
-            <span className="h-2.5 w-2.5 rounded-full border-2 border-slate-900 bg-white" aria-hidden="true" />
+          <span className="flex items-center gap-1.5 text-caption font-semibold text-slate-600">
+            <span className="h-2.5 w-2.5 rounded-pill border-2 border-slate-900 bg-white" aria-hidden="true" />
             Now {formatHour(nowH)}
           </span>
         ) : null}

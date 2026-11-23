@@ -71,9 +71,9 @@ export default function SunArcWidget({ lat = -37.8136, lng = 144.9631 }) {
   const fmt = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-e1 p-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-slate-800 text-xs font-medium uppercase tracking-wider">Sun Position</p>
+        <p className="text-slate-800 text-xs font-semibold uppercase tracking-normal">Sun Position</p>
       </div>
 
       {/* SVG Sun Arc */}

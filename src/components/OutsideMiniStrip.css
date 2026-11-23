@@ -1,6 +1,6 @@
 /* Miniature of the card's sun-and-wind strip on a venue list row: gold for
    sun, slate for wind, one tick for the chosen hour. */
-.ss-mini-outside { position: relative; display: flex; flex-direction: column; gap: 2px; width: 100%; min-width: 0; margin-top: 8px; }
-.ss-mini-outside > i { display: block; height: 6px; border-radius: 3px; }
-.ss-mini-outside > i.is-wind { height: 4px; border-radius: 2px; }
-.ss-mini-outside > span { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: #0f172a; }
+.ss-mini-outside { position: relative; display: flex; flex-direction: column; gap: var(--ss-space-1); width: 100%; min-width: 0; margin-top: var(--ss-space-2); }
+.ss-mini-outside > i { display: block; height: 6px; border-radius: var(--radius-control); }
+.ss-mini-outside > i.is-wind { height: 4px; border-radius: var(--radius-control); }
+.ss-mini-outside > span { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: var(--radius-control); background: #0f172a; }

@@ -146,8 +146,8 @@ const LoadingScreen = () => (
             className="text-center"
         >
             <div className="text-6xl mb-4">☀️</div>
-            <p className="text-gray-800 font-bold text-lg">Loading Sunstay…</p>
-            <p className="text-gray-500 text-sm">Finding your perfect spot</p>
+            <p className="text-slate-800 font-bold text-lg">Loading Sunstay…</p>
+            <p className="text-slate-500 text-sm">Finding your perfect spot</p>
         </motion.div>
     </div>
 );
@@ -183,13 +183,13 @@ const markSplashSeen = () => {
 };
 
 const getWeatherBadge = (weather, venue) => {
-    if (!weather) return { emoji: '🌤️', label: 'Fair', color: '#9ca3af' };
+    if (!weather) return { emoji: '🌤️', label: 'Fair', color: '#94a3b8' };
     const condition = (weather.weather?.[0]?.main || '').toLowerCase();
     const windWarning = getWindWarning(weather.wind?.speed, venue);
     if (windWarning.level === 'red' || windWarning.level === 'orange') return { emoji: '💨', label: 'Windy', color: '#3b82f6' };
-    if (condition.includes('rain') || condition.includes('drizzle')) return { emoji: '🌧️', label: 'Rain', color: '#6b7280' };
+    if (condition.includes('rain') || condition.includes('drizzle')) return { emoji: '🌧️', label: 'Rain', color: '#64748b' };
     if (condition.includes('clear') || condition.includes('sunny')) return { emoji: '☀️', label: 'Sunny', color: '#f59e0b' };
-    if (condition.includes('cloud')) return { emoji: '☁️', label: 'Cloudy', color: '#9ca3af' };
+    if (condition.includes('cloud')) return { emoji: '☁️', label: 'Cloudy', color: '#94a3b8' };
     return { emoji: '🌤️', label: 'Fair', color: '#f59e0b' };
 };
 
@@ -485,7 +485,7 @@ const SelectedFoodTypeChips = ({ activeFilters, onToggle }) => (
             const clayName = clayIconName(filter.id);
             return (
                 <button key={filter.id} type="button" onClick={() => onToggle(filter.id)} aria-pressed={true}
-                    className="ss-quick-chip ss-quick-chip--active">
+                    className="ss-quick-chip ss-chip ss-chip--selectable ss-quick-chip--active">
                     <VenueIcon icon={clayName ? { name: clayName } : { emoji: filter.icon }} size={26} />
                     <span>{filter.label}</span>
                 </button>
@@ -498,7 +498,7 @@ const PropertyFilterPills = ({ activeFilters, onToggle }) => (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Venue types">
         {PROPERTY_FILTERS.map(filter => <button key={filter.id} type="button"
             onClick={() => onToggle(filter.id)} aria-pressed={activeFilters.includes(filter.id)}
-            className={`flex-1 min-h-[44px] min-w-max inline-flex items-center justify-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold ${activeFilters.includes(filter.id)
+            className={`flex-1 min-h-[44px] min-w-max inline-flex items-center justify-center gap-1.5 rounded-pill border px-3 text-caption font-semibold ${activeFilters.includes(filter.id)
                 ? 'border-amber-300 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-slate-700'}`}>
             <ClayIcon name={QUICK_FILTER_ICONS[filter.id]} size={24} /> {filter.label}
         </button>)}
@@ -523,14 +523,14 @@ const QuickFilterChips = ({ activeFilters, onToggle, onClear, showClear }) => {
                 const active = activeFilters.includes(item.id);
                 return (
                     <button key={item.id} type="button" onClick={() => onToggle(item.id)} aria-pressed={active}
-                        className={`ss-quick-chip ${active ? 'ss-quick-chip--active' : ''}`}>
+                        className={`ss-quick-chip ss-chip ss-chip--selectable ${active ? 'ss-quick-chip--active' : ''}`}>
                         <ClayIcon name={item.icon} size={26} />
                         <span>{item.label}</span>
                     </button>
                 );
             })}
             {showClear ? (
-                <button type="button" onClick={onClear} className="ss-quick-chip ss-quick-chip--clear">Clear</button>
+                <button type="button" onClick={onClear} className="ss-quick-chip ss-chip ss-chip--selectable ss-quick-chip--clear">Clear</button>
             ) : null}
         </div>
     );
@@ -548,7 +548,7 @@ const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
             }}
             role="button"
             aria-label={`View ${venue.venueName}`}
-            className={`ss-venue-chip relative overflow-hidden ${isSelected ? 'ss-venue-chip--active' : ''}`}
+            className={`ss-venue-chip ss-chip ss-chip--selectable relative overflow-hidden ${isSelected ? 'ss-venue-chip--active' : ''}`}
         >
             <span>{venue.emoji}</span>
             <span className="ss-venue-chip-name">{venue.venueName.length > 16 ? venue.venueName.slice(0, 15) + '…' : venue.venueName}</span>
@@ -1004,7 +1004,7 @@ const AppContent = () => {
         <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleShowAllAreas(); }}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-amber-700 underline-offset-2 hover:underline touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${className}`}
+            className={`inline-flex min-h-11 items-center rounded-pill px-3 text-secondary font-semibold text-amber-700 underline-offset-2 hover:underline touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${className}`}
         >
             Show all
         </button>
@@ -1384,7 +1384,7 @@ const AppContent = () => {
 
                 <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
                     {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
-                    <aside className={`ss-sidebar ${homeMode === 'after-dark' ? 'ss-sidebar--after-dark' : ''} hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96`}>
+                    <aside className={`ss-sidebar ${homeMode === 'after-dark' ? 'ss-sidebar--after-dark' : ''} hidden h-full w-full flex-col overflow-hidden border-r border-slate-200 bg-white lg:flex lg:w-96`}>
                         <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                         {homeMode === 'after-dark' ? (!isMobile && afterDarkPanel) : <>
                         {experienceFinder}
@@ -1393,14 +1393,14 @@ const AppContent = () => {
                         <div className="ss-quick-filter-row flex flex-shrink-0 gap-2 px-3 py-2">
                             <button
                                 onClick={() => handleFilterToggle(FILTER_COZY)}
-                                className={`ss-quick-pill ${cozyFilterActive ? 'ss-quick-pill--active' : ''}`}
+                                className={`ss-quick-pill ss-chip ss-chip--selectable ${cozyFilterActive ? 'ss-quick-pill--active' : ''}`}
                                 aria-pressed={cozyFilterActive}
                             >
                                 <ClayIcon name="indoor-warmth" size={24} /> Cozy
                             </button>
                             <button
                                 onClick={() => handleFilterToggle(FILTER_SUNNY)}
-                                className={`ss-quick-pill ${sunnyFilterActive ? 'ss-quick-pill--active' : ''}`}
+                                className={`ss-quick-pill ss-chip ss-chip--selectable ${sunnyFilterActive ? 'ss-quick-pill--active' : ''}`}
                                 aria-pressed={sunnyFilterActive}
                             >
                                 <ClayIcon name="sun" size={24} /> Sunny
@@ -1516,7 +1516,7 @@ const AppContent = () => {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
-                                    className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/30 backdrop-blur-sm pointer-events-none"
+                                    className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/30 pointer-events-none"
                                 >
                                     {/* The card and its spring live in EmptyVenueState;
                                         the sidebar copy is the one that announces. */}
@@ -1536,14 +1536,14 @@ const AppContent = () => {
                                 {locateHint && (
                                     <div
                                         role="status"
-                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/85 px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_6px_24px_-8px_rgba(15,23,42,0.5)] ring-1 ring-inset ring-white/15"
+                                        className="pointer-events-none max-w-[200px] rounded-pill bg-slate-900/85 px-3.5 py-2 text-secondary font-semibold text-white shadow-e2 ring-1 ring-inset ring-white/15"
                                     >
                                         {locateHint}
                                     </div>
                                 )}
                                 {/* One location button. If location is off or the user is
                                     outside Melbourne, it falls back to the Melbourne view. */}
-                                <div className="ss-explore-locate pointer-events-auto flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/90 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] divide-y divide-slate-900/[0.07]">
+                                <div className="ss-explore-locate pointer-events-auto flex flex-col overflow-hidden rounded-card border border-white/60 bg-white/90 shadow-e2 divide-y divide-slate-900/[0.07]">
                                     <motion.button
                                         type="button"
                                         className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center text-sky-700 transition-colors active:bg-slate-900/10 disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"

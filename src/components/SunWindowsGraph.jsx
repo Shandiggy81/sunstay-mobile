@@ -125,13 +125,13 @@ export default function SunWindowsGraph({
         <g key={tick.time} aria-hidden="true">
           <path d={`M ${tick.x} 118 V 123`} stroke="var(--color-slate-300)" />
           <text x={tick.x} y="140" textAnchor={index === 0 ? 'start' : index === layout.ticks.length - 1 ? 'end' : 'middle'}
-            fontSize="12" fontWeight="500" fill="var(--color-slate-600)">{tick.label}</text>
+            fontSize="12" fontWeight="600" fill="var(--color-slate-600)">{tick.label}</text>
         </g>
       ))}
     </svg>
   );
 
-  if (mini) return <div className={`w-full ${className}`} style={{ position: 'relative', height: 40, borderRadius: 12, overflow: 'hidden' }}>
+  if (mini) return <div className={`w-full ${className}`} style={{ position: 'relative', height: 40, borderRadius: 'var(--radius-control)', overflow: 'hidden' }}>
     {graph}
     {!unavailable && sunUrl && layout.windows.map(window => <img key={window.start} data-window-sun="true" src={sunUrl} alt="" aria-hidden="true"
       width={26} height={26} style={{ position: 'absolute', width: 26, height: 26, objectFit: 'contain', transform: 'translate(-50%, -50%)',
@@ -142,19 +142,19 @@ export default function SunWindowsGraph({
     <section className={`w-full min-w-0 ${MAX_WIDTH} rounded-3xl border border-slate-200 bg-surface p-4 font-sans text-ink ${className}`}>
       {showSummary && (
         <>
-          <p className="text-[12px] font-semibold text-slate-600">
+          <p className="text-caption font-semibold text-slate-600">
             {incomplete ? 'Known direct sun on a clear day' : layout?.clippedByAxis ? 'Direct sun in shown hours on a clear day' : 'Direct sun on a clear day'}
           </p>
           <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             {noSun ? (
-              <p data-sun-total="none" className="text-[20px] font-extrabold leading-tight tracking-tight">{noSunText}</p>
+              <p data-sun-total="none" className="text-title font-extrabold leading-tight tracking-normal">{noSunText}</p>
             ) : (
-              <p data-sun-total="true" className="text-[32px] font-extrabold leading-tight tracking-tight tabular-nums">
+              <p data-sun-total="true" className="text-title font-extrabold leading-tight tracking-normal tabular-nums">
                 {unavailable ? '—' : layout.totalLabel}
               </p>
             )}
             {!unavailable && !noSun && (
-              <p className="inline-flex items-center gap-1.5 text-[13px] font-bold text-amber-900">
+              <p className="inline-flex items-center gap-1.5 text-secondary font-bold text-amber-900">
                 <ClayIcon name="sun" size={22} />
                 {layout.windowCount} sun {layout.windowCount === 1 ? 'window' : 'windows'}
               </p>
@@ -163,31 +163,31 @@ export default function SunWindowsGraph({
         </>
       )}
       {layout && (
-        <div className={`mb-2 flex flex-wrap items-center justify-between gap-2 text-[11px] font-medium text-slate-600 ${showSummary ? 'mt-1' : ''}`}>
+        <div className={`mb-2 flex flex-wrap items-center justify-between gap-2 text-caption font-semibold text-slate-600 ${showSummary ? 'mt-1' : ''}`}>
           <p><time dateTime={layout.date}>{layout.dateLabel}</time> · {layout.timezoneLabel}</p>
-          {marker && <span data-now-pill="true" className={`rounded-full px-2 py-1 font-semibold ${marker.inWindow ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
+          {marker && <span data-now-pill="true" className={`rounded-pill px-2 py-1 font-semibold ${marker.inWindow ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
             {marker.withinAxis ? `Now · ${marker.inWindow ? 'in sun' : 'in shade'}` : 'Now · outside shown hours'}
           </span>}
         </div>
       )}
       {graph}
       {unavailable ? (
-        <p className="mt-2 text-[13px] font-semibold text-slate-600">Sun times unavailable</p>
+        <p className="mt-2 text-secondary font-semibold text-slate-600">Sun times unavailable</p>
       ) : noSun ? null : (
         <ul aria-label="Direct sun windows" className="mt-2 flex flex-wrap gap-2">
           {layout.windows.map(window => (
             <li key={window.start} className="flex min-h-11 min-w-0 flex-1 basis-[230px] items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-900">
               <ClayIcon name="sun" size={24} />
               <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-                <span className="break-words text-[13px] font-bold">{window.rangeLabel}</span>
-                <span className="text-[12px] font-medium">{window.durationLabel}</span>
+                <span className="break-words text-secondary font-bold">{window.rangeLabel}</span>
+                <span className="text-caption font-semibold">{window.durationLabel}</span>
               </span>
             </li>
           ))}
         </ul>
       )}
-      {incomplete && <p className="mt-2 text-[12px] font-medium text-slate-600">Some invalid sun times could not be shown.</p>}
-      {footer != null && <div className="mt-3 min-w-0 text-[12px] leading-relaxed text-slate-600">{footer}</div>}
+      {incomplete && <p className="mt-2 text-caption font-semibold text-slate-600">Some invalid sun times could not be shown.</p>}
+      {footer != null && <div className="mt-3 min-w-0 text-caption leading-relaxed text-slate-600">{footer}</div>}
     </section>
   );
 }

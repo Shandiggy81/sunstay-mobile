@@ -101,7 +101,7 @@ const SunnyMascot = ({
                 onHoverEnd={() => setIsHovered(false)}
                 whileHover={reduceMotion ? undefined : { scale: 1.15, rotate: isChatOpen ? 0 : 5 }}
                 whileTap={reduceMotion ? undefined : { scale: 0.9 }}
-                className="w-20 h-20 rounded-full shadow-2xl flex items-center justify-center cursor-pointer group relative overflow-hidden pointer-events-auto"
+                className="w-20 h-20 rounded-pill shadow-e3 flex items-center justify-center cursor-pointer group relative overflow-hidden pointer-events-auto"
                 animate={reduceMotion ? undefined : { y: isChatOpen ? 0 : [0, -10, 0] }}
                 transition={{
                     duration: 3,
@@ -111,7 +111,7 @@ const SunnyMascot = ({
             >
                 {/* Glow effect */}
                 <motion.div
-                    className={`absolute inset-0 rounded-full blur-xl ${getGlowColor()}`}
+                    className={`absolute inset-0 rounded-pill blur-xl ${getGlowColor()}`}
                     animate={{
                         scale: reduceMotion ? 1 : isHovered || isChatOpen ? 1.6 : 1.1,
                         opacity: isHovered || isChatOpen ? 0.8 : 0.4,
@@ -123,7 +123,7 @@ const SunnyMascot = ({
                 <motion.img
                     src={sunnyMascot}
                     alt="Sunny"
-                    className={`w-full h-full rounded-full object-cover relative z-10 border-4 transition-colors duration-500 ${isChatOpen ? 'border-emerald-400' : 'border-white/50'
+                    className={`w-full h-full rounded-pill object-cover relative z-10 border-4 transition-colors duration-500 ${isChatOpen ? 'border-emerald-400' : 'border-white/50'
                         }`}
                     animate={{
                         rotate: !reduceMotion && isHovered && !isChatOpen ? [0, -10, 10, 0] : 0,
@@ -139,9 +139,9 @@ const SunnyMascot = ({
                     <motion.div
                         initial={reduceMotion ? false : { scale: 0, scaleY: 0 }}
                         animate={{ scale: 1, scaleY: 1 }}
-                        className="absolute -top-1 -right-1 w-7 h-7 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center z-20 shadow-lg"
+                        className="absolute -top-1 -right-1 w-7 h-7 bg-emerald-500 rounded-pill border-2 border-white flex items-center justify-center z-20 shadow-e3"
                     >
-                        <span className="text-white text-[10px] font-bold">LIVE</span>
+                        <span className="text-white text-caption font-bold">LIVE</span>
                     </motion.div>
                 )}
             </motion.button>
@@ -159,9 +159,9 @@ const SunnyMascot = ({
                         scale: bubbleVisible ? 1 : 0.8,
                     }}
                     transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
-                    className="absolute right-0 bottom-[calc(100%+12px)] w-60 max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] pointer-events-none border border-white/50"
+                    className="absolute right-0 bottom-[calc(100%+12px)] w-60 max-w-[calc(100vw-2rem)] bg-white/95 px-4 py-3 rounded-2xl shadow-e2 pointer-events-none border border-white/50"
                 >
-                    <p className="text-[13px] font-bold text-gray-800 tracking-tight line-clamp-4">
+                    <p className="text-secondary font-bold text-slate-800 tracking-normal line-clamp-4">
                         {advice.text}
                     </p>
                     <div className="absolute right-8 -bottom-1.5 w-3 h-3 bg-white/95 rotate-45" />

@@ -81,7 +81,7 @@ import { venuePerfectFor } from '../utils/venuePerfectFor.js';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
 import { venueTypeLabel } from '../utils/venueTypeLabel';
 
-const MICRO_LABEL = 'text-[12px] font-semibold text-slate-600';
+const MICRO_LABEL = 'text-caption font-semibold text-slate-600';
 
 // Keep the name and score visible once the compact top row scrolls away.
 const COMPACT_HEADER_AT = 140;
@@ -107,45 +107,45 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className={MICRO_LABEL}>Microclimate at {atLabel}</span>
         {reading.isLiveSun ? (
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" aria-hidden="true" />
+          <span className="flex items-center gap-1.5 text-caption font-semibold text-amber-900">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-pill bg-amber-300" aria-hidden="true" />
             Live
           </span>
         ) : null}
       </div>
 
       <div className="flex items-baseline gap-2">
-        <span className="text-[26px] font-bold leading-none tabular-nums tracking-[-0.02em] text-slate-900">
+        <span className="text-title font-bold leading-none tabular-nums tracking-normal text-slate-900">
           {reading.sunPercent}
         </span>
         {reading.sunLabel ? (
-          <span className="truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-700">
+          <span className="min-w-0 [overflow-wrap:anywhere] text-body font-semibold text-slate-700">
             {reading.sunLabel}
           </span>
         ) : null}
       </div>
 
       <div
-        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-900/[0.08]"
+        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-pill bg-slate-900/[0.08]"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Sun availability at ${atLabel}`}
       >
-        <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-pill bg-amber-500" style={{ width: `${pct}%` }} />
       </div>
 
       {(reading.windLabel || reading.comfortHint) && (
         <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
           {reading.windLabel ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-semibold text-slate-700">
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-slate-100 px-2.5 py-1 text-caption font-semibold text-slate-700">
               <Wind size={12} aria-hidden="true" />
               {reading.windLabel}
             </span>
           ) : null}
           {reading.comfortHint ? (
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-600">
+            <span className="min-w-0 flex-1 [overflow-wrap:anywhere] text-secondary font-semibold text-slate-600">
               {reading.comfortHint}
             </span>
           ) : null}
@@ -153,7 +153,7 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
       )}
 
       {isEstimate ? (
-        <p className="mt-2.5 text-[12px] font-medium leading-snug text-slate-600">
+        <p className="mt-2.5 text-caption font-semibold leading-snug text-slate-600">
           Modelled from street geometry, not measured on site.
         </p>
       ) : null}
@@ -165,10 +165,10 @@ const ShieldBar = ({ label, value, color }) => (
   <div className="flex flex-col gap-1.5">
     <div className="flex justify-between">
       <span className={MICRO_LABEL}>{label}</span>
-      <span className="text-[12px] font-bold tabular-nums text-slate-700">{Math.round(value * 100)}%</span>
+      <span className="text-caption font-bold tabular-nums text-slate-700">{Math.round(value * 100)}%</span>
     </div>
-    <div className="h-1.5 rounded-full bg-slate-900/[0.07]">
-      <div className="h-full rounded-full" style={{ width: `${value * 100}%`, background: color }} />
+    <div className="h-1.5 rounded-pill bg-slate-900/[0.07]">
+      <div className="h-full rounded-pill" style={{ width: `${value * 100}%`, background: color }} />
     </div>
   </div>
 );
@@ -187,7 +187,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
       {items.map((item) => (
         <li key={item.label} className="flex min-w-0 items-center gap-2.5">
           <ClayIcon name={item.icon} size={32} />
-          <span className="truncate text-[14px] font-semibold text-slate-700">{item.label}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere] text-body font-semibold text-slate-700">{item.label}</span>
         </li>
       ))}
     </ul>
@@ -217,21 +217,21 @@ const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArri
           <div className="grid grid-cols-2 gap-2.5">
             <div className="rounded-2xl border border-slate-900/[0.08] bg-white p-3.5">
               <span className={MICRO_LABEL}>UV index</span>
-              <span className="mt-0.5 block text-[18px] font-bold tabular-nums text-slate-900">
+              <span className="mt-0.5 block text-section font-bold tabular-nums text-slate-900">
                 {uvIndex == null ? '–' : `${Math.round(uvIndex)} · ${uvIndex >= 8 ? 'Very high' : uvIndex >= 6 ? 'High' : uvIndex >= 3 ? 'Moderate' : 'Low'}`}
               </span>
             </div>
             <div className="rounded-2xl border border-slate-900/[0.08] bg-white p-3.5">
               <span className={MICRO_LABEL}>Air quality</span>
-              <span className="mt-0.5 block truncate text-[18px] font-bold text-slate-900">{aqLabel ?? '–'}</span>
+              <span className="mt-0.5 block [overflow-wrap:anywhere] text-section font-bold text-slate-900">{aqLabel ?? '–'}</span>
             </div>
           </div>
           {rainArrivalMins !== null && rainArrivalMins <= 45 && rainArrivalLabel ? (
             <div className="flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-amber-50 p-3.5" role="status">
               <ClayIcon name="rain" size={36} />
               <div className="min-w-0">
-                <p className="text-[15px] font-bold leading-snug text-slate-900">{rainArrivalLabel}</p>
-                <p className="text-[13px] font-medium text-slate-700">Rain nearby on radar. Covered seating is the safer bet.</p>
+                <p className="text-body font-bold leading-snug text-slate-900">{rainArrivalLabel}</p>
+                <p className="text-secondary font-semibold text-slate-700">Rain nearby on radar. Covered seating is the safer bet.</p>
               </div>
             </div>
           ) : null}
@@ -347,16 +347,16 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
     ? `https://www.google.com/maps/dir/?api=1&destination=${Number(venue?.lat)},${Number(venue?.lng)}` : null;
   if (footerPrimaryAction({ venue, websiteUrl: share.websiteUrl }) === 'website') {
     return <div className="ss-venue-stay-footer-actions">
-      {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-stay-directions"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></a>
-        : <button type="button" disabled className="ss-venue-stay-directions" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></button>}
-      <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-property-website" aria-describedby={captionId}><Globe size={18} aria-hidden="true" />Visit property website<ExternalLink size={16} aria-hidden="true" /></a>
+      {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-stay-directions ss-action ss-action--secondary"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></a>
+        : <button type="button" disabled className="ss-venue-stay-directions ss-action ss-action--secondary" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></button>}
+      <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-property-website ss-action ss-action--primary" aria-describedby={captionId}><Globe size={18} aria-hidden="true" />Visit property website<ExternalLink size={16} aria-hidden="true" /></a>
       <p id={captionId}>Opens {websiteHostLabel(share.websiteUrl)}</p>
     </div>;
   }
   return <div className="ss-venue-footer-actions">
-    {share.websiteUrl ? <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-website"><Globe size={18} aria-hidden="true" />Website</a> : null}
-    {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-directions" aria-label="Get directions"><Navigation size={18} aria-hidden="true" />Get directions</a>
-      : <button type="button" disabled className="ss-venue-directions" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions</button>}
+    {share.websiteUrl ? <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-website ss-action ss-action--tertiary"><Globe size={18} aria-hidden="true" />Website</a> : null}
+    {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-directions ss-action ss-action--primary" aria-label="Get directions"><Navigation size={18} aria-hidden="true" />Get directions</a>
+      : <button type="button" disabled className="ss-venue-directions ss-action ss-action--primary" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions</button>}
   </div>;
 }
 
@@ -704,16 +704,16 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
           onClick={e => e.stopPropagation()}
           style={{
             ...(enableTilt ? { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200 } : null),
-            boxShadow: '0 -8px 60px rgba(15,23,42,0.14)',
+            boxShadow: 'var(--shadow-e1)',
           }}
-          className="ss-venue-detail-card pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] bg-white font-sans"
+          className="ss-venue-detail-card pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-sheet bg-white font-sans"
           onPointerEnter={enableTilt ? handlePointerEnter : undefined}
           onPointerMove={enableTilt ? handlePointerMove : undefined}
           onPointerLeave={enableTilt ? handlePointerLeave : undefined}
         >
           {/* Compact header: name + score stay visible once the hero scrolls away. */}
           <div
-            className={`absolute inset-x-0 top-0 z-30 flex items-center gap-3 border-b border-slate-900/[0.06] bg-white px-4 py-1.5 shadow-[0_1px_8px_rgba(15,23,42,0.06)] transition-[opacity,transform] duration-200 ${compact ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'}`}
+            className={`absolute inset-x-0 top-0 z-30 flex items-center gap-3 border-b border-slate-900/[0.06] bg-white px-4 py-1.5 shadow-e2 transition-[opacity,transform] duration-200 ${compact ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'}`}
             aria-hidden={!compact}
           >
             <button
@@ -721,18 +721,18 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
               type="button"
               onClick={onClose}
               tabIndex={compact ? 0 : -1}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900/[0.06] text-slate-800 active:bg-slate-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-pill bg-slate-900/[0.06] text-slate-800 active:bg-slate-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               aria-label="Close venue details"
             >
               <X size={19} strokeWidth={2.5} />
             </button>
-            <span className="min-w-0 flex-1 truncate text-[17px] font-extrabold tracking-[-0.01em] text-slate-900">{displayName}</span>
+            <span className="min-w-0 flex-1 truncate text-section font-extrabold tracking-normal text-slate-900">{displayName}</span>
             {!overviewScore.loading && scoreState === 'score' && Number.isFinite(score) ? (
               <ScoreRing score={score} size={38} />
             ) : (
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 py-1 pl-1.5 pr-3">
+              <span className="flex shrink-0 items-center gap-1.5 rounded-pill bg-amber-50 py-1 pl-1.5 pr-3">
                 <ClayIcon name={nowIcon} size={24} />
-                <span className="text-[14px] font-extrabold tabular-nums text-slate-700">
+                <span className="text-body font-extrabold tabular-nums text-slate-700">
                   {overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}
                 </span>
                 <span className="sr-only">{overviewScore.loading ? 'Sun score' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
@@ -795,13 +795,13 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       <section aria-labelledby={headingIds.stay} className="ss-venue-stay flex flex-col gap-3">
                         <div>
                           <h3 id={headingIds.stay} className={SECTION_TITLE}>{stayDisplay?.headline ?? (venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay')}</h3>
-                          {stayDisplay?.trustLine ? <p className="mt-1 text-[12px] font-medium text-slate-500">{stayDisplay.trustLine}</p> : null}
+                          {stayDisplay?.trustLine ? <p className="mt-1 text-caption font-semibold text-slate-500">{stayDisplay.trustLine}</p> : null}
                         </div>
                         {onOpenSunReport && canShowHotelSunReport(venue) ? (
                           <button
                             type="button"
                             onClick={() => onOpenSunReport(venue)}
-                            className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-[14px] font-bold text-amber-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
+                            className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-body font-bold text-amber-900 shadow-e1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
                           >
                             <ClayIcon name="hotel-views" size={32} />
                             See the sun report
@@ -878,8 +878,8 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     {typedMoments ? <CafeSunFacts venue={venue} microclimateEntry={microclimateEntry} now={now} venueType={typedMoments} /> : null}
                     <VenueOfferingsList key={venue?.id} offerings={offeringsBesideCafeFacts(offerings, cafeFactKeys)} amenities={amenities} />
                     {address || (onCenter && hasValidCoordinates) ? <div className="ss-venue-fact"><MapPin size={22} aria-hidden="true" /><span>{address ?? displayName}</span>
-                      {onCenter && hasValidCoordinates ? <button type="button" onClick={() => onCenter(venue)} className="ss-venue-text-action">Map</button>
-                        : mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action">Map</a> : null}
+                      {onCenter && hasValidCoordinates ? <button type="button" onClick={() => onCenter(venue)} className="ss-venue-text-action ss-action ss-action--tertiary">Map</button>
+                        : mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action ss-action ss-action--tertiary">Map</a> : null}
                     </div> : null}
                     <AboutAndHours hours={hoursView} websiteUrl={share.websiteUrl} />
                     <AccessSection access={venueAccessFacts(withPartnerAccess(venue, partnerTools))} publicToilet={publicToilet} />

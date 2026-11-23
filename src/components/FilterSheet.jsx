@@ -65,7 +65,7 @@ const FilterSheet = ({
         const isActive = safeActiveFilters.includes(filter.id);
         const clayIcon = clayIconFor(filter.id, CLAY_ICON_URLS);
         return <button key={filter.id} type="button" onClick={() => onToggleFilter(filter.id)}
-            className={`ss-filter-chip${quick ? '' : ' ss-filter-chip--row'}${isActive ? ' ss-filter-chip--active' : ''}`}
+            className={`ss-filter-chip ss-chip ss-chip--selectable${quick ? '' : ' ss-filter-chip--row'}${isActive ? ' ss-filter-chip--active' : ''}`}
             aria-pressed={isActive}>
             {clayIcon ? <img src={clayIcon} alt="" width={quick ? 22 : 28} height={quick ? 22 : 28}
                 loading="lazy" decoding="async" draggable={false} className="ss-filter-chip-icon" />
@@ -167,9 +167,9 @@ const FilterSheet = ({
 
                         {/* The footer stays outside the scrolling filter inventory. */}
                         <div className="ss-filter-sheet-footer">
-                            <button type="button" onClick={onClearAll} disabled={safeActiveFilters.length === 0} className="ss-filter-sheet-clear">Clear all</button>
+                            <button type="button" onClick={onClearAll} disabled={safeActiveFilters.length === 0} className="ss-filter-sheet-clear ss-action ss-action--tertiary">Clear all</button>
                             <button
-                                className="ss-filter-sheet-apply"
+                                className="ss-filter-sheet-apply ss-action ss-action--primary"
                                 onClick={onClose}
                                 type="button"
                             >

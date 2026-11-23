@@ -52,24 +52,24 @@ class VenueDetailErrorBoundary extends React.Component {
         data-render-branch="error"
         className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5"
       >
-        <p className="text-[15px] font-semibold text-rose-900">
+        <p className="text-body font-semibold text-rose-900">
           {view.title}
         </p>
-        <p className="mt-1 text-[13px] font-medium text-rose-800">
+        <p className="mt-1 text-secondary font-semibold text-rose-800">
           {view.body}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={this.handleRetry}
-            className="min-h-11 rounded-xl bg-rose-900 px-3.5 text-[13px] font-semibold text-white"
+            className="min-h-11 rounded-xl bg-rose-900 px-3.5 text-secondary font-semibold text-white"
           >
             {view.retryLabel}
           </button>
           <button
             type="button"
             onClick={this.handleClose}
-            className="min-h-11 rounded-xl border border-rose-200 bg-white px-3.5 text-[13px] font-semibold text-rose-900"
+            className="min-h-11 rounded-xl border border-rose-200 bg-white px-3.5 text-secondary font-semibold text-rose-900"
           >
             {view.closeLabel}
           </button>

@@ -13,7 +13,7 @@ import { PHOTO_COMING_SOON_MESSAGE } from '../utils/demoDeadEnds';
 
 const PHOTO_NOTICE_MS = 4500;
 
-export const SECTION_TITLE = 'text-[17px] font-extrabold tracking-[-0.015em] text-slate-900';
+export const SECTION_TITLE = 'text-section font-extrabold tracking-normal text-slate-900';
 
 // Score colour within the amber/slate palette. Shared by the stat row and
 // the compact header so the number reads the same in both places.
@@ -110,7 +110,7 @@ export function TodaysSun({ forecast, sentence }) {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <h3 id={headingId} className={SECTION_TITLE}>Today&rsquo;s sun</h3>
-      {sentence ? <p className="text-[14px] font-medium leading-relaxed text-slate-500">{sentence}</p> : null}
+      {sentence ? <p className="text-body font-semibold leading-relaxed text-slate-500">{sentence}</p> : null}
       <LiveSunTimeline forecast={forecast} />
     </section>
   );
@@ -178,7 +178,7 @@ export function VenueOfferingsList({ offerings, amenities = [] }) {
           return <li key={row.key} className="ss-venue-fact"><Icon size={22} aria-hidden="true" /><span>{row.label}</span></li>;
         })}
       </ul>
-      {offerings.length > OFFERINGS_PREVIEW ? <button type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll} className="ss-venue-text-action">
+      {offerings.length > OFFERINGS_PREVIEW ? <button type="button" onClick={() => setShowAll(v => !v)} aria-expanded={showAll} className="ss-venue-text-action ss-action ss-action--tertiary">
         {showAll ? 'Show fewer' : `Show all ${offerings.length} features`}
         <span className="sr-only">{showAll ? '' : ` (${offerings.length - visible.length} more)`}</span>
       </button> : null}
@@ -202,7 +202,7 @@ export function AccessSection({ access, publicToilet = null }) {
         <div className="ss-venue-fact"><MapPin size={22} aria-hidden="true" /><div>
           <p>{publicToiletLine(publicToilet)}</p>
           {publicToiletHours(publicToilet.hours) ? <p className="ss-venue-fact-detail">{publicToiletHours(publicToilet.hours)}</p> : null}
-          <a href={publicToilet.url} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action">{publicToilet.name} on the Toilet Map</a>
+          <a href={publicToilet.url} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action ss-action ss-action--tertiary">{publicToilet.name} on the Toilet Map</a>
         </div></div>
         <p className="ss-venue-fact-source">{PUBLIC_TOILET_CREDIT}</p>
       </> : null}
@@ -215,7 +215,7 @@ export function AboutAndHours({ description, hours, websiteUrl }) {
     {description ? <p className="ss-venue-description">{description}</p> : null}
     <div className="ss-venue-fact"><Clock size={22} aria-hidden="true" />
       <span>{hours.verified ? hours.text : hours.note}</span>
-      {websiteUrl ? <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action" aria-label="Check today’s hours on their website">Website</a> : null}
+      {websiteUrl ? <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action ss-action ss-action--tertiary" aria-label="Check today’s hours on their website">Website</a> : null}
     </div>
   </>;
 }

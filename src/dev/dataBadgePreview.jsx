@@ -32,7 +32,7 @@ if (import.meta.env.DEV) {
           <h2 className="text-base font-bold">{surface === 'dark' ? 'Dark' : 'Light'} surface</h2>
           {examples.map(({ name, ...props }) => (
             <div key={name} data-example={name} className="space-y-1.5">
-              <h3 className="text-xs font-medium">{name}</h3>
+              <h3 className="text-xs font-semibold">{name}</h3>
               <div className="flex flex-wrap items-center gap-2">
                 <DataBadge {...props} size="sm" />
                 <DataBadge {...props} size="md" />

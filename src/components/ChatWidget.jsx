@@ -54,7 +54,7 @@ const getWeatherMood = (weather) => {
   if (cw.isRain) return { emoji: '🌧️', label: 'Rainy day mode', gradient: 'from-slate-400 via-blue-400 to-slate-500' };
   if (wind > 30) return { emoji: '💨', label: 'Windy out there!', gradient: 'from-teal-400 via-cyan-400 to-blue-400' };
   if ((cw.uv ?? 0) >= 8) return { emoji: '🕶️', label: 'UV is high today', gradient: 'from-orange-500 via-red-400 to-orange-400' };
-  if ((cw.cloud ?? 0) > 70) return { emoji: '☁️', label: 'Cloudy vibes', gradient: 'from-gray-400 via-slate-400 to-gray-500' };
+  if ((cw.cloud ?? 0) > 70) return { emoji: '☁️', label: 'Cloudy vibes', gradient: 'from-slate-400 via-slate-400 to-slate-500' };
   // Same day/night flag the header uses for its moon, so the chat never says "day" after sunset.
   if (weather?.isDay === false) return { emoji: '🌙', label: 'Great night out', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
   if ((cw.temp ?? 0) >= 28) return { emoji: '🌞', label: 'Cracking day!', gradient: 'from-yellow-400 via-amber-400 to-orange-400' };
@@ -135,7 +135,7 @@ const followUpChips = [
 ];
 
 const chipClass =
-  'flex-shrink-0 snap-start inline-flex min-h-11 items-center gap-1.5 pl-1.5 pr-4 bg-white border border-slate-200 rounded-full text-[13px] font-semibold text-slate-800 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
+  'ss-chip ss-chip--selectable flex-shrink-0 snap-start min-h-11 items-center pl-2 pr-4 border border-slate-200 hover:border-amber-400 hover:bg-amber-50 transition-colors whitespace-nowrap';
 
 // ─── Venue mini cards under a reply ───────────────────────────────────────────
 const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
@@ -148,15 +148,15 @@ const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
           <button
             type="button"
             onClick={() => onOpen(venue)}
-            className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-sm transition-colors hover:border-amber-400 active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-e1 transition-colors hover:border-amber-400 active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
             aria-label={accessibleName}
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50">
               <VenueIcon icon={venueIcon(venue)} size={36} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[14px] font-bold text-slate-900">{name}</span>
-              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-slate-600">
+              <span className="block truncate text-body font-bold text-slate-900">{name}</span>
+              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption font-semibold text-slate-600">
                 <span className="inline-flex items-center gap-1">
                   <ClayIcon name={status.icon} size={16} />
                   <span>{status.text}</span>
@@ -184,11 +184,11 @@ const TypingIndicator = () => (
     exit={{ opacity: 0, y: 6 }}
     className="flex justify-start"
   >
-    <div className="bg-white border border-gray-100 rounded-3xl rounded-bl-md px-5 py-4 shadow-sm flex items-center gap-1.5">
+    <div className="bg-white border border-slate-100 rounded-3xl rounded-bl-md px-5 py-4 shadow-e1 flex items-center gap-1.5">
       {[0, 1, 2].map(i => (
         <motion.span
           key={i}
-          className="w-2 h-2 bg-amber-400 rounded-full block"
+          className="w-2 h-2 bg-amber-400 rounded-pill block"
           animate={{ y: [0, -5, 0] }}
           transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
         />
@@ -478,16 +478,16 @@ const ChatWidget = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.92 }}
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="fixed bottom-24 right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
+          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
         >
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col" style={{ maxHeight: '85dvh' }}
+          <div className="bg-white rounded-sheet shadow-e3 overflow-hidden border border-slate-200 flex flex-col" style={{ maxHeight: 'min(85dvh, calc(100dvh - 120px - env(safe-area-inset-bottom, 0px)))' }}
             role="dialog" aria-labelledby="ss-sunny-chat-title">
 
             {/* ── Header ── */}
-            <div className={`bg-gradient-to-r ${mood.gradient} px-5 py-4 flex items-center justify-between flex-shrink-0`}>
-              <div className="flex items-center gap-3">
+            <div className="bg-warm border-b border-warm-rule px-4 py-3 flex items-center justify-between flex-shrink-0 gap-2">
+              <div className="min-w-0 flex items-center gap-3">
                 <div className="relative">
-                  <div className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-full shadow-sm ring-2 ring-white/50 ${avatar.clay ? 'bg-amber-50' : ''}`}>
+                  <div className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-pill shadow-e1 ring-2 ring-white/50 ${avatar.clay ? 'bg-amber-50' : ''}`}>
                     <img
                       key={avatar.src}
                       src={avatar.src}
@@ -500,19 +500,18 @@ const ChatWidget = ({
                   </div>
                 </div>
                 <div>
-                  <h3 id="ss-sunny-chat-title" className="text-white font-black text-base tracking-tight leading-none mb-1">Sunny · Weather Guide</h3>
+                  <h3 id="ss-sunny-chat-title" className="text-ink font-extrabold text-section leading-tight mb-1">Sunny · Weather Guide</h3>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse border border-white/20"></span>
-                    <span className="text-white/90 text-xs font-bold uppercase tracking-widest">{mood.label}</span>
+                    <span className="text-slate-600 text-caption font-semibold uppercase">{mood.label}</span>
                   </div>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center hover:bg-white/20 rounded-full transition-colors"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center hover:bg-slate-100 rounded-round transition-colors"
                 aria-label="Close chat"
               >
-                <X className="w-5 h-5 text-white" />
+                <X className="w-5 h-5 text-ink" />
               </button>
             </div>
 
@@ -527,7 +526,7 @@ const ChatWidget = ({
             )}
 
             {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white min-h-0"
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white min-h-0"
               role="log" aria-label="Conversation with Sunny">
               {messages.map((msg) => (
                 <motion.div
@@ -538,14 +537,14 @@ const ChatWidget = ({
                 >
                   <div className="flex max-w-[88%] items-end gap-2">
                     {msg.avatar === 'brucey' ? (
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 ring-1 ring-amber-200">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-amber-50 ring-1 ring-amber-200">
                         <ClayIcon name="brucey" size={34} alt="Brucey" />
                       </span>
                     ) : null}
-                    <div className={`px-5 py-3 rounded-3xl text-[14px] font-medium shadow-sm leading-relaxed ${
+                    <div className={`px-5 py-3 rounded-3xl text-body font-semibold shadow-e1 leading-relaxed ${
                       msg.type === 'user'
-                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-br-md'
-                        : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md'
+                        ? 'bg-gold-soft text-gold-text rounded-br-md'
+                        : 'bg-white border border-slate-100 text-slate-800 rounded-bl-md'
                     }`}>
                       {msg.text}
                     </div>
@@ -553,7 +552,7 @@ const ChatWidget = ({
                   {msg.venues?.length ? (
                     <VenueSuggestionCards venues={msg.venues} statusFor={statusFor} onOpen={openVenue} />
                   ) : null}
-                  <span className="text-[10px] text-gray-400 mt-1 px-2">{fmtTime(msg.ts)}</span>
+                  <span className="text-caption text-slate-500 mt-1 px-2">{fmtTime(msg.ts)}</span>
                 </motion.div>
               ))}
 
@@ -565,7 +564,7 @@ const ChatWidget = ({
             </div>
 
             {/* ── Quick replies / follow-ups / input ── */}
-            <div className="flex-shrink-0 bg-white border-t border-gray-100">
+            <div className="flex-shrink-0 bg-white border-t border-slate-100">
 
               {/* Chip row */}
               {!hasActed && (
@@ -577,8 +576,6 @@ const ChatWidget = ({
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: i * 0.06 }}
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.97 }}
                         onClick={() => handleQuickReply(reply)}
                         className={chipClass}
                       >
@@ -605,8 +602,6 @@ const ChatWidget = ({
                       initial={{ opacity: 0, scale: 0.85 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: i * 0.08 }}
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.97 }}
                       onClick={() => handleFollowUp(chip)}
                       className={chipClass}
                     >
@@ -625,24 +620,22 @@ const ChatWidget = ({
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   placeholder="Ask Sunny anything..."
-                  className="flex-1 min-w-0 h-11 px-4 bg-gray-50 border border-gray-200 rounded-full text-[16px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
+                  className="flex-1 min-w-0 h-11 px-4 bg-slate-50 border border-slate-200 rounded-pill text-input text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
                 />
                 <motion.button
                   type="submit"
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.93 }}
                   disabled={!inputValue.trim()}
-                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-gradient-to-r from-amber-400 to-orange-500 rounded-full shadow-md disabled:opacity-40 transition-opacity"
+                  className="ss-action ss-action--primary w-11 h-11 flex-shrink-0"
                   aria-label="Send"
                 >
-                  <Send className="w-4 h-4 text-white" />
+                  <Send className="w-[18px] h-[18px] text-white" />
                 </motion.button>
               </form>
             </div>
           </div>
 
           {/* Speech bubble arrow */}
-          <div className="absolute -bottom-2 right-8 w-4 h-4 bg-white rotate-45 border-r border-b border-gray-100" />
+          <div className="absolute -bottom-2 right-8 w-4 h-4 bg-white rotate-45 border-r border-b border-slate-100" />
         </motion.div>
       )}
     </AnimatePresence>

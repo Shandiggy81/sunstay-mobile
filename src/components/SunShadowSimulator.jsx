@@ -129,7 +129,7 @@ function ScoreRing({ score, gradeColor, gradeEmoji, grade }) {
     <div className="flex flex-col items-center">
       <svg width="72" height="72" viewBox="0 0 72 72">
         {/* Track */}
-        <circle cx="36" cy="36" r={r} fill="none" stroke="#e5e7eb" strokeWidth="6" />
+        <circle cx="36" cy="36" r={r} fill="none" stroke="#e2e8f0" strokeWidth="6" />
         {/* Fill */}
         <circle
           cx="36" cy="36" r={r}
@@ -145,7 +145,7 @@ function ScoreRing({ score, gradeColor, gradeEmoji, grade }) {
         <text x="36" y="32" textAnchor="middle" fontSize="14" fontWeight="700" fill={gradeColor}>
           {score}
         </text>
-        <text x="36" y="44" textAnchor="middle" fontSize="8" fill="#9ca3af">
+        <text x="36" y="44" textAnchor="middle" fontSize="8" fill="#94a3b8">
           /100
         </text>
       </svg>
@@ -230,15 +230,15 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
   const s2Y = cy + shadowLength * Math.sin(shadowRad + spreadRad);
 
   // Quality colour
-  const qualityColor = displayQuality === 'direct' ? '#f59e0b' : displayQuality === 'partial' ? '#fb923c' : '#9ca3af';
+  const qualityColor = displayQuality === 'direct' ? '#f59e0b' : displayQuality === 'partial' ? '#fb923c' : '#94a3b8';
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-e1 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sun Shadow Simulator</p>
-          <p className="text-sm font-bold text-gray-900">{venue.venueName || venue.name}</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-normal">Sun Shadow Simulator</p>
+          <p className="text-sm font-bold text-slate-900">{venue.venueName || venue.name}</p>
         </div>
         {scoreData && (
           <ScoreRing
@@ -258,7 +258,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
           width="140" height="100"
           viewBox="0 0 140 100"
           className="absolute bottom-0 left-1/2 -translate-x-1/2"
-          style={{ color: '#374151' }}
+          style={{ color: '#334155' }}
         >
           {getVenueShape(venue)}
         </svg>
@@ -266,7 +266,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         {/* Compass overlay */}
         <svg width="140" height="140" viewBox="0 0 140 140" className="absolute top-0 left-0">
           {/* Compass ring */}
-          <circle cx={cx} cy={cy} r={compassR} fill="none" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3 3" />
+          <circle cx={cx} cy={cy} r={compassR} fill="none" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
 
           {/* Compass labels */}
           {COMPASS.map(({ label, angle }) => {
@@ -275,7 +275,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
             const ly = cy + (compassR + 12) * Math.sin(rad);
             return (
               <text key={label} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
-                fontSize="9" fontWeight="600" fill="#9ca3af">{label}</text>
+                fontSize="9" fontWeight="600" fill="#94a3b8">{label}</text>
             );
           })}
 
@@ -321,9 +321,9 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         {/* Sun status pill */}
         <div className="absolute top-2 right-2">
           <span
-            className="text-xs font-semibold px-2 py-0.5 rounded-full"
+            className="text-xs font-semibold px-2 py-0.5 rounded-pill"
             style={{
-              backgroundColor: displayQuality === 'direct' ? '#fef3c7' : displayQuality === 'partial' ? '#ffedd5' : '#f3f4f6',
+              backgroundColor: displayQuality === 'direct' ? '#fef3c7' : displayQuality === 'partial' ? '#ffedd5' : '#f1f5f9',
               color: qualityColor,
             }}
           >
@@ -334,7 +334,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         {/* Altitude badge */}
         {isSunUp && (
           <div className="absolute bottom-2 right-2">
-            <span className="text-xs text-gray-400 bg-white/70 px-1.5 py-0.5 rounded-full">
+            <span className="text-xs text-slate-500 bg-white/70 px-1.5 py-0.5 rounded-pill">
               {Math.round(displayAltitude)}° alt
             </span>
           </div>
@@ -344,12 +344,12 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         <div className="absolute bottom-2 left-2 flex flex-col gap-0.5">
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-indigo-400" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #6366f1 0, #6366f1 3px, transparent 3px, transparent 5px)' }} />
-            <span className="text-xs text-gray-400">Facing</span>
+            <span className="text-xs text-slate-500">Facing</span>
           </div>
           {isSunUp && (
             <div className="flex items-center gap-1">
               <div className="w-3 h-0.5 rounded" style={{ backgroundColor: qualityColor }} />
-              <span className="text-xs text-gray-400">Sun</span>
+              <span className="text-xs text-slate-500">Sun</span>
             </div>
           )}
         </div>
@@ -358,7 +358,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
       {/* Timeline scrubber */}
       <div className="px-4 pt-3 pb-1">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-gray-500 font-medium">Timeline</span>
+          <span className="text-xs text-slate-500 font-semibold">Timeline</span>
           {currentSlot && (
             <span className="text-xs font-bold" style={{ color: qualityColor }}>
               {currentSlot.label}
@@ -367,7 +367,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         </div>
 
         {/* Colour bar */}
-        <div className="flex gap-0.5 mb-2 rounded-full overflow-hidden h-3">
+        <div className="flex gap-0.5 mb-2 rounded-pill overflow-hidden h-3">
           {timeline.map((slot, i) => (
             <button
               key={i}
@@ -376,7 +376,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
                 backgroundColor:
                   slot.quality === 'direct' ? '#fbbf24' :
                   slot.quality === 'partial' ? '#fb923c' :
-                  slot.isSunUp ? '#e5e7eb' : '#1e293b',
+                  slot.isSunUp ? '#e2e8f0' : '#1e293b',
                 opacity: scrubIndex === i ? 1 : 0.7,
                 outline: scrubIndex === i ? `2px solid ${qualityColor}` : 'none',
               }}
@@ -387,7 +387,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         </div>
 
         {/* Hour labels */}
-        <div className="flex justify-between text-gray-400" style={{ fontSize: '9px' }}>
+        <div className="flex justify-between text-slate-500" style={{ fontSize: 'var(--text-caption)' }}>
           {['6am', '9am', '12pm', '3pm', '6pm', '8pm'].map(l => (
             <span key={l}>{l}</span>
           ))}
@@ -396,22 +396,22 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
 
       {/* Solar info row */}
       {liveData?.solar && (
-        <div className="flex justify-around text-center px-3 py-3 border-t border-gray-50 mt-1">
+        <div className="flex justify-around text-center px-3 py-3 border-t border-slate-50 mt-1">
           <div>
-            <p className="text-xs text-gray-400">Sunrise</p>
-            <p className="text-sm font-semibold text-gray-700">{liveData.solar.sunriseLabel}</p>
+            <p className="text-xs text-slate-500">Sunrise</p>
+            <p className="text-sm font-semibold text-slate-700">{liveData.solar.sunriseLabel}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400">Solar Noon</p>
-            <p className="text-sm font-semibold text-gray-700">{liveData.solar.solarNoonLabel}</p>
+            <p className="text-xs text-slate-500">Solar Noon</p>
+            <p className="text-sm font-semibold text-slate-700">{liveData.solar.solarNoonLabel}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400">Golden Hour</p>
+            <p className="text-xs text-slate-500">Golden Hour</p>
             <p className="text-sm font-semibold text-amber-500">{liveData.solar.goldenHourStartLabel}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400">Sunset</p>
-            <p className="text-sm font-semibold text-gray-700">{liveData.solar.sunsetLabel}</p>
+            <p className="text-xs text-slate-500">Sunset</p>
+            <p className="text-sm font-semibold text-slate-700">{liveData.solar.sunsetLabel}</p>
           </div>
         </div>
       )}

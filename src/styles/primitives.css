@@ -1,0 +1,57 @@
+/* Legacy chip hooks remain aliases while controls share the same treatment. */
+:is(.ss-chip, .ss-map-pill, .ss-marker-pill, .ss-vlc-chip, .ss-time-chip, .ss-notif-filter-chip) {
+  --ss-chip-bg: white;
+  --ss-chip-fg: var(--color-ink);
+  --ss-chip-edge: var(--color-slate-200);
+  border-radius: var(--radius-pill);
+  color: var(--ss-chip-fg);
+  background: var(--ss-chip-bg);
+  border-color: var(--ss-chip-edge);
+  font-size: var(--text-secondary);
+  font-weight: 600;
+}
+
+.ss-chip.ss-chip--selectable {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ss-space-2);
+  min-width: var(--ss-hit);
+  min-height: var(--ss-hit);
+  box-shadow: none;
+}
+
+.ss-chip.ss-chip--selectable:is([aria-pressed="true"], .ss-quick-chip--active, .ss-quick-pill--active, .ss-filter-chip--active) {
+  background: var(--color-gold-soft);
+  border-color: var(--color-gold-fill);
+  color: var(--color-gold-text);
+}
+
+.ss-chip.ss-chip--info, .ss-chip.ss-chip--preview {
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+
+.ss-chip.ss-chip--preview { background: var(--color-gold-soft); color: var(--color-gold-text); }
+.ss-chip.ss-chip--selectable.ss-filter-chip--row { border-radius: 0; }
+
+.ss-action:is(button, a) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ss-space-2);
+  min-inline-size: var(--ss-hit);
+  min-block-size: var(--ss-hit);
+  border-radius: var(--radius-control);
+  font-size: var(--text-body);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  touch-action: manipulation;
+  transition: background-color var(--ss-motion-fast) var(--ss-ease), opacity var(--ss-motion-fast) var(--ss-ease);
+}
+
+.ss-action.ss-action--primary { background: var(--color-ink); color: white; }
+.ss-action.ss-action--secondary { background: var(--color-gold-soft); color: var(--color-gold-text); }
+.ss-action.ss-action--tertiary { background: transparent; color: var(--color-gold-text); }
+.ss-action:not(:disabled):active { filter: brightness(.94); }
+.ss-action:disabled { cursor: default; opacity: .58; }

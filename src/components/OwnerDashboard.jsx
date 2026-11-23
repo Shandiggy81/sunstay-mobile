@@ -282,7 +282,7 @@ function OwnerDashboardInner({ venue, onClose, liveVenueFeatures, setLiveVenueFe
             <header className="ss-partner-header">
                 <div className="ss-partner-title"><h2 id="partner-preview-title">{venueName}</h2><div className="ss-partner-chips">
                     <span className="ss-partner-type"><ClayIcon name={type.icon} size={24} />{type.label}</span>
-                    <span className="ss-partner-preview-pill">Partner preview</span>
+                    <span className="ss-partner-preview-pill ss-chip ss-chip--preview">Partner preview</span>
                 </div></div>
                 <button type="button" className="ss-partner-close" onClick={onClose} aria-label="Close partner preview"><X size={20} aria-hidden="true" /></button>
             </header>

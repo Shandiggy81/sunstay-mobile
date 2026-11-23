@@ -15,7 +15,7 @@ function StayHead({ headingId, heading, date, help }) {
     return <>
         <div className="ss-partner-check-head">
             <div><p className="ss-partner-today-date">{longDate(date)}</p><h3 id={headingId}>{heading}</h3></div>
-            <span className="ss-partner-preview-pill">Preview only</span>
+            <span className="ss-partner-preview-pill ss-chip ss-chip--preview">Preview only</span>
         </div>
         <p className="ss-partner-help">{help}</p>
     </>;

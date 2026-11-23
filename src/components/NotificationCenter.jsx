@@ -110,7 +110,7 @@ function evaluateRules({ nowH, peakStart, peakEnd, score, hourlyData }) {
       emoji:  '\ud83c\udf7a',
       title:  'Beer garden prime time!',
       body:   "It's beautiful out there right now. Get amongst it.",
-      accent: '#F97316',
+      accent: '#FBBF24',
     };
   }
 
@@ -129,17 +129,16 @@ function SunToast({ toast, onDismiss }) {
       transition={{ type: 'spring', stiffness: 340, damping: 28 }}
       style={{
         position:        'fixed',
-        top:             72,
+        top:             'calc(72px + env(safe-area-inset-top, 0px))',
         left:            '50%',
         transform:       'translateX(-50%)',
         zIndex:          99999,
         width:           'min(calc(100vw - 24px), 420px)',
-        background:      'rgba(255,255,255,0.97)',
-        backdropFilter:  'blur(18px)',
-        borderRadius:    20,
-        border:          `1.5px solid ${accent}44`,
-        boxShadow:       `0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px ${accent}22, 0 2px 0 ${accent}33 inset`,
-        padding:         '14px 16px',
+        background:      'var(--ss-surface-overlay)',
+        borderRadius: 'var(--radius-card)',
+        border:          '1px solid var(--color-warm-rule)',
+        boxShadow:       'var(--shadow-e3)',
+        padding:         'var(--ss-space-4)',
         display:         'flex',
         alignItems:      'flex-start',
         gap:             12,
@@ -148,28 +147,26 @@ function SunToast({ toast, onDismiss }) {
       role="alert"
       aria-live="assertive"
     >
-      <motion.div
-        animate={{ scale: [1, 1.25, 0.9, 1.15, 1], rotate: [-6, 6, -4, 4, 0] }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-        style={{ fontSize: 26, lineHeight: 1, flexShrink: 0, marginTop: 1 }}
+      <div
+        style={{ fontSize: 'var(--text-title)', lineHeight: 1, flexShrink: 0, marginTop: 1 }}
       >
         {emoji}
-      </motion.div>
+      </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          margin: 0, fontSize: 13, fontWeight: 800,
+          margin: 0, fontSize: 'var(--text-secondary)', fontWeight: 800,
           color: '#1E293B', lineHeight: 1.25,
         }}>{title}</p>
         <p style={{
-          margin: '3px 0 0', fontSize: 12, fontWeight: 500,
+          margin: '3px 0 0', fontSize: 'var(--text-caption)', fontWeight: 600,
           color: '#475569', lineHeight: 1.4,
         }}>{body}</p>
       </div>
 
       <div style={{
         position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-        borderRadius: '20px 0 0 20px', background: accent, opacity: 0.85,
+        borderRadius: 'var(--radius-card) 0 0 var(--radius-card)', background: accent, opacity: 0.85,
       }} />
 
       <motion.div
@@ -178,7 +175,7 @@ function SunToast({ toast, onDismiss }) {
         transition={{ duration: AUTO_DISMISS_MS / 1000, ease: 'linear' }}
         style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
-          height: 3, borderRadius: '0 0 20px 20px',
+          height: 3, borderRadius: '0 0 var(--radius-card) var(--radius-card)',
           background: accent, opacity: 0.5, transformOrigin: 'left',
         }}
       />
@@ -188,9 +185,9 @@ function SunToast({ toast, onDismiss }) {
         aria-label="Dismiss notification"
         style={{
           flexShrink: 0, background: 'none', border: 'none',
-          cursor: 'pointer', padding: '2px 4px',
-          color: '#94A3B8', fontSize: 18, lineHeight: 1,
-          borderRadius: 8, marginTop: -2,
+          cursor: 'pointer', minWidth: 'var(--ss-hit)', minHeight: 'var(--ss-hit)',
+          color: 'var(--color-slate-600)', fontSize: 'var(--text-section)', lineHeight: 1,
+          borderRadius: 'var(--radius-control)', marginTop: -2,
         }}
       >
         ×

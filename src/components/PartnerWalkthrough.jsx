@@ -12,7 +12,7 @@ export function PartnerListingCheck({ conflict, heating, onHeatingChange }) {
     return <section className="ss-partner-card ss-partner-check" aria-labelledby="partner-check-heading">
         <div className="ss-partner-check-head">
             <h3 id="partner-check-heading"><ClayIcon name="heater" size={32} />Your heating info doesn’t match</h3>
-            <span className="ss-partner-preview-pill">Preview only</span>
+            <span className="ss-partner-preview-pill ss-chip ss-chip--preview">Preview only</span>
         </div>
         <p className="ss-partner-check-problem">{conflict.summary} {conflict.risk}</p>
         <fieldset className="ss-partner-check-step">
@@ -38,7 +38,7 @@ export const PartnerGuestView = forwardRef(function PartnerGuestView({ venue, li
     return <section className="ss-partner-guest" aria-labelledby="partner-guest-heading">
         <div className="ss-partner-check-head">
             <h3 id="partner-guest-heading" tabIndex={-1}>Guest view</h3>
-            <span className="ss-partner-preview-pill">Preview only</span>
+            <span className="ss-partner-preview-pill ss-chip ss-chip--preview">Preview only</span>
         </div>
         <p className="ss-partner-help">Your real guest card with this preview’s changes. Guests still see your current listing.</p>
         {removed.length ? <p className="ss-partner-guest-removed">Off your card in this preview: {removed.map((label, index) =>

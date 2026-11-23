@@ -79,21 +79,21 @@ const SunSimulator = ({ venue, photoUrl }) => {
     }, [sunData]);
 
     return (
-        <div className="bg-white rounded-[32px] p-6 border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-sheet p-6 border border-slate-100 shadow-e1 overflow-hidden">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Clock size={16} className="text-amber-500" />
-                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Sun Simulator</h3>
+                    <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-normal">Sun Simulator</h3>
                 </div>
-                <div className="px-3 py-1 bg-amber-50 rounded-full border border-amber-100 shadow-sm">
-                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-tighter">
+                <div className="px-3 py-1 bg-amber-50 rounded-pill border border-amber-100 shadow-e1">
+                    <span className="text-caption font-extrabold text-amber-600 uppercase tracking-normal">
                         {formatTime(time)}
                     </span>
                 </div>
             </div>
 
             {/* Simulated Venue View */}
-            <div className="relative aspect-video rounded-2xl overflow-hidden mb-6 bg-slate-100 border border-gray-100 group">
+            <div className="relative aspect-video rounded-2xl overflow-hidden mb-6 bg-slate-100 border border-slate-100 group">
                 <img
                     src={photoUrl || "https://images.unsplash.com/photo-1549443542-99086fd59379?auto=format&fit=crop&q=80&w=800"}
                     alt="Venue View"
@@ -166,10 +166,10 @@ const SunSimulator = ({ venue, photoUrl }) => {
 
                 {/* Real-time Recommendation Badge */}
                 <div className="absolute bottom-3 left-3 right-3">
-                    <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 shadow-lg flex items-center justify-between">
+                    <div className="bg-white/90 px-4 py-2 rounded-xl border border-white/20 shadow-e3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             {sunData.isDaylight ? <Sun size={14} className="text-amber-500" /> : <Moon size={14} className="text-indigo-400" />}
-                            <span className="text-[11px] font-bold text-gray-800">{getRecommendation()}</span>
+                            <span className="text-caption font-bold text-slate-800">{getRecommendation()}</span>
                         </div>
                         <Sparkles size={12} className="text-amber-400 animate-pulse" />
                     </div>
@@ -186,18 +186,18 @@ const SunSimulator = ({ venue, photoUrl }) => {
                         step="0.01"
                         value={time}
                         onChange={handleTimeChange}
-                        className="w-full h-1.5 bg-gray-100 rounded-full appearance-none cursor-pointer accent-amber-500"
+                        className="w-full h-1.5 bg-slate-100 rounded-pill appearance-none cursor-pointer accent-amber-500"
                     />
                 </div>
                 <div className="flex justify-between px-1">
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Dawn</span>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Midday</span>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Dusk</span>
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Midnight</span>
+                    <span className="text-caption font-extrabold text-slate-500 uppercase tracking-normal">Dawn</span>
+                    <span className="text-caption font-extrabold text-slate-500 uppercase tracking-normal">Midday</span>
+                    <span className="text-caption font-extrabold text-slate-500 uppercase tracking-normal">Dusk</span>
+                    <span className="text-caption font-extrabold text-slate-500 uppercase tracking-normal">Midnight</span>
                 </div>
             </div>
 
-            <p className="mt-4 text-[10px] text-gray-400 text-center font-medium italic">
+            <p className="mt-4 text-caption text-slate-500 text-center font-semibold italic">
                 Simulated for {venue.venueName}'s orientation on {new Date().toLocaleDateString('en-AU', { month: 'long', day: 'numeric' })}
             </p>
         </div>

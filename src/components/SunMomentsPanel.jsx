@@ -42,11 +42,11 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
     <div className={compact ? "ss-venue-moments" : "flex flex-col gap-3"}>
       <div className={compact ? "ss-venue-moments-summary" : "relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white px-4 pb-1 pt-4"}>
         {/* The graph has its own smiling sun; the corner icon only marks a shaded day. */}
-        {!compact && !(sun && total > 0) && <ClayIcon name={total > 0 ? 'sun' : 'shaded'} size={84} className="pointer-events-none absolute -right-3 -top-3 drop-shadow-sm" />}
-        <p className={`${sun && total > 0 ? '' : 'pr-20 '}text-[32px] font-extrabold leading-none tracking-[-0.02em] text-slate-900 tabular-nums`}>
+        {!compact && !(sun && total > 0) && <ClayIcon name={total > 0 ? 'sun' : 'shaded'} size={84} className="pointer-events-none absolute -right-3 -top-3" />}
+        <p className={`${sun && total > 0 ? '' : 'pr-20 '}text-title font-extrabold leading-none tracking-normal text-slate-900 tabular-nums`}>
           {total > 0 ? formatDuration(total) : 'In the shade'}
         </p>
-        <p className="mt-1.5 pr-20 text-[13px] font-semibold text-slate-600">
+        <p className="mt-1.5 pr-20 text-secondary font-semibold text-slate-600">
           {total > 0 ? `of ${label} ${dayLabel}` : `No ${label} ${dayLabel}`}
         </p>
         {sun
@@ -64,16 +64,16 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
             <li
               key={m.key}
               className={`flex flex-col gap-1.5 rounded-2xl border p-3 ${m.available
-                ? 'border-amber-200/80 bg-white shadow-[0_4px_14px_rgba(245,158,11,0.10)]'
+                ? 'border-amber-200/80 bg-white shadow-e2'
                 : 'border-slate-200/80 bg-slate-50'}`}
             >
               <ClayIcon name={m.icon} size={compact ? 28 : 44} className={m.available ? '' : 'opacity-45 grayscale'} />
-              <span className="text-[14px] font-extrabold leading-tight text-slate-900">{m.title}</span>
-              <span className={`text-[12px] font-semibold leading-snug ${m.available ? 'text-amber-900' : 'text-slate-500'}`}>
+              <span className="text-body font-extrabold leading-tight text-slate-900">{m.title}</span>
+              <span className={`text-caption font-semibold leading-snug ${m.available ? 'text-amber-900' : 'text-slate-500'}`}>
                 {when}
               </span>
               {sky ? (
-                <span className={`inline-flex items-center gap-1 self-start rounded-full py-0.5 pl-0.5 pr-2 text-[11px] font-bold ${sky.className}`}>
+                <span className={`inline-flex items-center gap-1 self-start rounded-pill py-0.5 pl-0.5 pr-2 text-caption font-bold ${sky.className}`}>
                   <ClayIcon name={sky.icon} size={16} />
                   {sky.text}
                 </span>
