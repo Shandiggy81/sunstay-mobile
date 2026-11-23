@@ -1,16 +1,17 @@
 /* Night tokens belong only to After Dark surfaces, including its collapsed peek. */
 .ss-mobile-sheet--after-dark, .ss-home-sheet-peek--after-dark, .ss-sidebar--after-dark, .ss-after-dark-panel {
-  --ad-bg: #121314;
-  --ad-sheet: #18191b;
-  --ad-card: #26282b;
-  --ad-border: #3e4146;
-  --ad-text: #f7f7f5;
-  --ad-secondary: #b9bcc2;
-  --ad-volt: #e4ef5a;
-  --ad-on-volt: #1a1c05;
-  --ad-pink: #ff7db5;
-  --ad-tip-bg: #3a2230;
-  --ad-tip-text: #ffc6de;
+  --ad-bg: var(--color-slate-950);
+  --ad-sheet: var(--color-ink);
+  --ad-card: var(--color-slate-800);
+  --ad-border: var(--color-slate-700);
+  --ad-text: var(--color-surface);
+  --ad-secondary: var(--color-slate-300);
+  --ad-volt: var(--color-gold-highlight);
+  --ad-on-volt: var(--color-ink);
+  --ad-pink: var(--color-gold-highlight);
+  --ad-tip-bg: var(--color-slate-800);
+  --ad-tip-text: var(--color-slate-100);
+  --ss-focus: var(--color-gold-highlight);
   color-scheme: dark;
 }
 .ss-app-root .ss-mobile-sheet.ss-mobile-sheet--after-dark,
@@ -45,7 +46,7 @@
 .ss-after-dark-header { display: flex; flex-shrink: 0; align-items: center; gap: 8px; padding: 8px 16px; background: var(--ad-sheet); }
 .ss-after-dark-heading { flex: 1; min-width: 0; }
 .ss-after-dark-eyebrow { margin: 0 0 3px; color: var(--ad-volt); font-size: var(--text-caption); font-weight: 800; line-height: 1.4; }
-.ss-after-dark-heading h3 { margin: 0; color: var(--ad-text); font-size: var(--text-title); font-weight: 800; letter-spacing: 0; line-height: 1.15; }
+.ss-after-dark-heading h3 { margin: 0; color: var(--ad-text); font-size: var(--text-title); font-weight: 800; line-height: 1.25; }
 .ss-after-dark-locate { display: inline-flex; flex-shrink: 0; align-items: center; gap: 3px; min-width: 44px; min-height: 44px; padding: 0 9px 0 5px; border: 1px solid var(--ad-border); border-radius: var(--radius-pill); background: var(--ad-card); color: var(--ad-text); font-size: var(--text-caption); font-weight: 700; white-space: nowrap; }
 .ss-after-dark-locate:disabled { color: var(--ad-secondary); cursor: wait; }
 .ss-after-dark-filters { flex-shrink: 0; padding: 0 0 8px; background: var(--ad-sheet); border-bottom: 1px solid var(--ad-border); }
@@ -73,8 +74,8 @@
 .ss-after-dark-origin-row { padding: 2px 16px 0; }
 .ss-after-dark-origin { margin: 0; color: var(--ad-secondary); font-size: var(--text-caption); font-weight: 600; line-height: 1.5; }
 .ss-after-dark-results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; padding: 12px 12px calc(16px + env(safe-area-inset-bottom, 0px)); }
-.ss-after-dark-event-list, .ss-after-dark-loading { display: flex; flex-direction: column; gap: 12px; }
-.ss-after-dark-event { min-width: 0; padding: 14px; border: 1px solid var(--ad-border); border-radius: var(--radius-card); background: var(--ad-card); overflow-wrap: anywhere; }
+.ss-after-dark-event-list, .ss-after-dark-loading { display: flex; flex-direction: column; gap: var(--ss-space-3); }
+.ss-after-dark-event { min-width: 0; padding: var(--ss-space-4) var(--ss-space-1); border-bottom: 1px solid var(--ad-border); overflow-wrap: anywhere; }
 .ss-after-dark-event-head { display: flex; align-items: flex-start; gap: 12px; }
 .ss-after-dark-time { display: flex; flex: 0 0 62px; flex-direction: column; padding-top: 3px; color: var(--ad-volt); text-align: center; font-variant-numeric: tabular-nums; }
 .ss-after-dark-time > span { font-size: var(--text-title); line-height: 1; font-weight: 800; letter-spacing: 0; }
