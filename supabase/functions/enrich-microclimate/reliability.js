@@ -145,11 +145,20 @@ export async function runEnrichment({ selectPage, writeBatch, score,
   const metrics = { ok: false, selected: 0, updated: 0, skipped: 0, pages: 0,
     cells: 0, upstream_status_counts: {}, weather_error_counts: {}, weather_attempts: 0, retries: 0, weather_failures: 0,
     bulk_failures: 0, write_outcome_unknown: false, unprocessed: 0,
-    capped: false, code: 'complete', elapsed_ms: 0 };
+    capped: false, code: 'complete', invalid_config_field: null, elapsed_ms: 0 };
   try {
-    const size = pageSize === undefined ? LIMITS.pageSize : Number(pageSize);
+    const requestedSize = pageSize === undefined ? LIMITS.pageSize : Number(pageSize);
     const ttl = ttlMinutes === undefined ? LIMITS.ttlMinutes : Number(ttlMinutes);
-    if (!Number.isInteger(size) || size < 50 || size > 500 || ttl !== 30) throw codeError('invalid_config');
+    if (!Number.isSafeInteger(requestedSize) || requestedSize < 50) {
+      metrics.invalid_config_field = 'ENRICH_BATCH_SIZE';
+      throw codeError('invalid_config');
+    }
+    if (ttl !== 30) {
+      metrics.invalid_config_field = 'ENRICH_TTL_MINUTES';
+      throw codeError('invalid_config');
+    }
+    // Legacy settings limited the whole run; keep them as bounded page hints.
+    const size = Math.min(requestedSize, 500);
     const cutoff = new Date(wallNow().getTime() + LIMITS.refreshAheadMinutes * minute).toISOString();
     const rows = [], seen = new Set();
     let after = null;
