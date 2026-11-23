@@ -347,16 +347,16 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
     ? `https://www.google.com/maps/dir/?api=1&destination=${Number(venue?.lat)},${Number(venue?.lng)}` : null;
   if (footerPrimaryAction({ venue, websiteUrl: share.websiteUrl }) === 'website') {
     return <div className="ss-venue-stay-footer-actions">
-      {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-stay-directions"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></a>
-        : <button type="button" disabled className="ss-venue-stay-directions" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></button>}
-      <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-property-website" aria-describedby={captionId}><Globe size={18} aria-hidden="true" />Visit property website<ExternalLink size={16} aria-hidden="true" /></a>
+      {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-stay-directions ss-action ss-action--secondary"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></a>
+        : <button type="button" disabled className="ss-venue-stay-directions ss-action ss-action--secondary" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></button>}
+      <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-property-website ss-action ss-action--primary" aria-describedby={captionId}><Globe size={18} aria-hidden="true" />Visit property website<ExternalLink size={16} aria-hidden="true" /></a>
       <p id={captionId}>Opens {websiteHostLabel(share.websiteUrl)}</p>
     </div>;
   }
   return <div className="ss-venue-footer-actions">
-    {share.websiteUrl ? <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-website"><Globe size={18} aria-hidden="true" />Website</a> : null}
-    {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-directions" aria-label="Get directions"><Navigation size={18} aria-hidden="true" />Get directions</a>
-      : <button type="button" disabled className="ss-venue-directions" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions</button>}
+    {share.websiteUrl ? <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-website ss-action ss-action--tertiary"><Globe size={18} aria-hidden="true" />Website</a> : null}
+    {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-directions ss-action ss-action--primary" aria-label="Get directions"><Navigation size={18} aria-hidden="true" />Get directions</a>
+      : <button type="button" disabled className="ss-venue-directions ss-action ss-action--primary" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions</button>}
   </div>;
 }
 
@@ -878,8 +878,8 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                     {typedMoments ? <CafeSunFacts venue={venue} microclimateEntry={microclimateEntry} now={now} venueType={typedMoments} /> : null}
                     <VenueOfferingsList key={venue?.id} offerings={offeringsBesideCafeFacts(offerings, cafeFactKeys)} amenities={amenities} />
                     {address || (onCenter && hasValidCoordinates) ? <div className="ss-venue-fact"><MapPin size={22} aria-hidden="true" /><span>{address ?? displayName}</span>
-                      {onCenter && hasValidCoordinates ? <button type="button" onClick={() => onCenter(venue)} className="ss-venue-text-action">Map</button>
-                        : mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action">Map</a> : null}
+                      {onCenter && hasValidCoordinates ? <button type="button" onClick={() => onCenter(venue)} className="ss-venue-text-action ss-action ss-action--tertiary">Map</button>
+                        : mapsUrl ? <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-text-action ss-action ss-action--tertiary">Map</a> : null}
                     </div> : null}
                     <AboutAndHours hours={hoursView} websiteUrl={share.websiteUrl} />
                     <AccessSection access={venueAccessFacts(withPartnerAccess(venue, partnerTools))} publicToilet={publicToilet} />

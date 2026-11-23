@@ -45,7 +45,7 @@ export function PartnerToday({ venue, now, whatsOn = null }) {
     return <section className="ss-partner-today" aria-labelledby="partner-today-heading">
         <div className="ss-partner-check-head">
             <div>{view.dateLabel ? <p className="ss-partner-today-date">{view.dateLabel}</p> : null}<h3 id="partner-today-heading">Today</h3></div>
-            <span className="ss-partner-preview-pill">Preview only</span>
+            <span className="ss-partner-preview-pill ss-chip ss-chip--preview">Preview only</span>
         </div>
         <p className="ss-partner-help">Changes stay on this device until partner editing launches.</p>
 
@@ -130,7 +130,7 @@ export const PartnerSpecialEditor = forwardRef(function PartnerSpecialEditor({ t
     return <section className="ss-partner-card ss-partner-tools-card ss-partner-special" aria-labelledby="partner-special-heading">
         <div className="ss-partner-check-head">
             <div className="ss-partner-section-heading"><ClayIcon name={icon} size={40} /><h3 id="partner-special-heading">Special</h3></div>
-            <span className="ss-partner-preview-pill">Preview only</span>
+            <span className="ss-partner-preview-pill ss-chip ss-chip--preview">Preview only</span>
         </div>
         {note ? <p className="ss-partner-help ss-partner-special-note">{note}</p> : null}
         <label className="ss-partner-special-label" htmlFor="partner-special-deal">What’s on special?</label>

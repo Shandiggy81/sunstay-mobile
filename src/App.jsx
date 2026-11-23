@@ -485,7 +485,7 @@ const SelectedFoodTypeChips = ({ activeFilters, onToggle }) => (
             const clayName = clayIconName(filter.id);
             return (
                 <button key={filter.id} type="button" onClick={() => onToggle(filter.id)} aria-pressed={true}
-                    className="ss-quick-chip ss-quick-chip--active">
+                    className="ss-quick-chip ss-chip ss-chip--selectable ss-quick-chip--active">
                     <VenueIcon icon={clayName ? { name: clayName } : { emoji: filter.icon }} size={26} />
                     <span>{filter.label}</span>
                 </button>
@@ -523,14 +523,14 @@ const QuickFilterChips = ({ activeFilters, onToggle, onClear, showClear }) => {
                 const active = activeFilters.includes(item.id);
                 return (
                     <button key={item.id} type="button" onClick={() => onToggle(item.id)} aria-pressed={active}
-                        className={`ss-quick-chip ${active ? 'ss-quick-chip--active' : ''}`}>
+                        className={`ss-quick-chip ss-chip ss-chip--selectable ${active ? 'ss-quick-chip--active' : ''}`}>
                         <ClayIcon name={item.icon} size={26} />
                         <span>{item.label}</span>
                     </button>
                 );
             })}
             {showClear ? (
-                <button type="button" onClick={onClear} className="ss-quick-chip ss-quick-chip--clear">Clear</button>
+                <button type="button" onClick={onClear} className="ss-quick-chip ss-chip ss-chip--selectable ss-quick-chip--clear">Clear</button>
             ) : null}
         </div>
     );
@@ -548,7 +548,7 @@ const VenueChip = memo(({ venue, isSelected, onClick, weather }) => {
             }}
             role="button"
             aria-label={`View ${venue.venueName}`}
-            className={`ss-venue-chip relative overflow-hidden ${isSelected ? 'ss-venue-chip--active' : ''}`}
+            className={`ss-venue-chip ss-chip ss-chip--selectable relative overflow-hidden ${isSelected ? 'ss-venue-chip--active' : ''}`}
         >
             <span>{venue.emoji}</span>
             <span className="ss-venue-chip-name">{venue.venueName.length > 16 ? venue.venueName.slice(0, 15) + '…' : venue.venueName}</span>
@@ -1393,14 +1393,14 @@ const AppContent = () => {
                         <div className="ss-quick-filter-row flex flex-shrink-0 gap-2 px-3 py-2">
                             <button
                                 onClick={() => handleFilterToggle(FILTER_COZY)}
-                                className={`ss-quick-pill ${cozyFilterActive ? 'ss-quick-pill--active' : ''}`}
+                                className={`ss-quick-pill ss-chip ss-chip--selectable ${cozyFilterActive ? 'ss-quick-pill--active' : ''}`}
                                 aria-pressed={cozyFilterActive}
                             >
                                 <ClayIcon name="indoor-warmth" size={24} /> Cozy
                             </button>
                             <button
                                 onClick={() => handleFilterToggle(FILTER_SUNNY)}
-                                className={`ss-quick-pill ${sunnyFilterActive ? 'ss-quick-pill--active' : ''}`}
+                                className={`ss-quick-pill ss-chip ss-chip--selectable ${sunnyFilterActive ? 'ss-quick-pill--active' : ''}`}
                                 aria-pressed={sunnyFilterActive}
                             >
                                 <ClayIcon name="sun" size={24} /> Sunny

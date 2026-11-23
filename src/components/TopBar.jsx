@@ -123,7 +123,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
             </div>
             <div className="ss-home-search-row">
                 <div className="ss-map-first-search-column">
-                    <div className="ss-map-first-search-pill" role="search">
+                    <div className="ss-map-first-search-pill ss-chip ss-chip--info" role="search">
                         <Search size={16} aria-hidden="true" className="ss-map-first-search-icon" />
                         <input type="text" inputMode="search" aria-label="Search venues" placeholder="Find a sunny spot"
                             role="combobox" aria-autocomplete="list" aria-expanded={showSuggestions} aria-controls={listboxId}
