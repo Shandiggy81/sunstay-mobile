@@ -55,7 +55,7 @@ class MapErrorBoundary extends React.Component {
       return (
         <div
           data-react-render-error="1"
-          className={`absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-sheet ${
+          className={`absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-[32px] backdrop-blur-sm ${
             hasValidToken ? 'bg-orange-950/20' : 'bg-gradient-to-br from-orange-950 to-slate-900'
           }`}
         >
@@ -75,21 +75,21 @@ class MapErrorBoundary extends React.Component {
           <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
             {/* Animated Sunstay Badge */}
             <div className="flex flex-col items-center gap-3">
-              <div className="flex items-center gap-2.5 px-6 py-3 bg-amber-500 rounded-2xl shadow-e2 animate-pulse">
+              <div className="flex items-center gap-2.5 px-6 py-3 bg-amber-500 rounded-2xl shadow-[0_4px_20px_rgba(245,158,11,0.4)] animate-pulse">
                 <span className="text-xl">🗺️</span>
-                <span className="text-amber-950 font-extrabold text-sm uppercase tracking-normal">Map Loading…</span>
+                <span className="text-amber-950 font-black text-sm uppercase tracking-wider">Map Loading…</span>
               </div>
-              <p className="text-white font-bold text-xs uppercase tracking-normal opacity-70">Sunstay Intelligence</p>
+              <p className="text-white font-bold text-xs uppercase tracking-[3px] opacity-70">Sunstay Intelligence</p>
             </div>
 
             <div className="max-w-[200px] h-[1px] w-full bg-white/20" />
 
             <button
               onClick={() => window.location.reload()}
-              className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold py-3 px-8 rounded-2xl shadow-e3 transition-all active:scale-95"
+              className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-black py-3 px-8 rounded-2xl shadow-xl transition-all active:scale-95"
             >
               <span>↻</span>
-              <span className="text-xs uppercase tracking-normal">Retry Dashboard</span>
+              <span className="text-xs uppercase tracking-widest">Retry Dashboard</span>
             </button>
           </div>
         </div>
