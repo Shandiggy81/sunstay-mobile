@@ -24,18 +24,18 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
             </div>
 
             {/* UV Gauge */}
-            <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 shadow-inner">
+            <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 shadow-none">
                 <div className="flex justify-between items-end mb-4">
                     <div>
                         <p className="text-caption font-extrabold text-slate-500 uppercase tracking-normal">Current UV Index</p>
                         <p className={`text-4xl font-extrabold ${config.color.replace('text-', 'text-')}`}>{Math.round(uvi)}</p>
                     </div>
-                    <div className={`px-3 py-1 rounded-full ${config.bgColor} border ${config.color.replace('text-', 'border-')} border-opacity-20`}>
+                    <div className={`px-3 py-1 rounded-pill ${config.bgColor} border ${config.color.replace('text-', 'border-')} border-opacity-20`}>
                         <span className={`text-caption font-extrabold uppercase ${config.color}`}>{config.label}</span>
                     </div>
                 </div>
 
-                <div className="relative h-3 w-full bg-slate-200 rounded-full flex overflow-hidden mb-2">
+                <div className="relative h-3 w-full bg-slate-200 rounded-pill flex overflow-hidden mb-2">
                     {levels.map((level, i) => (
                         <div
                             key={i}
@@ -47,7 +47,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                     <motion.div
                         initial={{ left: 0 }}
                         animate={{ left: `${Math.min(100, (uvi / 12) * 100)}%` }}
-                        className="absolute top-0 bottom-0 w-1 bg-white shadow-md z-10"
+                        className="absolute top-0 bottom-0 w-1 bg-white shadow-e1 z-10"
                     />
                 </div>
                 <div className="flex justify-between text-caption font-extrabold text-slate-500 uppercase tracking-normal">
@@ -62,7 +62,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
             {/* Advice Grid */}
             <div className="grid grid-cols-1 gap-3">
                 <div className={`flex items-start gap-4 p-4 rounded-3xl ${config.bgColor} border border-white/50 backdrop-blur-sm`}>
-                    <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-xl shadow-sm">
+                    <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-xl shadow-e1">
                         {advice.icon}
                     </div>
                     <div>
@@ -73,7 +73,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                 </div>
 
                 <div className="flex items-start gap-4 p-4 rounded-3xl bg-amber-50 border border-amber-100/50">
-                    <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-xl shadow-sm">
+                    <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-xl shadow-e1">
                         <Clock className="text-amber-500" size={18} />
                     </div>
                     <div>
@@ -85,26 +85,26 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
             </div>
 
             {/* Protection Checklist */}
-            <div className="p-5 bg-white rounded-3xl border border-slate-100 shadow-sm">
+            <div className="p-5 bg-white rounded-3xl border border-slate-100 shadow-e1">
                 <div className="flex items-center gap-2 mb-4">
                     <Shield size={14} className="text-emerald-500" />
                     <h4 className="text-caption font-extrabold text-slate-500 uppercase tracking-normal">Recommended Gear</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <div className="w-2 h-2 rounded-pill bg-emerald-400" />
                         <span className="text-xs font-bold text-slate-700">Broad-spectrum SPF</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <div className="w-2 h-2 rounded-pill bg-emerald-400" />
                         <span className="text-xs font-bold text-slate-700">Polarized Lenses</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <div className="w-2 h-2 rounded-pill bg-emerald-400" />
                         <span className="text-xs font-bold text-slate-700">Breathable Hat</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <div className="w-2 h-2 rounded-pill bg-emerald-400" />
                         <span className="text-xs font-bold text-slate-700">Hydration Layer</span>
                     </div>
                 </div>

@@ -22,7 +22,7 @@ export default function SunshineScoreBadge({ venue, weather = {}, size = 'md', s
     // Tiny dot for map markers — just the coloured score number
     return (
       <span
-        className="inline-flex items-center justify-center rounded-full font-bold leading-none"
+        className="inline-flex items-center justify-center rounded-pill font-bold leading-none"
         style={{
           backgroundColor: score.gradeColor,
           color: '#fff',
@@ -72,9 +72,9 @@ export default function SunshineScoreBadge({ venue, weather = {}, size = 'md', s
           ].map(({ label, key, max }) => (
             <div key={key} className="flex items-center gap-2">
               <span className="text-xs text-slate-500 w-28 shrink-0">{label}</span>
-              <div className="flex-1 h-1.5 rounded-full bg-white/60">
+              <div className="flex-1 h-1.5 rounded-pill bg-white/60">
                 <div
-                  className="h-full rounded-full transition-all duration-500"
+                  className="h-full rounded-pill transition-all duration-500"
                   style={{
                     width: `${(score.breakdown[key] / max) * 100}%`,
                     backgroundColor: score.gradeColor,
@@ -94,7 +94,7 @@ export default function SunshineScoreBadge({ venue, weather = {}, size = 'md', s
   // Default: 'md' chip for VenueCard
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+      className="inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-xs font-semibold"
       style={{
         backgroundColor: score.gradeBg,
         color: score.gradeColor,

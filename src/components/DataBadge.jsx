@@ -5,11 +5,11 @@ import { getBadgeDisplayText, getBadgeRefreshDelay, getBadgeState } from '../uti
 const TONES = Object.freeze({
   live: {
     pill: 'border-accent bg-surface text-ink',
-    marker: <span className="h-1.5 w-1.5 rounded-full bg-accent motion-safe:animate-pulse" />,
+    marker: <span className="h-1.5 w-1.5 rounded-pill bg-accent motion-safe:animate-pulse" />,
   },
   cached: {
     pill: 'border-accent bg-surface text-ink',
-    marker: <span className="h-2 w-2 rounded-full border-2 border-amber-600" />,
+    marker: <span className="h-2 w-2 rounded-pill border-2 border-amber-600" />,
   },
   forecast: {
     pill: 'border-sky-300 bg-surface text-ink',
@@ -17,7 +17,7 @@ const TONES = Object.freeze({
   },
   calculated: {
     pill: 'border-slate-300 bg-surface text-ink',
-    marker: <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />,
+    marker: <span className="h-1.5 w-1.5 rounded-pill bg-slate-500" />,
   },
   estimated: {
     pill: 'border-dotted border-slate-400 bg-surface text-ink',
@@ -61,7 +61,7 @@ export default function DataBadge({ kind, updatedAt, source, size = 'md' }) {
   const description = [text.accessibleLabel, source ? `Source ${source}` : null].filter(Boolean).join(', ');
   return (
     <span role="img" aria-label={description} title={description} data-tone={state.tone}
-      className={`inline-flex max-w-full items-center gap-1.5 rounded-full border font-semibold leading-snug ${tone.pill} ${size === 'sm' ? 'px-2 py-1 text-caption' : 'px-2.5 py-1.5 text-caption'}`}>
+      className={`inline-flex max-w-full items-center gap-1.5 rounded-pill border font-semibold leading-snug ${tone.pill} ${size === 'sm' ? 'px-2 py-1 text-caption' : 'px-2.5 py-1.5 text-caption'}`}>
       {tone.marker && <span aria-hidden="true" data-marker={state.tone} className="flex h-3 w-3 shrink-0 items-center justify-center">{tone.marker}</span>}
       <span aria-hidden="true" className="min-w-0 break-words">
         {text.visibleLabel}

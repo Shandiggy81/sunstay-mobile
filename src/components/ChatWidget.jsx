@@ -135,7 +135,7 @@ const followUpChips = [
 ];
 
 const chipClass =
-  'flex-shrink-0 snap-start inline-flex min-h-11 items-center gap-1.5 pl-1.5 pr-4 bg-white border border-slate-200 rounded-full text-secondary font-semibold text-slate-800 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
+  'flex-shrink-0 snap-start inline-flex min-h-11 items-center gap-1.5 pl-1.5 pr-4 bg-white border border-slate-200 rounded-pill text-secondary font-semibold text-slate-800 hover:border-amber-400 hover:bg-amber-50 shadow-e1 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
 
 // ─── Venue mini cards under a reply ───────────────────────────────────────────
 const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
@@ -148,7 +148,7 @@ const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
           <button
             type="button"
             onClick={() => onOpen(venue)}
-            className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-sm transition-colors hover:border-amber-400 active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-e1 transition-colors hover:border-amber-400 active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
             aria-label={accessibleName}
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50">
@@ -184,11 +184,11 @@ const TypingIndicator = () => (
     exit={{ opacity: 0, y: 6 }}
     className="flex justify-start"
   >
-    <div className="bg-white border border-slate-100 rounded-3xl rounded-bl-md px-5 py-4 shadow-sm flex items-center gap-1.5">
+    <div className="bg-white border border-slate-100 rounded-3xl rounded-bl-md px-5 py-4 shadow-e1 flex items-center gap-1.5">
       {[0, 1, 2].map(i => (
         <motion.span
           key={i}
-          className="w-2 h-2 bg-amber-400 rounded-full block"
+          className="w-2 h-2 bg-amber-400 rounded-pill block"
           animate={{ y: [0, -5, 0] }}
           transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
         />
@@ -480,14 +480,14 @@ const ChatWidget = ({
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
           className="fixed bottom-24 right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
         >
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col" style={{ maxHeight: '85dvh' }}
+          <div className="bg-white rounded-2xl shadow-e3 overflow-hidden border border-slate-100 flex flex-col" style={{ maxHeight: '85dvh' }}
             role="dialog" aria-labelledby="ss-sunny-chat-title">
 
             {/* ── Header ── */}
             <div className={`bg-gradient-to-r ${mood.gradient} px-5 py-4 flex items-center justify-between flex-shrink-0`}>
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-full shadow-sm ring-2 ring-white/50 ${avatar.clay ? 'bg-amber-50' : ''}`}>
+                  <div className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-pill shadow-e1 ring-2 ring-white/50 ${avatar.clay ? 'bg-amber-50' : ''}`}>
                     <img
                       key={avatar.src}
                       src={avatar.src}
@@ -502,14 +502,14 @@ const ChatWidget = ({
                 <div>
                   <h3 id="ss-sunny-chat-title" className="text-white font-extrabold text-base tracking-normal leading-none mb-1">Sunny · Weather Guide</h3>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse border border-white/20"></span>
+                    <span className="w-2 h-2 bg-green-400 rounded-pill animate-pulse border border-white/20"></span>
                     <span className="text-white/90 text-xs font-bold uppercase tracking-normal">{mood.label}</span>
                   </div>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center hover:bg-white/20 rounded-full transition-colors"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center hover:bg-white/20 rounded-pill transition-colors"
                 aria-label="Close chat"
               >
                 <X className="w-5 h-5 text-white" />
@@ -538,11 +538,11 @@ const ChatWidget = ({
                 >
                   <div className="flex max-w-[88%] items-end gap-2">
                     {msg.avatar === 'brucey' ? (
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 ring-1 ring-amber-200">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-amber-50 ring-1 ring-amber-200">
                         <ClayIcon name="brucey" size={34} alt="Brucey" />
                       </span>
                     ) : null}
-                    <div className={`px-5 py-3 rounded-3xl text-body font-semibold shadow-sm leading-relaxed ${
+                    <div className={`px-5 py-3 rounded-3xl text-body font-semibold shadow-e1 leading-relaxed ${
                       msg.type === 'user'
                         ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-br-md'
                         : 'bg-white border border-slate-100 text-slate-800 rounded-bl-md'
@@ -625,14 +625,14 @@ const ChatWidget = ({
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   placeholder="Ask Sunny anything..."
-                  className="flex-1 min-w-0 h-11 px-4 bg-slate-50 border border-slate-200 rounded-full text-input text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
+                  className="flex-1 min-w-0 h-11 px-4 bg-slate-50 border border-slate-200 rounded-pill text-input text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
                 />
                 <motion.button
                   type="submit"
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.93 }}
                   disabled={!inputValue.trim()}
-                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-gradient-to-r from-amber-400 to-orange-500 rounded-full shadow-md disabled:opacity-40 transition-opacity"
+                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-gradient-to-r from-amber-400 to-orange-500 rounded-pill shadow-e1 disabled:opacity-40 transition-opacity"
                   aria-label="Send"
                 >
                   <Send className="w-4 h-4 text-white" />

@@ -101,11 +101,11 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
     <motion.div
       data-matching-room={highlighted ? "true" : undefined}
       className="rounded-3xl p-4 flex flex-col gap-3 mb-3"
-      style={{ background: '#ffffff', border: highlighted ? '2px solid #F59E0B' : '1px solid rgba(15,23,42,0.08)', boxShadow: '0 8px 24px rgba(15,23,42,0.05)' }}
+      style={{ background: '#ffffff', border: highlighted ? '2px solid #F59E0B' : '1px solid rgba(15,23,42,0.08)', boxShadow: 'var(--shadow-e1)' }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {highlighted && <p className="self-start rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">{facadeSide ? 'Sunniest side for your sun moment' : 'Best room for your sun moment'}</p>}
+      {highlighted && <p className="self-start rounded-pill bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">{facadeSide ? 'Sunniest side for your sun moment' : 'Best room for your sun moment'}</p>}
       <div className="flex justify-between items-start gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50" aria-hidden="true">
@@ -124,8 +124,8 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
           <span className="text-slate-500 text-caption block">/ night</span>
         </div>}
       </div>
-      {display?.chip ? <p className="self-start rounded-full bg-emerald-50 px-2.5 py-1 text-caption font-bold text-emerald-800" title={display.trustLine}>{display.chip}</p>
-        : display ? <p className="self-start rounded-full bg-slate-100 px-2.5 py-1 text-caption font-semibold text-slate-600" title={roomSourceLabel(room) ?? display.trustLine}>{display.evidenceLabel}</p> : null}
+      {display?.chip ? <p className="self-start rounded-pill bg-emerald-50 px-2.5 py-1 text-caption font-bold text-emerald-800" title={display.trustLine}>{display.chip}</p>
+        : display ? <p className="self-start rounded-pill bg-slate-100 px-2.5 py-1 text-caption font-semibold text-slate-600" title={roomSourceLabel(room) ?? display.trustLine}>{display.evidenceLabel}</p> : null}
 
       {daily ? (
         <div className="flex flex-col gap-3">
@@ -139,14 +139,14 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
           ) : null}
           <div className="flex flex-wrap items-center gap-1.5 text-caption" aria-label="Sunniest months, representative 15th-of-month estimates">
             <span className="mr-1 inline-flex items-center gap-1 font-semibold text-slate-600"><ClayIcon name="sun-cloud" size={20} />Sunniest months</span>
-            {months === undefined ? <span role="status" className="h-6 w-12 rounded-full bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating sunniest months</span></span>
-              : bestMonths?.length ? bestMonths.map(month => <span key={month} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-bold text-amber-900">{month}</span>)
+            {months === undefined ? <span role="status" className="h-6 w-12 rounded-pill bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating sunniest months</span></span>
+              : bestMonths?.length ? bestMonths.map(month => <span key={month} className="rounded-pill border border-amber-200 bg-amber-50 px-3 py-1 font-bold text-amber-900">{month}</span>)
               : <span className="text-slate-500">{months === null ? 'Unavailable' : 'No modelled direct sun'}</span>}
           </div>
           <p className="text-caption leading-relaxed text-slate-600">Sun-path and geometry estimates. {forecast ? 'Sky badges show forecasts.' : 'No weather forecast is shown here.'} Clouds, curtains and unrecorded shading can change the sun you experience.</p>
         </div>
       ) : missingGeometry ? (
-      <div className="flex items-center gap-3 mt-1" style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '8px 12px' }}>
+      <div className="flex items-center gap-3 mt-1" style={{ background: bg, border: `1px solid ${border}`, borderRadius: 'var(--radius-control)', padding: '8px 12px' }}>
         <div className="relative flex-shrink-0" style={{ width: 36, height: 36 }}>
           <svg width="36" height="36" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
             <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="3" />

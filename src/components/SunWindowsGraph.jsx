@@ -131,7 +131,7 @@ export default function SunWindowsGraph({
     </svg>
   );
 
-  if (mini) return <div className={`w-full ${className}`} style={{ position: 'relative', height: 40, borderRadius: 12, overflow: 'hidden' }}>
+  if (mini) return <div className={`w-full ${className}`} style={{ position: 'relative', height: 40, borderRadius: 'var(--radius-control)', overflow: 'hidden' }}>
     {graph}
     {!unavailable && sunUrl && layout.windows.map(window => <img key={window.start} data-window-sun="true" src={sunUrl} alt="" aria-hidden="true"
       width={26} height={26} style={{ position: 'absolute', width: 26, height: 26, objectFit: 'contain', transform: 'translate(-50%, -50%)',
@@ -165,7 +165,7 @@ export default function SunWindowsGraph({
       {layout && (
         <div className={`mb-2 flex flex-wrap items-center justify-between gap-2 text-caption font-semibold text-slate-600 ${showSummary ? 'mt-1' : ''}`}>
           <p><time dateTime={layout.date}>{layout.dateLabel}</time> · {layout.timezoneLabel}</p>
-          {marker && <span data-now-pill="true" className={`rounded-full px-2 py-1 font-semibold ${marker.inWindow ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
+          {marker && <span data-now-pill="true" className={`rounded-pill px-2 py-1 font-semibold ${marker.inWindow ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
             {marker.withinAxis ? `Now · ${marker.inWindow ? 'in sun' : 'in shade'}` : 'Now · outside shown hours'}
           </span>}
         </div>

@@ -233,7 +233,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
   const qualityColor = displayQuality === 'direct' ? '#f59e0b' : displayQuality === 'partial' ? '#fb923c' : '#94a3b8';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-e1 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div>
@@ -321,7 +321,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         {/* Sun status pill */}
         <div className="absolute top-2 right-2">
           <span
-            className="text-xs font-semibold px-2 py-0.5 rounded-full"
+            className="text-xs font-semibold px-2 py-0.5 rounded-pill"
             style={{
               backgroundColor: displayQuality === 'direct' ? '#fef3c7' : displayQuality === 'partial' ? '#ffedd5' : '#f1f5f9',
               color: qualityColor,
@@ -334,7 +334,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         {/* Altitude badge */}
         {isSunUp && (
           <div className="absolute bottom-2 right-2">
-            <span className="text-xs text-slate-500 bg-white/70 px-1.5 py-0.5 rounded-full">
+            <span className="text-xs text-slate-500 bg-white/70 px-1.5 py-0.5 rounded-pill">
               {Math.round(displayAltitude)}° alt
             </span>
           </div>
@@ -367,7 +367,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         </div>
 
         {/* Colour bar */}
-        <div className="flex gap-0.5 mb-2 rounded-full overflow-hidden h-3">
+        <div className="flex gap-0.5 mb-2 rounded-pill overflow-hidden h-3">
           {timeline.map((slot, i) => (
             <button
               key={i}

@@ -23,7 +23,7 @@ export default function ClayIcon({ name, size = 24, className = '', alt = '' }) 
         className={`inline-flex shrink-0 items-center justify-center ${className}`}
         style={{ width: size, height: size }}
       >
-        <span className="h-2 w-2 rounded-full bg-slate-300" />
+        <span className="h-2 w-2 rounded-pill bg-slate-300" />
       </span>
     );
   }

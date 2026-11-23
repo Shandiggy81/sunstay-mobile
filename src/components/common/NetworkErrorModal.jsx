@@ -180,7 +180,7 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
                             {mascotUnavailable ? (
                                 // Cache miss: fall back to a glyph rather than a
                                 // broken image dragging the card's layout around.
-                                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-slate-800 text-white shadow-[0_18px_28px_rgba(15,23,42,0.45)] ring-4 ring-white">
+                                <div className="flex h-24 w-24 items-center justify-center rounded-pill bg-slate-800 text-white shadow-e2 ring-4 ring-white">
                                     <WifiOff size={34} strokeWidth={2.25} aria-hidden="true" />
                                 </div>
                             ) : (
@@ -193,13 +193,13 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
                                     onError={() => setMascotUnavailable(true)}
                                     animate={prefersReducedMotion ? undefined : { y: [0, -6, 0] }}
                                     transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                                    className="h-40 w-auto select-none drop-shadow-[0_18px_28px_rgba(15,23,42,0.45)] sm:h-52 [@media(max-height:560px)]:h-32"
+                                    className="h-40 w-auto select-none sm:h-52 [@media(max-height:560px)]:h-32"
                                 />
                             )}
                         </div>
 
-                        <div className="relative overflow-hidden rounded-3xl bg-white px-6 pb-7 pt-24 text-center shadow-[0_32px_80px_-24px_rgba(15,23,42,0.65)] ring-1 ring-slate-900/5 sm:px-7 sm:pt-32 [@media(max-height:560px)]:pt-20">
-                            <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-caption font-extrabold uppercase tracking-normal text-slate-500">
+                        <div className="relative overflow-hidden rounded-3xl bg-white px-6 pb-7 pt-24 text-center shadow-e2 ring-1 ring-slate-900/5 sm:px-7 sm:pt-32 [@media(max-height:560px)]:pt-20">
+                            <span className="mb-4 inline-flex items-center gap-1.5 rounded-pill bg-slate-100 px-3 py-1.5 text-caption font-extrabold uppercase tracking-normal text-slate-500">
                                 <WifiOff size={13} strokeWidth={2.5} aria-hidden="true" />
                                 Offline
                             </span>
@@ -225,7 +225,7 @@ const NetworkErrorModal = ({ forceVisible = false, onRetry }) => {
                                 onClick={handleRetry}
                                 disabled={checking}
                                 aria-busy={checking}
-                                className="mt-6 flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 text-secondary font-extrabold uppercase tracking-normal text-slate-950 shadow-lg shadow-amber-500/30 transition-all duration-150 touch-manipulation hover:bg-amber-400 active:scale-[0.98] disabled:cursor-wait disabled:opacity-70 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/35"
+                                className="mt-6 flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 text-secondary font-extrabold uppercase tracking-normal text-slate-950 shadow-e3 shadow-amber-500/30 transition-all duration-150 touch-manipulation hover:bg-amber-400 active:scale-[0.98] disabled:cursor-wait disabled:opacity-70 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/35"
                             >
                                 <RefreshCw
                                     size={16}

@@ -42,7 +42,7 @@ const VenueRow = ({ venue, isSelected, onClick, weather }) => {
                             {venue.vibe || venue.segment} · {venue.suburb}
                         </p>
                     </div>
-                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full flex-shrink-0 ${badge.bg}`}>
+                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded-pill flex-shrink-0 ${badge.bg}`}>
                         {badge.icon && <span className="text-xs">{badge.icon}</span>}
                         <span className={`text-caption font-semibold ${badge.color}`}>{badge.label}</span>
                     </div>
@@ -51,12 +51,12 @@ const VenueRow = ({ venue, isSelected, onClick, weather }) => {
                 {(primaryTag || hasOutdoor) && (
                     <div className="flex items-center gap-1.5 mt-1.5">
                         {hasOutdoor && (
-                            <span className="text-caption text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-semibold">
+                            <span className="text-caption text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-pill font-semibold">
                                 Outdoor
                             </span>
                         )}
                         {primaryTag && !['Beer Garden', 'Rooftop', 'Waterfront'].includes(primaryTag) && (
-                            <span className="text-caption text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full font-semibold">
+                            <span className="text-caption text-slate-500 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-pill font-semibold">
                                 {primaryTag}
                             </span>
                         )}

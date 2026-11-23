@@ -136,7 +136,7 @@ function SunToast({ toast, onDismiss }) {
         width:           'min(calc(100vw - 24px), 420px)',
         background:      'rgba(255,255,255,0.97)',
         backdropFilter:  'blur(18px)',
-        borderRadius:    20,
+        borderRadius: 'var(--radius-card)',
         border:          `1.5px solid ${accent}44`,
         boxShadow:       `0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px ${accent}22, 0 2px 0 ${accent}33 inset`,
         padding:         '14px 16px',
@@ -190,7 +190,7 @@ function SunToast({ toast, onDismiss }) {
           flexShrink: 0, background: 'none', border: 'none',
           cursor: 'pointer', padding: '2px 4px',
           color: '#94A3B8', fontSize: 'var(--text-section)', lineHeight: 1,
-          borderRadius: 8, marginTop: -2,
+          borderRadius: 'var(--radius-control)', marginTop: -2,
         }}
       >
         ×

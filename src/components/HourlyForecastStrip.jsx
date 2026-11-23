@@ -38,7 +38,7 @@ const ShimmerCard = () => (
       flexShrink: 0,
       width: 54,
       height: 82,
-      borderRadius: 14,
+      borderRadius: 'var(--radius-control)',
       background: 'rgba(255,255,255,0.08)',
       border: '1px solid rgba(255,255,255,0.10)',
       animation: 'ss-pulse 1.4s ease-in-out infinite',
@@ -179,7 +179,7 @@ export default function HourlyForecastStrip({
         aria-label="Loading sun forecast"
         style={{
           background: '#1a1d27',
-          borderRadius: 12,
+          borderRadius: 'var(--radius-control)',
           padding: '10px 0 4px',
           margin: 0,
         }}
@@ -229,7 +229,7 @@ export default function HourlyForecastStrip({
       {...stateAttrs}
       style={{
       background: '#1a1d27',
-      borderRadius: 12,
+      borderRadius: 'var(--radius-control)',
       padding: '10px 0 6px',
       margin: 0,
       border: '1px solid rgba(255,255,255,0.06)',
@@ -264,7 +264,7 @@ export default function HourlyForecastStrip({
                 flexShrink: 0,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                 padding: '10px 10px',
-                borderRadius: 14,
+                borderRadius: 'var(--radius-control)',
                 minWidth: 54,
                 background: isWet    ? 'rgba(56,189,248,0.12)'
                           : isGolden ? 'rgba(245,158,11,0.16)'

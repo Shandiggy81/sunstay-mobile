@@ -46,7 +46,7 @@ class AppErrorBoundary extends Component {
                     <button
                         type="button"
                         onClick={this.handleReload}
-                        className="mt-6 min-h-11 rounded-xl bg-amber-500 px-6 text-sm font-bold text-slate-900 shadow-sm transition-colors hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                        className="mt-6 min-h-11 rounded-xl bg-amber-500 px-6 text-sm font-bold text-slate-900 shadow-e1 transition-colors hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
                     >
                         {view.reloadLabel}
                     </button>

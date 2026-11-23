@@ -17,7 +17,7 @@ export default function ForecastFallbackCard({ variant, title, children, ...rest
       role={theme.role}
       style={{
         background: theme.background,
-        borderRadius: 12,
+        borderRadius: 'var(--radius-control)',
         padding: '14px 16px',
         margin: 0,
         border: theme.border,

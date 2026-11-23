@@ -498,7 +498,7 @@ const PropertyFilterPills = ({ activeFilters, onToggle }) => (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Venue types">
         {PROPERTY_FILTERS.map(filter => <button key={filter.id} type="button"
             onClick={() => onToggle(filter.id)} aria-pressed={activeFilters.includes(filter.id)}
-            className={`flex-1 min-h-[44px] min-w-max inline-flex items-center justify-center gap-1.5 rounded-full border px-3 text-caption font-semibold ${activeFilters.includes(filter.id)
+            className={`flex-1 min-h-[44px] min-w-max inline-flex items-center justify-center gap-1.5 rounded-pill border px-3 text-caption font-semibold ${activeFilters.includes(filter.id)
                 ? 'border-amber-300 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-slate-700'}`}>
             <ClayIcon name={QUICK_FILTER_ICONS[filter.id]} size={24} /> {filter.label}
         </button>)}
@@ -1004,7 +1004,7 @@ const AppContent = () => {
         <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleShowAllAreas(); }}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-secondary font-semibold text-amber-700 underline-offset-2 hover:underline touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${className}`}
+            className={`inline-flex min-h-11 items-center rounded-pill px-3 text-secondary font-semibold text-amber-700 underline-offset-2 hover:underline touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${className}`}
         >
             Show all
         </button>
@@ -1536,14 +1536,14 @@ const AppContent = () => {
                                 {locateHint && (
                                     <div
                                         role="status"
-                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/85 px-3.5 py-2 text-secondary font-semibold text-white shadow-[0_6px_24px_-8px_rgba(15,23,42,0.5)] ring-1 ring-inset ring-white/15"
+                                        className="pointer-events-none max-w-[200px] rounded-pill bg-slate-900/85 px-3.5 py-2 text-secondary font-semibold text-white shadow-e2 ring-1 ring-inset ring-white/15"
                                     >
                                         {locateHint}
                                     </div>
                                 )}
                                 {/* One location button. If location is off or the user is
                                     outside Melbourne, it falls back to the Melbourne view. */}
-                                <div className="ss-explore-locate pointer-events-auto flex flex-col overflow-hidden rounded-[22px] border border-white/60 bg-white/90 shadow-[0_6px_24px_-8px_rgba(15,23,42,0.35)] divide-y divide-slate-900/[0.07]">
+                                <div className="ss-explore-locate pointer-events-auto flex flex-col overflow-hidden rounded-card border border-white/60 bg-white/90 shadow-e2 divide-y divide-slate-900/[0.07]">
                                     <motion.button
                                         type="button"
                                         className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center text-sky-700 transition-colors active:bg-slate-900/10 disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-600"

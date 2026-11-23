@@ -42,9 +42,9 @@ const CategoryPills = ({ activeCategory, onCategoryChange }) => {
               whileTap={{ scale: 0.91 }}
               whileHover={{ scale: 1.04 }}
               onClick={() => onCategoryChange(cat.id)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 min-h-[36px] font-semibold text-caption whitespace-nowrap flex-shrink-0 transition-colors ${
+              className={`flex items-center gap-1.5 rounded-pill px-3 py-1.5 min-h-[36px] font-semibold text-caption whitespace-nowrap flex-shrink-0 transition-colors ${
                 isActive
-                  ? 'bg-slate-900 text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-e1'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -58,7 +58,7 @@ const CategoryPills = ({ activeCategory, onCategoryChange }) => {
                   style={{
                     width: 5,
                     height: 5,
-                    borderRadius: '50%',
+                    borderRadius: 'var(--radius-round)',
                     background: 'rgba(255,255,255,0.7)',
                     display: 'inline-block',
                     marginLeft: 1,

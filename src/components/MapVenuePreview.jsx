@@ -77,7 +77,7 @@ export default function MapVenuePreview({ venue, weather, onOpen, onClose, mapEx
                 aria-label="Close venue preview"
                 onPointerDown={event => event.stopPropagation()}
                 onClick={onClose}
-                className="ss-map-venue-preview__close absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+                className="ss-map-venue-preview__close absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-pill active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
             >
                 <X size={20} />
             </button>

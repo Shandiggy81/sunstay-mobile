@@ -42,7 +42,7 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
     <div className={compact ? "ss-venue-moments" : "flex flex-col gap-3"}>
       <div className={compact ? "ss-venue-moments-summary" : "relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white px-4 pb-1 pt-4"}>
         {/* The graph has its own smiling sun; the corner icon only marks a shaded day. */}
-        {!compact && !(sun && total > 0) && <ClayIcon name={total > 0 ? 'sun' : 'shaded'} size={84} className="pointer-events-none absolute -right-3 -top-3 drop-shadow-sm" />}
+        {!compact && !(sun && total > 0) && <ClayIcon name={total > 0 ? 'sun' : 'shaded'} size={84} className="pointer-events-none absolute -right-3 -top-3" />}
         <p className={`${sun && total > 0 ? '' : 'pr-20 '}text-title font-extrabold leading-none tracking-normal text-slate-900 tabular-nums`}>
           {total > 0 ? formatDuration(total) : 'In the shade'}
         </p>
@@ -64,7 +64,7 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
             <li
               key={m.key}
               className={`flex flex-col gap-1.5 rounded-2xl border p-3 ${m.available
-                ? 'border-amber-200/80 bg-white shadow-[0_4px_14px_rgba(245,158,11,0.10)]'
+                ? 'border-amber-200/80 bg-white shadow-e2'
                 : 'border-slate-200/80 bg-slate-50'}`}
             >
               <ClayIcon name={m.icon} size={compact ? 28 : 44} className={m.available ? '' : 'opacity-45 grayscale'} />
@@ -73,7 +73,7 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
                 {when}
               </span>
               {sky ? (
-                <span className={`inline-flex items-center gap-1 self-start rounded-full py-0.5 pl-0.5 pr-2 text-caption font-bold ${sky.className}`}>
+                <span className={`inline-flex items-center gap-1 self-start rounded-pill py-0.5 pl-0.5 pr-2 text-caption font-bold ${sky.className}`}>
                   <ClayIcon name={sky.icon} size={16} />
                   {sky.text}
                 </span>

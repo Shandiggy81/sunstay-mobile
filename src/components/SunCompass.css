@@ -17,9 +17,9 @@
 .ss-compass__label { font-size: var(--text-secondary); font-weight: 700; color: #475569; }
 .ss-compass__list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .ss-compass__list li { display: flex; align-items: flex-start; gap: 8px; }
-.ss-compass__list i { flex: 0 0 auto; width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; background: #e2e8f0; }
+.ss-compass__list i { flex: 0 0 auto; width: 10px; height: 10px; margin-top: 4px; border-radius: var(--radius-round); background: #e2e8f0; }
 .ss-compass__list i[data-state='now'] { background: var(--color-accent); }
-.ss-compass__list i[data-state='later'], .ss-compass__list i[data-state='some'] { background: #fde68a; box-shadow: inset 0 0 0 1px var(--color-accent); }
+.ss-compass__list i[data-state='later'], .ss-compass__list i[data-state='some'] { background: #fde68a; box-shadow: none; }
 .ss-compass__list i[data-state='done'] { background: #cbd5e1; }
 .ss-compass__list strong { display: block; font-size: var(--text-secondary); font-weight: 700; line-height: 1.3; color: #0f172a; }
 .ss-compass__list span > span { display: block; font-size: var(--text-caption); font-weight: 600; line-height: 1.35; color: #64748b; }
@@ -29,5 +29,5 @@
 .ss-compass__wind line { stroke: #334155; stroke-width: 2.5; stroke-linecap: round; }
 .ss-compass__wind circle { fill: #334155; }
 .ss-compass__list span > .ss-compass__side-wind { font-weight: 700; color: #334155; }
-.ss-stay-more-sides { align-self: flex-start; min-height: 44px; padding: 0 16px; border: 1px solid #e2e8f0; border-radius: 999px; background: #ffffff; font-size: var(--text-body); font-weight: 700; color: #0f172a; }
+.ss-stay-more-sides { align-self: flex-start; min-height: 44px; padding: 0 16px; border: 1px solid #e2e8f0; border-radius: var(--radius-pill); background: #ffffff; font-size: var(--text-body); font-weight: 700; color: #0f172a; }
 .ss-stay-more-sides:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }

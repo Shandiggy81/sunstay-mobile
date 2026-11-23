@@ -108,7 +108,7 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
         <span className={MICRO_LABEL}>Microclimate at {atLabel}</span>
         {reading.isLiveSun ? (
           <span className="flex items-center gap-1.5 text-caption font-semibold text-amber-900">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" aria-hidden="true" />
+            <span className="h-1.5 w-1.5 animate-pulse rounded-pill bg-amber-300" aria-hidden="true" />
             Live
           </span>
         ) : null}
@@ -126,20 +126,20 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
       </div>
 
       <div
-        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-900/[0.08]"
+        className="mt-2.5 h-1.5 w-full overflow-hidden rounded-pill bg-slate-900/[0.08]"
         role="progressbar"
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Sun availability at ${atLabel}`}
       >
-        <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-pill bg-amber-500" style={{ width: `${pct}%` }} />
       </div>
 
       {(reading.windLabel || reading.comfortHint) && (
         <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
           {reading.windLabel ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-caption font-semibold text-slate-700">
+            <span className="inline-flex items-center gap-1.5 rounded-pill bg-slate-100 px-2.5 py-1 text-caption font-semibold text-slate-700">
               <Wind size={12} aria-hidden="true" />
               {reading.windLabel}
             </span>
@@ -167,8 +167,8 @@ const ShieldBar = ({ label, value, color }) => (
       <span className={MICRO_LABEL}>{label}</span>
       <span className="text-caption font-bold tabular-nums text-slate-700">{Math.round(value * 100)}%</span>
     </div>
-    <div className="h-1.5 rounded-full bg-slate-900/[0.07]">
-      <div className="h-full rounded-full" style={{ width: `${value * 100}%`, background: color }} />
+    <div className="h-1.5 rounded-pill bg-slate-900/[0.07]">
+      <div className="h-full rounded-pill" style={{ width: `${value * 100}%`, background: color }} />
     </div>
   </div>
 );
@@ -704,16 +704,16 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
           onClick={e => e.stopPropagation()}
           style={{
             ...(enableTilt ? { rotateX, rotateY, transformStyle: 'preserve-3d', perspective: 1200 } : null),
-            boxShadow: '0 -8px 60px rgba(15,23,42,0.14)',
+            boxShadow: 'var(--shadow-e1)',
           }}
-          className="ss-venue-detail-card pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-[28px] bg-white font-sans"
+          className="ss-venue-detail-card pointer-events-auto relative z-50 flex h-full min-h-0 w-full select-none flex-col overflow-hidden rounded-t-sheet bg-white font-sans"
           onPointerEnter={enableTilt ? handlePointerEnter : undefined}
           onPointerMove={enableTilt ? handlePointerMove : undefined}
           onPointerLeave={enableTilt ? handlePointerLeave : undefined}
         >
           {/* Compact header: name + score stay visible once the hero scrolls away. */}
           <div
-            className={`absolute inset-x-0 top-0 z-30 flex items-center gap-3 border-b border-slate-900/[0.06] bg-white px-4 py-1.5 shadow-[0_1px_8px_rgba(15,23,42,0.06)] transition-[opacity,transform] duration-200 ${compact ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'}`}
+            className={`absolute inset-x-0 top-0 z-30 flex items-center gap-3 border-b border-slate-900/[0.06] bg-white px-4 py-1.5 shadow-e2 transition-[opacity,transform] duration-200 ${compact ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'}`}
             aria-hidden={!compact}
           >
             <button
@@ -721,7 +721,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
               type="button"
               onClick={onClose}
               tabIndex={compact ? 0 : -1}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900/[0.06] text-slate-800 active:bg-slate-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-pill bg-slate-900/[0.06] text-slate-800 active:bg-slate-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               aria-label="Close venue details"
             >
               <X size={19} strokeWidth={2.5} />
@@ -730,7 +730,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             {!overviewScore.loading && scoreState === 'score' && Number.isFinite(score) ? (
               <ScoreRing score={score} size={38} />
             ) : (
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 py-1 pl-1.5 pr-3">
+              <span className="flex shrink-0 items-center gap-1.5 rounded-pill bg-amber-50 py-1 pl-1.5 pr-3">
                 <ClayIcon name={nowIcon} size={24} />
                 <span className="text-body font-extrabold tabular-nums text-slate-700">
                   {overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}
@@ -801,7 +801,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                           <button
                             type="button"
                             onClick={() => onOpenSunReport(venue)}
-                            className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-body font-bold text-amber-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
+                            className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-body font-bold text-amber-900 shadow-e1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
                           >
                             <ClayIcon name="hotel-views" size={32} />
                             See the sun report

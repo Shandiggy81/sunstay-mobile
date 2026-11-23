@@ -9,8 +9,8 @@
 .ss-sun-pin .ss-pin-bubble {
   min-height: 40px !important;
   padding: 4px 6px !important;
-  border-radius: 999px !important;
-  box-shadow: 0 6px 18px rgba(120, 80, 20, 0.14) !important;
+  border-radius: var(--radius-pill) !important;
+  box-shadow: var(--shadow-e1) !important;
   font-weight: 800 !important;
 }
 
@@ -20,15 +20,15 @@
 }
 
 .ss-cluster-inner {
-  box-shadow: 0 6px 18px rgba(120, 80, 20, 0.14) !important;
+  box-shadow: var(--shadow-e1) !important;
 }
 
 .ss-map-venue-preview {
   border: 1px solid #f2dfb7;
-  border-radius: 26px;
+  border-radius: var(--radius-sheet);
   background: #fff;
   color: var(--color-ink);
-  box-shadow: 0 8px 28px rgba(120, 80, 20, 0.17);
+  box-shadow: var(--shadow-e1);
 }
 
 .ss-map-venue-preview__open {
@@ -51,7 +51,7 @@
   width: 72px;
   height: 80px;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   background: #fff6e2;
 }
 
@@ -79,7 +79,7 @@
   gap: 4px;
   margin-top: 8px;
   padding: 5px 8px 5px 5px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: #f7f5f0;
   color: #475569;
   font-size: var(--text-caption);
@@ -106,7 +106,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px 4px 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #fffbf3;
   color: #475569;
   font-size: var(--text-caption);
@@ -120,7 +120,7 @@
 @media (max-width: 359px) {
   .ss-map-venue-preview__open { padding: 13px; }
   .ss-map-venue-preview__main { gap: 9px; }
-  .ss-map-venue-preview__image { width: 60px; height: 72px; border-radius: 17px; }
+  .ss-map-venue-preview__image { width: 60px; height: 72px; border-radius: var(--radius-card); }
   .ss-map-venue-preview__name { font-size: var(--text-body); }
 }
 

@@ -20,13 +20,13 @@ export default function OutdoorComfortTiles({ wind, noise, hourLabel, venue }) {
                         {direction && <span className="flex items-center gap-1"><ArrowUp size={12} aria-hidden="true" className="shrink-0" style={{ transform: `rotate(${wind.direction + 180}deg)` }} />From {direction}</span>}
                         {Number.isFinite(wind.effectiveGustMs) && <span><span className="block text-slate-500">Gusts</span><span className="whitespace-nowrap">{Math.round(wind.effectiveGustMs * 3.6)} km/h</span></span>}
                     </div>
-                    {sheltered && <span className="mt-2 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-caption font-semibold text-emerald-700">Sheltered</span>}
+                    {sheltered && <span className="mt-2 inline-block rounded-pill bg-emerald-50 px-2 py-0.5 text-caption font-semibold text-emerald-700">Sheltered</span>}
                 </div>}
                 {noiseStep !== null && <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
                     <p className="text-caption font-semibold text-slate-500">Noise</p>
                     <p className={`mt-1 font-extrabold leading-tight text-slate-800 ${noiseStep === 1 ? 'text-input' : 'text-title'}`}>{noise.label}</p>
                     <div className="mt-3 grid grid-cols-4 gap-1" role="img" aria-label={`Noise scale: ${NOISE_STEPS.join(', ')}. Current level: ${noise.label}.`}>
-                        {NOISE_STEPS.map((step, index) => <span key={step} title={step} className={`h-1.5 rounded-full ${index === noiseStep ? 'bg-amber-400' : 'bg-slate-100'}`} />)}
+                        {NOISE_STEPS.map((step, index) => <span key={step} title={step} className={`h-1.5 rounded-pill ${index === noiseStep ? 'bg-amber-400' : 'bg-slate-100'}`} />)}
                     </div>
                     <div className="mt-1 flex justify-between text-caption text-slate-500" aria-hidden="true"><span>Quiet</span><span>Loud</span></div>
                     <p className="mt-2 text-caption font-semibold text-slate-600">{formatNoiseSource(noise.source)}</p>

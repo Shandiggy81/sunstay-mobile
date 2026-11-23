@@ -55,7 +55,7 @@ class MapErrorBoundary extends React.Component {
       return (
         <div
           data-react-render-error="1"
-          className={`absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-[32px] backdrop-blur-sm ${
+          className={`absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-sheet backdrop-blur-sm ${
             hasValidToken ? 'bg-orange-950/20' : 'bg-gradient-to-br from-orange-950 to-slate-900'
           }`}
         >
@@ -75,7 +75,7 @@ class MapErrorBoundary extends React.Component {
           <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
             {/* Animated Sunstay Badge */}
             <div className="flex flex-col items-center gap-3">
-              <div className="flex items-center gap-2.5 px-6 py-3 bg-amber-500 rounded-2xl shadow-[0_4px_20px_rgba(245,158,11,0.4)] animate-pulse">
+              <div className="flex items-center gap-2.5 px-6 py-3 bg-amber-500 rounded-2xl shadow-e2 animate-pulse">
                 <span className="text-xl">🗺️</span>
                 <span className="text-amber-950 font-extrabold text-sm uppercase tracking-normal">Map Loading…</span>
               </div>
@@ -86,7 +86,7 @@ class MapErrorBoundary extends React.Component {
 
             <button
               onClick={() => window.location.reload()}
-              className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-extrabold py-3 px-8 rounded-2xl shadow-xl transition-all active:scale-95"
+              className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-extrabold py-3 px-8 rounded-2xl shadow-e3 transition-all active:scale-95"
             >
               <span>↻</span>
               <span className="text-xs uppercase tracking-normal">Retry Dashboard</span>

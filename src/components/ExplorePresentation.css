@@ -9,36 +9,36 @@
 
 .ss-explore-search { display: flex; align-items: center; gap: 10px; padding: 4px 16px 10px; flex-shrink: 0; }
 .ss-explore-search .ss-search-wrap { flex: 1; min-width: 0; }
-.ss-app-root .ss-search-input { height: 48px; border-radius: 999px; border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: 0 3px 12px rgba(120,80,20,.07); backdrop-filter: none; padding-left: 40px; padding-right: 44px; font-size: var(--text-secondary); }
+.ss-app-root .ss-search-input { height: 48px; border-radius: var(--radius-pill); border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: var(--shadow-e1); backdrop-filter: none; padding-left: 40px; padding-right: 44px; font-size: var(--text-secondary); }
 .ss-app-root .ss-search-input::placeholder { color: #64748b; }
 .ss-app-root .ss-search-icon { color: #64748b; left: 15px; }
 .ss-app-root .ss-search-clear { width: 44px; height: 44px; right: 2px; background: transparent; color: var(--color-ink); }
-.ss-ask-sunny { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--color-accent); background: white; box-shadow: var(--explore-shadow); }
+.ss-ask-sunny { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: var(--radius-round); border: 2px solid var(--color-accent); background: white; box-shadow: var(--explore-shadow); }
 .ss-ask-sunny:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
 .ss-app-root .ss-explore-locate { background: white; border-color: #efe4d1; box-shadow: var(--explore-shadow); }
 .ss-app-root .ss-explore-locate button { color: var(--color-ink); }
 
-.ss-app-root .ss-sidebar { background: var(--explore-surface); border-color: #efe4d1; border-radius: 24px; padding: 8px; }
+.ss-app-root .ss-sidebar { background: var(--explore-surface); border-color: #efe4d1; border-radius: var(--radius-sheet); padding: 8px; }
 .ss-app-root .ss-sidebar-count { padding: 4px 8px; color: #475569; }
-.ss-app-root .ss-quick-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; gap: 4px; background: white; border: 1px solid #efe4d1; color: var(--color-ink); }
+.ss-app-root .ss-quick-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: var(--radius-pill); gap: 4px; background: white; border: 1px solid #efe4d1; color: var(--color-ink); }
 .ss-app-root .ss-quick-pill--active { background: #fff0bd; border-color: var(--color-accent); }
 .ss-app-root .ss-footer-badge { background: white; color: #475569; border: 1px solid #efe4d1; box-shadow: var(--explore-shadow); backdrop-filter: none; }
 
-.ss-app-root .ss-mobile-sheet-handle { min-height: 64px; border-radius: 28px 28px 0 0; background: white; box-shadow: 0 -6px 24px rgba(120,80,20,.12); }
-.ss-app-root .ss-mobile-sheet-grab { background: #dfd3bf; width: 40px; height: 4px; border-radius: 999px; }
-.ss-app-root .ss-mobile-sheet { background: white; border-radius: 28px 28px 0 0; border-top: 1px solid #f3e9da; box-shadow: 0 -8px 30px rgba(120,80,20,.16); }
+.ss-app-root .ss-mobile-sheet-handle { min-height: 64px; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; background: white; box-shadow: var(--shadow-e2); }
+.ss-app-root .ss-mobile-sheet-grab { background: #dfd3bf; width: 40px; height: 4px; border-radius: var(--radius-pill); }
+.ss-app-root .ss-mobile-sheet { background: white; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; border-top: 1px solid #f3e9da; box-shadow: var(--shadow-e2); }
 .ss-app-root .ss-mobile-sheet-head { padding: 18px 16px 8px; gap: 6px 10px; }
 .ss-app-root .ss-mobile-sheet-head h3 { display: flex; align-items: center; gap: 6px; font-size: var(--text-title); font-weight: 800; letter-spacing: 0; }
 .ss-app-root .ss-mobile-sheet-head p { color: #475569; font-size: var(--text-caption); }
 .ss-app-root .ss-mobile-sheet-search { background: white; border-color: #f3e9da; padding-bottom: 10px; }
 .ss-app-root .ss-quick-chips { padding-top: 2px; padding-bottom: 5px; }
-.ss-app-root .ss-quick-chip { border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: 0 2px 6px rgba(120,80,20,.04); }
-.ss-app-root .ss-quick-chip--active { background: #fff0bd; border-color: var(--color-accent); box-shadow: inset 0 0 0 1px var(--color-accent); }
+.ss-app-root .ss-quick-chip { border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: var(--shadow-e1); }
+.ss-app-root .ss-quick-chip--active { background: #fff0bd; border-color: var(--color-accent); box-shadow: none; }
 .ss-app-root .ss-quick-chip--clear { box-shadow: none; color: var(--color-gold-text); }
 .ss-app-root .ss-mobile-sheet-list { padding: 0; }
 
 /* Presentation only: the range retains every existing scrub/release handler. */
-.ss-app-root .ss-map-time-card { border-color: #efe4d1; background: white; border-radius: 24px; box-shadow: var(--explore-shadow); gap: 8px; padding: 10px 12px; }
+.ss-app-root .ss-map-time-card { border-color: #efe4d1; background: white; border-radius: var(--radius-sheet); box-shadow: var(--explore-shadow); gap: 8px; padding: 10px 12px; }
 .ss-map-time-card label { color: var(--color-ink); }
 .ss-map-time-card button { min-height: 44px; background: var(--color-ink); color: white; }
 .ss-map-time-card input { accent-color: var(--color-accent); }
@@ -51,7 +51,7 @@
 @media (prefers-reduced-motion: reduce) {
   .ss-app-root .ss-venue-list-card, .ss-app-root .ss-mobile-sheet-handle { transition: none; }
 }
-.ss-explore-sort { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 4px 8px 4px 4px; background: #fff4d6; color: #78350f; font-size: var(--text-caption); font-weight: 700; margin-left: auto; }
+.ss-explore-sort { display: inline-flex; align-items: center; gap: 3px; border-radius: var(--radius-pill); padding: 4px 8px 4px 4px; background: #fff4d6; color: #78350f; font-size: var(--text-caption); font-weight: 700; margin-left: auto; }
 .ss-app-root #map-layers-menu, .ss-app-root [aria-controls="map-layers-menu"] { background: white; border-color: #efe4d1; box-shadow: var(--explore-shadow); }
 .ss-app-root .ss-map-caption-inner { background: white; color: #475569; border-color: #efe4d1; box-shadow: var(--explore-shadow); backdrop-filter: none; }
 /* Keep the existing date picker and list usable on short phones. */

@@ -28,10 +28,10 @@ const SunTimelineSlider = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4 mt-4 border border-slate-100">
+    <div className="bg-white rounded-xl shadow-e1 p-4 mt-4 border border-slate-100">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-800">Live Sun Track</h3>
-        <span className="text-xs font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded-full">
+        <span className="text-xs font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded-pill">
           {status}
         </span>
       </div>
