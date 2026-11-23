@@ -79,8 +79,7 @@
 .ss-venue-directions { flex: 1; background: #0f172a; color: white; }
 .ss-venue-directions:disabled { opacity: .4; }
 .ss-venue-stay-footer-actions { display: flex; flex-direction: column; }
-.ss-venue-stay-directions { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; min-width: 44px; border: 0; background: white; color: var(--color-gold-text); font-size: var(--text-body); font-weight: 700; }
-.ss-venue-stay-directions:disabled { color: #64748b; cursor: default; }
+.ss-venue-stay-directions { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; min-width: 44px; border: 0; font-size: var(--text-body); font-weight: 700; }
 .ss-venue-property-website { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 12px 16px; border-radius: var(--radius-pill); background: #0f172a; color: white; font-size: var(--text-body); font-weight: 700; }
 .ss-venue-stay-footer-actions > p { margin-top: 8px; color: #64748b; font-size: var(--text-caption); font-weight: 600; line-height: 1.5; text-align: center; overflow-wrap: anywhere; }
 .ss-venue-detail-card .ss-venue-sun-block > section.ss-venue-stay { margin-top: 4px; }

@@ -347,8 +347,8 @@ function VenueCardFooterActions({ venue, canNavigate, share }) {
     ? `https://www.google.com/maps/dir/?api=1&destination=${Number(venue?.lat)},${Number(venue?.lng)}` : null;
   if (footerPrimaryAction({ venue, websiteUrl: share.websiteUrl }) === 'website') {
     return <div className="ss-venue-stay-footer-actions">
-      {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-stay-directions ss-action ss-action--secondary"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></a>
-        : <button type="button" disabled className="ss-venue-stay-directions ss-action ss-action--secondary" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></button>}
+      {directionsUrl ? <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-stay-directions ss-action ss-action--tertiary"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></a>
+        : <button type="button" disabled className="ss-venue-stay-directions ss-action ss-action--tertiary" aria-label="Get directions unavailable"><Navigation size={18} aria-hidden="true" />Get directions<ExternalLink size={16} aria-hidden="true" /></button>}
       <a href={share.websiteUrl} target="_blank" rel="noopener noreferrer" className="ss-venue-property-website ss-action ss-action--primary" aria-describedby={captionId}><Globe size={18} aria-hidden="true" />Visit property website<ExternalLink size={16} aria-hidden="true" /></a>
       <p id={captionId}>Opens {websiteHostLabel(share.websiteUrl)}</p>
     </div>;
