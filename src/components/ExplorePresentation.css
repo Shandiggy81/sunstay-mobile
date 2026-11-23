@@ -9,7 +9,7 @@
 
 .ss-explore-search { display: flex; align-items: center; gap: 10px; padding: 4px 16px 10px; flex-shrink: 0; }
 .ss-explore-search .ss-search-wrap { flex: 1; min-width: 0; }
-.ss-app-root .ss-search-input { height: 48px; border-radius: var(--radius-pill); border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: var(--shadow-e1); padding-left: 40px; padding-right: 44px; font-size: var(--text-secondary); }
+.ss-app-root .ss-search-input { height: 48px; border-radius: var(--radius-pill); border-color: var(--color-warm-rule); background: white; color: var(--color-ink); box-shadow: var(--shadow-e1); padding-left: 40px; padding-right: 44px; font-size: var(--text-input); }
 .ss-app-root .ss-search-input::placeholder { color: #64748b; }
 .ss-app-root .ss-search-icon { color: #64748b; left: 15px; }
 .ss-app-root .ss-search-clear { width: 44px; height: 44px; right: 2px; background: transparent; color: var(--color-ink); }
