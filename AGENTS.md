@@ -70,6 +70,21 @@ The site is on Netlify (`netlify.toml`), and every PR gets a deploy preview at
 `https://deploy-preview-<PR>--sunstayglobal30.netlify.app`. The curl recipes for hashed-asset caching
 and crawler link previews are in [`docs/agents/deploy-checks.md`](docs/agents/deploy-checks.md).
 
+**Don't put `[skip netlify]` or `[skip ci]` in commit messages or PR titles.** Main's ruleset
+("SunStay Global — Protect Main") requires three checks before a merge:
+- `GitGuardian Security Checks`
+- `SunStay CI / test-and-build`
+- `netlify/sunstayglobal30/deploy-preview`
+
+A PR whose head commit skips Netlify never gets the deploy-preview check, so it can't merge, even
+with everything else green. Backend-only and docs-only PRs get a deploy preview too; that's expected
+and harmless. If a PR already carries the marker, push a follow-up commit without it (an empty commit
+is fine) so the preview runs.
+
+Netlify matches the marker anywhere in a commit message or PR title, so don't quote it even when
+describing it. Say "the skip-Netlify marker" instead. A merge commit carries the PR title, so a
+marked title also skips the production deploy of that merge.
+
 Mascots live in `src/assets/mascots/` and are imported as ES modules so they get hashed filenames.
 Do **not** put them back under `public/`. PWA icons stay at the site root because `manifest.json`
 cannot take a hashed URL.
