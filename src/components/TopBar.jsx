@@ -184,9 +184,9 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
             {weatherOpen ? (
                 <dl ref={weatherPanel} id={detailsId} className="ss-explore-weather-details ss-map-first-weather-details">
                     {summary.details.map(item => <div key={item.label} className="ss-explore-weather-detail">
-                        <dt className="text-[12px] font-medium text-slate-500">{item.label}</dt>
+                        <dt className="text-caption font-semibold text-slate-500">{item.label}</dt>
                         <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{item.value}</dd>
-                        {item.note ? <dd className="text-[12px] text-slate-500">{item.note}</dd> : null}
+                        {item.note ? <dd className="text-caption text-slate-500">{item.note}</dd> : null}
                     </div>)}
                 </dl>
             ) : null}

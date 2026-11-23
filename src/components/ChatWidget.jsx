@@ -135,7 +135,7 @@ const followUpChips = [
 ];
 
 const chipClass =
-  'flex-shrink-0 snap-start inline-flex min-h-11 items-center gap-1.5 pl-1.5 pr-4 bg-white border border-slate-200 rounded-full text-[13px] font-semibold text-slate-800 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
+  'flex-shrink-0 snap-start inline-flex min-h-11 items-center gap-1.5 pl-1.5 pr-4 bg-white border border-slate-200 rounded-full text-secondary font-semibold text-slate-800 hover:border-amber-400 hover:bg-amber-50 shadow-sm transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
 
 // ─── Venue mini cards under a reply ───────────────────────────────────────────
 const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
@@ -155,8 +155,8 @@ const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
               <VenueIcon icon={venueIcon(venue)} size={36} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[14px] font-bold text-slate-900">{name}</span>
-              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-slate-600">
+              <span className="block truncate text-body font-bold text-slate-900">{name}</span>
+              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption font-semibold text-slate-600">
                 <span className="inline-flex items-center gap-1">
                   <ClayIcon name={status.icon} size={16} />
                   <span>{status.text}</span>
@@ -500,10 +500,10 @@ const ChatWidget = ({
                   </div>
                 </div>
                 <div>
-                  <h3 id="ss-sunny-chat-title" className="text-white font-black text-base tracking-tight leading-none mb-1">Sunny · Weather Guide</h3>
+                  <h3 id="ss-sunny-chat-title" className="text-white font-extrabold text-base tracking-normal leading-none mb-1">Sunny · Weather Guide</h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse border border-white/20"></span>
-                    <span className="text-white/90 text-xs font-bold uppercase tracking-widest">{mood.label}</span>
+                    <span className="text-white/90 text-xs font-bold uppercase tracking-normalst">{mood.label}</span>
                   </div>
                 </div>
               </div>
@@ -542,7 +542,7 @@ const ChatWidget = ({
                         <ClayIcon name="brucey" size={34} alt="Brucey" />
                       </span>
                     ) : null}
-                    <div className={`px-5 py-3 rounded-3xl text-[14px] font-medium shadow-sm leading-relaxed ${
+                    <div className={`px-5 py-3 rounded-3xl text-body font-semibold shadow-sm leading-relaxed ${
                       msg.type === 'user'
                         ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-br-md'
                         : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md'
@@ -553,7 +553,7 @@ const ChatWidget = ({
                   {msg.venues?.length ? (
                     <VenueSuggestionCards venues={msg.venues} statusFor={statusFor} onOpen={openVenue} />
                   ) : null}
-                  <span className="text-[10px] text-gray-400 mt-1 px-2">{fmtTime(msg.ts)}</span>
+                  <span className="text-caption text-gray-400 mt-1 px-2">{fmtTime(msg.ts)}</span>
                 </motion.div>
               ))}
 
@@ -625,7 +625,7 @@ const ChatWidget = ({
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   placeholder="Ask Sunny anything..."
-                  className="flex-1 min-w-0 h-11 px-4 bg-gray-50 border border-gray-200 rounded-full text-[16px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
+                  className="flex-1 min-w-0 h-11 px-4 bg-gray-50 border border-gray-200 rounded-full text-input text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
                 />
                 <motion.button
                   type="submit"

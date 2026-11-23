@@ -236,11 +236,11 @@ export default function HourlyForecastStrip({
     }}>
       {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 12, paddingRight: 12, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
+        <span style={{ fontSize: 'var(--text-caption)', fontWeight: 700, letterSpacing: 0, textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
           12-Hour Forecast
         </span>
         {badgeSunMins !== null && (
-          <span style={{ color: '#FCD34D', fontSize: 11, fontWeight: 800 }}>
+          <span style={{ color: '#FCD34D', fontSize: 'var(--text-caption)', fontWeight: 800 }}>
             ☀️ {badgeSunMins >= 60
               ? `${(badgeSunMins / 60).toFixed(1)} hrs direct sun today`
               : `${badgeSunMins} mins direct sun today`}
@@ -276,19 +276,19 @@ export default function HourlyForecastStrip({
                       : '1px solid rgba(255,255,255,0.10)',
               }}
             >
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 700, margin: 0 }}>
+              <p style={{ fontSize: 'var(--text-caption)', color: 'rgba(255,255,255,0.55)', fontWeight: 700, margin: 0 }}>
                 {hour.time.toLocaleTimeString([], { hour: 'numeric', hour12: true }).replace(' ', '').toLowerCase()}
               </p>
-              <span style={{ fontSize: 18 }}>{getWeatherEmoji(hour.code, isNight)}</span>
-              <p style={{ fontSize: 13, color: '#fff', fontWeight: 800, margin: 0 }}>{hour.temp}°</p>
-              <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.50)', fontWeight: 700, margin: 0 }}>
+              <span style={{ fontSize: 'var(--text-section)' }}>{getWeatherEmoji(hour.code, isNight)}</span>
+              <p style={{ fontSize: 'var(--text-secondary)', color: '#fff', fontWeight: 800, margin: 0 }}>{hour.temp}°</p>
+              <p style={{ fontSize: 'var(--text-caption)', color: 'rgba(255,255,255,0.50)', fontWeight: 700, margin: 0 }}>
                 {hour.precip > 0 ? `${hour.precip}%🌧️` : hour.solarW > 0 ? `${hour.solarW}W` : ''}
               </p>
               {hour.gusts > 25 && (
-                <p style={{ fontSize: 9, color: 'rgba(125,211,252,0.85)', fontWeight: 700, margin: 0 }}>💨{hour.gusts}</p>
+                <p style={{ fontSize: 'var(--text-caption)', color: 'rgba(125,211,252,0.85)', fontWeight: 700, margin: 0 }}>💨{hour.gusts}</p>
               )}
               {hour.feelsLike !== hour.temp && (
-                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 600, margin: 0 }}>f{hour.feelsLike}°</p>
+                <p style={{ fontSize: 'var(--text-caption)', color: 'rgba(255,255,255,0.35)', fontWeight: 600, margin: 0 }}>f{hour.feelsLike}°</p>
               )}
             </div>
           );

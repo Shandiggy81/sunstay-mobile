@@ -43,7 +43,7 @@ const SunTimelineSlider = () => {
           <circle cx={sunX} cy={sunY} r="12" fill="#fbbf24" className="transition-all duration-300 ease-out" />
           <circle cx={sunX} cy={sunY} r="18" fill="#fbbf24" opacity="0.3" className="transition-all duration-300 ease-out" />
         </svg>
-        <div className="absolute bottom-0 text-center text-xl font-black text-gray-800">
+        <div className="absolute bottom-0 text-center text-xl font-extrabold text-gray-800">
           {formatTime(displayHour)}
         </div>
       </div>
@@ -56,7 +56,7 @@ const SunTimelineSlider = () => {
         onChange={(e) => setHour(parseInt(e.target.value))}
         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
       />
-      <div className="flex justify-between text-xs text-gray-400 mt-2 font-medium">
+      <div className="flex justify-between text-xs text-gray-400 mt-2 font-semibold">
         <span>6 AM</span>
         <span>Noon</span>
         <span>8 PM</span>

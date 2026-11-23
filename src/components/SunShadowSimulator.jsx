@@ -237,7 +237,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sun Shadow Simulator</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-normal">Sun Shadow Simulator</p>
           <p className="text-sm font-bold text-gray-900">{venue.venueName || venue.name}</p>
         </div>
         {scoreData && (
@@ -358,7 +358,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
       {/* Timeline scrubber */}
       <div className="px-4 pt-3 pb-1">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-gray-500 font-medium">Timeline</span>
+          <span className="text-xs text-gray-500 font-semibold">Timeline</span>
           {currentSlot && (
             <span className="text-xs font-bold" style={{ color: qualityColor }}>
               {currentSlot.label}
@@ -387,7 +387,7 @@ export default function SunShadowSimulator({ venue, weather = {} }) {
         </div>
 
         {/* Hour labels */}
-        <div className="flex justify-between text-gray-400" style={{ fontSize: '9px' }}>
+        <div className="flex justify-between text-gray-400" style={{ fontSize: 'var(--text-caption)' }}>
           {['6am', '9am', '12pm', '3pm', '6pm', '8pm'].map(l => (
             <span key={l}>{l}</span>
           ))}

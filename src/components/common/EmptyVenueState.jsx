@@ -126,23 +126,23 @@ const EmptyVenueState = ({
                     aria-live={announce ? 'polite' : undefined}
                     className="relative overflow-hidden rounded-3xl bg-white px-6 pb-7 pt-7 text-center shadow-[0_28px_70px_-28px_rgba(15,23,42,0.5)] ring-1 ring-slate-900/5 sm:px-7 sm:pt-8"
                 >
-                    <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-slate-500">
+                    <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-caption font-extrabold uppercase tracking-normal text-slate-500">
                         <SearchX size={13} strokeWidth={2.5} aria-hidden="true" />
                         {badgeLabel}
                     </span>
 
-                    <h2 className="text-[22px] font-black leading-tight tracking-[-0.02em] text-slate-900 sm:text-2xl">
+                    <h2 className="text-title font-extrabold leading-tight tracking-normal text-slate-900 sm:text-2xl">
                         {title}
                     </h2>
 
-                    <p className="mx-auto mt-3 max-w-[19rem] text-[13.5px] leading-relaxed text-slate-500">
+                    <p className="mx-auto mt-3 max-w-[19rem] text-body leading-relaxed text-slate-500">
                         {message}
                     </p>
 
                     <button
                         type="button"
                         onClick={handleClear}
-                        className="mt-6 flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 text-[13px] font-black uppercase tracking-[0.06em] text-slate-950 shadow-lg shadow-amber-500/30 transition-all duration-150 touch-manipulation hover:bg-amber-400 active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/35"
+                        className="mt-6 flex min-h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 text-secondary font-extrabold uppercase tracking-normal text-slate-950 shadow-lg shadow-amber-500/30 transition-all duration-150 touch-manipulation hover:bg-amber-400 active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-500/35"
                     >
                         <RotateCcw size={16} strokeWidth={2.75} aria-hidden="true" />
                         {actionLabel}

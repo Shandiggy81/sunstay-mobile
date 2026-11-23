@@ -65,8 +65,8 @@ if (import.meta.env.DEV) {
   createRoot(document.getElementById('cafe-sun-section-preview')).render(
     <main className="min-h-screen bg-white font-sans text-ink">
       <header className={`mx-auto ${column} px-5 pb-2 pt-6`}>
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-600">Development preview</p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Café sun section</h1>
+        <p className="text-xs font-bold uppercase tracking-normal text-slate-600">Development preview</p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-normal">Café sun section</h1>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">
           Fabricated fixtures for review. Sun windows come from the real engine for today ({date}); the
           horizons, confidence, wind and forecast are made up.

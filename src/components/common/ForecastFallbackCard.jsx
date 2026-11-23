@@ -34,10 +34,10 @@ export default function ForecastFallbackCard({ variant, title, children, ...rest
         draggable={false}
         className="mx-auto mb-3 h-24 w-24 object-contain"
       />
-      <span style={{ fontSize: 13, color: theme.titleColor, fontWeight: 700, display: 'block' }}>
+      <span style={{ fontSize: 'var(--text-secondary)', color: theme.titleColor, fontWeight: 700, display: 'block' }}>
         {title}
       </span>
-      <span style={{ fontSize: 12, color: theme.bodyColor, fontWeight: 500 }}>
+      <span style={{ fontSize: 'var(--text-caption)', color: theme.bodyColor, fontWeight: 600 }}>
         {children}
       </span>
     </div>

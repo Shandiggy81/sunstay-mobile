@@ -13,7 +13,7 @@ import { PHOTO_COMING_SOON_MESSAGE } from '../utils/demoDeadEnds';
 
 const PHOTO_NOTICE_MS = 4500;
 
-export const SECTION_TITLE = 'text-[17px] font-extrabold tracking-[-0.015em] text-slate-900';
+export const SECTION_TITLE = 'text-section font-extrabold tracking-normal text-slate-900';
 
 // Score colour within the amber/slate palette. Shared by the stat row and
 // the compact header so the number reads the same in both places.
@@ -110,7 +110,7 @@ export function TodaysSun({ forecast, sentence }) {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <h3 id={headingId} className={SECTION_TITLE}>Today&rsquo;s sun</h3>
-      {sentence ? <p className="text-[14px] font-medium leading-relaxed text-slate-500">{sentence}</p> : null}
+      {sentence ? <p className="text-body font-semibold leading-relaxed text-slate-500">{sentence}</p> : null}
       <LiveSunTimeline forecast={forecast} />
     </section>
   );

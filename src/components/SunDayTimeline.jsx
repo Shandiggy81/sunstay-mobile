@@ -14,7 +14,7 @@ export default function SunDayTimeline({ daily, timeZone, now, label = 'Balcony 
                 </div>
                 {marker !== null && <span className="absolute -top-1 h-5 w-0.5 bg-slate-800" style={{ left: `${marker}%` }} title="Now" />}
             </div>
-            <div className="relative mt-2 h-4 text-[10px] font-medium text-slate-500" aria-hidden="true">
+            <div className="relative mt-2 h-4 text-caption font-semibold text-slate-500" aria-hidden="true">
                 {ticks.map((tick, index) => <span key={index} className="absolute whitespace-nowrap" style={{ left: `${tick.left}%`, transform: index === 0 ? undefined : index === ticks.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}>{tick.label}</span>)}
             </div>
         </div>

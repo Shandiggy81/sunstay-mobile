@@ -20,18 +20,18 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
         <div className="space-y-6 text-gray-800">
             <div className="flex items-center gap-3 mb-2">
                 <Sun className="text-amber-500" size={20} />
-                <h3 className="text-lg font-black uppercase tracking-tight">UV Exposure Analysis</h3>
+                <h3 className="text-lg font-extrabold uppercase tracking-normal">UV Exposure Analysis</h3>
             </div>
 
             {/* UV Gauge */}
             <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100 shadow-inner">
                 <div className="flex justify-between items-end mb-4">
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Current UV Index</p>
-                        <p className={`text-4xl font-black ${config.color.replace('text-', 'text-')}`}>{Math.round(uvi)}</p>
+                        <p className="text-caption font-extrabold text-gray-400 uppercase tracking-normalst">Current UV Index</p>
+                        <p className={`text-4xl font-extrabold ${config.color.replace('text-', 'text-')}`}>{Math.round(uvi)}</p>
                     </div>
                     <div className={`px-3 py-1 rounded-full ${config.bgColor} border ${config.color.replace('text-', 'border-')} border-opacity-20`}>
-                        <span className={`text-[10px] font-black uppercase ${config.color}`}>{config.label}</span>
+                        <span className={`text-caption font-extrabold uppercase ${config.color}`}>{config.label}</span>
                     </div>
                 </div>
 
@@ -50,7 +50,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                         className="absolute top-0 bottom-0 w-1 bg-white shadow-md z-10"
                     />
                 </div>
-                <div className="flex justify-between text-[8px] font-black text-gray-400 uppercase tracking-tighter">
+                <div className="flex justify-between text-caption font-extrabold text-gray-400 uppercase tracking-normal">
                     <span>Low</span>
                     <span>Mod</span>
                     <span>High</span>
@@ -66,7 +66,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                         {advice.icon}
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Protection Strategy</p>
+                        <p className="text-caption font-extrabold text-gray-400 uppercase tracking-normalst mb-1">Protection Strategy</p>
                         <p className="text-sm font-bold text-gray-800 leading-tight">{advice.label}</p>
                         <p className="text-xs text-gray-500 mt-1">{advice.detail}</p>
                     </div>
@@ -77,7 +77,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                         <Clock className="text-amber-500" size={18} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Sun Safety Window</p>
+                        <p className="text-caption font-extrabold text-gray-400 uppercase tracking-normalst mb-1">Sun Safety Window</p>
                         <p className="text-sm font-bold text-gray-800 leading-tight">{bestTimes}</p>
                         <p className="text-xs text-gray-500 mt-1">Based on venue orientation and shade.</p>
                     </div>
@@ -88,7 +88,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
             <div className="p-5 bg-white rounded-3xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                     <Shield size={14} className="text-emerald-500" />
-                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Recommended Gear</h4>
+                    <h4 className="text-caption font-extrabold text-gray-400 uppercase tracking-normalst">Recommended Gear</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
@@ -113,7 +113,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
             {/* Note */}
             <div className="flex items-start gap-3 p-4 bg-blue-50/50 rounded-2xl">
                 <Info size={14} className="text-blue-400 flex-shrink-0 mt-0.5" />
-                <p className="text-[10px] text-blue-600 font-medium leading-relaxed italic">
+                <p className="text-caption text-blue-600 font-semibold leading-relaxed italic">
                     UV levels are predicted for this specific venue location and may differ from regional averages due to coastal reflection.
                 </p>
             </div>

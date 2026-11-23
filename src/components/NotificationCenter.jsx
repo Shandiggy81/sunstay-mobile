@@ -151,18 +151,18 @@ function SunToast({ toast, onDismiss }) {
       <motion.div
         animate={{ scale: [1, 1.25, 0.9, 1.15, 1], rotate: [-6, 6, -4, 4, 0] }}
         transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-        style={{ fontSize: 26, lineHeight: 1, flexShrink: 0, marginTop: 1 }}
+        style={{ fontSize: 'var(--text-title)', lineHeight: 1, flexShrink: 0, marginTop: 1 }}
       >
         {emoji}
       </motion.div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          margin: 0, fontSize: 13, fontWeight: 800,
+          margin: 0, fontSize: 'var(--text-secondary)', fontWeight: 800,
           color: '#1E293B', lineHeight: 1.25,
         }}>{title}</p>
         <p style={{
-          margin: '3px 0 0', fontSize: 12, fontWeight: 500,
+          margin: '3px 0 0', fontSize: 'var(--text-caption)', fontWeight: 600,
           color: '#475569', lineHeight: 1.4,
         }}>{body}</p>
       </div>
@@ -189,7 +189,7 @@ function SunToast({ toast, onDismiss }) {
         style={{
           flexShrink: 0, background: 'none', border: 'none',
           cursor: 'pointer', padding: '2px 4px',
-          color: '#94A3B8', fontSize: 18, lineHeight: 1,
+          color: '#94A3B8', fontSize: 'var(--text-section)', lineHeight: 1,
           borderRadius: 8, marginTop: -2,
         }}
       >

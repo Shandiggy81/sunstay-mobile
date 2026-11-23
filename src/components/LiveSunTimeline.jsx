@@ -77,7 +77,7 @@ export default function LiveSunTimeline({ forecast }) {
         {HOUR_LABELS.map((h) => (
           <span
             key={h}
-            className="absolute -translate-x-1/2 text-[11px] font-semibold tabular-nums text-slate-600"
+            className="absolute -translate-x-1/2 text-caption font-semibold tabular-nums text-slate-600"
             style={{ left: `${pct(h)}%` }}
           >
             {formatHour(h)}
@@ -87,13 +87,13 @@ export default function LiveSunTimeline({ forecast }) {
 
       <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5">
         {presentTypes.map((type) => (
-          <span key={type} className="flex items-center gap-1.5 text-[12px] font-medium text-slate-600">
+          <span key={type} className="flex items-center gap-1.5 text-caption font-semibold text-slate-600">
             <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: SEGMENT_STYLE[type].bg }} aria-hidden="true" />
             {SEGMENT_STYLE[type].label}
           </span>
         ))}
         {showNow ? (
-          <span className="flex items-center gap-1.5 text-[12px] font-medium text-slate-600">
+          <span className="flex items-center gap-1.5 text-caption font-semibold text-slate-600">
             <span className="h-2.5 w-2.5 rounded-full border-2 border-slate-900 bg-white" aria-hidden="true" />
             Now {formatHour(nowH)}
           </span>

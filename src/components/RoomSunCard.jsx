@@ -112,38 +112,38 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
             <ClayIcon name="hotel-views" size={40} />
           </span>
           <div className="min-w-0">
-            <h4 className="text-[16px] font-extrabold leading-tight tracking-[-0.01em] text-slate-900">{display?.title ?? roomTitle(name)}</h4>
-            <p className="mt-0.5 text-[12px] font-semibold text-slate-500">
+            <h4 className="text-input font-extrabold leading-tight tracking-normal text-slate-900">{display?.title ?? roomTitle(name)}</h4>
+            <p className="mt-0.5 text-caption font-semibold text-slate-500">
               Level {floorLevel} · {typeof orientation === 'number' ? `faces ${directionWord(orientation)} (${Math.round(orientation)}°)` : `${orientation} facing`}
             </p>
-            {today && <p className="mt-1 text-[12px] font-medium text-slate-600">{formatGuestDate(`${today}T12:00:00Z`, 'UTC')} · {timeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>}
+            {today && <p className="mt-1 text-caption font-semibold text-slate-600">{formatGuestDate(`${today}T12:00:00Z`, 'UTC')} · {timeZone === DEFAULT_TIME_ZONE ? 'Melbourne time' : 'Venue local time'}</p>}
           </div>
         </div>
         {baseNightlyRateDemo != null && baseNightlyRateDemo !== '' && <div className="text-right shrink-0">
-          <span className="font-black text-slate-800">${baseNightlyRateDemo}</span>
-          <span className="text-slate-500 text-[10px] block">/ night</span>
+          <span className="font-extrabold text-slate-800">${baseNightlyRateDemo}</span>
+          <span className="text-slate-500 text-caption block">/ night</span>
         </div>}
       </div>
-      {display?.chip ? <p className="self-start rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800" title={display.trustLine}>{display.chip}</p>
-        : display ? <p className="self-start rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600" title={roomSourceLabel(room) ?? display.trustLine}>{display.evidenceLabel}</p> : null}
+      {display?.chip ? <p className="self-start rounded-full bg-emerald-50 px-2.5 py-1 text-caption font-bold text-emerald-800" title={display.trustLine}>{display.chip}</p>
+        : display ? <p className="self-start rounded-full bg-slate-100 px-2.5 py-1 text-caption font-semibold text-slate-600" title={roomSourceLabel(room) ?? display.trustLine}>{display.evidenceLabel}</p> : null}
 
       {daily ? (
         <div className="flex flex-col gap-3">
           <SunMomentsPanel daily={daily} summary={sunMomentsFromDay({ daily, forecast, timeZone })} timeZone={timeZone} now={now} label={`potential ${exposureLabel}`} dayLabel={daily.date === venueLocalDate(now, timeZone) ? 'today' : `on ${formatGuestDate(`${daily.date}T12:00:00Z`, 'UTC')}`} />
           {daily.partSunMinutes > 0 ? (
-            <p className="text-[13px] font-medium leading-relaxed text-slate-600" data-balcony-roof-note>
+            <p className="text-secondary font-semibold leading-relaxed text-slate-600" data-balcony-roof-note>
               {daily.fullSunMinutes > 0
                 ? `For ${formatSunDuration(daily.partSunMinutes)} of that, the balcony roof shades the back of the balcony and the railing side stays in the sun.`
                 : 'The balcony roof keeps the sun off the back of the balcony all day; the railing side is what gets the sun.'}
             </p>
           ) : null}
-          <div className="flex flex-wrap items-center gap-1.5 text-[12px]" aria-label="Sunniest months, representative 15th-of-month estimates">
+          <div className="flex flex-wrap items-center gap-1.5 text-caption" aria-label="Sunniest months, representative 15th-of-month estimates">
             <span className="mr-1 inline-flex items-center gap-1 font-semibold text-slate-600"><ClayIcon name="sun-cloud" size={20} />Sunniest months</span>
             {months === undefined ? <span role="status" className="h-6 w-12 rounded-full bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating sunniest months</span></span>
               : bestMonths?.length ? bestMonths.map(month => <span key={month} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 font-bold text-amber-900">{month}</span>)
               : <span className="text-slate-500">{months === null ? 'Unavailable' : 'No modelled direct sun'}</span>}
           </div>
-          <p className="text-[12px] leading-relaxed text-slate-600">Sun-path and geometry estimates. {forecast ? 'Sky badges show forecasts.' : 'No weather forecast is shown here.'} Clouds, curtains and unrecorded shading can change the sun you experience.</p>
+          <p className="text-caption leading-relaxed text-slate-600">Sun-path and geometry estimates. {forecast ? 'Sky badges show forecasts.' : 'No weather forecast is shown here.'} Clouds, curtains and unrecorded shading can change the sun you experience.</p>
         </div>
       ) : missingGeometry ? (
       <div className="flex items-center gap-3 mt-1" style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '8px 12px' }}>
@@ -160,23 +160,23 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-[11px] font-black leading-none" style={{ color: text }}>{pct}</span>
+            <span className="text-caption font-extrabold leading-none" style={{ color: text }}>{pct}</span>
           </div>
         </div>
 
         <div className="flex-1 min-w-0">
-          <span className="text-[10px] font-black uppercase tracking-widest block" style={{ color: text }}>Illustrative sun profile</span>
-          <p className="text-[13px] font-semibold mt-0.5 text-slate-700 leading-tight">
+          <span className="text-caption font-extrabold uppercase tracking-normalst block" style={{ color: text }}>Illustrative sun profile</span>
+          <p className="text-secondary font-semibold mt-0.5 text-slate-700 leading-tight">
             {sunProfile?.peakTime && `Peak sun: ${sunProfile.peakTime}`}
           </p>
-          <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+          <p className="text-caption font-semibold text-slate-500 mt-0.5">
             {sunProfile?.useCase && `Ideal for ${sunProfile.useCase.toLowerCase()}`}
           </p>
-          <p className="text-[11px] text-slate-600 mt-1">Live estimate needs room orientation and venue coordinates.</p>
+          <p className="text-caption text-slate-600 mt-1">Live estimate needs room orientation and venue coordinates.</p>
         </div>
       </div>
       ) : (
-        <p className="rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-[12px] text-slate-700" role="status">
+        <p className="rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-caption text-slate-700" role="status">
           {facadeSide ? 'Sun estimate unavailable for this side.' : 'Balcony sun unavailable.'} Check the {facadeSide ? 'side' : 'room'} bearing, coordinates, timezone and measured shading geometry.
         </p>
       )}

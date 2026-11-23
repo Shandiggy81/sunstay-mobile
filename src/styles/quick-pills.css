@@ -12,9 +12,9 @@
   min-width: 44px;
   padding: 0.35rem 0.85rem;
   border-radius: 9999px;
-  font-size: 0.8rem;
+  font-size: var(--text-secondary);
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
   white-space: nowrap;
   cursor: pointer;
   border: 1.5px solid rgba(255, 255, 255, 0.2);

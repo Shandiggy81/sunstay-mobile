@@ -81,7 +81,7 @@ import { venuePerfectFor } from '../utils/venuePerfectFor.js';
 import { venueHoursView, verifiedHappyHour } from '../utils/venueHours';
 import { venueTypeLabel } from '../utils/venueTypeLabel';
 
-const MICRO_LABEL = 'text-[12px] font-semibold text-slate-600';
+const MICRO_LABEL = 'text-caption font-semibold text-slate-600';
 
 // Keep the name and score visible once the compact top row scrolls away.
 const COMPACT_HEADER_AT = 140;
@@ -107,7 +107,7 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className={MICRO_LABEL}>Microclimate at {atLabel}</span>
         {reading.isLiveSun ? (
-          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
+          <span className="flex items-center gap-1.5 text-caption font-semibold text-amber-900">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" aria-hidden="true" />
             Live
           </span>
@@ -115,11 +115,11 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
       </div>
 
       <div className="flex items-baseline gap-2">
-        <span className="text-[26px] font-bold leading-none tabular-nums tracking-[-0.02em] text-slate-900">
+        <span className="text-title font-bold leading-none tabular-nums tracking-normal text-slate-900">
           {reading.sunPercent}
         </span>
         {reading.sunLabel ? (
-          <span className="truncate text-[15px] font-semibold tracking-[-0.01em] text-slate-700">
+          <span className="truncate text-body font-semibold tracking-normal text-slate-700">
             {reading.sunLabel}
           </span>
         ) : null}
@@ -139,13 +139,13 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
       {(reading.windLabel || reading.comfortHint) && (
         <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5">
           {reading.windLabel ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[12px] font-semibold text-slate-700">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-caption font-semibold text-slate-700">
               <Wind size={12} aria-hidden="true" />
               {reading.windLabel}
             </span>
           ) : null}
           {reading.comfortHint ? (
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-600">
+            <span className="min-w-0 flex-1 truncate text-secondary font-semibold text-slate-600">
               {reading.comfortHint}
             </span>
           ) : null}
@@ -153,7 +153,7 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
       )}
 
       {isEstimate ? (
-        <p className="mt-2.5 text-[12px] font-medium leading-snug text-slate-600">
+        <p className="mt-2.5 text-caption font-semibold leading-snug text-slate-600">
           Modelled from street geometry, not measured on site.
         </p>
       ) : null}
@@ -165,7 +165,7 @@ const ShieldBar = ({ label, value, color }) => (
   <div className="flex flex-col gap-1.5">
     <div className="flex justify-between">
       <span className={MICRO_LABEL}>{label}</span>
-      <span className="text-[12px] font-bold tabular-nums text-slate-700">{Math.round(value * 100)}%</span>
+      <span className="text-caption font-bold tabular-nums text-slate-700">{Math.round(value * 100)}%</span>
     </div>
     <div className="h-1.5 rounded-full bg-slate-900/[0.07]">
       <div className="h-full rounded-full" style={{ width: `${value * 100}%`, background: color }} />
@@ -187,7 +187,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
       {items.map((item) => (
         <li key={item.label} className="flex min-w-0 items-center gap-2.5">
           <ClayIcon name={item.icon} size={32} />
-          <span className="truncate text-[14px] font-semibold text-slate-700">{item.label}</span>
+          <span className="truncate text-body font-semibold text-slate-700">{item.label}</span>
         </li>
       ))}
     </ul>
@@ -217,21 +217,21 @@ const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArri
           <div className="grid grid-cols-2 gap-2.5">
             <div className="rounded-2xl border border-slate-900/[0.08] bg-white p-3.5">
               <span className={MICRO_LABEL}>UV index</span>
-              <span className="mt-0.5 block text-[18px] font-bold tabular-nums text-slate-900">
+              <span className="mt-0.5 block text-section font-bold tabular-nums text-slate-900">
                 {uvIndex == null ? '–' : `${Math.round(uvIndex)} · ${uvIndex >= 8 ? 'Very high' : uvIndex >= 6 ? 'High' : uvIndex >= 3 ? 'Moderate' : 'Low'}`}
               </span>
             </div>
             <div className="rounded-2xl border border-slate-900/[0.08] bg-white p-3.5">
               <span className={MICRO_LABEL}>Air quality</span>
-              <span className="mt-0.5 block truncate text-[18px] font-bold text-slate-900">{aqLabel ?? '–'}</span>
+              <span className="mt-0.5 block truncate text-section font-bold text-slate-900">{aqLabel ?? '–'}</span>
             </div>
           </div>
           {rainArrivalMins !== null && rainArrivalMins <= 45 && rainArrivalLabel ? (
             <div className="flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-amber-50 p-3.5" role="status">
               <ClayIcon name="rain" size={36} />
               <div className="min-w-0">
-                <p className="text-[15px] font-bold leading-snug text-slate-900">{rainArrivalLabel}</p>
-                <p className="text-[13px] font-medium text-slate-700">Rain nearby on radar. Covered seating is the safer bet.</p>
+                <p className="text-body font-bold leading-snug text-slate-900">{rainArrivalLabel}</p>
+                <p className="text-secondary font-semibold text-slate-700">Rain nearby on radar. Covered seating is the safer bet.</p>
               </div>
             </div>
           ) : null}
@@ -726,13 +726,13 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
             >
               <X size={19} strokeWidth={2.5} />
             </button>
-            <span className="min-w-0 flex-1 truncate text-[17px] font-extrabold tracking-[-0.01em] text-slate-900">{displayName}</span>
+            <span className="min-w-0 flex-1 truncate text-section font-extrabold tracking-normal text-slate-900">{displayName}</span>
             {!overviewScore.loading && scoreState === 'score' && Number.isFinite(score) ? (
               <ScoreRing score={score} size={38} />
             ) : (
               <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 py-1 pl-1.5 pr-3">
                 <ClayIcon name={nowIcon} size={24} />
-                <span className="text-[14px] font-extrabold tabular-nums text-slate-700">
+                <span className="text-body font-extrabold tabular-nums text-slate-700">
                   {overviewScore.loading ? '…' : scoreState === 'night' ? 'Night' : scoreState === 'rain' ? 'Rain' : formatScore(score)}
                 </span>
                 <span className="sr-only">{overviewScore.loading ? 'Sun score' : scoreState === 'night' ? 'Sun score not shown after dark' : scoreState === 'rain' ? 'Sun score not shown while it rains' : 'Sun score'}</span>
@@ -795,13 +795,13 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       <section aria-labelledby={headingIds.stay} className="ss-venue-stay flex flex-col gap-3">
                         <div>
                           <h3 id={headingIds.stay} className={SECTION_TITLE}>{stayDisplay?.headline ?? (venue.typeCategory === 'Residential' ? 'Your property' : 'Your stay')}</h3>
-                          {stayDisplay?.trustLine ? <p className="mt-1 text-[12px] font-medium text-slate-500">{stayDisplay.trustLine}</p> : null}
+                          {stayDisplay?.trustLine ? <p className="mt-1 text-caption font-semibold text-slate-500">{stayDisplay.trustLine}</p> : null}
                         </div>
                         {onOpenSunReport && canShowHotelSunReport(venue) ? (
                           <button
                             type="button"
                             onClick={() => onOpenSunReport(venue)}
-                            className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-[14px] font-bold text-amber-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
+                            className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-body font-bold text-amber-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:bg-amber-100"
                           >
                             <ClayIcon name="hotel-views" size={32} />
                             See the sun report

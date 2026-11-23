@@ -99,7 +99,7 @@ const SunTimeline = ({ sunData, weatherCode }) => {
       {/* Hour labels */}
       <div className="relative w-full mt-1.5 flex justify-between">
         {hourLabels.map((label, i) => (
-          <span key={i} style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', fontWeight: 700 }}>
+          <span key={i} style={{ fontSize: 'var(--text-caption)', color: 'rgba(255,255,255,0.25)', fontWeight: 700 }}>
             {label}
           </span>
         ))}

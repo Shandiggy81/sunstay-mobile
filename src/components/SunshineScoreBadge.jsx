@@ -26,7 +26,7 @@ export default function SunshineScoreBadge({ venue, weather = {}, size = 'md', s
         style={{
           backgroundColor: score.gradeColor,
           color: '#fff',
-          fontSize: '9px',
+          fontSize: 'var(--text-caption)',
           width: '20px',
           height: '20px',
         }}
@@ -46,14 +46,14 @@ export default function SunshineScoreBadge({ venue, weather = {}, size = 'md', s
       >
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Sunshine Score™</p>
-            <p className="text-2xl font-black" style={{ color: score.gradeColor }}>
+            <p className="text-xs font-semibold uppercase tracking-normal text-gray-500">Sunshine Score™</p>
+            <p className="text-2xl font-extrabold" style={{ color: score.gradeColor }}>
               {score.gradeEmoji} {score.score}<span className="text-sm font-normal text-gray-400">/100</span>
             </p>
             <p className="text-sm font-semibold" style={{ color: score.gradeColor }}>{score.gradeLabel}</p>
           </div>
           <div
-            className="text-4xl font-black"
+            className="text-4xl font-extrabold"
             style={{ color: score.gradeColor, opacity: 0.15 }}
           >
             {score.grade}

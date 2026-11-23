@@ -498,7 +498,7 @@ const PropertyFilterPills = ({ activeFilters, onToggle }) => (
     <div className="flex flex-wrap gap-2" role="group" aria-label="Venue types">
         {PROPERTY_FILTERS.map(filter => <button key={filter.id} type="button"
             onClick={() => onToggle(filter.id)} aria-pressed={activeFilters.includes(filter.id)}
-            className={`flex-1 min-h-[44px] min-w-max inline-flex items-center justify-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold ${activeFilters.includes(filter.id)
+            className={`flex-1 min-h-[44px] min-w-max inline-flex items-center justify-center gap-1.5 rounded-full border px-3 text-caption font-semibold ${activeFilters.includes(filter.id)
                 ? 'border-amber-300 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-slate-700'}`}>
             <ClayIcon name={QUICK_FILTER_ICONS[filter.id]} size={24} /> {filter.label}
         </button>)}
@@ -1004,7 +1004,7 @@ const AppContent = () => {
         <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleShowAllAreas(); }}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-[13px] font-semibold text-amber-700 underline-offset-2 hover:underline touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${className}`}
+            className={`inline-flex min-h-11 items-center rounded-full px-3 text-secondary font-semibold text-amber-700 underline-offset-2 hover:underline touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 ${className}`}
         >
             Show all
         </button>
@@ -1536,7 +1536,7 @@ const AppContent = () => {
                                 {locateHint && (
                                     <div
                                         role="status"
-                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/85 px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_6px_24px_-8px_rgba(15,23,42,0.5)] ring-1 ring-inset ring-white/15"
+                                        className="pointer-events-none max-w-[200px] rounded-full bg-slate-900/85 px-3.5 py-2 text-secondary font-semibold text-white shadow-[0_6px_24px_-8px_rgba(15,23,42,0.5)] ring-1 ring-inset ring-white/15"
                                     >
                                         {locateHint}
                                     </div>

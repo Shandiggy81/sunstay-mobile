@@ -9,7 +9,7 @@
 
 .ss-explore-search { display: flex; align-items: center; gap: 10px; padding: 4px 16px 10px; flex-shrink: 0; }
 .ss-explore-search .ss-search-wrap { flex: 1; min-width: 0; }
-.ss-app-root .ss-search-input { height: 48px; border-radius: 999px; border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: 0 3px 12px rgba(120,80,20,.07); backdrop-filter: none; padding-left: 40px; padding-right: 44px; font-size: 13px; }
+.ss-app-root .ss-search-input { height: 48px; border-radius: 999px; border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: 0 3px 12px rgba(120,80,20,.07); backdrop-filter: none; padding-left: 40px; padding-right: 44px; font-size: var(--text-secondary); }
 .ss-app-root .ss-search-input::placeholder { color: #64748b; }
 .ss-app-root .ss-search-icon { color: #64748b; left: 15px; }
 .ss-app-root .ss-search-clear { width: 44px; height: 44px; right: 2px; background: transparent; color: var(--color-ink); }
@@ -28,8 +28,8 @@
 .ss-app-root .ss-mobile-sheet-grab { background: #dfd3bf; width: 40px; height: 4px; border-radius: 999px; }
 .ss-app-root .ss-mobile-sheet { background: white; border-radius: 28px 28px 0 0; border-top: 1px solid #f3e9da; box-shadow: 0 -8px 30px rgba(120,80,20,.16); }
 .ss-app-root .ss-mobile-sheet-head { padding: 18px 16px 8px; gap: 6px 10px; }
-.ss-app-root .ss-mobile-sheet-head h3 { display: flex; align-items: center; gap: 6px; font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
-.ss-app-root .ss-mobile-sheet-head p { color: #475569; font-size: 12px; }
+.ss-app-root .ss-mobile-sheet-head h3 { display: flex; align-items: center; gap: 6px; font-size: var(--text-title); font-weight: 800; letter-spacing: 0; }
+.ss-app-root .ss-mobile-sheet-head p { color: #475569; font-size: var(--text-caption); }
 .ss-app-root .ss-mobile-sheet-search { background: white; border-color: #f3e9da; padding-bottom: 10px; }
 .ss-app-root .ss-quick-chips { padding-top: 2px; padding-bottom: 5px; }
 .ss-app-root .ss-quick-chip { border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: 0 2px 6px rgba(120,80,20,.04); }
@@ -51,7 +51,7 @@
 @media (prefers-reduced-motion: reduce) {
   .ss-app-root .ss-venue-list-card, .ss-app-root .ss-mobile-sheet-handle { transition: none; }
 }
-.ss-explore-sort { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 4px 8px 4px 4px; background: #fff4d6; color: #78350f; font-size: 10px; font-weight: 700; margin-left: auto; }
+.ss-explore-sort { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 4px 8px 4px 4px; background: #fff4d6; color: #78350f; font-size: var(--text-caption); font-weight: 700; margin-left: auto; }
 .ss-app-root #map-layers-menu, .ss-app-root [aria-controls="map-layers-menu"] { background: white; border-color: #efe4d1; box-shadow: var(--explore-shadow); }
 .ss-app-root .ss-map-caption-inner { background: white; color: #475569; border-color: #efe4d1; box-shadow: var(--explore-shadow); backdrop-filter: none; }
 /* Keep the existing date picker and list usable on short phones. */
