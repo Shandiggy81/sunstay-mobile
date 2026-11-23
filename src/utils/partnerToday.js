@@ -294,6 +294,23 @@ export function partnerTodayView({ venue, forecast, now, timeZone = venue?.timeZ
 
 const LEFT_OFF = 'left off your guest card until it refreshes';
 
+/** "11:40am" on the venue's today; "Wed 18 Nov, 11:40am" on any other day, so a days-old reading never reads as this morning's. */
+function readingTime(ms, now, timeZone) {
+    const at = venueTimeParts(ms, timeZone);
+    const time = clockLabel(at.hour * 60 + at.minute);
+    if (at.date === venueTimeParts(now, timeZone).date) return { today: true, text: time };
+    const day = new Date(`${at.date}T12:00:00Z`);
+    return { today: false, text: `${WEEKDAY_NAMES[day.getUTCDay()].slice(0, 3)} ${day.getUTCDate()} ${MONTH_NAMES[day.getUTCMonth()].slice(0, 3)}, ${time}` };
+}
+
+/** "over an hour old", "5 hours old", "a day old", "4 days old". */
+function readingAge(ms, nowMs) {
+    const hours = Math.floor((nowMs - ms) / HOUR);
+    if (hours >= 48) return `${Math.floor(hours / 24)} days old`;
+    if (hours >= 24) return 'a day old';
+    return hours >= 2 ? `${hours} hours old` : 'over an hour old';
+}
+
 /**
  * The service forecast and the venue's own SunStay reading (its venues_in_bbox
  * row), judged apart: an expired reading never ages the forecast, and a fresh
@@ -306,12 +323,13 @@ export function partnerDataStatus({ forecastFetchedAt = null, reading = null, no
     const forecast = fetchedAt == null ? null : getBadgeState({ kind: 'forecast', updatedAt: fetchedAt, now });
     if (!reading) return { forecast, reading: null };
     const updatedAt = timestampMs(reading.weather_computed_at);
-    const at = ms => { const p = venueTimeParts(ms, timeZone); return clockLabel(p.hour * 60 + p.minute); };
     if (isMicroclimateEntryExpired(reading, now)) {
-        return { forecast, reading: { status: 'expired', updatedAt, text: `Venue reading expired at ${at(timestampMs(reading.expires_at))} · ${LEFT_OFF}` } };
+        const when = readingTime(timestampMs(reading.expires_at), now, timeZone);
+        return { forecast, reading: { status: 'expired', updatedAt, text: `Venue reading expired ${when.today ? 'at ' : ''}${when.text} · ${LEFT_OFF}` } };
     }
     if (isMicroclimateEntryStale(reading, now)) {
-        const text = updatedAt == null ? `Venue reading has no update time · ${LEFT_OFF}` : `Venue reading from ${at(updatedAt)} is over an hour old · ${LEFT_OFF}`;
+        const text = updatedAt == null ? `Venue reading has no update time · ${LEFT_OFF}`
+            : `Venue reading from ${readingTime(updatedAt, now, timeZone).text} is ${readingAge(updatedAt, timestampMs(now))} · ${LEFT_OFF}`;
         return { forecast, reading: { status: 'stale', updatedAt, text } };
     }
     return { forecast, reading: { status: 'fresh', updatedAt, text: 'Venue reading · on your guest card' } };
