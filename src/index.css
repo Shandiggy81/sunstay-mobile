@@ -48,6 +48,36 @@
   --shadow-e3: 0 8px 24px rgb(15 23 42 / 0.16);
 }
 
+:root {
+  --ss-space-1: 4px;
+  --ss-space-2: 8px;
+  --ss-space-3: 12px;
+  --ss-space-4: 16px;
+  --ss-space-5: 20px;
+  --ss-space-6: 24px;
+  --ss-space-8: 32px;
+  --ss-gutter: var(--ss-space-4);
+  --ss-hit: 44px;
+  --ss-motion-fast: 150ms;
+  --ss-motion-normal: 220ms;
+  --ss-motion-slow: 320ms;
+  --ss-ease: cubic-bezier(.2, .8, .2, 1);
+  --ss-focus: #a16207;
+}
+
+:is(button, a[href], input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ss-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ss-motion-fast: 0ms;
+    --ss-motion-normal: 0ms;
+    --ss-motion-slow: 0ms;
+  }
+}
+
 /* Base styles.
    This reset lives inside Tailwind's `base` layer on purpose. Unlayered rules
    outrank every `@layer`, so a bare `* { margin: 0; padding: 0 }` silently beat
@@ -101,7 +131,7 @@ body,
 /* Custom venue marker styles */
 .venue-marker {
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform var(--ss-motion-normal) var(--ss-ease);
 }
 
 .venue-marker:hover {
@@ -120,7 +150,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .venue-marker:hover .venue-marker-pill {
@@ -232,7 +262,7 @@ body,
   cursor: pointer;
   margin-top: 10px;
   width: 100%;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   text-transform: uppercase;
   letter-spacing: 0;
   box-shadow: var(--shadow-e1);
@@ -257,7 +287,7 @@ body,
   right: 4px;
   top: 4px;
   border-radius: var(--radius-round);
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   background: transparent;
   border: none;
 }
@@ -291,7 +321,7 @@ body,
   color: #334155;
   cursor: pointer;
   box-shadow: var(--shadow-e1);
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   white-space: nowrap;
 }
 
@@ -323,7 +353,7 @@ body,
   color: #1e293b;
   cursor: pointer;
   box-shadow: var(--shadow-e1);
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   white-space: nowrap;
   letter-spacing: 0;
 }
@@ -424,7 +454,7 @@ body,
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform var(--ss-motion-normal) var(--ss-ease);
 }
 
 .comfort-map-marker:hover {
@@ -533,7 +563,7 @@ body,
   justify-content: center;
   cursor: pointer;
   color: #64748b;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .od-close-btn:hover {
@@ -958,7 +988,7 @@ body,
   border-radius: var(--radius-control);
   background: white;
   border: 1px solid rgba(0, 0, 0, 0.04);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform var(--ss-motion-fast) var(--ss-ease), box-shadow var(--ss-motion-fast) var(--ss-ease);
 }
 
 .od-rec-card:hover {
@@ -1065,7 +1095,7 @@ body,
   background: none;
   border: none;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color var(--ss-motion-normal) var(--ss-ease);
   padding: 4px;
 }
 
@@ -1135,7 +1165,7 @@ body,
   justify-content: center;
   cursor: pointer;
   color: #64748b;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .od-photo-action-btn:hover {
@@ -1168,7 +1198,7 @@ body,
   color: #334155;
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .od-promo-btn:hover {
@@ -1237,7 +1267,7 @@ body,
   font-weight: 700;
   color: #64748b;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--ss-motion-fast) var(--ss-ease);
 }
 
 .od-promo-cancel:hover {
@@ -1259,7 +1289,7 @@ body,
   color: white;
   cursor: pointer;
   box-shadow: var(--shadow-e1);
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .od-promo-send:hover {
@@ -1430,7 +1460,7 @@ body,
   border: none;
   cursor: pointer;
   box-shadow: var(--shadow-e1);
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-cta-btn:hover {
@@ -1510,7 +1540,7 @@ body,
   font-weight: 600;
   color: #334155;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color var(--ss-motion-normal) var(--ss-ease), box-shadow var(--ss-motion-normal) var(--ss-ease);
   box-shadow: var(--shadow-e1);
 }
 
@@ -1537,7 +1567,7 @@ body,
   justify-content: center;
   cursor: pointer;
   color: #64748b;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-search-clear:hover {
@@ -1563,7 +1593,7 @@ body,
   background: none;
   border: none;
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition: color var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-sidebar-clear:hover {
@@ -1609,7 +1639,7 @@ body,
   background: white;
   box-shadow: none;
   cursor: pointer;
-  transition: background-color .15s ease;
+  transition: background-color .var(--ss-motion-slow) var(--ss-ease);
 }
 .ss-venue-list-card:hover, .ss-venue-list-card:active { background: #fffbeb; }
 .ss-venue-list-card.ss-venue-list-card--active { background: #fef3c7; }
@@ -1718,7 +1748,7 @@ body,
   box-shadow: var(--shadow-e2);
   z-index: 101;
   cursor: pointer;
-  transition: transform 0.3s ease;
+  transition: transform var(--ss-motion-slow) var(--ss-ease);
 }
 
 .ss-mobile-sheet-handle--expanded {
@@ -1762,7 +1792,7 @@ body,
   min-width: 0;
   min-height: 0;
   height: auto;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--ss-motion-slow) var(--ss-ease);
 }
 
 .ss-map-area--expanded {
@@ -1865,7 +1895,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--ss-motion-normal) var(--ss-ease);
   z-index: 10;
 }
 
@@ -1941,7 +1971,7 @@ body,
   box-shadow: var(--shadow-e1);
   border: 2px solid var(--color-accent); /* amber-500 */
   background: white;
-  transition: all 0.25s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 /* Mapbox popup styling */
@@ -2099,7 +2129,7 @@ body,
   border: 1.5px solid rgba(0, 0, 0, 0.05);
   color: #334155;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   box-shadow: var(--shadow-e1);
 }
 
@@ -2135,7 +2165,7 @@ body,
   color: #334155;
   box-shadow: var(--shadow-e1);
   z-index: 10;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-recenter-btn:hover {
@@ -2242,7 +2272,7 @@ body,
   color: #334155;
   cursor: pointer;
   box-shadow: var(--shadow-e1);
-  transition: all 0.3s ease;
+  transition: all var(--ss-motion-slow) var(--ss-ease);
 }
 
 @media (min-width: 1024px) {
@@ -2310,7 +2340,7 @@ body,
   color: #334155;
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   box-shadow: var(--shadow-e1);
 }
 
@@ -2526,7 +2556,7 @@ body,
 .ss-mascot-ptr__actor--idle,
 .ss-mascot-ptr__actor--success,
 .ss-mascot-ptr__actor--error {
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+  transition: transform var(--ss-motion-slow) var(--ss-ease), opacity var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-mascot-ptr__img {
@@ -2602,7 +2632,7 @@ body,
   color: #b45309;
   cursor: pointer;
   box-shadow: var(--shadow-e1);
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform var(--ss-motion-fast) var(--ss-ease), background var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-venue-refresh-btn::before {
@@ -3042,7 +3072,7 @@ body,
   justify-content: center;
   cursor: pointer;
   color: #334155;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   box-shadow: var(--shadow-e1);
 }
 
@@ -3123,7 +3153,7 @@ body,
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-notif-tab:hover {
@@ -3155,7 +3185,7 @@ body,
   justify-content: center;
   cursor: pointer;
   color: #64748b;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
   margin-bottom: 8px;
 }
 
@@ -3207,7 +3237,7 @@ body,
   color: #64748b;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-notif-filter-chip:hover {
@@ -3242,7 +3272,7 @@ body,
   border: none;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-notif-action-btn:hover {
@@ -3268,7 +3298,7 @@ body,
   padding: 10px 10px;
   border-radius: var(--radius-control);
   margin-bottom: 2px;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   cursor: default;
 }
 
@@ -3356,7 +3386,7 @@ body,
   color: var(--color-gold-text);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-notif-item-action:hover {
@@ -3375,7 +3405,7 @@ body,
   justify-content: center;
   cursor: pointer;
   color: #cbd5e1;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-notif-item-dismiss:hover {
@@ -3515,7 +3545,7 @@ body,
   border: 1px solid transparent;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-settings-toggle--on {
@@ -3544,7 +3574,7 @@ body,
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
   text-align: left;
 }
 
@@ -3573,7 +3603,7 @@ body,
 
 .ss-fav-star {
   color: #cbd5e1;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-fav-star--fill {
@@ -3597,7 +3627,7 @@ body,
   border: 1.5px solid rgba(0, 0, 0, 0.05);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-freq-option:hover {
@@ -3644,7 +3674,7 @@ body,
   font-weight: 700;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-cat-toggle--on {
@@ -3659,7 +3689,7 @@ body,
   height: 8px;
   border-radius: var(--radius-round);
   background: #cbd5e1;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-cat-toggle--on .ss-cat-toggle-dot {
@@ -3679,7 +3709,7 @@ body,
   color: #334155;
   background: white;
   outline: none;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-settings-time:focus {
@@ -3705,7 +3735,7 @@ body,
   border: 1px solid transparent;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-radius-option:hover {
@@ -3737,7 +3767,7 @@ body,
   inset: 0;
   pointer-events: none;
   z-index: 5;
-  transition: background 1s ease-in-out;
+  transition: background var(--ss-motion-slow) var(--ss-ease);
 }
 
 .uv-overlay-low {
@@ -3972,7 +4002,7 @@ body,
 }
 
 .venue-comparison-card {
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all var(--ss-motion-slow) var(--ss-ease);
 }
 
 .venue-comparison-card:hover {
@@ -3982,7 +4012,7 @@ body,
 /* ── Hourly Timeline ────────────────────────────────────────── */
 
 .timeline-hour-btn {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .timeline-hour-btn:active {
@@ -3992,7 +4022,7 @@ body,
 .timeline-comfort-indicator {
   height: 4px;
   border-radius: var(--radius-control);
-  transition: all 0.3s ease;
+  transition: all var(--ss-motion-slow) var(--ss-ease);
 }
 
 
@@ -4089,7 +4119,7 @@ body,
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-booking-close:hover {
@@ -4131,7 +4161,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--ss-motion-slow) var(--ss-ease);
   border: 4px solid #fff;
 }
 
@@ -4277,7 +4307,7 @@ body,
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-cal-nav-btn:hover:not(:disabled) {
@@ -4326,7 +4356,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-cal-day:hover:not(:disabled):not(.ss-cal-day--empty):not(.ss-cal-day--disabled) {
@@ -4373,7 +4403,7 @@ body,
   font-weight: 700;
   color: #334155;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-time-chip:hover {
@@ -4391,7 +4421,7 @@ body,
 /* ── Map Markers ───────────────────────────────────────── */
 .ss-map-marker {
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all var(--ss-motion-slow) var(--ss-ease);
   z-index: 1;
 }
 
@@ -4429,7 +4459,7 @@ body,
   background: inherit;
   opacity: 0;
   z-index: -1;
-  transition: all 0.3s ease;
+  transition: all var(--ss-motion-slow) var(--ss-ease);
 }
 
 .ss-map-marker:hover .ss-marker-pill::after {
@@ -4462,7 +4492,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-guest-btn:hover {
@@ -4532,7 +4562,7 @@ body,
   font-size: var(--text-body);
   font-weight: 600;
   color: #0f172a;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   outline: none;
 }
 
@@ -4610,7 +4640,7 @@ body,
   font-weight: 800;
   cursor: pointer;
   box-shadow: var(--shadow-e1);
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .ss-booking-primary-btn:hover {
@@ -4641,7 +4671,7 @@ body,
   font-size: var(--text-body);
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-booking-back-btn:hover {
@@ -4869,7 +4899,7 @@ body,
     font-weight: 700;
     cursor: pointer;
     box-shadow: var(--shadow-e1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform var(--ss-motion-normal) var(--ss-ease), box-shadow var(--ss-motion-normal) var(--ss-ease);
     pointer-events: auto;
   }
 
@@ -5053,7 +5083,7 @@ body,
   cursor: pointer;
   color: #64748b;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background var(--ss-motion-fast);
 }
 
 .ss-vc-close:hover {
@@ -5175,7 +5205,7 @@ body,
   color: #64748b;
   cursor: pointer;
   margin-bottom: 4px;
-  transition: all 0.15s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
 }
 
 .ss-vc-expand-btn:hover {
@@ -5278,7 +5308,7 @@ body,
   border-radius: var(--radius-control);
   border: 1px solid #e2e8f0;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--ss-motion-normal);
   width: fit-content;
 }
 
@@ -5323,7 +5353,7 @@ body,
   font-size: var(--text-body);
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--ss-motion-fast);
 }
 
 .ss-vc-book-btn:active {
@@ -5342,7 +5372,7 @@ body,
   cursor: pointer;
   color: #64748b;
   flex-shrink: 0;
-  transition: all 0.15s;
+  transition: all var(--ss-motion-fast);
 }
 
 .ss-vc-share-btn:hover {
@@ -5404,7 +5434,7 @@ body,
   font-size: var(--text-body);
   color: #0f172a;
   outline: none;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
 }
 
 .custom-filter-input::placeholder {
@@ -5430,7 +5460,7 @@ body,
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--ss-motion-normal) var(--ss-ease);
   flex-shrink: 0;
   padding-bottom: 2px;
 }
@@ -5454,7 +5484,7 @@ body,
   position: absolute; inset: 0; background: rgba(34, 197, 94, 0.15); pointer-events: none; z-index: 10; mix-blend-mode: multiply;
 }
 .uv-map-overlay {
-  position: absolute; inset: 0; pointer-events: none; z-index: 10; mix-blend-mode: multiply; transition: background 0.5s;
+  position: absolute; inset: 0; pointer-events: none; z-index: 10; mix-blend-mode: multiply; transition: background var(--ss-motion-slow);
 }
 .uv-overlay-low { background: rgba(167, 139, 250, 0.2); }
 .uv-overlay-moderate { background: rgba(139, 92, 246, 0.3); }
@@ -5473,7 +5503,7 @@ body,
 .layer-map-marker {
   cursor: pointer;
   z-index: 20;
-  transition: transform 0.2s;
+  transition: transform var(--ss-motion-normal);
 }
 .layer-map-marker:hover {
   transform: scale(1.1);
@@ -5654,12 +5684,12 @@ body,
 .ss-partner-tips time { display: block; font-size: var(--text-caption); font-weight: 800; color: var(--color-gold-text); }
 .ss-partner-toggle-group { margin-top: 18px; min-width: 0; }
 .ss-partner-toggle-group legend { padding-bottom: 10px; color: #64748b; font-weight: 700; font-size: var(--text-caption); }
-.ss-partner-toggle { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 86px; padding: 12px 10px; border: 1px solid #e2e8f0; border-radius: var(--radius-card); text-align: left; background: white; margin-bottom: 8px; transition: background .15s, border-color .15s; }
+.ss-partner-toggle { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 86px; padding: 12px 10px; border: 1px solid #e2e8f0; border-radius: var(--radius-card); text-align: left; background: white; margin-bottom: 8px; transition: background .var(--ss-motion-slow), border-color .var(--ss-motion-slow); }
 .ss-partner-toggle[aria-checked=true] { background: #fffbeb; border-color: var(--color-accent); }
 .ss-partner-toggle-label { flex: 1; min-width: 0; font-size: var(--text-secondary); font-weight: 750; overflow-wrap: anywhere; line-height: 1.5; }
 .ss-partner-toggle-label small { display: block; font-size: var(--text-caption); font-weight: 600; color: #64748b; }
 .ss-partner-switch { display: block; flex-shrink: 0; width: 38px; height: 24px; padding: 3px; border-radius: var(--radius-sheet); background: #cbd5e1; }
-.ss-partner-switch > span { display: block; width: 18px; height: 18px; border-radius: var(--radius-round); background: white; box-shadow: var(--shadow-e1); transition: transform .15s; }
+.ss-partner-switch > span { display: block; width: 18px; height: 18px; border-radius: var(--radius-round); background: white; box-shadow: var(--shadow-e1); transition: transform .var(--ss-motion-slow); }
 .ss-partner-toggle[aria-checked=true] .ss-partner-switch { background: var(--color-accent); }
 .ss-partner-toggle[aria-checked=true] .ss-partner-switch > span { transform: translateX(14px); }
 .ss-partner-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 14px; border-radius: var(--radius-control); background: var(--color-accent); color: var(--color-ink); font-size: var(--text-caption); font-weight: 800; line-height: 1.5; text-align: center; }

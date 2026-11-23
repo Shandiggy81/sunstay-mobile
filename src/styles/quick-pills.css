@@ -22,7 +22,7 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: rgba(255, 255, 255, 0.85);
-  transition: all 0.18s ease;
+  transition: all var(--ss-motion-fast) var(--ss-ease);
   -webkit-tap-highlight-color: transparent;
 }
 
