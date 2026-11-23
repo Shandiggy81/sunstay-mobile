@@ -71,6 +71,7 @@
 :is(button, a[href], input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--ss-focus) !important;
   outline-offset: 2px !important;
+  box-shadow: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1572,6 +1573,8 @@ body,
 }
 
 .ss-sidebar-clear {
+  min-height: var(--ss-hit);
+  min-width: var(--ss-hit);
   font-size: var(--text-caption);
   font-weight: 700;
   color: var(--color-accent);
