@@ -14,10 +14,13 @@ The SQL tests execute only against an ephemeral, in-memory PGlite database.
   main and pushes to main run dependency installation, tests, build and smoke
   tests. No deployment, migration or secrets-writing steps. No branch-create
   trigger. Package installation/build scripts contain no deployment commands.
-- Netlify normally builds previews for every PR. The commit message AND draft
-  PR title must retain `[skip netlify]`, which suppresses branch builds and
-  pull-request previews respectively. Do not remove the marker or push an
-  unmarked follow-up commit without a separately approved deployment plan.
+- Netlify builds a preview for every PR. These microclimate PRs first kept
+  `[skip netlify]` in their commit messages and titles to suppress previews.
+  Main's ruleset requires the `netlify/sunstayglobal30/deploy-preview` check,
+  so a PR marked that way can't merge. Since 23 November 2026, PRs leave the
+  marker out (see "Deploy checks" in AGENTS.md). A Netlify preview builds only
+  the frontend and deploys nothing to Supabase. Merging is still the step that
+  redeploys Edge Functions, and it needs the owner's approval.
   Official rule: https://docs.netlify.com/deploy/manage-deploys/manage-deploys-overview/
 - The connected Supabase Preview check on PR #309, check ID `133683455438`,
   completed as **skipped** on 16 November 2026 at 23:11 UTC, with the explicit
