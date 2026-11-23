@@ -135,7 +135,7 @@ const followUpChips = [
 ];
 
 const chipClass =
-  'flex-shrink-0 snap-start inline-flex min-h-11 items-center gap-1.5 pl-1.5 pr-4 bg-white border border-slate-200 rounded-pill text-secondary font-semibold text-slate-800 hover:border-amber-400 hover:bg-amber-50 shadow-e1 transition-colors whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500';
+  'ss-chip ss-chip--selectable flex-shrink-0 snap-start min-h-11 items-center pl-2 pr-4 border border-slate-200 hover:border-amber-400 hover:bg-amber-50 transition-colors whitespace-nowrap';
 
 // ─── Venue mini cards under a reply ───────────────────────────────────────────
 const VenueSuggestionCards = ({ venues, statusFor, onOpen }) => (
@@ -478,14 +478,14 @@ const ChatWidget = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.92 }}
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="fixed bottom-24 right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
+          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
         >
-          <div className="bg-white rounded-2xl shadow-e3 overflow-hidden border border-slate-100 flex flex-col" style={{ maxHeight: '85dvh' }}
+          <div className="bg-white rounded-sheet shadow-e3 overflow-hidden border border-slate-200 flex flex-col" style={{ maxHeight: 'min(85dvh, calc(100dvh - 120px - env(safe-area-inset-bottom, 0px)))' }}
             role="dialog" aria-labelledby="ss-sunny-chat-title">
 
             {/* ── Header ── */}
-            <div className={`bg-gradient-to-r ${mood.gradient} px-5 py-4 flex items-center justify-between flex-shrink-0`}>
-              <div className="flex items-center gap-3">
+            <div className="bg-warm border-b border-warm-rule px-4 py-3 flex items-center justify-between flex-shrink-0 gap-2">
+              <div className="min-w-0 flex items-center gap-3">
                 <div className="relative">
                   <div className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-pill shadow-e1 ring-2 ring-white/50 ${avatar.clay ? 'bg-amber-50' : ''}`}>
                     <img
@@ -500,19 +500,18 @@ const ChatWidget = ({
                   </div>
                 </div>
                 <div>
-                  <h3 id="ss-sunny-chat-title" className="text-white font-extrabold text-base tracking-normal leading-none mb-1">Sunny · Weather Guide</h3>
+                  <h3 id="ss-sunny-chat-title" className="text-ink font-extrabold text-section leading-tight mb-1">Sunny · Weather Guide</h3>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 bg-green-400 rounded-pill animate-pulse border border-white/20"></span>
-                    <span className="text-white/90 text-xs font-bold uppercase tracking-normal">{mood.label}</span>
+                    <span className="text-slate-600 text-caption font-semibold uppercase">{mood.label}</span>
                   </div>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center hover:bg-white/20 rounded-pill transition-colors"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center hover:bg-slate-100 rounded-round transition-colors"
                 aria-label="Close chat"
               >
-                <X className="w-5 h-5 text-white" />
+                <X className="w-5 h-5 text-ink" />
               </button>
             </div>
 
@@ -544,7 +543,7 @@ const ChatWidget = ({
                     ) : null}
                     <div className={`px-5 py-3 rounded-3xl text-body font-semibold shadow-e1 leading-relaxed ${
                       msg.type === 'user'
-                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-br-md'
+                        ? 'bg-gold-soft text-gold-text rounded-br-md'
                         : 'bg-white border border-slate-100 text-slate-800 rounded-bl-md'
                     }`}>
                       {msg.text}
@@ -577,8 +576,6 @@ const ChatWidget = ({
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: i * 0.06 }}
-                        whileHover={{ scale: 1.04 }}
-                        whileTap={{ scale: 0.97 }}
                         onClick={() => handleQuickReply(reply)}
                         className={chipClass}
                       >
@@ -605,8 +602,6 @@ const ChatWidget = ({
                       initial={{ opacity: 0, scale: 0.85 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: i * 0.08 }}
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.97 }}
                       onClick={() => handleFollowUp(chip)}
                       className={chipClass}
                     >
@@ -629,13 +624,11 @@ const ChatWidget = ({
                 />
                 <motion.button
                   type="submit"
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.93 }}
                   disabled={!inputValue.trim()}
-                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-gradient-to-r from-amber-400 to-orange-500 rounded-pill shadow-e1 disabled:opacity-40 transition-opacity"
+                  className="ss-action ss-action--primary w-11 h-11 flex-shrink-0"
                   aria-label="Send"
                 >
-                  <Send className="w-4 h-4 text-white" />
+                  <Send className="w-[18px] h-[18px] text-white" />
                 </motion.button>
               </form>
             </div>

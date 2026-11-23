@@ -48,7 +48,7 @@
 .ss-home-list-chips img { width: 22px; height: 22px; }
 .ss-home-list-chips .ss-explore-sort { background: #fffbeb; border-color: var(--color-gold-highlight); color: #78350f; }
 .ss-map-first-home .ss-home-list-chips button[aria-pressed=true] { background: #fef3c7; border-color: var(--color-gold-fill); }
-.ss-home-sunny-fab { position: absolute; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--home-peek-height) + 16px); z-index: 41; display: flex; align-items: center; gap: 8px; height: 56px; min-width: 44px; padding: 6px 16px 6px 6px; border-radius: var(--radius-pill); background: var(--color-ink); color: white; font-size: var(--text-body); font-weight: 700; box-shadow: var(--shadow-e1); }
+.ss-home-sunny-fab { position: absolute; right: var(--ss-gutter); bottom: calc(env(safe-area-inset-bottom, 0px) + var(--home-peek-height) + var(--ss-space-4)); z-index: 41; display: flex; align-items: center; gap: var(--ss-space-2); height: 56px; min-width: var(--ss-hit); padding: var(--ss-space-2) var(--ss-space-4) var(--ss-space-2) var(--ss-space-2); border-radius: var(--radius-pill); background: var(--color-ink); color: white; font-size: var(--text-body); font-weight: 700; box-shadow: var(--shadow-e2); }
 .ss-home-sunny-fab img { width: 44px; height: 44px; border-radius: var(--radius-round); object-fit: cover; }
 .ss-map-first-home--preview .ss-home-sunny-fab { bottom: calc(env(safe-area-inset-bottom, 0px) + var(--home-peek-height) + 246px); }
 .ss-home-summary-copy:focus-visible, .ss-home-sunny-fab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
