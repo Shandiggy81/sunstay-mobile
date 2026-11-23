@@ -119,7 +119,7 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
           {reading.sunPercent}
         </span>
         {reading.sunLabel ? (
-          <span className="truncate text-body font-semibold tracking-normal text-slate-700">
+          <span className="min-w-0 [overflow-wrap:anywhere] text-body font-semibold text-slate-700">
             {reading.sunLabel}
           </span>
         ) : null}
@@ -145,7 +145,7 @@ const MicroclimatePanel = memo(function MicroclimatePanel({ reading, atLabel }) 
             </span>
           ) : null}
           {reading.comfortHint ? (
-            <span className="min-w-0 flex-1 truncate text-secondary font-semibold text-slate-600">
+            <span className="min-w-0 flex-1 [overflow-wrap:anywhere] text-secondary font-semibold text-slate-600">
               {reading.comfortHint}
             </span>
           ) : null}
@@ -187,7 +187,7 @@ const RoomIntelligencePanel = ({ roomIntelligence }) => {
       {items.map((item) => (
         <li key={item.label} className="flex min-w-0 items-center gap-2.5">
           <ClayIcon name={item.icon} size={32} />
-          <span className="truncate text-body font-semibold text-slate-700">{item.label}</span>
+          <span className="min-w-0 [overflow-wrap:anywhere] text-body font-semibold text-slate-700">{item.label}</span>
         </li>
       ))}
     </ul>
@@ -223,7 +223,7 @@ const MoreWeatherDetail = ({ open, onToggle, venueId, uvIndex, aqLabel, rainArri
             </div>
             <div className="rounded-2xl border border-slate-900/[0.08] bg-white p-3.5">
               <span className={MICRO_LABEL}>Air quality</span>
-              <span className="mt-0.5 block truncate text-section font-bold text-slate-900">{aqLabel ?? '–'}</span>
+              <span className="mt-0.5 block [overflow-wrap:anywhere] text-section font-bold text-slate-900">{aqLabel ?? '–'}</span>
             </div>
           </div>
           {rainArrivalMins !== null && rainArrivalMins <= 45 && rainArrivalLabel ? (
