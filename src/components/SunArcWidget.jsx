@@ -73,7 +73,7 @@ export default function SunArcWidget({ lat = -37.8136, lng = 144.9631 }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-slate-800 text-xs font-semibold uppercase tracking-normalr">Sun Position</p>
+        <p className="text-slate-800 text-xs font-semibold uppercase tracking-normal">Sun Position</p>
       </div>
 
       {/* SVG Sun Arc */}

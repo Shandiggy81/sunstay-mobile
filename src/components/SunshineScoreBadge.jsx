@@ -46,9 +46,9 @@ export default function SunshineScoreBadge({ venue, weather = {}, size = 'md', s
       >
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-normal text-gray-500">Sunshine Score™</p>
+            <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">Sunshine Score™</p>
             <p className="text-2xl font-extrabold" style={{ color: score.gradeColor }}>
-              {score.gradeEmoji} {score.score}<span className="text-sm font-normal text-gray-400">/100</span>
+              {score.gradeEmoji} {score.score}<span className="text-sm font-normal text-slate-500">/100</span>
             </p>
             <p className="text-sm font-semibold" style={{ color: score.gradeColor }}>{score.gradeLabel}</p>
           </div>
@@ -71,7 +71,7 @@ export default function SunshineScoreBadge({ venue, weather = {}, size = 'md', s
             { label: 'Golden Hour', key: 'goldenHour', max: 5 },
           ].map(({ label, key, max }) => (
             <div key={key} className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 w-28 shrink-0">{label}</span>
+              <span className="text-xs text-slate-500 w-28 shrink-0">{label}</span>
               <div className="flex-1 h-1.5 rounded-full bg-white/60">
                 <div
                   className="h-full rounded-full transition-all duration-500"

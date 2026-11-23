@@ -29,7 +29,7 @@
 .ss-home-summary-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; }
 .ss-home-summary-copy { display: flex; min-width: 0; min-height: 44px; flex: 1; flex-direction: column; justify-content: center; text-align: left; }
 .ss-map-first-home .ss-home-count { font-size: var(--text-title); font-weight: 800; line-height: 1.25; letter-spacing: 0; color: var(--color-ink); }
-.ss-map-first-home .ss-home-sun-clause { display: flex; align-items: center; gap: 4px; font-size: var(--text-body); font-weight: 700; line-height: 1.4; color: #92400e; }
+.ss-map-first-home .ss-home-sun-clause { display: flex; align-items: center; gap: 4px; font-size: var(--text-body); font-weight: 700; line-height: 1.4; color: var(--color-gold-text); }
 .ss-home-sun-clause img { flex-shrink: 0; }
 .ss-home-info-line { display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%; font-size: var(--text-caption); font-weight: 600; color: #64748b; }
 .ss-map-first-home .ss-home-info-line > span { font-size: var(--text-caption); font-weight: 600; color: #64748b; }
@@ -46,8 +46,8 @@
 .ss-home-list-chips .ss-experience-options strong { font-size: var(--text-body); font-weight: 600; }
 .ss-map-first-home .ss-home-list-chips :is(.ss-home-moments,.ss-experience-options) { padding: 0; border: 0; background: transparent; }
 .ss-home-list-chips img { width: 22px; height: 22px; }
-.ss-home-list-chips .ss-explore-sort { background: #fffbeb; border-color: #fcd34d; color: #78350f; }
-.ss-map-first-home .ss-home-list-chips button[aria-pressed=true] { background: #fef3c7; border-color: #fbbf24; }
+.ss-home-list-chips .ss-explore-sort { background: #fffbeb; border-color: var(--color-gold-highlight); color: #78350f; }
+.ss-map-first-home .ss-home-list-chips button[aria-pressed=true] { background: #fef3c7; border-color: var(--color-gold-fill); }
 .ss-home-sunny-fab { position: absolute; right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + var(--home-peek-height) + 16px); z-index: 41; display: flex; align-items: center; gap: 8px; height: 56px; min-width: 44px; padding: 6px 16px 6px 6px; border-radius: 999px; background: var(--color-ink); color: white; font-size: var(--text-body); font-weight: 700; box-shadow: 0 6px 18px rgba(15,23,42,.16); }
 .ss-home-sunny-fab img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
 .ss-map-first-home--preview .ss-home-sunny-fab { bottom: calc(env(safe-area-inset-bottom, 0px) + var(--home-peek-height) + 246px); }

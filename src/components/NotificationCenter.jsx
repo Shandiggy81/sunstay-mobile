@@ -110,7 +110,7 @@ function evaluateRules({ nowH, peakStart, peakEnd, score, hourlyData }) {
       emoji:  '\ud83c\udf7a',
       title:  'Beer garden prime time!',
       body:   "It's beautiful out there right now. Get amongst it.",
-      accent: '#F97316',
+      accent: '#FBBF24',
     };
   }
 

@@ -17,17 +17,17 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
     ];
 
     return (
-        <div className="space-y-6 text-gray-800">
+        <div className="space-y-6 text-slate-800">
             <div className="flex items-center gap-3 mb-2">
                 <Sun className="text-amber-500" size={20} />
                 <h3 className="text-lg font-extrabold uppercase tracking-normal">UV Exposure Analysis</h3>
             </div>
 
             {/* UV Gauge */}
-            <div className="bg-gray-50 rounded-3xl p-6 border border-gray-100 shadow-inner">
+            <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 shadow-inner">
                 <div className="flex justify-between items-end mb-4">
                     <div>
-                        <p className="text-caption font-extrabold text-gray-400 uppercase tracking-normalst">Current UV Index</p>
+                        <p className="text-caption font-extrabold text-slate-500 uppercase tracking-normal">Current UV Index</p>
                         <p className={`text-4xl font-extrabold ${config.color.replace('text-', 'text-')}`}>{Math.round(uvi)}</p>
                     </div>
                     <div className={`px-3 py-1 rounded-full ${config.bgColor} border ${config.color.replace('text-', 'border-')} border-opacity-20`}>
@@ -35,7 +35,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                     </div>
                 </div>
 
-                <div className="relative h-3 w-full bg-gray-200 rounded-full flex overflow-hidden mb-2">
+                <div className="relative h-3 w-full bg-slate-200 rounded-full flex overflow-hidden mb-2">
                     {levels.map((level, i) => (
                         <div
                             key={i}
@@ -50,7 +50,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                         className="absolute top-0 bottom-0 w-1 bg-white shadow-md z-10"
                     />
                 </div>
-                <div className="flex justify-between text-caption font-extrabold text-gray-400 uppercase tracking-normal">
+                <div className="flex justify-between text-caption font-extrabold text-slate-500 uppercase tracking-normal">
                     <span>Low</span>
                     <span>Mod</span>
                     <span>High</span>
@@ -66,9 +66,9 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                         {advice.icon}
                     </div>
                     <div>
-                        <p className="text-caption font-extrabold text-gray-400 uppercase tracking-normalst mb-1">Protection Strategy</p>
-                        <p className="text-sm font-bold text-gray-800 leading-tight">{advice.label}</p>
-                        <p className="text-xs text-gray-500 mt-1">{advice.detail}</p>
+                        <p className="text-caption font-extrabold text-slate-500 uppercase tracking-normal mb-1">Protection Strategy</p>
+                        <p className="text-sm font-bold text-slate-800 leading-tight">{advice.label}</p>
+                        <p className="text-xs text-slate-500 mt-1">{advice.detail}</p>
                     </div>
                 </div>
 
@@ -77,35 +77,35 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
                         <Clock className="text-amber-500" size={18} />
                     </div>
                     <div>
-                        <p className="text-caption font-extrabold text-gray-400 uppercase tracking-normalst mb-1">Sun Safety Window</p>
-                        <p className="text-sm font-bold text-gray-800 leading-tight">{bestTimes}</p>
-                        <p className="text-xs text-gray-500 mt-1">Based on venue orientation and shade.</p>
+                        <p className="text-caption font-extrabold text-slate-500 uppercase tracking-normal mb-1">Sun Safety Window</p>
+                        <p className="text-sm font-bold text-slate-800 leading-tight">{bestTimes}</p>
+                        <p className="text-xs text-slate-500 mt-1">Based on venue orientation and shade.</p>
                     </div>
                 </div>
             </div>
 
             {/* Protection Checklist */}
-            <div className="p-5 bg-white rounded-3xl border border-gray-100 shadow-sm">
+            <div className="p-5 bg-white rounded-3xl border border-slate-100 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                     <Shield size={14} className="text-emerald-500" />
-                    <h4 className="text-caption font-extrabold text-gray-400 uppercase tracking-normalst">Recommended Gear</h4>
+                    <h4 className="text-caption font-extrabold text-slate-500 uppercase tracking-normal">Recommended Gear</h4>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                        <span className="text-xs font-bold text-gray-700">Broad-spectrum SPF</span>
+                        <span className="text-xs font-bold text-slate-700">Broad-spectrum SPF</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                        <span className="text-xs font-bold text-gray-700">Polarized Lenses</span>
+                        <span className="text-xs font-bold text-slate-700">Polarized Lenses</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                        <span className="text-xs font-bold text-gray-700">Breathable Hat</span>
+                        <span className="text-xs font-bold text-slate-700">Breathable Hat</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                        <span className="text-xs font-bold text-gray-700">Hydration Layer</span>
+                        <span className="text-xs font-bold text-slate-700">Hydration Layer</span>
                     </div>
                 </div>
             </div>

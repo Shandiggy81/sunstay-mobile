@@ -146,8 +146,8 @@ const LoadingScreen = () => (
             className="text-center"
         >
             <div className="text-6xl mb-4">☀️</div>
-            <p className="text-gray-800 font-bold text-lg">Loading Sunstay…</p>
-            <p className="text-gray-500 text-sm">Finding your perfect spot</p>
+            <p className="text-slate-800 font-bold text-lg">Loading Sunstay…</p>
+            <p className="text-slate-500 text-sm">Finding your perfect spot</p>
         </motion.div>
     </div>
 );
@@ -183,13 +183,13 @@ const markSplashSeen = () => {
 };
 
 const getWeatherBadge = (weather, venue) => {
-    if (!weather) return { emoji: '🌤️', label: 'Fair', color: '#9ca3af' };
+    if (!weather) return { emoji: '🌤️', label: 'Fair', color: '#94a3b8' };
     const condition = (weather.weather?.[0]?.main || '').toLowerCase();
     const windWarning = getWindWarning(weather.wind?.speed, venue);
     if (windWarning.level === 'red' || windWarning.level === 'orange') return { emoji: '💨', label: 'Windy', color: '#3b82f6' };
-    if (condition.includes('rain') || condition.includes('drizzle')) return { emoji: '🌧️', label: 'Rain', color: '#6b7280' };
+    if (condition.includes('rain') || condition.includes('drizzle')) return { emoji: '🌧️', label: 'Rain', color: '#64748b' };
     if (condition.includes('clear') || condition.includes('sunny')) return { emoji: '☀️', label: 'Sunny', color: '#f59e0b' };
-    if (condition.includes('cloud')) return { emoji: '☁️', label: 'Cloudy', color: '#9ca3af' };
+    if (condition.includes('cloud')) return { emoji: '☁️', label: 'Cloudy', color: '#94a3b8' };
     return { emoji: '🌤️', label: 'Fair', color: '#f59e0b' };
 };
 
@@ -1384,7 +1384,7 @@ const AppContent = () => {
 
                 <main className="ss-main relative flex min-h-0 w-full flex-1 overflow-hidden">
                     {/* LEFT: Venue List — desktop sidebar at lg (1024px) only */}
-                    <aside className={`ss-sidebar ${homeMode === 'after-dark' ? 'ss-sidebar--after-dark' : ''} hidden h-full w-full flex-col overflow-hidden border-r border-gray-200 bg-white lg:flex lg:w-96`}>
+                    <aside className={`ss-sidebar ${homeMode === 'after-dark' ? 'ss-sidebar--after-dark' : ''} hidden h-full w-full flex-col overflow-hidden border-r border-slate-200 bg-white lg:flex lg:w-96`}>
                         <HomeSheetMode mode={homeMode} onChange={handleHomeMode} />
                         {homeMode === 'after-dark' ? (!isMobile && afterDarkPanel) : <>
                         {experienceFinder}

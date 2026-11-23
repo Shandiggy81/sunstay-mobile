@@ -54,7 +54,7 @@ const getWeatherMood = (weather) => {
   if (cw.isRain) return { emoji: '🌧️', label: 'Rainy day mode', gradient: 'from-slate-400 via-blue-400 to-slate-500' };
   if (wind > 30) return { emoji: '💨', label: 'Windy out there!', gradient: 'from-teal-400 via-cyan-400 to-blue-400' };
   if ((cw.uv ?? 0) >= 8) return { emoji: '🕶️', label: 'UV is high today', gradient: 'from-orange-500 via-red-400 to-orange-400' };
-  if ((cw.cloud ?? 0) > 70) return { emoji: '☁️', label: 'Cloudy vibes', gradient: 'from-gray-400 via-slate-400 to-gray-500' };
+  if ((cw.cloud ?? 0) > 70) return { emoji: '☁️', label: 'Cloudy vibes', gradient: 'from-slate-400 via-slate-400 to-slate-500' };
   // Same day/night flag the header uses for its moon, so the chat never says "day" after sunset.
   if (weather?.isDay === false) return { emoji: '🌙', label: 'Great night out', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
   if ((cw.temp ?? 0) >= 28) return { emoji: '🌞', label: 'Cracking day!', gradient: 'from-yellow-400 via-amber-400 to-orange-400' };
@@ -184,7 +184,7 @@ const TypingIndicator = () => (
     exit={{ opacity: 0, y: 6 }}
     className="flex justify-start"
   >
-    <div className="bg-white border border-gray-100 rounded-3xl rounded-bl-md px-5 py-4 shadow-sm flex items-center gap-1.5">
+    <div className="bg-white border border-slate-100 rounded-3xl rounded-bl-md px-5 py-4 shadow-sm flex items-center gap-1.5">
       {[0, 1, 2].map(i => (
         <motion.span
           key={i}
@@ -480,7 +480,7 @@ const ChatWidget = ({
           transition={{ type: 'spring', damping: 26, stiffness: 320 }}
           className="fixed bottom-24 right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
         >
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col" style={{ maxHeight: '85dvh' }}
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col" style={{ maxHeight: '85dvh' }}
             role="dialog" aria-labelledby="ss-sunny-chat-title">
 
             {/* ── Header ── */}
@@ -503,7 +503,7 @@ const ChatWidget = ({
                   <h3 id="ss-sunny-chat-title" className="text-white font-extrabold text-base tracking-normal leading-none mb-1">Sunny · Weather Guide</h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse border border-white/20"></span>
-                    <span className="text-white/90 text-xs font-bold uppercase tracking-normalst">{mood.label}</span>
+                    <span className="text-white/90 text-xs font-bold uppercase tracking-normal">{mood.label}</span>
                   </div>
                 </div>
               </div>
@@ -527,7 +527,7 @@ const ChatWidget = ({
             )}
 
             {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white min-h-0"
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white min-h-0"
               role="log" aria-label="Conversation with Sunny">
               {messages.map((msg) => (
                 <motion.div
@@ -545,7 +545,7 @@ const ChatWidget = ({
                     <div className={`px-5 py-3 rounded-3xl text-body font-semibold shadow-sm leading-relaxed ${
                       msg.type === 'user'
                         ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-br-md'
-                        : 'bg-white border border-gray-100 text-gray-800 rounded-bl-md'
+                        : 'bg-white border border-slate-100 text-slate-800 rounded-bl-md'
                     }`}>
                       {msg.text}
                     </div>
@@ -553,7 +553,7 @@ const ChatWidget = ({
                   {msg.venues?.length ? (
                     <VenueSuggestionCards venues={msg.venues} statusFor={statusFor} onOpen={openVenue} />
                   ) : null}
-                  <span className="text-caption text-gray-400 mt-1 px-2">{fmtTime(msg.ts)}</span>
+                  <span className="text-caption text-slate-500 mt-1 px-2">{fmtTime(msg.ts)}</span>
                 </motion.div>
               ))}
 
@@ -565,7 +565,7 @@ const ChatWidget = ({
             </div>
 
             {/* ── Quick replies / follow-ups / input ── */}
-            <div className="flex-shrink-0 bg-white border-t border-gray-100">
+            <div className="flex-shrink-0 bg-white border-t border-slate-100">
 
               {/* Chip row */}
               {!hasActed && (
@@ -625,7 +625,7 @@ const ChatWidget = ({
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   placeholder="Ask Sunny anything..."
-                  className="flex-1 min-w-0 h-11 px-4 bg-gray-50 border border-gray-200 rounded-full text-input text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
+                  className="flex-1 min-w-0 h-11 px-4 bg-slate-50 border border-slate-200 rounded-full text-input text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
                 />
                 <motion.button
                   type="submit"
@@ -642,7 +642,7 @@ const ChatWidget = ({
           </div>
 
           {/* Speech bubble arrow */}
-          <div className="absolute -bottom-2 right-8 w-4 h-4 bg-white rotate-45 border-r border-b border-gray-100" />
+          <div className="absolute -bottom-2 right-8 w-4 h-4 bg-white rotate-45 border-r border-b border-slate-100" />
         </motion.div>
       )}
     </AnimatePresence>

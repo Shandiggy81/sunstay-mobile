@@ -165,7 +165,7 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
         </div>
 
         <div className="flex-1 min-w-0">
-          <span className="text-caption font-extrabold uppercase tracking-normalst block" style={{ color: text }}>Illustrative sun profile</span>
+          <span className="text-caption font-extrabold uppercase tracking-normal block" style={{ color: text }}>Illustrative sun profile</span>
           <p className="text-secondary font-semibold mt-0.5 text-slate-700 leading-tight">
             {sunProfile?.peakTime && `Peak sun: ${sunProfile.peakTime}`}
           </p>

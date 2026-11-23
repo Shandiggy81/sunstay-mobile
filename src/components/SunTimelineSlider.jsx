@@ -28,9 +28,9 @@ const SunTimelineSlider = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4 mt-4 border border-gray-100">
+    <div className="bg-white rounded-xl shadow-sm p-4 mt-4 border border-slate-100">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-semibold text-gray-800">Live Sun Track</h3>
+        <h3 className="text-sm font-semibold text-slate-800">Live Sun Track</h3>
         <span className="text-xs font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded-full">
           {status}
         </span>
@@ -38,12 +38,12 @@ const SunTimelineSlider = () => {
 
       <div className="relative w-full flex justify-center mb-2">
         <svg width="300" height="150" viewBox="0 0 300 150">
-          <line x1="10" y1="130" x2="290" y2="130" stroke="#e5e7eb" strokeWidth="2" />
-          <path d="M 30 130 A 120 120 0 0 1 270 130" fill="none" stroke="#f3f4f6" strokeWidth="4" strokeDasharray="6 6" />
+          <line x1="10" y1="130" x2="290" y2="130" stroke="#e2e8f0" strokeWidth="2" />
+          <path d="M 30 130 A 120 120 0 0 1 270 130" fill="none" stroke="#f1f5f9" strokeWidth="4" strokeDasharray="6 6" />
           <circle cx={sunX} cy={sunY} r="12" fill="#fbbf24" className="transition-all duration-300 ease-out" />
           <circle cx={sunX} cy={sunY} r="18" fill="#fbbf24" opacity="0.3" className="transition-all duration-300 ease-out" />
         </svg>
-        <div className="absolute bottom-0 text-center text-xl font-extrabold text-gray-800">
+        <div className="absolute bottom-0 text-center text-xl font-extrabold text-slate-800">
           {formatTime(displayHour)}
         </div>
       </div>
@@ -54,9 +54,9 @@ const SunTimelineSlider = () => {
         max={maxHour}
         value={displayHour}
         onChange={(e) => setHour(parseInt(e.target.value))}
-        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
       />
-      <div className="flex justify-between text-xs text-gray-400 mt-2 font-semibold">
+      <div className="flex justify-between text-xs text-slate-500 mt-2 font-semibold">
         <span>6 AM</span>
         <span>Noon</span>
         <span>8 PM</span>

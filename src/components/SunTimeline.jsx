@@ -37,7 +37,7 @@ const SunTimeline = ({ sunData, weatherCode }) => {
     ? 'linear-gradient(90deg, #38bdf8, #818cf8)'
     : isCloud
     ? 'linear-gradient(90deg, #94a3b8, #cbd5e1)'
-    : 'linear-gradient(90deg, #f59e0b, #f97316, #fbbf24)';
+    : 'linear-gradient(90deg, var(--color-accent), var(--color-gold-fill), var(--color-gold-highlight))';
 
   const hourLabels = ['6a', '9a', '12p', '3p', '6p', '9p'];
   const hourPositions = [0, 20, 40, 60, 80, 100];

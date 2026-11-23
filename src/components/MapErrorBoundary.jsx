@@ -77,7 +77,7 @@ class MapErrorBoundary extends React.Component {
             <div className="flex flex-col items-center gap-3">
               <div className="flex items-center gap-2.5 px-6 py-3 bg-amber-500 rounded-2xl shadow-[0_4px_20px_rgba(245,158,11,0.4)] animate-pulse">
                 <span className="text-xl">🗺️</span>
-                <span className="text-amber-950 font-extrabold text-sm uppercase tracking-normalr">Map Loading…</span>
+                <span className="text-amber-950 font-extrabold text-sm uppercase tracking-normal">Map Loading…</span>
               </div>
               <p className="text-white font-bold text-xs uppercase tracking-normal opacity-70">Sunstay Intelligence</p>
             </div>
@@ -89,7 +89,7 @@ class MapErrorBoundary extends React.Component {
               className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-extrabold py-3 px-8 rounded-2xl shadow-xl transition-all active:scale-95"
             >
               <span>↻</span>
-              <span className="text-xs uppercase tracking-normalst">Retry Dashboard</span>
+              <span className="text-xs uppercase tracking-normal">Retry Dashboard</span>
             </button>
           </div>
         </div>
