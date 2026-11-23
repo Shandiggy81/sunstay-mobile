@@ -2,14 +2,14 @@
 .ss-app-root {
   --explore-surface: #fffbf3;
   --explore-sunflower: #ffc531;
-  --explore-shadow: 0 6px 18px rgba(120, 80, 20, .14);
+  --explore-shadow: var(--shadow-e2);
   background: var(--explore-surface);
   color: var(--color-ink);
 }
 
 .ss-explore-search { display: flex; align-items: center; gap: 10px; padding: 4px 16px 10px; flex-shrink: 0; }
 .ss-explore-search .ss-search-wrap { flex: 1; min-width: 0; }
-.ss-app-root .ss-search-input { height: 48px; border-radius: var(--radius-pill); border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: var(--shadow-e1); backdrop-filter: none; padding-left: 40px; padding-right: 44px; font-size: var(--text-secondary); }
+.ss-app-root .ss-search-input { height: 48px; border-radius: var(--radius-pill); border-color: #efe4d1; background: white; color: var(--color-ink); box-shadow: var(--shadow-e1); padding-left: 40px; padding-right: 44px; font-size: var(--text-secondary); }
 .ss-app-root .ss-search-input::placeholder { color: #64748b; }
 .ss-app-root .ss-search-icon { color: #64748b; left: 15px; }
 .ss-app-root .ss-search-clear { width: 44px; height: 44px; right: 2px; background: transparent; color: var(--color-ink); }
@@ -22,7 +22,7 @@
 .ss-app-root .ss-sidebar-count { padding: 4px 8px; color: #475569; }
 .ss-app-root .ss-quick-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: var(--radius-pill); gap: 4px; background: white; border: 1px solid #efe4d1; color: var(--color-ink); }
 .ss-app-root .ss-quick-pill--active { background: #fff0bd; border-color: var(--color-accent); }
-.ss-app-root .ss-footer-badge { background: white; color: #475569; border: 1px solid #efe4d1; box-shadow: var(--explore-shadow); backdrop-filter: none; }
+.ss-app-root .ss-footer-badge { background: white; color: #475569; border: 1px solid #efe4d1; box-shadow: var(--explore-shadow); }
 
 .ss-app-root .ss-mobile-sheet-handle { min-height: 64px; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; background: white; box-shadow: var(--shadow-e2); }
 .ss-app-root .ss-mobile-sheet-grab { background: #dfd3bf; width: 40px; height: 4px; border-radius: var(--radius-pill); }
@@ -53,7 +53,7 @@
 }
 .ss-explore-sort { display: inline-flex; align-items: center; gap: 3px; border-radius: var(--radius-pill); padding: 4px 8px 4px 4px; background: #fff4d6; color: #78350f; font-size: var(--text-caption); font-weight: 700; margin-left: auto; }
 .ss-app-root #map-layers-menu, .ss-app-root [aria-controls="map-layers-menu"] { background: white; border-color: #efe4d1; box-shadow: var(--explore-shadow); }
-.ss-app-root .ss-map-caption-inner { background: white; color: #475569; border-color: #efe4d1; box-shadow: var(--explore-shadow); backdrop-filter: none; }
+.ss-app-root .ss-map-caption-inner { background: white; color: #475569; border-color: #efe4d1; box-shadow: var(--explore-shadow); }
 /* Keep the existing date picker and list usable on short phones. */
 @media (max-width: 380px) and (max-height: 650px) {
   .ss-app-root .ss-mobile-sheet-head { padding-top: 12px; padding-bottom: 4px; }

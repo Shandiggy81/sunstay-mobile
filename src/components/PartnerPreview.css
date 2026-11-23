@@ -64,7 +64,7 @@
 .ss-partner-guest h3:focus { outline: none; }
 .ss-partner-guest-removed { color: #64748b; font-size: var(--text-caption); line-height: 1.5; }
 .ss-partner-guest-frame { position: relative; isolation: isolate; flex: 1; min-height: 420px; overflow: hidden; border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: var(--shadow-e1); }
-.ss-partner-guest-frame .ss-partner-flash { background: #fffbeb; box-shadow: none; transition: background .var(--ss-motion-slow), box-shadow .var(--ss-motion-slow); }
+.ss-partner-guest-frame .ss-partner-flash { background: #fffbeb; box-shadow: none; transition: background var(--ss-motion-normal) var(--ss-ease), box-shadow var(--ss-motion-normal) var(--ss-ease); }
 
 /* Stays: the date to check, two room types side by side, the shared pool, and a home's outdoor areas. */
 .ss-partner-stay-date { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 10px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: var(--radius-card); background: white; }

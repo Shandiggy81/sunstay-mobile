@@ -9,7 +9,7 @@
 .ss-explore-weather-headline strong { font-size: var(--text-title); font-weight: 800; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .ss-explore-weather-headline > span { font-size: var(--text-caption); font-weight: 700; overflow-wrap: anywhere; }
 .ss-explore-weather-place { color: #64748b; font-size: var(--text-caption); line-height: 1.35; }
-.ss-explore-weather-chevron { flex-shrink: 0; color: #64748b; transition: transform .var(--ss-motion-slow); }
+.ss-explore-weather-chevron { flex-shrink: 0; color: #64748b; transition: transform var(--ss-motion-normal) var(--ss-ease); }
 .ss-explore-filter-button { display: flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 5px; min-width: 44px; min-height: 44px; padding: 0 12px; border: 1px solid #f0e4ce; border-radius: var(--radius-pill); background: white; color: var(--color-ink); font-size: var(--text-caption); font-weight: 800; box-shadow: var(--shadow-e1); }
 .ss-explore-filter-button:active, .ss-explore-weather:enabled:active { background: #fff3cf; }
 .ss-explore-filter-button:focus-visible, .ss-explore-weather:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }

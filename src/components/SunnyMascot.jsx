@@ -159,7 +159,7 @@ const SunnyMascot = ({
                         scale: bubbleVisible ? 1 : 0.8,
                     }}
                     transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
-                    className="absolute right-0 bottom-[calc(100%+12px)] w-60 max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-md px-4 py-3 rounded-2xl shadow-e2 pointer-events-none border border-white/50"
+                    className="absolute right-0 bottom-[calc(100%+12px)] w-60 max-w-[calc(100vw-2rem)] bg-white/95 px-4 py-3 rounded-2xl shadow-e2 pointer-events-none border border-white/50"
                 >
                     <p className="text-secondary font-bold text-slate-800 tracking-normal line-clamp-4">
                         {advice.text}

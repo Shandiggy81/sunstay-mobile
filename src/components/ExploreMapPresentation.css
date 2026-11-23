@@ -128,3 +128,11 @@
   .ss-sun-pin .ss-pin-bubble,
   .ss-cluster-inner { transition: none !important; }
 }
+[data-webgl-recovery="1"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+[data-webgl-recovery="1"] > div { box-shadow: var(--shadow-e3); }
+
+.ss-map-container [class~="text-[11px]"] { font-size: var(--text-caption); }

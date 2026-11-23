@@ -55,7 +55,7 @@ class MapErrorBoundary extends React.Component {
       return (
         <div
           data-react-render-error="1"
-          className={`absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-sheet backdrop-blur-sm ${
+          className={`absolute inset-0 z-[1000] flex items-center justify-center overflow-hidden rounded-sheet ${
             hasValidToken ? 'bg-orange-950/20' : 'bg-gradient-to-br from-orange-950 to-slate-900'
           }`}
         >
@@ -86,7 +86,7 @@ class MapErrorBoundary extends React.Component {
 
             <button
               onClick={() => window.location.reload()}
-              className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-extrabold py-3 px-8 rounded-2xl shadow-e3 transition-all active:scale-95"
+              className="group flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold py-3 px-8 rounded-2xl shadow-e3 transition-all active:scale-95"
             >
               <span>↻</span>
               <span className="text-xs uppercase tracking-normal">Retry Dashboard</span>

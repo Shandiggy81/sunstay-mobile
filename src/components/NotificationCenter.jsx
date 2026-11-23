@@ -135,7 +135,6 @@ function SunToast({ toast, onDismiss }) {
         zIndex:          99999,
         width:           'min(calc(100vw - 24px), 420px)',
         background:      'rgba(255,255,255,0.97)',
-        backdropFilter:  'blur(18px)',
         borderRadius: 'var(--radius-card)',
         border:          `1.5px solid ${accent}44`,
         boxShadow:       `0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px ${accent}22, 0 2px 0 ${accent}33 inset`,

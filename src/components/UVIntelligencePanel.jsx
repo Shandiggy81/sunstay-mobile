@@ -61,7 +61,7 @@ const UVIntelligencePanel = ({ venue, uvi = 0 }) => {
 
             {/* Advice Grid */}
             <div className="grid grid-cols-1 gap-3">
-                <div className={`flex items-start gap-4 p-4 rounded-3xl ${config.bgColor} border border-white/50 backdrop-blur-sm`}>
+                <div className={`flex items-start gap-4 p-4 rounded-3xl ${config.bgColor} border border-white/50 `}>
                     <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-xl shadow-e1">
                         {advice.icon}
                     </div>

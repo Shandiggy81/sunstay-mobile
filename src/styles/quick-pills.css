@@ -18,10 +18,8 @@
   white-space: nowrap;
   cursor: pointer;
   border: 1.5px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--ss-surface-overlay);
+  color: var(--color-ink);
   transition: all var(--ss-motion-fast) var(--ss-ease);
   -webkit-tap-highlight-color: transparent;
 }

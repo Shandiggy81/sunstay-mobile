@@ -63,6 +63,8 @@
   --ss-motion-slow: 320ms;
   --ss-ease: cubic-bezier(.2, .8, .2, 1);
   --ss-focus: #a16207;
+  --ss-surface-overlay: rgb(255 255 255 / 0.98);
+  --ss-overlay-ink: rgb(15 23 42 / 0.77);
 }
 
 :is(button, a[href], input, select, textarea, [tabindex]):focus-visible {
@@ -115,16 +117,12 @@ body,
 
 /* Glassmorphism utility */
 .glass {
-  background: rgba(255, 255, 255, 0.9);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: var(--ss-surface-overlay);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .glass-dark {
-  background: rgba(0, 0, 0, 0.4);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: var(--ss-overlay-ink);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -140,9 +138,7 @@ body,
 }
 
 .venue-marker-pill {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: var(--ss-surface-overlay);
   border: 2px solid rgba(255, 255, 255, 0.8);
   border-radius: var(--radius-card);
   padding: 6px 14px;
@@ -312,9 +308,7 @@ body,
   gap: 6px;
   padding: 7px 14px;
   border-radius: var(--radius-control);
-  background: rgba(255, 255, 255, 0.85);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: var(--ss-surface-overlay);
   border: 1px solid rgba(0, 0, 0, 0.08);
   font-size: var(--text-caption);
   font-weight: 700;
@@ -344,9 +338,7 @@ body,
   gap: 6px;
   padding: 8px 16px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.72);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  backdrop-filter: blur(16px) saturate(1.4);
+  background: var(--ss-surface-overlay);
   border: 1px solid rgba(255, 255, 255, 0.55);
   font-size: var(--text-caption);
   font-weight: 700;
@@ -377,9 +369,7 @@ body,
 
 /* Time Slider */
 .comfort-time-slider {
-  background: rgba(255, 255, 255, 0.92);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  background: var(--ss-surface-overlay);
   border-radius: var(--radius-card);
   padding: 12px 14px;
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -517,9 +507,7 @@ body,
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.95);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: var(--ss-surface-overlay);
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
@@ -1437,9 +1425,7 @@ body,
 }
 
 .ss-header-filters {
-  background: rgba(255, 255, 255, 0.75);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: var(--ss-surface-overlay);
   border-radius: var(--radius-control);
   padding: 6px 10px;
   box-shadow: var(--shadow-e2);
@@ -1533,9 +1519,7 @@ body,
   padding: 10px 36px 10px 36px;
   border-radius: var(--radius-control);
   border: 1px solid rgba(0, 0, 0, 0.06);
-  background: rgba(255, 255, 255, 0.85);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: var(--ss-surface-overlay);
   font-size: var(--text-secondary);
   font-weight: 600;
   color: #334155;
@@ -1639,7 +1623,7 @@ body,
   background: white;
   box-shadow: none;
   cursor: pointer;
-  transition: background-color .var(--ss-motion-slow) var(--ss-ease);
+  transition: background-color var(--ss-motion-normal) var(--ss-ease);
 }
 .ss-venue-list-card:hover, .ss-venue-list-card:active { background: #fffbeb; }
 .ss-venue-list-card.ss-venue-list-card--active { background: #fef3c7; }
@@ -1854,9 +1838,7 @@ body,
 .ss-map-overlay-error {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.92);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: var(--ss-surface-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1913,9 +1895,7 @@ body,
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.9);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: var(--ss-surface-overlay);
   padding: 12px 20px;
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-e1);
@@ -2041,9 +2021,7 @@ body,
   left: 12px;
   right: 12px;
   z-index: 15;
-  background: rgba(255, 255, 255, 0.88);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  background: var(--ss-surface-overlay);
   border-radius: var(--radius-control);
   padding: 8px 12px;
   align-items: center;
@@ -2123,9 +2101,7 @@ body,
   border-radius: var(--radius-card);
   font-size: var(--text-caption);
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.8);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: var(--ss-surface-overlay);
   border: 1.5px solid rgba(0, 0, 0, 0.05);
   color: #334155;
   cursor: pointer;
@@ -2212,9 +2188,7 @@ body,
   z-index: 10;
   display: flex;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.85);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: var(--ss-surface-overlay);
   border-radius: var(--radius-control);
   padding: 6px 12px;
   box-shadow: var(--shadow-e1);
@@ -2263,9 +2237,7 @@ body,
   gap: 6px;
   padding: 8px 16px;
   border-radius: var(--radius-card);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--ss-surface-overlay);
   border: 1px solid rgba(0, 0, 0, 0.08);
   font-size: var(--text-caption);
   font-weight: 800;
@@ -2331,9 +2303,7 @@ body,
   gap: 4px;
   padding: 6px 12px;
   border-radius: var(--radius-card);
-  background: rgba(255, 255, 255, 0.85);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: var(--ss-surface-overlay);
   border: 1.5px solid transparent;
   font-size: var(--text-caption);
   font-weight: 700;
@@ -2710,9 +2680,7 @@ body,
   bottom: 12px;
   left: 16px;
   z-index: 20;
-  background: rgba(15, 23, 42, 0.8);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: var(--ss-overlay-ink);
   border-radius: var(--radius-card);
   padding: 5px 14px;
   color: rgba(255, 255, 255, 0.85);
@@ -3063,9 +3031,7 @@ body,
   width: 38px;
   height: 38px;
   border-radius: var(--radius-control);
-  background: rgba(255, 255, 255, 0.7);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: var(--ss-surface-overlay);
   border: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
@@ -3111,9 +3077,7 @@ body,
   width: 400px;
   max-width: 95vw;
   max-height: 80vh;
-  background: rgba(255, 255, 255, 0.96);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
+  background: var(--ss-surface-overlay);
   border-radius: var(--radius-card);
   box-shadow:
     var(--shadow-e2);
@@ -3806,9 +3770,7 @@ body,
 }
 
 .uv-legend-card {
-  background: rgba(255, 255, 255, 0.9);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: var(--ss-surface-overlay);
   border-radius: var(--radius-control);
   padding: 8px 12px;
   box-shadow: var(--shadow-e1);
@@ -3921,9 +3883,7 @@ body,
 }
 
 .radar-legend-card {
-  background: rgba(255, 255, 255, 0.9);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: var(--ss-surface-overlay);
   border-radius: var(--radius-control);
   padding: 8px 12px;
   box-shadow: var(--shadow-e1);
@@ -4034,8 +3994,6 @@ body,
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
   z-index: 80;
 }
 
@@ -5684,12 +5642,12 @@ body,
 .ss-partner-tips time { display: block; font-size: var(--text-caption); font-weight: 800; color: var(--color-gold-text); }
 .ss-partner-toggle-group { margin-top: 18px; min-width: 0; }
 .ss-partner-toggle-group legend { padding-bottom: 10px; color: #64748b; font-weight: 700; font-size: var(--text-caption); }
-.ss-partner-toggle { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 86px; padding: 12px 10px; border: 1px solid #e2e8f0; border-radius: var(--radius-card); text-align: left; background: white; margin-bottom: 8px; transition: background .var(--ss-motion-slow), border-color .var(--ss-motion-slow); }
+.ss-partner-toggle { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 86px; padding: 12px 10px; border: 1px solid #e2e8f0; border-radius: var(--radius-card); text-align: left; background: white; margin-bottom: 8px; transition: background var(--ss-motion-normal) var(--ss-ease), border-color var(--ss-motion-normal) var(--ss-ease); }
 .ss-partner-toggle[aria-checked=true] { background: #fffbeb; border-color: var(--color-accent); }
 .ss-partner-toggle-label { flex: 1; min-width: 0; font-size: var(--text-secondary); font-weight: 750; overflow-wrap: anywhere; line-height: 1.5; }
 .ss-partner-toggle-label small { display: block; font-size: var(--text-caption); font-weight: 600; color: #64748b; }
 .ss-partner-switch { display: block; flex-shrink: 0; width: 38px; height: 24px; padding: 3px; border-radius: var(--radius-sheet); background: #cbd5e1; }
-.ss-partner-switch > span { display: block; width: 18px; height: 18px; border-radius: var(--radius-round); background: white; box-shadow: var(--shadow-e1); transition: transform .var(--ss-motion-slow); }
+.ss-partner-switch > span { display: block; width: 18px; height: 18px; border-radius: var(--radius-round); background: white; box-shadow: var(--shadow-e1); transition: transform var(--ss-motion-normal) var(--ss-ease); }
 .ss-partner-toggle[aria-checked=true] .ss-partner-switch { background: var(--color-accent); }
 .ss-partner-toggle[aria-checked=true] .ss-partner-switch > span { transform: translateX(14px); }
 .ss-partner-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 14px; border-radius: var(--radius-control); background: var(--color-accent); color: var(--color-ink); font-size: var(--text-caption); font-weight: 800; line-height: 1.5; text-align: center; }

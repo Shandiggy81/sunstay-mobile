@@ -166,7 +166,7 @@ const SunSimulator = ({ venue, photoUrl }) => {
 
                 {/* Real-time Recommendation Badge */}
                 <div className="absolute bottom-3 left-3 right-3">
-                    <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20 shadow-e3 flex items-center justify-between">
+                    <div className="bg-white/90 px-4 py-2 rounded-xl border border-white/20 shadow-e3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             {sunData.isDaylight ? <Sun size={14} className="text-amber-500" /> : <Moon size={14} className="text-indigo-400" />}
                             <span className="text-caption font-bold text-slate-800">{getRecommendation()}</span>

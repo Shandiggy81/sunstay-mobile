@@ -1516,7 +1516,7 @@ const AppContent = () => {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
-                                    className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/30 backdrop-blur-sm pointer-events-none"
+                                    className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/30 pointer-events-none"
                                 >
                                     {/* The card and its spring live in EmptyVenueState;
                                         the sidebar copy is the one that announces. */}

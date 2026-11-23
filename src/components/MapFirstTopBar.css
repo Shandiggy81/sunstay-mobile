@@ -19,7 +19,7 @@
 .ss-home-weather-divider { display: none; }
 .ss-home-radar { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 8px; border: 1px solid #ece6d9; border-radius: var(--radius-pill); background: white; font-size: var(--text-body); font-weight: 700; color: var(--color-ink); pointer-events: auto; }
 .ss-home-radar-track { width: 40px; height: 24px; padding: 3px; border-radius: var(--radius-pill); background: #cbd5e1; flex-shrink: 0; }
-.ss-home-radar-track > span { display: block; width: 18px; height: 18px; border-radius: var(--radius-round); background: white; box-shadow: var(--shadow-e1); transition: transform .var(--ss-motion-slow); }
+.ss-home-radar-track > span { display: block; width: 18px; height: 18px; border-radius: var(--radius-round); background: white; box-shadow: var(--shadow-e1); transition: transform var(--ss-motion-normal) var(--ss-ease); }
 .ss-home-radar[aria-checked=true] .ss-home-radar-track { background: var(--color-gold-fill); }
 .ss-home-radar[aria-checked=true] .ss-home-radar-track > span { transform: translateX(16px); }
 .ss-home-search-row { display: grid; grid-template-columns: minmax(0,1fr) 56px; align-items: center; gap: 12px; margin-top: 14px; }
