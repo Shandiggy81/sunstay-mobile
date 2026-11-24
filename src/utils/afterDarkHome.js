@@ -1,4 +1,4 @@
-import { dedupeEvents, distanceMetres, eventsTonight } from './afterDarkEvents.js';
+import { dedupeEvents, distanceMetres, eventsTonight, showtimeWeather } from './afterDarkEvents.js';
 import { parseVenueDateTime, venueTimeParts } from './venueTime.js';
 import { MAX_BOUNDS } from '../config/mapBounds.js';
 
@@ -48,6 +48,45 @@ export function formatAfterDarkTime(value) {
 export function afterDarkNightLabel(now) {
     if (!(now instanceof Date) || !Number.isFinite(now.getTime())) return '';
     return `${new Intl.DateTimeFormat('en-AU', { timeZone: MELBOURNE, weekday: 'long' }).format(now)} night`;
+}
+
+/**
+ * The city forecast, said once above tonight's list, for the hour of the earliest
+ * show listed: "City forecast at 7pm: 15°, dry, light wind". Null with no shows,
+ * or with no forecast for that hour (never a guess).
+ * @returns {{ line: string, start: string, forecast: object } | null}
+ */
+export function eveningForecast(events, weather) {
+    const first = (Array.isArray(events) ? events : [])
+        .filter(event => Number.isFinite(new Date(event?.start).getTime()))
+        .sort((a, b) => new Date(a.start) - new Date(b.start))[0];
+    const forecast = first ? showtimeWeather(first, weather) : null;
+    if (!forecast) return null;
+    return { line: `City forecast at ${formatAfterDarkTime(first.start)}: ${forecastWords(forecast)}`, start: first.start, forecast };
+}
+
+/**
+ * A show's own forecast, only where it adds to the evening line above the list:
+ * a different rain or wind word, or 3° or more apart ("At 9pm: 13°, 60% chance
+ * of rain, breezy"). Advice for an outdoor show ("bring a jacket") always shows.
+ * Null when the show would repeat the evening line and has no advice.
+ * @returns {{ line: string | null, advice: string | null } | null}
+ */
+export function showtimeNote(event, weather, evening) {
+    const forecast = showtimeWeather(event, weather);
+    if (!forecast) return null;
+    const [, rain, wind] = forecast.line.split(' · ');
+    const base = evening?.forecast;
+    const [, baseRain, baseWind] = base ? base.line.split(' · ') : [];
+    const differs = !base || rain !== baseRain || wind !== baseWind
+        || Math.abs(Math.round(forecast.temp) - Math.round(base.temp)) >= 3;
+    const line = differs ? `At ${formatAfterDarkTime(event.start)}: ${forecastWords(forecast)}` : null;
+    return line || forecast.advice ? { line, advice: forecast.advice } : null;
+}
+
+/** "15° · dry · light wind" as words in a sentence: "15°, dry, light wind". */
+function forecastWords(forecast) {
+    return forecast.line.split(' · ').join(', ');
 }
 
 /** Tonight's list: one row per show (the same gig listed twice collapses), then the usual filters. */
