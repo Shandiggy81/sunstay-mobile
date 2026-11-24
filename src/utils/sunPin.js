@@ -85,3 +85,15 @@ export function clusterSize(count) {
     if (n < 15) return 42;
     return 48;
 }
+
+/**
+ * A venue pin's accessible name: the venue, any sun-moment badge, then the
+ * pin's sun label ("Sun score 82", or "After dark" in After Dark mode). With
+ * the venue first, a screen reader can tell the pins apart.
+ */
+export function pinAccessibleName({ venueName = null, momentBadge = null, label = null } = {}) {
+    return [venueName, momentBadge?.label, label]
+        .map(value => (typeof value === 'string' ? value.trim() : ''))
+        .filter(Boolean)
+        .join(', ');
+}

@@ -35,7 +35,7 @@ const count = page => list(page).locator('.ss-mobile-sheet-head .ss-home-count')
 const rows = page => list(page).getByRole('button', { name: /^Venue: / });
 
 async function openList(page) {
-  await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+  await page.getByRole('button', { name: /Show venue list$/ }).click();
   await expect(list(page).locator('#mobile-discovery-results')).toBeVisible();
   await expect(rows(page).first()).toBeVisible();
 }

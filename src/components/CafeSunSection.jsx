@@ -59,7 +59,7 @@ export function CafeSunMonths({ venue, daily, horizon, timeZone, venueType = 'ca
   if (!sun || (months !== null && !monthNames.length && !bestFor)) return null;
   return <div className="ss-venue-summary-row" data-cafe-sunniest>
     <ClayIcon name="sun-calendar" size={32} /><div className="min-w-0">
-      {months === null ? <p>Working out the sunniest months…</p> : monthNames.length ? <h3>Sunniest months: <span aria-label="Sunniest months">{monthNames.join(', ')}</span></h3> : null}
+      {months === null ? <p>Working out the sunniest months…</p> : monthNames.length ? <h3>Sunniest months: <span>{monthNames.join(', ')}</span></h3> : null}
       {bestFor ? <p data-cafe-best-for>{bestFor.text}</p> : null}
       {monthNames.length ? <span className="sr-only">Calculated · average direct sun per day, sampled weekly</span> : null}
     </div>

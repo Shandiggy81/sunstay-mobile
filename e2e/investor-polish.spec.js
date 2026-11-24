@@ -34,7 +34,7 @@ for (const [width, height] of [[320, 568], [390, 844]]) {
       const wind = await page.locator('.ss-home-wind-copy > span').evaluate(el => ({ width: el.clientWidth, content: el.scrollWidth }));
       expect(wind.content).toBeLessThanOrEqual(wind.width);
 
-      await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+      await page.getByRole('button', { name: /Show venue list$/ }).click();
       await page.getByRole('button', { name: /^Morning stays / }).click();
       const badge = page.locator('.ss-mobile-sheet .ss-stay-badge').first();
       await expect(badge).toContainText('Level');
@@ -61,7 +61,7 @@ for (const [width, height] of [[320, 568], [390, 844]]) {
 
     test('venue card receives, contains and returns keyboard focus', async ({ page }) => {
       await page.goto('/');
-      await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+      await page.getByRole('button', { name: /Show venue list$/ }).click();
       const row = page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: / }).first();
       await row.focus();
       await page.keyboard.press('Enter');
@@ -79,12 +79,12 @@ for (const [width, height] of [[320, 568], [390, 844]]) {
       await page.keyboard.press('Escape');
       await expect(dialog).toBeHidden();
       // Opening a card collapses the mobile list, so return to its stable handle.
-      await expect(page.getByRole('button', { name: 'Show venue list', exact: true })).toBeFocused();
+      await expect(page.getByRole('button', { name: /Show venue list$/ })).toBeFocused();
     });
 
     test('matching-room scrolling keeps focus on the visible close control', async ({ page }) => {
       await page.goto('/');
-      await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+      await page.getByRole('button', { name: /Show venue list$/ }).click();
       await page.getByRole('button', { name: /^Morning stays / }).click();
       const row = page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: Quest St Kilda Bayside/ });
       await row.focus();

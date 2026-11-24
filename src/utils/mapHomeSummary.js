@@ -45,3 +45,19 @@ export function homeSheetClause({ venues, condition, summary, night = false }) {
     if (!text) return null;
     return { text, icon: night ? 'night' : summary.fullSun > 0 ? 'sun' : 'sun-cloud' };
 }
+
+/**
+ * The home sheet summary button's accessible name: the words it shows ("1,087
+ * venues, 391 in full sun"), then what it does, so a speech user can say what
+ * they see (WCAG 2.5.3 Label in Name). After Dark shows "Tonight's events" and
+ * its name already carries those words.
+ */
+export function homeSummaryLabel({ mode, count, clause } = {}) {
+    if (mode === 'after-dark') return "Show tonight's events";
+    const words = [count, mode === 'sun' ? clause : null]
+        .map(value => (value == null ? '' : String(value).trim()))
+        .filter(Boolean)
+        .join(', ')
+        .replace(/[.…\s]+$/u, '');
+    return words ? `${words}. Show venue list` : 'Show venue list';
+}

@@ -5,7 +5,7 @@ import React, {
 import * as Sentry from '@sentry/react';
 import mapboxgl from 'mapbox-gl';
 import { Layers, Check, Search } from 'lucide-react';
-import { clusterSize, pinHitHeight, sunPinView } from '../../utils/sunPin';
+import { clusterSize, pinAccessibleName, pinHitHeight, sunPinView } from '../../utils/sunPin';
 import { scoreRingBackground, scoreRingTone } from '../../utils/scoreRing.js';
 import { clayPinUrlFor, clayPinUrls } from '../../utils/clayVenuePins';
 import { mapMomentBadge } from '../../utils/mapMomentBadge.js';
@@ -318,9 +318,8 @@ function paintMarkerEl(el, view) {
     score.style.display = view.scoreText ? '' : 'none';
     paintPinScoreRing(score, view);
     tail.innerHTML = PIN_TAIL_SVG(view.bg, view.border);
-    el.setAttribute('aria-label', view.momentBadge
-        ? `${view.venueName}, ${view.momentBadge.label}, ${view.label}`
-        : view.label);
+    // The venue first, so pins can be told apart ("Mr Tulk, After dark", not "After dark").
+    el.setAttribute('aria-label', pinAccessibleName(view));
     el.dataset.sunTier = view.tier;
     el.dataset.highlighted = view.raised ? 'true' : 'false';
     el.style.zIndex = String(view.zIndex ?? 1);

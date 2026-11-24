@@ -78,7 +78,7 @@ function RoomReport({ room, side, year, sharedMax, initiallyOpen, showEvidence }
     <article className="ss-sun-report__side" aria-labelledby={titleId}>
       <button id={titleId} type="button" className="ss-sun-report__side-toggle" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>
         <span className="ss-sun-report__side-label">
-          <span>{side.name}</span>
+          <span id={`${titleId}-name`}>{side.name}</span>
           {side.share !== null && <span className="ss-sun-report__side-bar" aria-hidden="true"><span style={{ width: `${side.share * 100}%` }} /></span>}
           {showEvidence && room.display && <span className="ss-sun-report__side-evidence">{room.display.chip ?? room.display.evidenceLabel}</span>}
         </span>
@@ -95,7 +95,8 @@ function RoomReport({ room, side, year, sharedMax, initiallyOpen, showEvidence }
             <YearSunChart monthly={room.monthly} year={year} sharedMax={sharedMax} />
           </figure>
           <p className="ss-sun-report__sunniest">{sunniestMonthsText(room.sunniestMonths) ?? 'No modelled direct sun'}</p>
-          <section className="ss-sun-report__season-section" aria-labelledby={`${titleId}-seasons`}>
+          {/* Named with the side too ("North side Summer and winter"): open sides must not share a region name. */}
+          <section className="ss-sun-report__season-section" aria-labelledby={`${titleId}-name ${titleId}-seasons`}>
             <h3 id={`${titleId}-seasons`}>Summer and winter</h3>
             <table className="ss-sun-report__season-table">
               <thead><tr>

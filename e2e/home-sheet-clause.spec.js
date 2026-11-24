@@ -57,7 +57,7 @@ test('home sheet: a full-sun count keeps the sun icon', async ({ page, baseURL }
 
 const list = page => page.locator('.ss-mobile-sheet');
 async function openList(page) {
-  await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+  await page.getByRole('button', { name: /Show venue list$/ }).click();
   await expect(list(page).getByRole('button', { name: /^Venue: / }).first()).toBeVisible();
 }
 

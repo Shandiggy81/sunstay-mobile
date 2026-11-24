@@ -4,6 +4,7 @@ import HomeSheetMode from './HomeSheetMode.jsx';
 import HomePopover from './HomePopover.jsx';
 import DataBadge from './DataBadge.jsx';
 import { Info } from 'lucide-react';
+import { homeSummaryLabel } from '../utils/mapHomeSummary.js';
 
 export function HomeDiscoveryInfo({ experienceContext, dataLabel, captionBadge, cozy }) {
     return <div className="ss-home-info-line"><span>Melbourne time · sun is modelled</span>
@@ -30,10 +31,11 @@ export default function HomeSheetSummary({ mode, onModeChange, count, clause, cl
         observer.observe(sheet);
         return () => { observer.disconnect(); home.style.removeProperty('--home-peek-height'); };
     }, [peek]);
+    // The {' '} keeps the count and clause apart for the Label in Name check; flex layout doesn't draw it.
     const copy = <><span className="ss-home-count">{mode === 'after-dark' ? "Tonight's events" : count}</span>
-        {mode === 'sun' && clause && <span className="ss-home-sun-clause"><ClayIcon name={clauseIcon} size={18} />{clause}</span>}</>;
+        {mode === 'sun' && clause && <>{' '}<span className="ss-home-sun-clause"><ClayIcon name={clauseIcon} size={18} />{clause}</span></>}</>;
     return <div ref={row} className="ss-home-summary-row">
-        {onExpand ? <button type="button" className="ss-home-summary-copy" aria-label={mode === 'after-dark' ? "Show tonight's events" : 'Show venue list'}
+        {onExpand ? <button type="button" className="ss-home-summary-copy" aria-label={homeSummaryLabel({ mode, count, clause })}
             onClick={event => { event.stopPropagation(); onExpand(); }}>{copy}</button>
             : <div className="ss-home-summary-copy" role="heading" aria-level={2} aria-describedby={mode === 'sun' ? 'home-list-context' : undefined} id="mobile-discovery-results" tabIndex={-1}>{copy}</div>}
         <HomeSheetMode mode={mode} onChange={onModeChange} size="compact" />

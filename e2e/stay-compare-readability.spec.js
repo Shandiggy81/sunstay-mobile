@@ -26,7 +26,7 @@ for (const [width, height] of [[320, 568], [390, 844]]) {
       });
 
       await page.goto('/');
-      await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+      await page.getByRole('button', { name: /Show venue list$/ }).click();
       await page.getByRole('button', { name: /^Morning stays / }).click();
       const list = page.locator('.ss-mobile-sheet');
       for (const count of [1, 2, 3]) {

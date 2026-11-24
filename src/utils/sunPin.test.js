@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { PIN_TOUCH_PX, SUN_PIN_TIERS, clusterSize, pinHitHeight, sunPinView, sunTier } from './sunPin.js';
+import { PIN_TOUCH_PX, SUN_PIN_TIERS, clusterSize, pinAccessibleName, pinHitHeight, sunPinView, sunTier } from './sunPin.js';
 
 describe('sunTier', () => {
     it('buckets the sun score', () => {
@@ -160,5 +160,22 @@ describe('pinHitHeight', () => {
         assert.equal(pinHitHeight(-10), 44);
         assert.equal(pinHitHeight(undefined), 44);
         assert.equal(pinHitHeight(Number.NaN), 44);
+    });
+});
+
+describe('pinAccessibleName', () => {
+    it('names the venue before the sun label, so pins can be told apart', () => {
+        assert.equal(pinAccessibleName({ venueName: 'Mr Tulk', label: 'Sun score 82' }), 'Mr Tulk, Sun score 82');
+        assert.equal(pinAccessibleName({ venueName: 'Mr Tulk', label: sunPinView({ score: 0, nightMode: true }).label }), 'Mr Tulk, After dark');
+    });
+
+    it('keeps the sun-moment badge between the venue and the label, as before', () => {
+        assert.equal(pinAccessibleName({ venueName: 'Arbory Afloat', momentBadge: { label: 'Sunset sun' }, label: 'Sun score 90' }),
+            'Arbory Afloat, Sunset sun, Sun score 90');
+    });
+
+    it('falls back to the sun label when the venue has no name', () => {
+        assert.equal(pinAccessibleName({ venueName: ' ', label: 'Sun score unknown' }), 'Sun score unknown');
+        assert.equal(pinAccessibleName({}), '');
     });
 });
