@@ -25,6 +25,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { melbourneHour, scoreVenue } from "./scoring.js";
 import { runEnrichment, refreshPageQuery, LIMITS } from "./reliability.js";
+import { sendCheckIn } from "./checkin.js";
 
 type Profile = {
   venue_id: string;
@@ -76,7 +77,9 @@ Deno.serve(async (_req) => {
     // Initialization/configuration failures must also avoid raw credential-bearing errors.
     result = { ok: false, code: "initialization_failed" };
   }
+  // Sentry Crons alert on a failed or missing run; "off" until SENTRY_CRON_DSN is set.
+  const checkin = await sendCheckIn({ dsn: Deno.env.get("SENTRY_CRON_DSN"), result });
   // Only fixed codes and counts: never raw upstream/DB errors, URLs or credentials.
-  console.log(JSON.stringify({ event: "microclimate_enrichment", ...result }));
+  console.log(JSON.stringify({ event: "microclimate_enrichment", ...result, checkin }));
   return Response.json(result, { status: result.ok ? 200 : 503 });
 });

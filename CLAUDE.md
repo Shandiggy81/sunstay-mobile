@@ -97,6 +97,9 @@ The main SunStay app has no user authentication. The separate sunstay-admin app 
   secret. `supabase/config.toml` sets `verify_jwt = true`; the client sends the user token or the anon key.
 - Edge Function `supabase/functions/enrich-microclimate` runs every 20 minutes from pg_cron
   (`20260918034428_schedule_enrich_microclimate_cron.sql`); changing either is a production change.
+  Each run sends a Sentry Crons check-in (`checkin.js`) once the `SENTRY_CRON_DSN` function secret
+  is set; keep its schedule equal to the cron job's (a test checks it). Setup and the Nov 2026
+  incident: `docs/operations/microclimate-reliability-review.md`.
 - Do not apply migrations, deploy functions or change remote Supabase without explicit approval.
 - **Merging to `main` deploys to production.** The Supabase GitHub integration redeploys every
   function in `supabase/functions/` from `main` and may also push pending migrations. Treat

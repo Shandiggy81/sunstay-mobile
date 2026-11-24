@@ -252,6 +252,41 @@ It is an explicit supplemental check, not part of npm test or hosted CI.
    diagnostics, due backlog and actual expiry coverage for at least one hour.
    Do not mask failures by lengthening TTL. Roll back if the criteria fail.
 
+## Failure alerting (Sentry Crons)
+
+Incident, 16–23 Nov 2026: refreshes failed for about six and a half days and
+nothing alerted anyone; the app quietly fell back to estimates. From 22:40 UTC
+on 16 Nov the old function mostly hit the platform limit (HTTP 546, 13 good
+runs in between). From 01:00 UTC on 18 Nov, after #310 deployed, every run
+rejected the production `ENRICH_BATCH_SIZE` as `invalid_config`. The fix, #312,
+was opened within two hours but deployed at 09:36 UTC on 23 Nov. The next run
+succeeded.
+
+`checkin.js` sends one Sentry Crons check-in per run: `ok` when the run returns
+`ok: true`, `error` for anything else. A run that never reports (killed, cron or
+pg_net stopped, broken deploy) is marked missed after the 10-minute margin. The
+monitor settings travel with each check-in, so Sentry creates the monitor on
+the first one. Two bad runs in a row (about 40 minutes) open an issue, and one
+good run resolves it. The check-in is capped at 3 seconds, never throws and
+never logs the DSN. A test keeps its schedule equal to the pg_cron job.
+
+It stays off (`"checkin":"off"` in the run log) until the `SENTRY_CRON_DSN`
+function secret is set. Every Sentry plan includes one cron monitor, and this
+organisation had none on 24 Nov 2026, so it should cost nothing.
+
+To switch it on (production settings: each step needs the owner's approval):
+
+1. Merge the PR. This redeploys the function; with no secret nothing changes.
+2. Set the function secret `SENTRY_CRON_DSN` to the Sentry project's DSN (the
+   same value as Netlify's `VITE_SENTRY_DSN`), in Supabase under Edge Functions
+   → Secrets.
+3. After the next 20-minute run, confirm the run log shows `"checkin":"sent"`
+   and Sentry → Crons lists `enrich-microclimate` with an OK check-in.
+4. In Sentry → Alerts, connect an alert to that monitor that emails the owner.
+   Monitor failures open issues, but nobody is notified without an alert.
+
+Unit tests: `node --test src/utils/enrichMicroclimateCheckin.test.js`.
+
 ## Step-by-step rollback — future approved rollout only
 
 1. Before any production rollout, save the exact currently deployed function
