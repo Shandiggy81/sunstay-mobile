@@ -234,6 +234,39 @@ for (const reading of [
   });
 }
 
+// Short phones: the guest card shrinks and scrolls in its frame, and the bar under it stays clear.
+for (const viewport of [{ width: 320, height: 568 }, { width: 375, height: 667 }]) {
+  test.describe(`short phone ${viewport.width}×${viewport.height}`, () => {
+    test.use({ viewport });
+
+    test('guest view leaves the Edit | Guest view bar uncovered and tappable', async ({ page, baseURL }) => {
+      const { errors, panel } = await openPartnerPreview(page, baseURL, { venue: 'dv-20', name: 'Mr Tulk', now: melbourne(12, 15), forecast: sunny });
+      await panel.getByLabel('What’s on special?').fill(SPECIAL);
+      const viewSwitch = panel.getByRole('group', { name: 'Partner preview view' });
+      await viewSwitch.getByRole('button', { name: 'Guest view' }).tap();
+      const guest = panel.getByRole('region', { name: 'Mr Tulk guest card preview' });
+      // The jump to Specials lands inside the shorter frame, and the frame ends where the bar starts.
+      await expect(guest.getByRole('region', { name: 'Specials', exact: true })).toBeInViewport();
+      const frameBottom = await panel.locator('.ss-partner-guest-frame').evaluate(frame => frame.getBoundingClientRect().bottom);
+      expect(frameBottom).toBeLessThanOrEqual(await viewSwitch.evaluate(bar => bar.getBoundingClientRect().top));
+
+      // Nothing sits over either button, at its centre or 4px below its top edge.
+      for (const name of ['Edit', 'Guest view']) {
+        const hits = await viewSwitch.getByRole('button', { name }).evaluate(button => {
+          const { left, top, width, height } = button.getBoundingClientRect();
+          return [top + height / 2, top + 4].map(y => document.elementFromPoint(left + width / 2, y)?.closest('button') === button);
+        });
+        expect(hits, `${name}: centre, 4px below the top`).toEqual([true, true]);
+      }
+
+      await viewSwitch.getByRole('button', { name: 'Edit' }).tap();
+      await expect(guest).toBeHidden();
+      await expect(panel.getByLabel('What’s on special?')).toHaveValue(SPECIAL);
+      expect(errors).toEqual([]);
+    });
+  });
+}
+
 test.describe('wide window', () => {
   test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
 

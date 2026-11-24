@@ -118,6 +118,8 @@
     /* Full width, so the card lays out exactly as it does on a guest's phone. */
     .ss-partner-guest-column { padding: 14px 0 0; }
     .ss-partner-guest > :not(.ss-partner-guest-frame) { padding-inline: 16px; }
+    /* No height floor: on a short phone the card scrolls in the space left, above the Edit | Guest view bar. */
+    .ss-partner-guest-frame { min-height: 0; }
 }
 @media (min-width: 1024px) {
     .ss-partner-overlay .ss-partner-panel--guest { max-width: 1160px; }
