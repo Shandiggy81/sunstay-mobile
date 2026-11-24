@@ -95,8 +95,20 @@ cannot take a hashed URL.
 Inject axe-core into a deploy preview with Playwright at 390×844, after removing
 the Netlify drawer (`[data-netlify-deploy-id], iframe[title="Netlify Drawer"]`).
 Run it with the tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` and
-`best-practice`. Since #271 the result is **0 violations** on home, list, venue
-card, Filters, After Dark and the Sunny chat, so treat any new one as a
-regression. Color-contrast "needs review" items come from translucent layers
-and are expected. Map pins should measure at least 44 px tall on screen after
-the camera flies in at 45° pitch (`getBoundingClientRect` on `.ss-sun-pin`).
+`best-practice`. With axe-core 4.14 the result is **0 violations** on home, the
+venue and Stays lists, Filters, venue and stay cards, the sun report with every
+side open, After Dark, the Sunny chat and the partner preview (Today, Guest view,
+Room sun), so treat any new one as a regression. Color-contrast "needs review"
+items come from translucent layers and are expected.
+
+axe 4.14 checks Label in Name (`label-content-name-mismatch`, WCAG 2.5.3) by
+default: a control's visible words must appear, in order and unbroken, in its
+accessible name. axe reads that text node by node, without the spaces layout
+adds, so keep a `{' '}` between sibling text elements inside a labelled control,
+and start a long `aria-label` with what the control shows (see
+`src/utils/venueRowLabel.js`). `e2e/label-in-name.spec.js` runs these checks
+without axe.
+
+Map pins should measure at least 44 px tall on screen after the camera flies in
+at 45° pitch (`getBoundingClientRect` on `.ss-sun-pin`; count only pins and
+clusters whose centre isn't under the header or the sheet).
