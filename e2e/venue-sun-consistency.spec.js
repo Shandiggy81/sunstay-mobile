@@ -57,7 +57,7 @@ async function openVenue(page, { defaultMode = 'Sun' } = {}) {
   const modes = page.getByRole('group', { name: 'Home sheet mode', exact: true });
   await expect(modes.getByRole('button', { name: defaultMode, exact: true })).toHaveAttribute('aria-pressed', 'true');
   if (defaultMode !== 'Sun') await modes.getByRole('button', { name: 'Sun', exact: true }).click();
-  await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+  await page.getByRole('button', { name: /Show venue list$/ }).click();
   await page.getByRole('combobox', { name: 'Search venues', exact: true }).fill(VENUE);
   // Enter (the keyboard's Search key) closes the suggestions and shows the list.
   await page.getByRole('combobox', { name: 'Search venues', exact: true }).press('Enter');

@@ -56,7 +56,7 @@ async function openVenue(page, { defaultMode = 'Sun' } = {}) {
   const modes = page.getByRole('group', { name: 'Home sheet mode', exact: true });
   await expect(modes.getByRole('button', { name: defaultMode, exact: true })).toHaveAttribute('aria-pressed', 'true');
   if (defaultMode !== 'Sun') await modes.getByRole('button', { name: 'Sun', exact: true }).click();
-  await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+  await page.getByRole('button', { name: /Show venue list$/ }).click();
   await page.getByRole('combobox', { name: 'Search venues', exact: true }).fill(VENUE);
   await page.getByRole('combobox', { name: 'Search venues', exact: true }).press('Enter');
   await page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: / }).filter({ hasText: VENUE }).first().tap();
@@ -178,11 +178,11 @@ test('after dark the verdict says so and offers no times; building shade shows i
 
 test('list rows carry the strip in miniature, and a stay opens with one side and the wind by side', async ({ page, baseURL }) => {
   const { errors } = await boot(page, baseURL, melbourne(11));
-  await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+  await page.getByRole('button', { name: /Show venue list$/ }).click();
   const rows = page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: / });
   await expect(rows.first()).toBeVisible();
   // Decoration only: the row's label already says the sun and the wind.
-  const strip = rows.first().locator('[data-row-outside]');
+  const strip = page.locator('.ss-mobile-sheet .ss-venue-list-card').first().locator('[data-row-outside]');
   await expect(strip).toBeVisible();
   await expect(strip).toHaveAttribute('aria-hidden', 'true');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

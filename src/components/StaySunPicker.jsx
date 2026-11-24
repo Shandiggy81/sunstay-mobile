@@ -5,11 +5,12 @@ import ClayIcon from './common/ClayIcon.jsx';
 export default function StaySunPicker({ moment, date, onMoment, onDate, compareCount, onCompare }) {
   const [datesOpen, setDatesOpen] = useState(false);
   return <div className="ss-stay-picker" onPointerDownCapture={e => e.stopPropagation()}>
-    <div className="ss-stay-chips" aria-label="Sun moment">
+    <div className="ss-stay-chips" role="group" aria-label="Sun moment">
       {Object.entries(SUN_MOMENTS).map(([id, label]) => <button key={id} aria-label={label} aria-pressed={moment === id} onClick={() => onMoment(id)}><ClayIcon name={id === 'coffee' ? 'coffee' : id === 'sunset' ? 'cocktail' : 'sun'} size={24} />{id === 'coffee' ? 'Morning' : id === 'sunset' ? 'Sunset' : label}</button>)}
     </div>
     <div className="ss-stay-chips">
-      <button aria-label="Choose stay date" aria-expanded={datesOpen} onClick={() => setDatesOpen(!datesOpen)}><ClayIcon name="clock" size={24} />{selectedStayDateLabel(date)} ▾</button>
+      {/* The name starts with the date it shows, so a speech user can say it (WCAG 2.5.3). */}
+      <button aria-label={`${selectedStayDateLabel(date)}, choose stay date`} aria-expanded={datesOpen} onClick={() => setDatesOpen(!datesOpen)}><ClayIcon name="clock" size={24} />{selectedStayDateLabel(date)} ▾</button>
       {compareCount > 0 && <button onClick={onCompare}>Compare ({compareCount}/3)</button>}
     </div>
     {datesOpen && <div className="ss-stay-chips">

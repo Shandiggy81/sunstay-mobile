@@ -30,11 +30,13 @@ async function boot(page, baseURL, { unavailable = false, delayedVenues = false,
 
 const list = page => page.locator('.ss-mobile-sheet');
 async function openList(page) {
-    const button = page.getByRole('button', { name: 'Show venue list', exact: true });
+    const button = page.getByRole('button', { name: /Show venue list$/ });
     if (await button.isVisible()) await button.click();
     await expect(list(page).locator('#mobile-discovery-results')).toBeVisible();
 }
 const rows = page => list(page).getByRole('button', { name: /^Venue: / });
+// The whole row: Compare sits beside the row's button, not inside it.
+const cards = page => list(page).locator('.ss-venue-list-card');
 const PROPERTY_FIXTURES = [
     { id: 'fixture-home', venueName: 'Fixture Home', typeCategory: 'Residential', typeLabel: 'Residential', lat: -37.81, lng: 144.96, tags: [] },
     { id: 'fixture-hotel', venueName: 'Fixture Hotel', typeCategory: 'Hotel', typeLabel: 'Hotel', lat: -37.81, lng: 144.96, tags: [] },
@@ -69,8 +71,8 @@ test('Homes remains visible when Stays is selected too, with matching list count
     await expect(list(page).locator('.ss-mobile-sheet-head')).toContainText('2 venues');
     await expect(rows(page)).toHaveCount(2);
     await expect(rows(page).filter({ hasText: 'Fixture Home' })).toBeVisible();
-    await expect(rows(page).filter({ hasText: 'Fixture Home' }).getByRole('button', { name: 'Compare', exact: true })).toHaveCount(0);
-    await expect(rows(page).filter({ hasText: 'Fixture Hotel' }).getByRole('button', { name: 'Compare', exact: true })).toBeVisible();
+    await expect(cards(page).filter({ hasText: 'Fixture Home' }).getByRole('button', { name: 'Compare', exact: true })).toHaveCount(0);
+    await expect(cards(page).filter({ hasText: 'Fixture Hotel' }).getByRole('button', { name: 'Compare', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await page.screenshot({ path: testInfo.outputPath('homes-and-stays-390.png') });
     await page.getByRole('combobox', { name: 'Search venues', exact: true }).fill('zzzz-no-match');
@@ -98,11 +100,11 @@ test('experience shortcuts use the existing stay/date controls and comparisons',
     await expect(list(page).getByRole('button', { name: 'Stays', exact: true })).toHaveAttribute('aria-pressed', 'true');
     const picker = list(page).locator('.ss-stay-picker');
     await expect(picker.getByRole('button', { name: 'Most sun', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await picker.getByRole('button', { name: 'Choose stay date', exact: true }).tap();
+    await picker.getByRole('button', { name: /choose stay date$/ }).tap();
     await picker.getByRole('button', { name: 'Tomorrow', exact: true }).tap();
     await expect(list(page).locator('#home-list-context')).toContainText('Tomorrow · Tue 20 Oct · Most sun · Melbourne time');
-    await rows(page).nth(0).getByRole('button', { name: 'Compare', exact: true }).tap();
-    await rows(page).nth(1).getByRole('button', { name: 'Compare', exact: true }).tap();
+    await cards(page).nth(0).getByRole('button', { name: 'Compare', exact: true }).tap();
+    await cards(page).nth(1).getByRole('button', { name: 'Compare', exact: true }).tap();
     await picker.getByRole('button', { name: 'Compare (2/3)', exact: true }).tap();
     const comparison = page.getByRole('dialog', { name: 'Compare · Most sun', exact: true });
     await expect(comparison).toBeVisible();
@@ -116,9 +118,9 @@ test('future room sun uses the selected date and marks geometry as potential sun
     const { errors } = await boot(page, baseURL);
     await page.getByRole('button', { name: 'Morning stays Explore room sun', exact: true }).tap();
     const picker = list(page).locator('.ss-stay-picker');
-    await picker.getByRole('button', { name: 'Choose stay date', exact: true }).tap();
+    await picker.getByRole('button', { name: /choose stay date$/ }).tap();
     await picker.getByLabel('Pick a date', { exact: true }).fill('2026-10-22');
-    await picker.getByRole('button', { name: 'Choose stay date', exact: true }).tap();
+    await picker.getByRole('button', { name: /choose stay date$/ }).tap();
     await expect(list(page).locator('#home-list-context')).toContainText('Thu 22 Oct · Morning coffee · Melbourne time');
     await rows(page).first().tap();
     const card = page.getByRole('article');
@@ -187,12 +189,12 @@ for (const [width, height] of [[320, 568], [768, 1024], [1440, 1024]]) {
             const picker = page.locator('.ss-stay-picker').filter({ visible: true });
             await expect(picker.getByRole('button', { name: 'Morning coffee', exact: true })).toHaveAttribute('aria-pressed', 'true');
             if (width === 320) {
-                await picker.getByRole('button', { name: 'Choose stay date', exact: true }).tap();
+                await picker.getByRole('button', { name: /choose stay date$/ }).tap();
                 await picker.getByLabel('Pick a date', { exact: true }).fill('2026-10-22');
                 await expect(picker.getByLabel('Pick a date', { exact: true })).toHaveValue('2026-10-22');
                 const scroller = list(page).locator('[data-virtuoso-scroller="true"]');
                 expect((await scroller.boundingBox()).height).toBeGreaterThan(44);
-                await picker.getByRole('button', { name: 'Choose stay date', exact: true }).tap();
+                await picker.getByRole('button', { name: /choose stay date$/ }).tap();
                 await expect(rows(page).first()).toBeVisible();
             }
             expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);

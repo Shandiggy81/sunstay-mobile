@@ -137,7 +137,7 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
                 : 'The balcony roof keeps the sun off the back of the balcony all day; the railing side is what gets the sun.'}
             </p>
           ) : null}
-          <div className="flex flex-wrap items-center gap-1.5 text-caption" aria-label="Sunniest months, representative 15th-of-month estimates">
+          <div className="flex flex-wrap items-center gap-1.5 text-caption" role="group" aria-label="Sunniest months, representative 15th-of-month estimates">
             <span className="mr-1 inline-flex items-center gap-1 font-semibold text-slate-600"><ClayIcon name="sun-cloud" size={20} />Sunniest months</span>
             {months === undefined ? <span role="status" className="h-6 w-12 rounded-pill bg-amber-100 motion-safe:animate-pulse"><span className="sr-only">Calculating sunniest months</span></span>
               : bestMonths?.length ? bestMonths.map(month => <span key={month} className="rounded-pill border border-amber-200 bg-amber-50 px-3 py-1 font-bold text-amber-900">{month}</span>)

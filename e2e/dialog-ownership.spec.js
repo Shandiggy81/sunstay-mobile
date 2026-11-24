@@ -64,7 +64,7 @@ for (const [width, height] of [[320, 568], [390, 844]]) {
     });
 
     test('Compare keeps its focus and scroll lock behind offline', async ({ page }) => {
-      await page.getByRole('button', { name: 'Show venue list', exact: true }).click();
+      await page.getByRole('button', { name: /Show venue list$/ }).click();
       await page.getByRole('button', { name: /^Morning stays / }).click();
       const list = page.locator('.ss-mobile-sheet');
       await list.locator('.ss-stay-compare-toggle').first().click();

@@ -97,7 +97,7 @@ for (const [width, height] of [[320, 568], [390, 844]]) {
 
     test('hiding for a venue clears the panel and venue Escape remains independent', async ({ page }) => {
       await tile(page).tap();
-      const listButton = page.getByRole('button', { name: 'Show venue list', exact: true });
+      const listButton = page.getByRole('button', { name: /Show venue list$/ });
       await listButton.focus();
       await page.keyboard.press('Enter');
       const row = page.locator('.ss-mobile-sheet').getByRole('button', { name: /^Venue: / }).first();

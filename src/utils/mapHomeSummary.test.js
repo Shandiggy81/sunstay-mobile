@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { CONDITION_CLAUSE_ICONS, homeSheetClause, mapHomeSummary } from './mapHomeSummary.js';
+import { CONDITION_CLAUSE_ICONS, homeSheetClause, homeSummaryLabel, mapHomeSummary } from './mapHomeSummary.js';
+import { nameContainsLabel } from './labelInName.js';
 
 test('home count uses the same rounded full-sun threshold as pins', () => {
     assert.deepEqual(mapHomeSummary([100, 75, 74.6, 74, 50, 0, null]), { total: 7, known: 6, fullSun: 3, partSun: 2 });
@@ -52,4 +53,21 @@ test('every home sheet clause icon has a clay file', () => {
     for (const icon of [...Object.values(CONDITION_CLAUSE_ICONS), 'night', 'sun', 'sun-cloud']) {
         assert.ok(existsSync(new URL(`../assets/clay/${icon}.webp`, import.meta.url)), `missing ${icon}.webp`);
     }
+});
+
+test('homeSummaryLabel says the count and clause it shows, then that it opens the list', () => {
+    const label = homeSummaryLabel({ mode: 'sun', count: '1,087 venues', clause: '391 in full sun' });
+    assert.equal(label, '1,087 venues, 391 in full sun. Show venue list');
+    assert.equal(nameContainsLabel(label, '1,087 venues 391 in full sun'), true);
+    assert.equal(homeSummaryLabel({ mode: 'sun', count: '1 venue', clause: null }), '1 venue. Show venue list');
+    assert.equal(homeSummaryLabel({ mode: 'sun', count: 'Loading venues…', clause: '' }), 'Loading venues. Show venue list');
+    assert.equal(homeSummaryLabel({ mode: 'sun' }), 'Show venue list');
+});
+
+test('homeSummaryLabel leaves the clause out where the sheet does, and keeps After Dark as it was', () => {
+    // The sheet shows the clause in Sun mode only.
+    assert.equal(homeSummaryLabel({ mode: 'other', count: '12 venues', clause: 'after dark' }), '12 venues. Show venue list');
+    const night = homeSummaryLabel({ mode: 'after-dark', count: '12 venues', clause: 'after dark' });
+    assert.equal(night, "Show tonight's events");
+    assert.equal(nameContainsLabel(night, "Tonight's events"), true);
 });

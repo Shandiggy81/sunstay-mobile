@@ -92,6 +92,7 @@ import { isCafeVenue } from './utils/cafeCardTiles.js';
 import { FILTER_COZY, FILTER_SUNNY } from './utils/filterIds.js';
 import { rowSunAxis, rowSunLine } from './utils/cafeRowSun.js';
 import { listRowSunLine } from './utils/listRowSunLine.js';
+import { venueRowLabel } from './utils/venueRowLabel.js';
 import { isHoverPointer, isKeyboardFocus, nextHighlightedVenueId, sameVenueId } from './utils/listMapPairing.js';
 import { ROW_SUN_FAILED, setCafeRowSunScrolling, useCafeRowSun, useMinuteNow } from './hooks/useCafeRowSun.js';
 
@@ -284,7 +285,6 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
         nowSliderMinutes: localTimeToSliderMinutes(new Date()),
     })) : null), [rowWind, sunForecast, microEntry, rowTimeZone, todMinutes]);
     const cafeSunLine = cafeSun ? rowSunLine(rowSun) : null;
-    const visibleChips = momentMatch || cafeSun ? chips.filter(chip => chip.key !== 'sun') : chips;
     const sunLine = listRowSunLine({
         rowSunLine: cafeSunLine,
         sunText: chips.find(chip => chip.key === 'sun')?.text ?? sunStatus.text,
@@ -316,49 +316,66 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
     );
 
     const isStay = isStayVenue(venue);
+    const stayRow = Boolean(stayMoment && isStay);
 
     // `typeLabel` and `vibe` are both nullable in the venues table, so the
     // subtitle is joined from present parts only — never " · Fitzroy".
     const descriptor = venueTypeLabel(venue.typeLabel || (isPropertyVenue(venue) ? venue.typeCategory : venue.vibe));
     const suburbText = String(venue.suburb ?? '').trim();
     const subtitle = [descriptor, suburbText].filter(Boolean).join(' · ');
+    // What the row's button shows comes first in its name, word for word (utils/venueRowLabel).
+    const rowLabel = venueRowLabel({
+        venueName: venue.venueName,
+        subtitle,
+        sunLine: stayRow ? null : sunLine,
+        notes: [liveNote, comfort?.text, momentMatch?.text],
+        stayBadge: stayRow ? stayMomentBadge(venue, stayMoment) : null,
+        clearDaySun: !stayRow && Boolean(cafeSunLine),
+        windKmh: stayRow ? null : chips.find(chip => chip.key === 'wind')?.kmh ?? null,
+        outdoor: stayRow ? [] : chips.filter(chip => chip.key === 'outdoor').map(chip => chip.text),
+        score: sunstayScore != null && !stayRow ? { state: badgeState, value: sunstayScore } : null,
+        feelsLike: stayRow ? null : feelsLike,
+        amenities: amenities.map(amenity => amenity.label),
+    });
 
     return (
+        // A tap anywhere on the row opens the venue. Keyboards and screen readers use
+        // the row's button (the icon and words), which sits beside Compare, not around it.
         <div
             onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                 onVenueSelect(venue);
             }}
-            role="button"
-            tabIndex={0}
-            onKeyDown={e => { if (e.target === e.currentTarget && ['Enter', ' '].includes(e.key)) { e.preventDefault(); onVenueSelect(venue); } }}
             onPointerEnter={hover('pointer')}
             onPointerLeave={unhover('pointer')}
-            onFocus={hover('focus')}
-            onBlur={unhover('blur')}
-            aria-label={`Venue: ${venue.venueName}.${subtitle ? ` ${subtitle}.` : ''}${liveNote ? ` ${liveNote}.` : ''}${comfort ? ` ${comfort.text}.` : ''} ${stayMoment && isStay ? stayMomentBadge(venue, stayMoment) : `${cafeSunLine ? `${cafeSunLine}, direct sun on a clear day. ` : ''}${momentMatch ? `${momentMatch.text}. ` : ''}${visibleChips.map(c => (c.kmh != null ? `${c.text}, ${c.kmh} km/h` : c.text)).join('. ') || (cafeSun ? '' : sunStatus.text)}`}.${sunstayScore != null && !(stayMoment && isStay) ? (badgeState === 'night' ? ' Sun score not shown after dark.' : badgeState === 'rain' ? ' Sun score not shown while it rains.' : ` Sun score ${sunstayScore} out of 100.`) : ''}${feelsLike != null && !(stayMoment && isStay) ? ` Feels like ${feelsLike} degrees.` : ''}${amenities.length ? ` ${amenities.map(a => a.label).join(', ')}.` : ''}`}
-            className={`ss-venue-list-card ${!isStay ? 'ss-explore-row' : ''} ${stayMoment && isStay ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
+            className={`ss-venue-list-card ${!isStay ? 'ss-explore-row' : ''} ${stayRow ? 'ss-venue-list-card--sun-moment' : ''} relative overflow-hidden ${isSelected ? 'ss-venue-list-card--active' : ''} ${isHighlighted ? 'ss-venue-list-card--paired' : ''}`}
             id={`venue-list-${venue.id}`}
         >
             {/* The clay icon, never the venue's photo: photos are full-size images
                 hotlinked from venue and media sites (up to 600 KB each for a small
                 square) and some aren't the venue's own. The venue card leaves them out too. */}
             <div className="ss-vlc-top">
-                <div className="ss-vlc-icon" aria-hidden="true">
-                    <VenueIcon icon={venueIcon(venue)} size={40} />
-                </div>
-                <div className="ss-vlc-body">
-                    <div className="ss-vlc-name">{venue.venueName}</div>
-                    {subtitle ? <div className="ss-vlc-sub">{subtitle}</div> : null}
-                    {!(stayMoment && isStay) && sunLine && <p className="ss-vlc-sun-line" aria-hidden="true" title={sunLine}>{sunLine}</p>}
-                    {liveNote && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name="fireplace" size={18} /><span>{liveNote}</span></p>}
-                    {/* Wet, cold or windy: the declared fact that put this venue near the top. */}
-                    {comfort && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={comfort.icon} size={18} /><span>{comfort.text}</span></p>}
-                    {momentMatch && <p className="ss-vlc-moment" aria-hidden="true"><ClayIcon name={momentMatch.icon} size={18} /><span>{momentMatch.text}</span></p>}
-                </div>
-                <div className="ss-vlc-right">
-                    {stayMoment && isStay && <button className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
-                    {scoreVisual && !(stayMoment && isStay) && (badgeState !== 'score' ? (
+                {/* The {' '} between parts keeps their words apart for the Label in Name
+                    check (utils/labelInName); flex layout doesn't draw the spaces. */}
+                <button type="button" className="ss-vlc-open" aria-label={rowLabel} onFocus={hover('focus')} onBlur={unhover('blur')}>
+                    <span className="ss-vlc-icon" aria-hidden="true">
+                        <VenueIcon icon={venueIcon(venue)} size={40} />
+                    </span>{' '}
+                    <span className="ss-vlc-body">
+                        <span className="ss-vlc-name">{venue.venueName}</span>
+                        {subtitle ? <>{' '}<span className="ss-vlc-sub">{subtitle}</span></> : null}
+                        {!stayRow && sunLine && <>{' '}<span className="ss-vlc-sun-line" title={sunLine}>{sunLine}</span></>}
+                        {liveNote && <>{' '}<span className="ss-vlc-moment"><ClayIcon name="fireplace" size={18} /><span>{liveNote}</span></span></>}
+                        {/* Wet, cold or windy: the declared fact that put this venue near the top. */}
+                        {comfort && <>{' '}<span className="ss-vlc-moment"><ClayIcon name={comfort.icon} size={18} /><span>{comfort.text}</span></span></>}
+                        {momentMatch && <>{' '}<span className="ss-vlc-moment"><ClayIcon name={momentMatch.icon} size={18} /><span>{momentMatch.text}</span></span></>}
+                    </span>
+                </button>
+                {/* The score repeats what the button's name says, so it is hidden from
+                    screen readers; on a stay, Compare is the column's own control. */}
+                <div className="ss-vlc-right" aria-hidden={stayRow ? undefined : 'true'}>
+                    {stayRow && <button type="button" className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
+                    {scoreVisual && !stayRow && (badgeState !== 'score' ? (
                         // After dark every score is 0, and in rain it is near 0: both read like a bad venue.
                         <div className="ss-vlc-badge" style={{ background: '#e2e8f0', color: '#334155' }} title={badgeState === 'rain' ? 'Raining: no direct sun' : 'After dark'}>
                             <ClayIcon name={badgeState === 'rain' ? 'rain' : 'night'} size={18} />
@@ -369,13 +386,14 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                     ))}
                 </div>
             </div>
-            {!cafeSun && !(stayMoment && isStay) ? <OutsideMiniStrip strip={outsideStrip} /> : null}
+            {!cafeSun && !stayRow ? <OutsideMiniStrip strip={outsideStrip} /> : null}
             {cafeSun && (
                 <div className="ss-vlc-sun" data-row-sun={rowSun ? 'ready' : 'pending'} aria-hidden="true">
                     {rowSun ? <CafeRowSunGraph sun={rowSun.sun} /> : <span className="ss-vlc-sun-graph ss-vlc-sun-graph--pending" />}
                 </div>
             )}
-            {stayMoment && isStay && <div className="ss-stay-badge-row"><p className={`ss-stay-badge ${venue.minutes ? '' : 'ss-stay-badge--empty'}`} title={stayMomentBadge(venue, stayMoment)}>{stayMomentBadge(venue, stayMoment).replace(' · Estimated', '')}</p>{isEstimatedRoom(venue.bestRoom) && <span>Estimated</span>}</div>}
+            {/* The button's name already says the sun moment, so this line is for eyes only. */}
+            {stayRow && <div className="ss-stay-badge-row" aria-hidden="true"><p className={`ss-stay-badge ${venue.minutes ? '' : 'ss-stay-badge--empty'}`} title={stayMomentBadge(venue, stayMoment)}>{stayMomentBadge(venue, stayMoment).replace(' · Estimated', '')}</p>{isEstimatedRoom(venue.bestRoom) && <span>Estimated</span>}</div>}
         </div>
     );
 });

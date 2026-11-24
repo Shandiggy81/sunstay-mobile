@@ -222,7 +222,7 @@ export function AboutAndHours({ description, hours, websiteUrl }) {
 
 export function VenueSourceNote({ note }) {
   if (!note) return null;
-  return <p aria-label="Listing source" className="ss-venue-source-note">
+  return <p role="note" aria-label="Listing source" className="ss-venue-source-note">
     {note.seats ? <>{note.seats} </> : null}{note.credit}{' '}
     {note.links.map(link => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer">{link.label}</a>)}
   </p>;

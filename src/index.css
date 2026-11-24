@@ -1631,7 +1631,18 @@ body,
 }
 .ss-venue-list-card:hover, .ss-venue-list-card:active { background: var(--color-warm); }
 .ss-venue-list-card.ss-venue-list-card--active { background: var(--color-gold-soft); }
-.ss-venue-list-card:focus-visible { outline: 2px solid var(--color-gold-fill); outline-offset: -2px; }
+/* The row's button holds the icon and the words; a tap anywhere else on the row opens the venue too.
+   Every button default is reset so the row looks the same as it did as one tappable block. */
+.ss-vlc-open {
+  display: flex; align-items: center; gap: var(--ss-space-3); flex: 1; min-width: 0;
+  margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  color: inherit; font: inherit; letter-spacing: inherit; word-spacing: inherit; text-transform: inherit; text-indent: inherit;
+  text-align: start; appearance: none; -webkit-appearance: none; cursor: pointer;
+}
+/* Keyboard focus rings the whole row, inside its edges. The shared ring on buttons sits 2px
+   outside, where the list clips it and the next row covers it, so the button's own gives way. */
+.ss-venue-list-card .ss-vlc-open:focus-visible { outline: none !important; }
+.ss-venue-list-card:has(.ss-vlc-open:focus-visible) { outline: 2px solid var(--ss-focus); outline-offset: -2px; }
 .ss-vlc-top { display: flex; align-items: center; gap: var(--ss-space-3); min-width: 0; }
 .ss-vlc-icon { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; flex-shrink: 0; border-radius: var(--radius-control); background: var(--color-warm); }
 .ss-vlc-body { display: flex; flex-direction: column; gap: var(--ss-space-1); flex: 1; min-width: 0; overflow-wrap: anywhere; }
