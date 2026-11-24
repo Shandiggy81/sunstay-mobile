@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AFTER_DARK_DEFAULT_ORIGIN, AFTER_DARK_LOCATION_RADIUS_METRES, AFTER_DARK_MIN_CAMERA_ZOOM, afterDarkNightLabel, afterDarkOrigin, afterDarkPriceLabel, afterDarkTitle, displayAfterDarkTitle, formatAfterDarkPrice, formatAfterDarkTime, resolveAfterDarkMode,
-    shouldFetchAfterDark, tonightsEvents } from './afterDarkHome.js';
+import { AFTER_DARK_DEFAULT_ORIGIN, AFTER_DARK_LOCATION_RADIUS_METRES, AFTER_DARK_MIN_CAMERA_ZOOM, afterDarkNightLabel, afterDarkOrigin, afterDarkPriceLabel, afterDarkTitle, displayAfterDarkTitle, eveningForecast, formatAfterDarkPrice, formatAfterDarkTime, resolveAfterDarkMode,
+    shouldFetchAfterDark, showtimeNote, tonightsEvents } from './afterDarkHome.js';
 import { MAX_BOUNDS } from '../config/mapBounds.js';
 
 const origin = { lat: -37.8136, lng: 144.9631 };
@@ -200,4 +200,47 @@ test("tonight's list shows one row per show, then applies the usual filters", ()
     assert.deepEqual(tonightsEvents(events, { now, origin, maxKm: 3, freeOnly: true }).map(e => e.id), ['tm:3']);
     assert.deepEqual(tonightsEvents(events, { now, origin, maxKm: 3, categories: ['live-music'] }).map(e => e.id), ['tm:1']);
     assert.deepEqual(tonightsEvents(null, { now, origin }), []);
+});
+
+// 22 Oct 2026 is AEDT (UTC+11): show(20) starts at 8pm Melbourne time.
+const nightHours = (over = {}) => ({ source: 'open-meteo', hourly: {
+    time: ['2026-10-22T19:00', '2026-10-22T20:00', '2026-10-22T21:00', '2026-10-22T22:00'],
+    temperature_2m: [16, 14.4, 13, 12], apparent_temperature: [15, 11.2, 10, 9],
+    precipitation_probability: [10, 20, 60, 20], wind_speed_10m: [12, 32, 20, 32], ...over } });
+const show = (hour, over = {}) => ({ id: `show-${hour}`, start: `2026-10-22T${String(hour - 11).padStart(2, '0')}:00:00.000Z`, ...over });
+
+test('eveningForecast says the city forecast once, at the earliest show listed', () => {
+    const evening = eveningForecast([show(21), show(20)], nightHours());
+    assert.equal(evening.line, 'City forecast at 8pm: 14°, dry, windy');
+    assert.equal(evening.start, show(20).start);
+    assert.equal(evening.forecast.line, '14° · dry · windy');
+});
+
+test('eveningForecast has nothing to say without shows or a forecast for their hour', () => {
+    assert.equal(eveningForecast([], nightHours()), null);
+    assert.equal(eveningForecast(null, nightHours()), null);
+    assert.equal(eveningForecast([{ id: 'no-time', start: 'not a date' }], nightHours()), null);
+    assert.equal(eveningForecast([show(20)], { ...nightHours(), source: 'demo' }), null);
+    assert.equal(eveningForecast([show(20)], null), null);
+});
+
+test('showtimeNote speaks only when a show’s hour differs from the evening line', () => {
+    const weather = nightHours();
+    const evening = eveningForecast([show(20), show(21), show(22)], weather);
+    assert.equal(showtimeNote(show(20), weather, evening), null, 'the first show repeats the line above');
+    assert.deepEqual(showtimeNote(show(21), weather, evening), { line: 'At 9pm: 13°, 60% chance of rain, breezy', advice: null });
+    assert.equal(showtimeNote(show(22), weather, evening), null, 'same words and 2° apart: nothing new');
+    const colder = nightHours({ temperature_2m: [16, 14.4, 13, 11] });
+    assert.deepEqual(showtimeNote(show(22), colder, eveningForecast([show(20)], colder)), { line: 'At 10pm: 11°, dry, windy', advice: null },
+        '3° apart is worth saying');
+});
+
+test('showtimeNote keeps outdoor advice, and says the whole line when there is no evening line', () => {
+    const weather = nightHours();
+    const evening = eveningForecast([show(20)], weather);
+    assert.deepEqual(showtimeNote(show(20, { exposure: 'outdoor' }), weather, evening), { line: null, advice: 'Cold and exposed: bring a jacket' });
+    assert.deepEqual(showtimeNote(show(21, { exposure: 'outdoor' }), weather, evening),
+        { line: 'At 9pm: 13°, 60% chance of rain, breezy', advice: 'Bring a jacket or pick an indoor plan' });
+    assert.deepEqual(showtimeNote(show(20), weather, null), { line: 'At 8pm: 14°, dry, windy', advice: null });
+    assert.equal(showtimeNote(show(20), { ...weather, source: 'demo' }, evening), null);
 });
