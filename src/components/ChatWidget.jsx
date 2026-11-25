@@ -316,7 +316,7 @@ const ChatWidget = ({
     });
     if (!result.ok) {
       setIsTyping(false);
-      const friendly = friendlyChatError(result.error);
+      const friendly = friendlyChatError(result.error, result.payload?.error);
       if (!friendly) return false;
       await addBotMsg(friendly, 400);
       return true;

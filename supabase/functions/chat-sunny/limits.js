@@ -3,8 +3,8 @@
 //
 // The rate limiter lives in isolate memory: each Edge Function instance
 // counts on its own and forgets on restart. That caps bursts from one client
-// cheaply; it is not a global quota. Pair it with a Gemini API quota in
-// Google Cloud.
+// cheaply; it is not a global quota. dailyCap.js caps the day's Gemini asks
+// across instances, and a Gemini API quota in Google Cloud is the backstop.
 
 // Same per-message and turn limits the app already applies before posting
 // (src/utils/sunnyTools.js), so a request from the app never trips them.

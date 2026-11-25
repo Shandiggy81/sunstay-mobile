@@ -95,6 +95,8 @@ The main SunStay app has no user authentication. The separate sunstay-admin app 
   policy on `venues` for anon or authenticated, so it makes no Supabase writes and says so.
 - Edge Function `supabase/functions/chat-sunny` calls Gemini with a server-side `GEMINI_API_KEY`
   secret. `supabase/config.toml` sets `verify_jwt = true`; the client sends the user token or the anon key.
+  Before calling Gemini it takes a slot from a daily cap (`dailyCap.js`: 500 asks per Melbourne day in
+  `chat_sunny_daily_usage`, service role only). Past the cap it answers 429 `daily_cap`. It fails open.
 - Edge Function `supabase/functions/enrich-microclimate` runs every 20 minutes from pg_cron
   (`20260918034428_schedule_enrich_microclimate_cron.sql`); changing either is a production change.
 - Do not apply migrations, deploy functions or change remote Supabase without explicit approval.

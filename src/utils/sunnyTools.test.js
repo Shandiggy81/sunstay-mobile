@@ -312,24 +312,31 @@ describe('postChatSunny', () => {
 
 describe('friendlyChatError', () => {
     it('turns chat-sunny limit responses into a chat line', async () => {
-        for (const [status, expected] of [
-            [429, 'Sunny needs a breather — try again in a minute ☀️'],
-            [413, "That one's a bit long for me — try a shorter question?"],
+        for (const [status, code, expected] of [
+            [429, 'rate_limited', 'Sunny needs a breather — try again in a minute ☀️'],
+            [429, 'daily_cap', "Sunny's had a big day — tap a suggestion below, or ask me again tomorrow ☀️"],
+            [413, 'message_too_long', "That one's a bit long for me — try a shorter question?"],
         ]) {
             const result = await postChatSunny({
                 supabaseUrl: 'https://example.supabase.co',
                 anonKey: 'anon',
                 messages: [{ role: 'user', content: 'hi' }],
-                fetchImpl: async () => ({ ok: false, status, json: async () => ({ error: 'rate_limited' }) }),
+                fetchImpl: async () => ({ ok: false, status, json: async () => ({ error: code }) }),
             });
             assert.equal(result.ok, false);
-            assert.equal(friendlyChatError(result.error), expected);
+            assert.equal(friendlyChatError(result.error, result.payload?.error), expected);
         }
+    });
+
+    it('keeps the breather line for a 429 without a readable body', () => {
+        assert.equal(friendlyChatError('http_429'), 'Sunny needs a breather — try again in a minute ☀️');
+        assert.equal(friendlyChatError('http_429', undefined), 'Sunny needs a breather — try again in a minute ☀️');
     });
 
     it('leaves other failures to the keyword fallback', () => {
         for (const error of ['http_500', 'http_502', 'offline', 'missing_supabase', null, undefined]) {
             assert.equal(friendlyChatError(error), null);
+            assert.equal(friendlyChatError(error, 'daily_cap'), null);
         }
     });
 });
