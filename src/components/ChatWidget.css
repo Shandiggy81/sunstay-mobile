@@ -1,0 +1,55 @@
+.ss-sunny-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet-backdrop);
+  background: rgba(0, 0, 0, .4);
+  touch-action: none;
+}
+.ss-sunny-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  height: min(660px, calc(100dvh - 24px));
+  overflow: hidden;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background: white;
+  color: var(--color-ink);
+  box-shadow: var(--shadow-e2);
+}
+.ss-sunny-handle { display: grid; place-items: center; flex: 0 0 22px; }
+.ss-sunny-handle span { width: 40px; height: 5px; border-radius: var(--radius-pill); background: #d9d3c7; }
+.ss-sunny-header { display: flex; flex-shrink: 0; align-items: center; gap: 12px; padding: 4px 16px 16px; border-bottom: 1px solid var(--color-warm-rule); }
+.ss-sunny-header > img { width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-round); object-fit: contain; }
+.ss-sunny-heading { flex: 1; min-width: 0; }
+.ss-sunny-heading h3 { font-size: var(--text-title); font-weight: 800; line-height: 1.25; }
+.ss-sunny-heading p { color: var(--color-slate-500); font-size: var(--text-secondary); font-weight: 600; line-height: 1.5; }
+.ss-sunny-close { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border: 1px solid #ece6d9; border-radius: var(--radius-round); background: white; }
+
+.ss-sunny-conversation { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 16px 20px; }
+.ss-sunny-message { flex-shrink: 0; min-width: 0; color: var(--color-slate-800); font-size: var(--text-body); font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.ss-sunny-message + .ss-sunny-message { margin-top: 16px; }
+.ss-sunny-message + .ss-sunny-message--rows { margin-top: 8px; }
+.ss-sunny-message--guest { align-self: flex-end; max-width: 80%; padding: 10px 14px; border-radius: var(--radius-card) var(--radius-card) 6px var(--radius-card); background: var(--color-gold-soft); color: var(--color-gold-text); font-weight: 600; }
+.ss-sunny-brucey { display: flex; align-items: center; gap: 8px; }
+.ss-sunny-typing { display: flex; gap: 6px; }
+.ss-sunny-typing > span[aria-hidden] { width: 8px; height: 8px; border-radius: var(--radius-round); background: var(--color-gold-fill); }
+
+.ss-sunny-venues { width: 100%; border-top: 1px solid var(--color-warm-rule); }
+.ss-sunny-venues:not(:first-child) { margin-top: 8px; }
+.ss-sunny-venues > li { border-bottom: 1px solid var(--color-warm-rule); }
+.ss-sunny-venue { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 12px 0; text-align: left; }
+.ss-sunny-venue-copy { flex: 1; min-width: 0; }
+.ss-sunny-venue-name { display: block; color: var(--color-ink); font-weight: 700; }
+.ss-sunny-venue-subtitle { display: block; color: var(--color-slate-500); font-size: var(--text-secondary); font-weight: 500; }
+.ss-sunny-venue-chevron { flex-shrink: 0; color: var(--color-slate-400); }
+.ss-sunny-map-action { align-self: flex-start; min-width: 44px; min-height: 44px; color: var(--color-gold-text); font-size: var(--text-secondary); font-weight: 600; }
+
+.ss-sunny-composer { flex-shrink: 0; padding-block: 12px calc(24px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--color-warm-rule); }
+.ss-sunny-chips { display: flex; gap: 8px; overflow-x: auto; padding-inline: 16px; overscroll-behavior-x: contain; scrollbar-width: none; }
+.ss-sunny-form { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-inline: 16px; }
+.ss-sunny-form input { flex: 1; min-width: 0; height: 44px; padding-inline: 16px; border: 1px solid var(--color-slate-200); border-radius: var(--radius-pill); background: white; color: var(--color-slate-800); font-size: var(--text-input); }
+.ss-sunny-form input::placeholder { color: var(--color-slate-500); }
+.ss-sunny-send { flex: 0 0 44px; height: 44px; }
+.ss-sunny-sheet :is(button, input, .ss-sunny-conversation):focus-visible { outline: 2px solid var(--color-gold-text); outline-offset: -2px; }

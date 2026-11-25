@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, MessageCircle, Send, Sun, Cloud, CloudRain, Wind, Thermometer } from 'lucide-react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { ChevronRight, Send, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useMicroclimateActions, useMicroclimateState } from '../context/MicroclimateContext';
 import {
@@ -15,8 +16,7 @@ import thunderBuddy from '../assets/mascots/thunder-buddy.png';
 import ClayIcon, { clayIconUrl } from './common/ClayIcon';
 import VenueIcon from './common/VenueIcon';
 import { resolveChatAvatarKind } from '../utils/resolveChatAvatar';
-import { chatWindLabel } from '../utils/windUnits';
-import { chatTempText, readChatWeather } from '../utils/chatWeather';
+import { readChatWeather } from '../utils/chatWeather';
 import { useWeather } from '../context/WeatherContext';
 import { melbourneHourNow } from '../utils/microclimate';
 import { venueDisplayScore } from '../utils/venueDisplayScore';
@@ -33,10 +33,11 @@ import {
   suggestVenuesForTag,
 } from '../utils/sunnySuggestions';
 import { buildQuickReplies, chipForText, DOG_TAG, SUNNY_CHIPS_SHOWN } from '../utils/sunnyQuickReplies';
-import { sunnyGreeting } from '../utils/sunnyGreeting';
+import { sunnyGreeting, sunnyWeatherLine } from '../utils/sunnyGreeting';
+import './ChatWidget.css';
 
 // Sunny is the clay sun in sunglasses; Thunder Buddy stays for storms.
-const SUNNY_AVATAR = { src: clayIconUrl('high-uv'), alt: 'Sunny', clay: true };
+const SUNNY_AVATAR = { src: clayIconUrl('high-uv'), alt: 'Sunny' };
 const CHAT_AVATARS = {
   thunder: { src: thunderBuddy, alt: 'Thunder Buddy' },
   sunny: SUNNY_AVATAR,
@@ -45,21 +46,6 @@ const CHAT_AVATARS = {
 
 // Melbourne CBD: the forecast point for chat context (same as WeatherContext).
 const CBD = { lat: -37.8136, lng: 144.9631 };
-
-// ─── Weather helpers ───────────────────────────────────────────────────────────
-const getWeatherMood = (weather) => {
-  const cw = readChatWeather(weather);
-  if (!cw.available) return { emoji: '😎', label: 'Ready to help', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
-  const wind = cw.windKmh ?? 0;
-  if (cw.isRain) return { emoji: '🌧️', label: 'Rainy day mode', gradient: 'from-slate-400 via-blue-400 to-slate-500' };
-  if (wind > 30) return { emoji: '💨', label: 'Windy out there!', gradient: 'from-teal-400 via-cyan-400 to-blue-400' };
-  if ((cw.uv ?? 0) >= 8) return { emoji: '🕶️', label: 'UV is high today', gradient: 'from-orange-500 via-red-400 to-orange-400' };
-  if ((cw.cloud ?? 0) > 70) return { emoji: '☁️', label: 'Cloudy vibes', gradient: 'from-slate-400 via-slate-400 to-slate-500' };
-  // Same day/night flag the header uses for its moon, so the chat never says "day" after sunset.
-  if (weather?.isDay === false) return { emoji: '🌙', label: 'Great night out', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
-  if ((cw.temp ?? 0) >= 28) return { emoji: '🌞', label: 'Cracking day!', gradient: 'from-yellow-400 via-amber-400 to-orange-400' };
-  return { emoji: '😎', label: 'Great day out', gradient: 'from-amber-400 via-orange-400 to-yellow-500' };
-};
 
 // ─── Keyword matcher for free-text input ──────────────────────────────────────
 const matchIntent = (text) => {
@@ -78,20 +64,9 @@ const matchIntent = (text) => {
   return null;
 };
 
-// ─── Follow-up chips shown after an action ────────────────────────────────────
-const followUpChips = [
-  { text: 'Try a different vibe', icon: 'sparkles',   resetsChat: true },
-  { text: 'Show on map',          icon: 'map-pin',    resetsChat: false, action: 'onShowOnMap', suggest: false },
-  { text: 'Dog-friendly only',    icon: 'brucey',     resetsChat: false, action: 'onFindDogFriendly', tag: DOG_TAG },
-  { text: 'Accessible venues',    icon: 'wheelchair', resetsChat: false, action: 'onFindWheelchair', tag: 'Wheelchair Accessible' },
-];
-
-const chipClass =
-  'ss-chip ss-chip--selectable flex-shrink-0 snap-start min-h-11 items-center pl-2 pr-4 border border-slate-200 hover:border-amber-400 hover:bg-amber-50 transition-colors whitespace-nowrap';
-
 // ─── Venue rows under a reply: name, then type · suburb (no city sun line) ───
-const VenueSuggestionCards = ({ venues, onOpen }) => (
-  <ul className="mt-2 flex w-full max-w-[88%] flex-col gap-2" aria-label="Suggested venues">
+const VenueSuggestionRows = ({ venues, onOpen }) => (
+  <ul className="ss-sunny-venues" aria-label="Suggested venues" role="list">
     {venues.map((venue) => {
       const { name, subtitle, accessibleName } = suggestionCardDetails(venue);
       return (
@@ -99,17 +74,16 @@ const VenueSuggestionCards = ({ venues, onOpen }) => (
           <button
             type="button"
             onClick={() => onOpen(venue)}
-            className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 text-left shadow-e1 transition-colors hover:border-amber-400 active:bg-amber-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            className="ss-sunny-venue"
             aria-label={accessibleName}
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50">
-              <VenueIcon icon={venueIcon(venue)} size={36} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-body font-bold text-slate-900">{name}</span>
+            <VenueIcon icon={venueIcon(venue)} size={40} />
+            <span className="ss-sunny-venue-copy">
+              <span className="ss-sunny-venue-name">{name}</span>
               {/* The space keeps "name" and "type" apart for Label in Name (labelInName.js). */}
-              {subtitle ? <>{' '}<span className="mt-0.5 block truncate text-caption font-semibold text-slate-600">{subtitle}</span></> : null}
+              {subtitle && <>{' '}<span className="ss-sunny-venue-subtitle">{subtitle}</span></>}
             </span>
+            <ChevronRight size={20} aria-hidden="true" className="ss-sunny-venue-chevron" />
           </button>
         </li>
       );
@@ -118,30 +92,22 @@ const VenueSuggestionCards = ({ venues, onOpen }) => (
 );
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
-const TypingIndicator = () => (
-  <motion.div
-    initial={{ opacity: 0, y: 6 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: 6 }}
-    className="flex justify-start"
-  >
-    <div className="bg-white border border-slate-100 rounded-3xl rounded-bl-md px-5 py-4 shadow-e1 flex items-center gap-1.5">
-      {[0, 1, 2].map(i => (
-        <motion.span
-          key={i}
-          className="w-2 h-2 bg-amber-400 rounded-pill block"
-          animate={{ y: [0, -5, 0] }}
-          transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-        />
-      ))}
-    </div>
-  </motion.div>
+const TypingIndicator = ({ reducedMotion }) => (
+  <div className="ss-sunny-message ss-sunny-typing">
+    {[0, 1, 2].map(i => (
+      <motion.span key={i} aria-hidden="true"
+        animate={reducedMotion ? undefined : { y: [0, -5, 0] }}
+        transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }} />
+    ))}
+    <span className="sr-only">Sunny is typing</span>
+  </div>
 );
 
 // ─── Main component ───────────────────────────────────────────────────────────
 const ChatWidget = ({
   isOpen,
   onClose,
+  returnFocusRef,
   weather = null,
   selectedVenue = null,
   onSetFilters,
@@ -165,7 +131,6 @@ const ChatWidget = ({
     onFindDogFriendly,
     onFindSmoking,
     onSurpriseMe,
-    onShowOnMap,
     onFindFamily,
     onFindBusiness,
     onFindSunny,
@@ -173,9 +138,11 @@ const ChatWidget = ({
     onFindIndoor,
     onFindWindSheltered,
   };
-  const mood = getWeatherMood(weather);
   const liveWeather = readChatWeather(weather);
+  const greeting = sunnyGreeting(weather);
+  const weatherLine = sunnyWeatherLine(weather);
   const avatar = CHAT_AVATARS[resolveChatAvatarKind(weather)];
+  const reducedMotion = useReducedMotion();
   // Every chip: the first SUNNY_CHIPS_SHOWN are shown, and all of them answer when typed.
   const quickReplies = buildQuickReplies(weather, melbourneHourNow());
   const { byId, todMinutes } = useMicroclimateState();
@@ -193,8 +160,11 @@ const ChatWidget = ({
   const [isTyping, setIsTyping] = useState(false);
   const [hasActed, setHasActed] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const messagesEndRef = useRef(null);
+  const conversationRef = useRef(null);
+  const panelRef = useRef(null);
   const inputRef = useRef(null);
+  const wasOpen = useRef(false);
+  const nextMessageId = useRef(0);
   const timeoutIdsRef = useRef(new Set());
 
   const scheduleTimeout = useCallback((callback, delay) => {
@@ -211,22 +181,32 @@ const ChatWidget = ({
     timeoutIdsRef.current.clear();
   }, []);
 
-  // Reset & seed greeting when opened
+  // The greeting tracks live weather without clearing an exchange on refresh.
   useEffect(() => {
     if (isOpen) {
-      setMessages([{ id: 1, type: 'bot', text: sunnyGreeting(weather), ts: new Date() }]);
+      setMessages([]);
       setHasActed(false);
       setInputValue('');
-      scheduleTimeout(() => inputRef.current?.focus(), 400);
     }
-  }, [isOpen, scheduleTimeout, weather]);
+  }, [isOpen]);
+
+  useLayoutEffect(() => {
+    if (isOpen) inputRef.current?.focus({ preventScroll: true });
+    else if (wasOpen.current) {
+      const activeDialog = document.activeElement?.closest('[role="dialog"], [role="alertdialog"]');
+      if (!activeDialog || activeDialog === panelRef.current) returnFocusRef?.current?.focus({ preventScroll: true });
+    }
+    wasOpen.current = isOpen;
+  }, [isOpen, returnFocusRef]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+    const conversation = conversationRef.current;
+    if (isOpen && conversation) conversation.scrollTo({ top: conversation.scrollHeight, behavior: reducedMotion ? 'instant' : 'smooth' });
+  }, [isOpen, messages, isTyping, hasActed, reducedMotion]);
 
   const addUserMsg = (text) => {
-    setMessages(prev => [...prev, { id: Date.now(), type: 'user', text, ts: new Date() }]);
+    const message = { id: nextMessageId.current++, type: 'user', text };
+    setMessages(prev => [...prev, message]);
   };
 
   const addBotMsg = (text, delay = 900, extra = {}) => {
@@ -234,7 +214,8 @@ const ChatWidget = ({
     return new Promise(resolve => {
       scheduleTimeout(() => {
         setIsTyping(false);
-        setMessages(prev => [...prev, { id: Date.now() + Math.random(), type: 'bot', text, ts: new Date(), ...extra }]);
+        const message = { id: nextMessageId.current++, type: 'bot', text, ...extra };
+        setMessages(prev => [...prev, message]);
         resolve();
       }, delay);
     });
@@ -247,7 +228,7 @@ const ChatWidget = ({
       return;
     }
     if (dog) await addBotMsg(BRUCEY_LINE, 450, { avatar: 'brucey', venues: picked });
-    else await addBotMsg(picked.length === 1 ? 'Tap to have a look:' : 'Tap one to have a look:', 450, { venues: picked });
+    else await addBotMsg('', 450, { venues: picked });
   };
 
   const suggestFor = (item) => {
@@ -288,20 +269,6 @@ const ChatWidget = ({
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     addUserMsg(reply.text);
     await answerQuickReply(reply);
-  };
-
-  const handleFollowUp = async (chip) => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-    if (chip.resetsChat) {
-      setMessages([{ id: Date.now(), type: 'bot', text: sunnyGreeting(weather), ts: new Date() }]);
-      setHasActed(false);
-      return;
-    }
-    addUserMsg(chip.text);
-    await addBotMsg('On it! Updating the map for you now.', 700);
-    fireAction(chip.action, 300);
-    await suggestFor(chip);
-    setHasActed(false);
   };
 
   const askSunny = async (history) => {
@@ -403,7 +370,7 @@ const ChatWidget = ({
       return;
     }
 
-    const history = [...messages, { type: 'user', text }];
+    const history = [{ type: 'bot', text: greeting }, ...messages, { type: 'user', text }];
     const handled = await askSunny(history);
     if (handled) return;
 
@@ -417,180 +384,116 @@ const ChatWidget = ({
       }
     }
     // Fallback — no match / function unavailable
-    await addBotMsg("Hmm, I'm not sure about that one! Try one of the quick options below, or ask me about sunny spots, rooftops, dog-friendly, or indoor venues 😊", 1000);
+    await addBotMsg("I'm not sure about that one. Try a suggestion below, or ask me about sunny spots, rooftops, dog-friendly or indoor venues.", 1000);
   };
 
-  const fmtTime = (d) => d ? d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '';
+  const handleKeyDown = (event) => {
+    if (!isOpen || event.defaultPrevented) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    } else if (event.key === 'Tab') {
+      const controls = [...event.currentTarget.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex="0"]')]
+        .filter(element => element.getClientRects().length > 0);
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+  };
 
-  return (
+  const latestRows = messages.findLastIndex(message => message.venues?.length);
+  const mapAction = hasActed && onShowOnMap && (
+    <button type="button" className="ss-sunny-map-action" onClick={onShowOnMap}>Show on map</button>
+  );
+
+  return createPortal(
     <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.92 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.92 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom,0px))] right-4 z-[999999] w-[360px] max-w-[calc(100vw-2rem)]"
-        >
-          <div className="bg-white rounded-sheet shadow-e3 overflow-hidden border border-slate-200 flex flex-col" style={{ maxHeight: 'min(85dvh, calc(100dvh - 120px - env(safe-area-inset-bottom, 0px)))' }}
-            role="dialog" aria-labelledby="ss-sunny-chat-title">
-
-            {/* ── Header ── */}
-            <div className="bg-warm border-b border-warm-rule px-4 py-3 flex items-center justify-between flex-shrink-0 gap-2">
-              <div className="min-w-0 flex items-center gap-3">
-                <div className="relative">
-                  <div className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-pill shadow-e1 ring-2 ring-white/50 ${avatar.clay ? 'bg-amber-50' : ''}`}>
-                    <img
-                      key={avatar.src}
-                      src={avatar.src}
-                      alt={avatar.alt}
-                      width={48}
-                      height={48}
-                      draggable={false}
-                      className={`h-full w-full ${avatar.clay ? 'object-contain p-0.5' : 'object-cover'}`}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <h3 id="ss-sunny-chat-title" className="text-ink font-extrabold text-section leading-tight mb-1">Sunny · Weather Guide</h3>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-slate-600 text-caption font-semibold uppercase">{mood.label}</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="w-11 h-11 flex-shrink-0 flex items-center justify-center hover:bg-slate-100 rounded-round transition-colors"
-                aria-label="Close chat"
-              >
-                <X className="w-5 h-5 text-ink" />
-              </button>
-            </div>
-
-            {/* ── Live weather strip ── */}
-            {liveWeather.available && (
-              <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-center gap-3 flex-shrink-0">
-                <Thermometer className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                <span className="text-xs font-semibold text-amber-700">
-                  {chatTempText(liveWeather) ?? 'Temp unavailable'} · UV {liveWeather.uv ?? 'unavailable'} · Wind {chatWindLabel(weather) ?? 'unavailable'} · Cloud {liveWeather.cloud == null ? 'unavailable' : `${Math.round(liveWeather.cloud)}%`}
-                </span>
-              </div>
-            )}
-
-            {/* ── Messages ── */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-slate-50 to-white min-h-0"
-              role="log" aria-label="Conversation with Sunny">
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex flex-col ${msg.type === 'user' ? 'items-end' : 'items-start'}`}
-                >
-                  <div className="flex max-w-[88%] items-end gap-2">
-                    {msg.avatar === 'brucey' ? (
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-pill bg-amber-50 ring-1 ring-amber-200">
-                        <ClayIcon name="brucey" size={34} alt="Brucey" />
-                      </span>
-                    ) : null}
-                    <div className={`px-5 py-3 rounded-3xl text-body font-semibold shadow-e1 leading-relaxed ${
-                      msg.type === 'user'
-                        ? 'bg-gold-soft text-gold-text rounded-br-md'
-                        : 'bg-white border border-slate-100 text-slate-800 rounded-bl-md'
-                    }`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                  {msg.venues?.length ? (
-                    <VenueSuggestionCards venues={msg.venues} onOpen={openVenue} />
-                  ) : null}
-                  <span className="text-caption text-slate-500 mt-1 px-2">{fmtTime(msg.ts)}</span>
-                </motion.div>
-              ))}
-
-              <AnimatePresence>
-                {isTyping && <TypingIndicator />}
-              </AnimatePresence>
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* ── Quick replies / follow-ups / input ── */}
-            <div className="flex-shrink-0 bg-white border-t border-slate-100">
-
-              {/* Chip row */}
-              {!hasActed && (
-                <div className="relative px-4 pt-3 pb-1">
-                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
-                    {quickReplies.slice(0, SUNNY_CHIPS_SHOWN).map((reply, i) => (
-                      <motion.button
-                        key={reply.intent}
-                        initial={{ opacity: 0, scale: 0.85 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.06 }}
-                        onClick={() => handleQuickReply(reply)}
-                        className={chipClass}
-                      >
-                        <ClayIcon name={reply.icon} size={30} />
-                        {reply.text}
-                      </motion.button>
-                    ))}
-                  </div>
-                  {/* Fade hint right edge */}
-                  <div className="pointer-events-none absolute right-4 top-3 bottom-3 w-8 bg-gradient-to-l from-white to-transparent" />
-                </div>
-              )}
-
-              {/* Follow-up chips after action */}
-              {hasActed && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="px-4 pt-3 pb-1 flex gap-2 overflow-x-auto scrollbar-hide"
-                >
-                  {followUpChips.map((chip, i) => (
-                    <motion.button
-                      key={i}
-                      initial={{ opacity: 0, scale: 0.85 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.08 }}
-                      onClick={() => handleFollowUp(chip)}
-                      className={chipClass}
-                    >
-                      <ClayIcon name={chip.icon} size={30} />
-                      {chip.text}
-                    </motion.button>
-                  ))}
-                </motion.div>
-              )}
-
-              {/* Free-text input */}
-              <form onSubmit={handleFreeText} className="flex items-center gap-2 px-4 py-3">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={e => setInputValue(e.target.value)}
-                  placeholder="Ask Sunny anything..."
-                  className="flex-1 min-w-0 h-11 px-4 bg-slate-50 border border-slate-200 rounded-pill text-input text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-amber-400 focus:bg-white transition-all"
-                />
-                <motion.button
-                  type="submit"
-                  disabled={!inputValue.trim()}
-                  className="ss-action ss-action--primary w-11 h-11 flex-shrink-0"
-                  aria-label="Send"
-                >
-                  <Send className="w-[18px] h-[18px] text-white" />
-                </motion.button>
-              </form>
-            </div>
+      {isOpen && <motion.div
+        key="backdrop"
+        initial={reducedMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, pointerEvents: 'none' }}
+        transition={{ duration: reducedMotion ? 0 : 0.22 }}
+        onClick={onClose}
+        aria-hidden="true"
+        className="ss-sunny-backdrop"
+      />}
+      {isOpen && <motion.div
+        key="sheet"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ss-sunny-chat-title"
+        className="ss-sunny-sheet"
+        initial={reducedMotion ? false : { y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%', pointerEvents: 'none' }}
+        transition={reducedMotion ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 200 }}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="ss-sunny-handle" aria-hidden="true"><span /></div>
+        <div className="ss-sunny-header">
+          <img src={avatar.src} alt={avatar.alt} width={40} height={40} draggable={false} />
+          <div className="ss-sunny-heading">
+            <h3 id="ss-sunny-chat-title">Ask Sunny</h3>
+            {weatherLine && <p>{weatherLine}</p>}
           </div>
+          <button type="button" className="ss-sunny-close" onClick={onClose} aria-label="Close chat">
+            <X size={20} aria-hidden="true" />
+          </button>
+        </div>
 
-          {/* Speech bubble arrow */}
-          <div className="absolute -bottom-2 right-8 w-4 h-4 bg-white rotate-45 border-r border-b border-slate-100" />
-        </motion.div>
-      )}
-    </AnimatePresence>
+        <div ref={conversationRef} className="ss-sunny-conversation" role="log" aria-label="Conversation with Sunny" tabIndex={0}>
+          <p className="ss-sunny-message">{greeting}</p>
+          {messages.map((msg, index) => (
+            <div key={msg.id} className={`ss-sunny-message${msg.type === 'user' ? ' ss-sunny-message--guest' : ''}${!msg.text ? ' ss-sunny-message--rows' : ''}`}>
+              {msg.text && (msg.avatar === 'brucey' ? (
+                <div className="ss-sunny-brucey">
+                  <ClayIcon name="brucey" size={34} alt="Brucey" />
+                  <p>{msg.text}</p>
+                </div>
+              ) : <p>{msg.text}</p>)}
+              {msg.venues?.length ? <VenueSuggestionRows venues={msg.venues} onOpen={openVenue} /> : null}
+              {index === latestRows && mapAction}
+            </div>
+          ))}
+          {isTyping && <TypingIndicator reducedMotion={reducedMotion} />}
+          {latestRows < 0 && mapAction}
+        </div>
+
+        <div className="ss-sunny-composer">
+          <div className="ss-sunny-chips" role="group" aria-label="Quick replies">
+            {quickReplies.slice(0, SUNNY_CHIPS_SHOWN).map(reply => (
+              <button key={reply.intent} type="button" className="ss-quick-chip ss-chip ss-chip--selectable" onClick={() => handleQuickReply(reply)}>
+                <ClayIcon name={reply.icon} size={22} />
+                {reply.text}
+              </button>
+            ))}
+          </div>
+          <form onSubmit={handleFreeText} className="ss-sunny-form">
+            <label htmlFor="ss-sunny-message-input" className="sr-only">Message Sunny</label>
+            <input
+              id="ss-sunny-message-input"
+              ref={inputRef}
+              type="text"
+              value={inputValue}
+              onChange={event => setInputValue(event.target.value)}
+              placeholder="Ask Sunny anything..."
+            />
+            <button type="submit" disabled={!inputValue.trim()} className="ss-action ss-action--primary ss-sunny-send" aria-label="Send">
+              <Send size={18} aria-hidden="true" />
+            </button>
+          </form>
+        </div>
+      </motion.div>}
+    </AnimatePresence>,
+    document.body,
   );
 };
 
