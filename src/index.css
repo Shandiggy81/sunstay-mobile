@@ -1577,7 +1577,7 @@ body,
   min-width: var(--ss-hit);
   font-size: var(--text-caption);
   font-weight: 700;
-  color: var(--color-accent);
+  color: var(--color-gold-text);
   background: none;
   border: none;
   cursor: pointer;
@@ -1585,7 +1585,7 @@ body,
 }
 
 .ss-sidebar-clear:hover {
-  color: #d97706;
+  color: #78350f;
 }
 
 .ss-venue-list {
