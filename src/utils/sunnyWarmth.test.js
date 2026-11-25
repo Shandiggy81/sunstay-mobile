@@ -61,7 +61,7 @@ describe('sunnyWarmthAnswer with the repo venue data', () => {
         assert.deepEqual(ids(r), ['dv-05', 'dv-21']); // Dick Whittington Tavern (tag + heating), The Espy (heating)
         assert.equal(r.place, 'St Kilda');
         assert.deepEqual(r.required, ['fireplace']);
-        assert.equal(r.reply, "In St Kilda, Dick Whittington Tavern and The Espy list a fireplace. I can't see whether the fire is lit right now, so check with the venue before you head over.");
+        assert.equal(r.reply, "In St Kilda, these two venues list a fireplace. I can't see whether the fire is lit right now, so check with the venue before you head over.");
         assertNoLiveClaim(r.reply);
         for (const venue of r.venues) assert.equal(venue.suburb, 'St Kilda');
     });
@@ -70,7 +70,7 @@ describe('sunnyWarmthAnswer with the repo venue data', () => {
         const r = sunnyWarmthAnswer('heated outdoor seating in St Kilda', demoVenues);
         assert.deepEqual(ids(r), ['dv-stay-01', 'dv-nat-02']); // Stokehouse, Donovans
         assert.ok(!ids(r).includes('dv-05'), 'a fireplace is not heated outdoor seating');
-        assert.match(r.reply, /^In St Kilda, Stokehouse and Donovans list heated outdoor seating\./);
+        assert.match(r.reply, /^In St Kilda, these two venues list heated outdoor seating\./);
         assert.match(r.reply, /whether the heaters are on/);
         assertNoLiveClaim(r.reply);
     });
@@ -83,7 +83,7 @@ describe('sunnyWarmthAnswer with the repo venue data', () => {
         // A real fire leads; electric ones say so. The Espy (no dogs listed) and
         // The Vineyard (dogs, no heating) are left out.
         assert.deepEqual(ids(r), ['dv-05', 'dv-01', 'holy-grail']);
-        assert.equal(r.reply, "Dick Whittington Tavern (St Kilda), Wonderland Bar (Windsor, electric fireplace) and Holy Grail (Windsor, electric fireplace) list a fireplace and are dog friendly. I can't see whether the fire is lit right now, so check with the venue before you head over.");
+        assert.equal(r.reply, "These three venues list a fireplace and are dog friendly. Wonderland Bar and Holy Grail have electric fireplaces. I can't see whether the fire is lit right now, so check with the venue before you head over.");
         assertNoLiveClaim(r.reply);
     });
 
@@ -91,7 +91,7 @@ describe('sunnyWarmthAnswer with the repo venue data', () => {
         const r = sunnyWarmthAnswer('dog friendly fireplace in St Kilda', demoVenues);
         assert.deepEqual(ids(r), ['dv-05']);
         assert.equal(r.matches, 1);
-        assert.match(r.reply, /^In St Kilda, Dick Whittington Tavern lists a fireplace and is dog friendly\./);
+        assert.match(r.reply, /^In St Kilda, this venue lists a fireplace and is dog friendly\./);
     });
 
     it('says which features never meet at one venue', () => {
@@ -145,7 +145,7 @@ describe('sunnyWarmthAnswer with missing amenity data', () => {
     it('finds the recorded one among blanks', () => {
         const r = sunnyWarmthAnswer('fireplace in Elwood', [blank, recorded, noHeat]);
         assert.deepEqual(ids(r), ['a']);
-        assert.match(r.reply, /^In Elwood, Hearth Hotel lists a fireplace\./);
+        assert.match(r.reply, /^In Elwood, this venue lists a fireplace\./);
     });
 
     it('handles no venues at all', () => {
@@ -160,6 +160,26 @@ describe('sunnyWarmthAnswer cards', () => {
         const r = sunnyWarmthAnswer('fireplace in Carlton', many);
         assert.deepEqual(ids(r), ['f0', 'f1', 'f2']);
         assert.equal(r.matches, 5);
-        assert.match(r.reply, /^In Carlton, Fire 0, Fire 1, Fire 2 and 2 more list a fireplace\./);
+        assert.match(r.reply, /^In Carlton, 5 venues list a fireplace, including these three\./);
+    });
+
+    it('gives the count, not the names, because the rows name the venues', () => {
+        const suburbs = ['South Yarra', 'St Kilda', 'West Melbourne', 'Fitzroy'];
+        const thirteen = Array.from({ length: 13 }, (_, i) => v(`h${i}`, { name: `Hearth ${i}`, suburb: suburbs[i % 4], heating: 'fireplace' }));
+        const r = sunnyWarmthAnswer('Somewhere with a fireplace tonight?', thirteen);
+        assert.equal(r.matches, 13);
+        assert.equal(r.venues.length, 3);
+        assert.equal(r.reply, "13 venues list a fireplace, including these three. I can't see whether the fire is lit right now, so check with the venue before you head over.");
+        for (const venue of r.venues) assert.ok(!r.reply.includes(venue.name), `${venue.name} is named in its row, not the reply`);
+    });
+
+    it('still says which shown fireplace is electric', () => {
+        const r = sunnyWarmthAnswer('fireplace in Carlton', [
+            v('e', { name: 'Ember Bar', suburb: 'Carlton', heating: 'electric-fireplace' }),
+            v('r', { name: 'Real Fire Pub', suburb: 'Carlton', heating: 'fireplace' }),
+        ]);
+        assert.deepEqual(ids(r), ['r', 'e']);
+        assert.equal(r.reply, "In Carlton, these two venues list a fireplace. Ember Bar's fireplace is electric. I can't see whether the fire is lit right now, so check with the venue before you head over.");
+        assertNoLiveClaim(r.reply);
     });
 });

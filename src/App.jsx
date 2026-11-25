@@ -660,6 +660,7 @@ const AppContent = () => {
     }, []);
     const mapPreviewPointer = useRef(null);
     const [isChatOpen, setIsChatOpen]                 = useState(false);
+    const sunnyTriggerRef = useRef(null);
     // "Centre on map" hides the venue card but keeps the venue selected, so
     // its pin stays highlighted; tapping the pin brings the card back.
     const [venueCardLowered, setVenueCardLowered]     = useState(false);
@@ -1662,7 +1663,7 @@ const AppContent = () => {
                     </div>
                 )}
 
-                {showHomeSunny({ chatOpen: isChatOpen, venueOpen: venueCardOpen, sheetExpanded, isMobile, filtersOpen: mobileFilterOpen }) && <button type="button" className="ss-home-sunny-fab" onClick={toggleChat} aria-label="Ask Sunny">
+                {showHomeSunny({ chatOpen: isChatOpen, venueOpen: venueCardOpen, sheetExpanded, isMobile, filtersOpen: mobileFilterOpen }) && <button ref={sunnyTriggerRef} type="button" className="ss-home-sunny-fab" onClick={toggleChat} aria-label="Ask Sunny">
                     <img src={mascotLogoImg} alt="" width={44} height={44} /><span>Ask Sunny</span>
                 </button>}
 
@@ -1744,6 +1745,7 @@ const AppContent = () => {
                 <ChatWidget
                     isOpen={isChatOpen}
                     onClose={closeChat}
+                    returnFocusRef={sunnyTriggerRef}
                     weather={weather}
                     selectedVenue={selectedVenue}
                     onSetFilters={handleSunnySetFilters}

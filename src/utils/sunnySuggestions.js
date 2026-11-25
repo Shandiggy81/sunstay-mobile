@@ -1,25 +1,25 @@
 /**
- * Pure helpers for Sunny's chat: the venue mini cards under a reply, the
+ * Pure helpers for Sunny's chat: the venue rows under a reply, the
  * time-of-day quick-reply chips, and the compact forecast / sun-window
  * context posted to chat-sunny.
  */
 
 import { normaliseTag } from './venueOfferings.js';
 import { formatHour } from './sunForecastState.js';
-import { keyAmenities } from './venueAmenities.js';
+import { venueSubtitle } from './venueSubtitle.js';
 
 export const MAX_SUGGESTIONS = 3;
 
-/** Card metadata; keep the venue and sun status first in its accessible name. */
-export function suggestionCardDetails(venue, sunText) {
+/**
+ * A suggestion row: the venue's name and its "type · suburb" line, like the
+ * venue list. There is no sun line: the chat's forecast is the city's, which
+ * can disagree with the venue's own sun. The accessible name says what the row
+ * shows, in the same order (Label in Name).
+ */
+export function suggestionCardDetails(venue) {
     const name = venue?.venueName ?? venue?.name ?? 'Venue';
-    const amenities = keyAmenities(venue);
-    const amenityText = amenities.map((amenity) => amenity.label).join(', ');
-    return {
-        name,
-        amenities,
-        accessibleName: `Open ${name}. ${sunText}${amenityText ? `. ${amenityText}` : ''}`,
-    };
+    const subtitle = venueSubtitle(venue);
+    return { name, subtitle, accessibleName: subtitle ? `Open ${name}. ${subtitle}` : `Open ${name}` };
 }
 
 // Tag aliases, so "Pet Friendly" also finds venues tagged "dog-friendly".

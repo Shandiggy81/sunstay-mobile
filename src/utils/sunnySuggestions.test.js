@@ -13,6 +13,7 @@ import {
     venueHasTag,
     venueSunWindowToday,
 } from './sunnySuggestions.js';
+import { nameContainsLabel } from './labelInName.js';
 import { buildSunnyContext } from './sunnyTools.js';
 import { deriveSunForecast } from './sunForecastState.js';
 import { MAX_CONTEXT_CHARS, payloadLimitError } from '../../supabase/functions/chat-sunny/limits.js';
@@ -39,23 +40,24 @@ const forecast = () => deriveSunForecast({ hourly: weather().hourly, utcOffsetSe
 const V = (id, tags, extra = {}) => ({ id, venueName: id, tags, ...extra });
 
 describe('suggestionCardDetails', () => {
-    it('keeps the existing accessible name when there are no key amenities', () => {
-        const details = suggestionCardDetails(V('Cafe', ['Sunny', 'Vegan']), 'Sun until 3pm');
-        assert.equal(details.accessibleName, 'Open Cafe. Sun until 3pm');
-        assert.deepEqual(details.amenities, []);
+    it("shows the venue's type and suburb, and says them in the same order", () => {
+        const details = suggestionCardDetails({ venueName: 'The Emerson Rooftop', typeLabel: 'Rooftop Club', suburb: 'South Yarra', tags: ['Rooftop'] });
+        assert.equal(details.name, 'The Emerson Rooftop');
+        assert.equal(details.subtitle, 'Rooftop Club · South Yarra');
+        assert.equal(details.accessibleName, 'Open The Emerson Rooftop. Rooftop Club · South Yarra');
+        assert.ok(nameContainsLabel(details.accessibleName, `${details.name} ${details.subtitle}`));
     });
 
-    it('shows short labels but appends the full amenity labels to the accessible name', () => {
-        const details = suggestionCardDetails(V('Garden', ['dog-friendly', 'Step Free', 'Pram Friendly', 'Hidden', 'Accessible']), 'Sun until 3pm');
-        assert.deepEqual(details.amenities.map((amenity) => [amenity.icon, amenity.short]), [
-            ['wheelchair', 'Accessible'], ['pram', 'Pram friendly'], ['brucey', 'Dog friendly'], ['hidden', 'Hidden gem'],
-        ]);
-        assert.equal(details.accessibleName, 'Open Garden. Sun until 3pm. Wheelchair accessible, Pram friendly, Dog friendly, Hidden gem');
+    it('carries no sun line and no amenities', () => {
+        const details = suggestionCardDetails(V('Garden', ['dog-friendly', 'Step Free', 'Pram Friendly', 'Hidden', 'Accessible']));
+        assert.deepEqual(Object.keys(details).sort(), ['accessibleName', 'name', 'subtitle']);
+        assert.equal(details.accessibleName, 'Open Garden');
     });
 
-    it('preserves venue-name fallbacks and ignores malformed tags', () => {
-        assert.equal(suggestionCardDetails({ name: 'Local', tags: null }, 'Sun times unavailable').accessibleName, 'Open Local. Sun times unavailable');
-        assert.equal(suggestionCardDetails(null, 'Sun times unavailable').name, 'Venue');
+    it('preserves venue-name fallbacks and skips a missing type or suburb', () => {
+        assert.equal(suggestionCardDetails({ name: 'Local', tags: null }).accessibleName, 'Open Local');
+        assert.equal(suggestionCardDetails({ name: 'Local', suburb: 'Fitzroy' }).accessibleName, 'Open Local. Fitzroy');
+        assert.equal(suggestionCardDetails(null).name, 'Venue');
     });
 });
 

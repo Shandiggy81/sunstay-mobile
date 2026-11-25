@@ -42,7 +42,8 @@
 .ss-home-list-chips { display: flex; align-items: center; flex-shrink: 0; gap: 8px; padding: 8px 16px 12px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; border-bottom: 1px solid #ece6d9; }
 .ss-home-list-chips::-webkit-scrollbar { display: none; }
 .ss-home-list-chips .ss-home-moments, .ss-home-list-chips .ss-experience-options, .ss-home-list-chips .ss-quick-chips { display: flex; align-items: center; flex-shrink: 0; gap: 8px; padding: 0; margin: 0; border: 0; background: transparent; overflow: visible; }
-.ss-map-first-home .ss-home-list-chips :is(.ss-experience-options > button,.ss-quick-chip,.ss-experience-clear), .ss-home-list-chips .ss-explore-sort { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 6px; height: 44px; min-height: 44px; margin: 0; padding: 0 12px; border: 1px solid #e7e1d4; border-radius: var(--radius-pill); background: white; color: var(--color-ink); font-size: var(--text-body); font-weight: 600; white-space: nowrap; box-shadow: none; }
+.ss-map-first-home .ss-home-list-chips :is(.ss-experience-options > button,.ss-quick-chip,.ss-experience-clear),
+.ss-home-list-chips .ss-explore-sort, .ss-sunny-sheet .ss-sunny-chips .ss-quick-chip { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 6px; height: 44px; min-height: 44px; margin: 0; padding: 0 12px; border: 1px solid #e7e1d4; border-radius: var(--radius-pill); background: white; color: var(--color-ink); font-size: var(--text-body); font-weight: 600; white-space: nowrap; box-shadow: none; }
 .ss-home-list-chips .ss-experience-options strong { font-size: var(--text-body); font-weight: 600; }
 .ss-map-first-home .ss-home-list-chips :is(.ss-home-moments,.ss-experience-options) { padding: 0; border: 0; background: transparent; }
 .ss-home-list-chips img { width: 22px; height: 22px; }
@@ -71,8 +72,8 @@
  .ss-home-sheet-peek { display: none; }
  .ss-map-first-home { --home-controls-bottom: 24px; }
  .ss-map-first-home .ss-sidebar { width: 390px; padding-top: 214px; border-radius: 0; }
- /* Filters is portalled to body, outside the map-first app root. */
- body:has(.ss-map-first-home) > .ss-filter-sheet { right: auto; width: 390px; }
+ /* Both sheets are portalled to body, outside the map-first app root. */
+ body:has(.ss-map-first-home) > :is(.ss-filter-sheet, .ss-sunny-sheet) { right: auto; width: 390px; }
  .ss-map-first-home .ss-map-venue-preview { bottom: 16px; }
  .ss-home-sunny-fab { bottom: 24px; right: 80px; }
  .ss-sidebar > .ss-home-info-line { padding: 0 12px; flex-shrink: 0; }
