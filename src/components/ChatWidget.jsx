@@ -191,12 +191,17 @@ const ChatWidget = ({
   }, [isOpen]);
 
   useLayoutEffect(() => {
-    if (isOpen) inputRef.current?.focus({ preventScroll: true });
+    let focusTimer;
+    // As before the restyle, the message box takes focus a moment after the
+    // sheet opens rather than during the tap: focus inside the tap can raise a
+    // phone's keyboard over the chips before the guest has chosen to type.
+    if (isOpen) focusTimer = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 400);
     else if (wasOpen.current) {
       const activeDialog = document.activeElement?.closest('[role="dialog"], [role="alertdialog"]');
       if (!activeDialog || activeDialog === panelRef.current) returnFocusRef?.current?.focus({ preventScroll: true });
     }
     wasOpen.current = isOpen;
+    return () => clearTimeout(focusTimer);
   }, [isOpen, returnFocusRef]);
 
   useEffect(() => {
