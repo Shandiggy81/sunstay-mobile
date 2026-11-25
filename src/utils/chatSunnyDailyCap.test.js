@@ -129,8 +129,15 @@ describe('chat-sunny takeDailySlot', () => {
     });
 
     it('gives up on a slow database after the timeout', async () => {
+        // AbortSignal.timeout's timer doesn't keep Node running. A real fetch
+        // holds its socket open while it waits, so this stand-in holds a timer;
+        // without it the runner can exit first and cancel the test.
         const hang = (url, init) => new Promise((resolve, reject) => {
-            init.signal.addEventListener('abort', () => reject(init.signal.reason));
+            const socket = setTimeout(resolve, 5000);
+            init.signal.addEventListener('abort', () => {
+                clearTimeout(socket);
+                reject(init.signal.reason);
+            });
         });
         assert.deepEqual(await takeDailySlot({ ...env, now: NOW, fetchImpl: hang, timeoutMs: 5 }), {
             ok: true,
