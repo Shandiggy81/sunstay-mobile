@@ -12,6 +12,10 @@
  * `hasFireplace` like the list's comfort reasons), never whether the fire is
  * lit or the heaters are on now. The guest's "it's raining" is their words,
  * not a weather reading, so the answer leaves the weather out.
+ *
+ * The rows under the reply name the venues, so a reply with matches gives the
+ * count ("13 venues list a fireplace, including these three.") rather than
+ * naming them twice.
  */
 import { amenityWants, isBarVenue, keyAmenities } from './venueAmenities.js';
 import { placeVenuesInText } from './locationSearch.js';
@@ -80,6 +84,26 @@ function joinAnd(parts, word = 'and') {
 const nameOf = (venue) => String(venue?.venueName ?? venue?.name ?? 'Venue').trim();
 const phrase = (keys, n, word) => joinAnd(keys.map((k) => FEATURES[k][n === 1 ? 'one' : 'many']), word);
 
+const COUNT_WORDS = Object.freeze(['no', 'one', 'two', 'three']);
+const countWord = (n) => COUNT_WORDS[n] ?? String(n);
+const capitalise = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** "13 venues list a fireplace, including these three." or "These two venues list a fireplace." */
+function countLine(total, shown, where, does) {
+    const line = total > shown
+        ? `${total} venues ${does}, including these ${countWord(shown)}.`
+        : `${total === 1 ? 'this venue' : `these ${countWord(total)} venues`} ${does}.`;
+    return where ? `In ${where}, ${line}` : capitalise(line);
+}
+
+/** An electric fireplace still counts, but the rows don't say so, so the reply does. */
+function electricLine(venues) {
+    if (!venues.length) return '';
+    return venues.length === 1
+        ? `${nameOf(venues[0])}'s fireplace is electric.`
+        : `${joinAnd(venues.map(nameOf))} have electric fireplaces.`;
+}
+
 function stillToCheck(keys) {
     const fire = keys.includes('fireplace');
     const heat = keys.includes('heaters');
@@ -114,16 +138,11 @@ export function sunnyWarmthAnswer(text, venues) {
         const electric = (v) => (warmth.includes('fireplace') && venueWarmth(v).fireplace === 'electric fireplace' ? 1 : 0);
         const ordered = matches.map((v, i) => [v, i]).sort((a, b) => electric(a[0]) - electric(b[0]) || a[1] - b[1]).map(([v]) => v);
         const shown = ordered.slice(0, MAX_SUGGESTIONS);
-        const names = shown.map((v) => {
-            const notes = [];
-            if (!where && v.suburb) notes.push(String(v.suburb).trim());
-            if (electric(v)) notes.push('electric fireplace');
-            return notes.length ? `${nameOf(v)} (${notes.join(', ')})` : nameOf(v);
-        });
-        const extra = ordered.length - shown.length;
-        if (extra > 0) names.push(`${extra} more`);
-        const lead = where ? `In ${where}, ` : '';
-        const reply = `${lead}${joinAnd(names)} ${phrase(required, ordered.length)}. ${stillToCheck(warmth)}`;
+        const reply = [
+            countLine(ordered.length, shown.length, where, phrase(required, ordered.length)),
+            electricLine(shown.filter(electric)),
+            stillToCheck(warmth),
+        ].filter(Boolean).join(' ');
         return { ...base, reply, venues: shown, matches: ordered.length };
     }
 
