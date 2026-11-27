@@ -815,7 +815,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                         <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
                         {/* The compass above already says each side in a line, so only the sunniest side opens in full. */}
                         {roomsBySunToday(roomTypes, venue, stayMatch?.daily?.date ?? todayKey, stayMatch?.bestRoom).map((room, i) => (i === 0 || allSidesOpen
-                          ? <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date ? null : forecast} />
+                          ? <RoomSunCard key={room?.id ?? i} room={room} venue={venue} date={stayMatch?.daily?.date} highlighted={stayMatch?.bestRoom === room} forecast={stayMatch?.daily?.date && stayMatch.daily.date !== todayKey ? null : forecast} />
                           : null))}
                         {roomTypes.length > 1 ? (
                           <button type="button" className="ss-stay-more-sides" aria-expanded={allSidesOpen} onClick={() => setAllSidesOpen(open => !open)}>

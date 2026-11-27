@@ -195,6 +195,8 @@ describe('rainDuringSun', () => {
         const rainNow = forecast((h) => (h === 11 ? 'rain' : 'sun'));
         rainNow.hours[11].rainChance = 80;
         assert.equal(rainDuringSun({ forecast: rainNow, sun }).title, 'Rain likely now');
+        // With rain in the current reading it is raining, as the tile above it says.
+        assert.equal(rainDuringSun({ forecast: { ...rainNow, now: { kind: 'rain', rain: 'raining' } }, sun }).title, 'Raining now');
     });
 
     it('says "possible" under the 50% rain chance and leaves out unknown chances', () => {

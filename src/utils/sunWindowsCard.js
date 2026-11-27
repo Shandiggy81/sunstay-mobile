@@ -217,7 +217,10 @@ export function rainDuringSun({ forecast, sun = null }) {
         buildings ? "cuts today's sun short" : null,
     ].filter(Boolean);
     return {
-        title: first <= forecast.nowHour ? `Rain ${likely} now` : `Rain ${likely} from ${formatHour(first)}`,
+        // Rain in the current reading is happening now (skyNow.js), not just likely.
+        title: first <= forecast.nowHour
+            ? (forecast.now?.rain === 'raining' ? 'Raining now' : `Rain ${likely} now`)
+            : `Rain ${likely} from ${formatHour(first)}`,
         detail: detail.length ? detail.join(' · ') : null,
         hour: first,
     };
