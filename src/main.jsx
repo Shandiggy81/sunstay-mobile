@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { MotionConfig } from 'framer-motion'
 // Latin normal faces; preserve browser matching for 900 and synthetic italics.
 import '@fontsource/plus-jakarta-sans/latin-400.css'
 import '@fontsource/plus-jakarta-sans/latin-600.css'
@@ -64,7 +65,12 @@ try {
     const root = createRoot(container)
     root.render(
         <StrictMode>
-            <App />
+            {/* framer-motion ignores the device's reduce-motion setting unless told to
+                follow it. "user" does, so every motion component in the app skips its
+                movement when the guest has asked for less motion. */}
+            <MotionConfig reducedMotion="user">
+                <App />
+            </MotionConfig>
         </StrictMode>,
     )
 } catch (e) {
