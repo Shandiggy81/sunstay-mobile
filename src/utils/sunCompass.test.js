@@ -95,3 +95,27 @@ test('a side faces the wind, sits side-on to it, or is sheltered from it', () =>
     assert.equal(sideWind(-20, 700).key, 'facing', 'bearings outside 0 to 360 still work');
     for (const bad of [[null, 350], [340, null], [NaN, 10], ['north', 10]]) assert.equal(sideWind(...bad), null);
 });
+
+test('rain or cloud now: no side is "in sun", and its times are told as clear-sky sun', () => {
+    for (const sky of [{ blocksSun: true, kind: 'rain', rain: 'likely' }, { blocksSun: true, kind: 'cloud', rain: null }]) {
+        const view = sunCompassView({ rooms, venue, now: MORNING, sky });
+        assert.equal(view.blocked, true);
+        // The order and states are the geometry's, so the ranking doesn't move with the weather.
+        assert.deepEqual(['n', 'e', 's', 'w'].map(id => side(view, id).state), ['now', 'now', 'later', 'later']);
+        assert.match(side(view, 'n').status, /^Clear-sky sun until \d{1,2}:\d{2}pm( AEDT)?$/);
+        assert.match(side(view, 'w').status, /^Clear-sky sun from \d{1,2}:\d{2}pm( AEDT)?$/);
+        // Drawn as "gets sun on a clear day", never gold for "sun now".
+        assert.deepEqual(['n', 'e', 's', 'w'].map(id => side(view, id).display), ['some', 'some', 'later', 'later']);
+    }
+    const clear = sunCompassView({ rooms, venue, now: MORNING, sky: { blocksSun: false, kind: 'sun', rain: null } });
+    assert.equal(clear.blocked, false);
+    assert.equal(side(clear, 'n').display, 'now');
+    assert.match(side(clear, 'n').status, /^In sun until /);
+});
+
+test('another date has no "now", so the sky leaves it alone', () => {
+    const view = sunCompassView({ rooms, venue, now: MORNING, date: '2026-12-01', sky: { blocksSun: true, kind: 'rain' } });
+    assert.equal(view.live, false);
+    assert.equal(view.blocked, false);
+    assert.ok(view.sides.every(entry => entry.status === 'Gets direct sun' || entry.status === 'No direct sun'));
+});

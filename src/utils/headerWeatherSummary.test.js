@@ -65,3 +65,47 @@ describe('plain-language weather words', () => {
         assert.equal(rainChancePercent({ main: { humidity: 50 }, weather: [{ main: 'Rain' }] }), 55);
     });
 });
+
+describe('headerWeatherSummary follows the sky-now verdict', () => {
+    // 27 Nov 2026, 3:30pm Melbourne (UTC+11); a reading taken in hour `index`.
+    const NOW = new Date(Date.UTC(2026, 10, 27, 4, 30));
+    const city = ({ reading = {}, slot = {}, index = 15 } = {}) => {
+        const time = Array.from({ length: 24 }, (_, h) => `2026-11-27T${String(h).padStart(2, '0')}:00`);
+        const s = { rain: 0, code: 3, cloud: 100, ...slot };
+        return {
+            source: 'open-meteo', main: { temp: 14 }, weather: [{ main: 'Clouds', description: 'overcast' }],
+            clouds: { all: 100 }, precipitation: 0, precipProbability: 12, utcOffsetSeconds: 39600, ...reading,
+            hourly: {
+                time, precipitation_probability: time.map(() => s.rain), weather_code: time.map(() => s.code),
+                cloud_cover: time.map(() => s.cloud), _tzOffsetSeconds: 39600, _currentIndex: index,
+            },
+        };
+    };
+
+    it('"Rain likely" instead of "Overcast" on a 95% hour, with that hour\'s chance in the details', () => {
+        const s = headerWeatherSummary(city({ slot: { rain: 95 } }), { now: NOW });
+        assert.equal(s.condition, 'Rain likely');
+        assert.equal(s.details.find((d) => d.label === 'Rain').value, '95% chance');
+    });
+
+    it('rain in the reading keeps its own word, or says "Raining" for a non-rain code', () => {
+        assert.equal(headerWeatherSummary(city({ reading: { precipitation: 1.2, weather: [{ main: 'Drizzle', description: 'drizzle' }] } }), { now: NOW }).condition, 'Drizzle');
+        assert.equal(headerWeatherSummary(city({ reading: { precipitation: 0.3 } }), { now: NOW }).condition, 'Raining');
+    });
+
+    it('a reading from an earlier hour gives way to this hour\'s forecast code', () => {
+        // Rain showers at 10am; the 3pm hour is forecast partly cloudy and dry.
+        const stale = city({ index: 10, slot: { rain: 5, code: 2, cloud: 40 }, reading: { precipitation: 1.6, weather: [{ main: 'Rain', description: 'rain showers' }] } });
+        assert.equal(headerWeatherSummary(stale, { now: NOW }).condition, 'Partly cloudy');
+    });
+
+    it('never names rain the verdict does not count (passing showers at a 20% chance)', () => {
+        const passing = city({ index: 10, slot: { rain: 20, code: 80, cloud: 90 } });
+        assert.equal(headerWeatherSummary(passing, { now: NOW }).condition, 'Cloudy');
+    });
+
+    it('says "Rain likely" after dark too', () => {
+        const tenPm = new Date(Date.UTC(2026, 10, 27, 11));
+        assert.equal(headerWeatherSummary(city({ index: 22, slot: { rain: 80 } }), { now: tenPm }).condition, 'Rain likely');
+    });
+});

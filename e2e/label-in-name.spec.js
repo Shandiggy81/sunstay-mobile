@@ -115,7 +115,7 @@ test('list: a keyboard-focused row shows its ring inside the row, and Enter open
 test('sun report: each open side names its own seasons region', async ({ page, baseURL }) => {
   const errors = await boot(page, baseURL, '/?report=dv-melb-stay-01');
   const report = page.getByRole('dialog', { name: 'Pullman Melbourne City Centre', exact: true });
-  await expect(report.getByRole('heading', { name: 'Best side today', exact: true })).toBeVisible();
+  await expect(report.getByRole('heading', { name: 'Best side on a clear day', exact: true })).toBeVisible();
   const toggles = report.locator('.ss-sun-report__side-toggle');
   const sides = await toggles.count();
   expect(sides).toBeGreaterThan(1);

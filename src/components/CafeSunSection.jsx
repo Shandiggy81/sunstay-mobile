@@ -14,6 +14,7 @@ import { SUN_CARD_TYPES } from '../utils/venueSunCardType.js';
 import { createMonthlySunAverageJob, monthShortName, sunniestMonthsInOrder } from '../utils/monthlySunAverage.js';
 import { horizonToObstructions } from '../utils/sunMoments.js';
 import { runWhenIdle } from '../utils/idleJob.js';
+import { skyNow } from '../utils/skyNow.js';
 
 /**
  * Sunniest months for this spot, worked out after first paint in idle slices
@@ -93,7 +94,7 @@ export default function CafeSunSection({
   if (!sun || !layout) return null;
 
   return <section aria-label="Outdoor Table Sun" data-cafe-sun className="ss-cafe-sun">
-    <SunWindowsGraph {...sun} now={now} showSummary={false} className="ss-card-sun-graph" />
+    <SunWindowsGraph {...sun} now={now} sky={skyNow(forecast)} showSummary={false} className="ss-card-sun-graph" />
     <div className="ss-venue-sun-window">
       <ClayIcon name="sun" size={22} />
       <span>{layout.windowCount ? layout.windows.map(w => w.rangeLabel).join(' · ') : 'No direct sun today'}</span>

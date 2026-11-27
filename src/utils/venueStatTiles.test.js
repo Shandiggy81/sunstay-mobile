@@ -52,16 +52,21 @@ test('after dark the score tile says so instead of 0', () => {
 });
 
 test('rain and cloud are the sky, not the sun; rain hides the sun score', () => {
-  const rain = venueStatTiles({ forecast: { ...forecast, now: { kind: 'rain' } }, feelsLike: 9, score: 22, skyKindAtScore: 'rain' });
+  // "Raining" needs rain in the current reading; a rainy forecast hour alone is "Rain likely" with its chance.
+  const rain = venueStatTiles({ forecast: { ...forecast, now: { kind: 'rain', rain: 'raining', rainChance: 90 } }, feelsLike: 9, score: 22, skyKindAtScore: 'rain' });
   assert.deepEqual(rain[0], { label: 'Right now', icon: 'rain', value: 'Raining' });
+  const likely = venueStatTiles({ forecast: { ...forecast, now: { kind: 'rain', rain: 'likely', rainChance: 95 } }, skyKindAtScore: 'rain' });
+  assert.deepEqual(likely[0], { label: 'Right now', icon: 'rain', value: 'Rain likely · 95%' });
+  assert.equal(venueStatTiles({ forecast: { ...forecast, now: { kind: 'rain' } } })[0].value, 'Rain likely');
   assert.deepEqual(rain[3], { label: 'Sun score', icon: 'rain', value: 'Raining', note: 'no direct sun' });
   const cloud = venueStatTiles({ forecast: { ...forecast, now: { kind: 'cloud' } }, score: 40, skyKindAtScore: 'cloud' });
   assert.deepEqual(cloud[0], { label: 'Right now', icon: 'cloud', value: 'Cloudy' });
   assert.equal(cloud[3].value, 'Some sun');
   assert.equal(cloud[3].ring, 40);
   // The building-shaded summary's own kind wins over the city forecast.
-  const shadedSummary = venueStatTiles({ forecast: { ...forecast, now: { kind: 'rain' } }, sunNow: { kind: 'rain', statText: 'Rain now' } });
+  const shadedSummary = venueStatTiles({ forecast: { ...forecast, now: { kind: 'rain', rain: 'likely', rainChance: 80 } }, sunNow: { kind: 'rain', statText: 'Rain likely' } });
   assert.equal(shadedSummary[0].label, 'Right now');
+  assert.equal(shadedSummary[0].value, 'Rain likely · 80%');
   // Night still beats rain; loading shows the ellipsis.
   assert.equal(venueStatTiles({ forecast, isNight: true, skyKindAtScore: 'rain' })[3].value, 'After dark');
   assert.equal(venueStatTiles({ forecast, scoreLoading: true, skyKindAtScore: 'rain' })[3].value, '…');

@@ -33,13 +33,14 @@ export const CONDITION_CLAUSE_ICONS = Object.freeze({ wet: 'rain', cold: 'jacket
 
 /**
  * The home sheet's clause and the clay icon beside it, picked together so the
- * icon always matches the words: rain beside "rain about", night beside
- * "after dark", and the sun only beside a full-sun count. A wet, cold, windy
- * or grey condition leads; otherwise the sun clause. Null with nothing to say.
+ * icon always matches the words: rain beside "raining" or "rain likely", night
+ * beside "after dark", and the sun only beside a full-sun count. A wet, cold,
+ * windy or grey condition leads; otherwise the sun clause. Null with nothing to say.
+ * `rain` is the sky-now verdict's rain (skyNow.js), which picks the wet wording.
  * @returns {{ text: string, icon: string } | null}
  */
-export function homeSheetClause({ venues, condition, summary, night = false }) {
-    const conditionText = conditionsClause(venues, condition);
+export function homeSheetClause({ venues, condition, summary, night = false, rain = null }) {
+    const conditionText = conditionsClause(venues, condition, { rain });
     if (conditionText) return { text: conditionText, icon: CONDITION_CLAUSE_ICONS[condition] };
     const text = homeSunClause(summary, night ? 'night' : null);
     if (!text) return null;

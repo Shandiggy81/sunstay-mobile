@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import ClayIcon from './common/ClayIcon';
 import SunDayTimeline from './SunDayTimeline.jsx';
 import SunWindowsGraph from './SunWindowsGraph.jsx';
-import { cardSunWindows } from '../utils/sunWindowsCard.js';
+import { cardSunWindows, clearSkyTotal } from '../utils/sunWindowsCard.js';
 import { formatCompactGuestWindows } from '../utils/comfortDisplay.js';
+import { skyNow } from '../utils/skyNow.js';
 
 const SKY = Object.freeze({
   sun: { icon: 'sun', text: 'Some sun forecast', className: 'bg-amber-50 text-amber-900' },
@@ -32,12 +33,21 @@ function formatDuration(minutes) {
  * @param {string} props.timeZone
  * @param {Date} props.now
  * @param {string} props.label "sun on the balcony", "sun in the outdoor area", …
+ * @param {object|null} [props.forecast] today's deriveSunForecast() result. The
+ *   total is clear-sky sun, so when the forecast gives less (or there is none
+ *   to check) it reads "on a clear day" with the forecast's amount beneath.
  */
-export default function SunMomentsPanel({ daily, summary, timeZone, now, label = 'direct sun', dayLabel = 'today', compact = false }) {
+export default function SunMomentsPanel({ daily, summary, timeZone, now, label = 'direct sun', dayLabel = 'today', compact = false, forecast = null }) {
   const total = summary?.totalMinutes ?? 0;
   // The same sun-on-a-hill graph as the cafe and partner views. The flat bar
   // is only a fallback when the day can't be read.
   const sun = useMemo(() => cardSunWindows(daily), [daily]);
+  const today = dayLabel === 'today';
+  const clear = useMemo(
+    () => (today && total > 0 ? clearSkyTotal({ totalMinutes: total, windows: daily?.windows, forecast, timeZone }) : null),
+    [today, total, daily, forecast, timeZone],
+  );
+  const sky = today ? skyNow(forecast) : null;
   return (
     <div className={compact ? "ss-venue-moments" : "flex flex-col gap-3"}>
       <div className={compact ? "ss-venue-moments-summary" : "relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white px-4 pb-1 pt-4"}>
@@ -47,10 +57,12 @@ export default function SunMomentsPanel({ daily, summary, timeZone, now, label =
           {total > 0 ? formatDuration(total) : 'In the shade'}
         </p>
         <p className="mt-1.5 pr-20 text-secondary font-semibold text-slate-600">
-          {total > 0 ? `of ${label} ${dayLabel}` : `No ${label} ${dayLabel}`}
+          {total > 0 ? `of ${label} ${clear?.clearSky ? 'on a clear day' : dayLabel}` : `No ${label} ${dayLabel}`}
         </p>
+        {/* Right padding only beside the corner icon, which shows without the graph. */}
+        {clear?.forecastText ? <p data-sun-forecast className={`mt-1.5 ${!compact && !sun ? 'pr-20 ' : ''}text-secondary font-semibold text-slate-600`}>{clear.forecastText}</p> : null}
         {sun
-          ? <div className="mb-3 mt-3"><SunWindowsGraph {...sun} now={now} showSummary={false} className={compact ? "ss-card-sun-graph ss-card-sun-graph--moments" : ""} /></div>
+          ? <div className="mb-3 mt-3"><SunWindowsGraph {...sun} now={now} sky={sky} showSummary={false} className={compact ? "ss-card-sun-graph ss-card-sun-graph--moments" : ""} /></div>
           : <SunDayTimeline daily={daily} timeZone={timeZone} now={now} label={label} />}
       </div>
 

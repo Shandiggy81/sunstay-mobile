@@ -13,6 +13,10 @@ import { forecastKindIconName, weatherIconName } from './clayIcons.js';
 import { calculateApparentTemp, getWindProfile, measuredWindOptions } from '../data/windIntelligence.js';
 import { DEFAULT_TIME_ZONE } from './balconySunEngine.js';
 import { venueUtcOffsetSeconds } from './venueTime.js';
+import { rainListWord, skyLeadSentence, skyNow } from './skyNow.js';
+
+/** Where the city's weather is forecast: the header and home sheet read the sky here. */
+export const MELBOURNE_CBD = Object.freeze({ lat: -37.8136, lng: 144.9631, timeZone: DEFAULT_TIME_ZONE });
 
 function finite(value) {
     const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
@@ -65,8 +69,27 @@ export function venueSunForecast({ venue, weather, now = new Date(), sunTimes } 
         sunrise: times?.sunriseDate,
         sunset: times?.sunsetDate,
         shaded,
-        current: { cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all, clearness: weather?.skyClearness, isRaining: raining },
+        current: {
+            cloudCover: weather?.cloudCoverPct ?? weather?.clouds?.all,
+            clearness: weather?.skyClearness,
+            isRaining: raining,
+            rainChance: weather?.precipProbability,
+        },
     });
+}
+
+/**
+ * The sky now over Melbourne (skyNow.js) for screens that are not about one
+ * venue: the top bar and the home sheet. Every venue shares the CBD forecast,
+ * so this is the same verdict the list and the cards word. Null for demo or
+ * unavailable weather, which is never described as the sky.
+ *
+ * @param {object|null} weather WeatherContext weather
+ * @param {{ now?: Date }} [options]
+ */
+export function citySkyNow(weather, { now = new Date() } = {}) {
+    if (!weather || weather.source === 'demo' || weather.unavailable || weather.error) return null;
+    return skyNow(venueSunForecast({ venue: MELBOURNE_CBD, weather, now }));
 }
 
 /**
@@ -157,7 +180,7 @@ export function sunSentence(forecast) {
             ? `Shaded by nearby buildings right now, though ${formatDuration(left)} of sun is still forecast today.`
             : 'Shaded by nearby buildings right now, and no more direct sun is forecast today.';
     }
-    const lead = now.kind === 'rain' ? 'Rain about right now.' : 'Cloud is blocking the sun right now.';
+    const lead = skyLeadSentence(skyNow(forecast)) ?? 'Cloud is blocking the sun right now.';
     if (nextSunHour != null && left > 0) return `${lead} Sun returns around ${formatHour(nextSunHour)}.`;
     return `${lead} No more direct sun is forecast today.`;
 }
@@ -181,7 +204,8 @@ export function listSunStatus(forecast) {
     if (nowHour < sunriseHour) return { text: `Sun up ${formatHour(sunriseHour)}`, icon: 'night' };
     const icon = forecastKindIconName(now.kind);
     if (!hasHourly) return { text: `Daylight · sunset ${formatHour(sunsetHour)}`, icon };
-    const word = STATUS_WORD[now.kind] ?? 'Daylight';
+    // "Rain" only with rain in the current reading; a rainy forecast hour is "Rain likely".
+    const word = now.kind === 'rain' ? rainListWord(now.rain) : STATUS_WORD[now.kind] ?? 'Daylight';
     if (now.kind === 'sun') {
         return { text: sunUntil != null ? `${word} · until ${formatHour(sunUntil)}` : word, icon };
     }

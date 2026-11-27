@@ -165,8 +165,9 @@ test('the header says once how far the sun data is confirmed', () => {
 });
 
 test('room-type reports talk about room types, facade reports about sides', () => {
-    assert.deepEqual(reportWords('room_types'), { best: 'Best room today', list: 'Each room type', unit: 'room type' });
-    assert.deepEqual(reportWords('facade_sides'), { best: 'Best side today', list: 'Each side of the building', unit: 'side' });
+    // The report is clear-sky geometry, so its best side never reads as today's weather.
+    assert.deepEqual(reportWords('room_types'), { best: 'Best room on a clear day', list: 'Each room type', unit: 'room type' });
+    assert.deepEqual(reportWords('facade_sides'), { best: 'Best side on a clear day', list: 'Each side of the building', unit: 'side' });
     assert.deepEqual(reportWords(undefined), reportWords('facade_sides'), 'no report yet: the facade wording');
 });
 

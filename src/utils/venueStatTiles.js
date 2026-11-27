@@ -3,9 +3,16 @@ import { scoreBand } from './scoreRing.js';
 import { sunStatText } from './venueSun.js';
 import { windChip } from './venueConditionChips.js';
 import { scoreDisplayState } from './scoreDisplay.js';
+import { rainNowText, skyNow } from './skyNow.js';
 
 // "Sun now: Rain now" reads oddly; rain and cloud are the sky, not the sun.
-const SKY_NOW = { rain: 'Raining', cloud: 'Cloudy' };
+// Rain is worded by the sky-now verdict: "Raining" only with rain in the
+// current reading, else "Rain likely · 95%".
+function skyNowText(kind, forecast) {
+  if (kind === 'cloud') return 'Cloudy';
+  if (kind !== 'rain') return null;
+  return rainNowText(skyNow(forecast)) ?? 'Rain likely';
+}
 
 /**
  * Display values from the same venue forecast and sheltered wind as the list.
@@ -16,9 +23,10 @@ export function venueStatTiles({ venue, weather, forecast, score, scoreLoading, 
   const wind = windChip(venue, weather, microclimate);
   const nowKind = sunNow ? sunNow.kind : forecast?.now?.kind;
   const scoreState = scoreDisplayState({ isNight, skyKind: skyKindAtScore });
+  const skyText = skyNowText(nowKind, forecast);
   return [
-    SKY_NOW[nowKind]
-      ? { label: 'Right now', icon: forecastKindIconName(nowKind), value: SKY_NOW[nowKind] }
+    skyText
+      ? { label: 'Right now', icon: forecastKindIconName(nowKind), value: skyText }
       : sunNow
       ? { label: 'Sun now', icon: forecastKindIconName(sunNow.kind), value: sunNow.statText }
       : { label: 'Sun now', icon: forecastKindIconName(forecast?.now?.kind), value: sunStatText(forecast) },

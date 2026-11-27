@@ -1,6 +1,7 @@
 import React, { useId, useMemo } from 'react';
 import ClayIcon, { clayIconUrl } from './common/ClayIcon.jsx';
 import { layoutSunWindows } from '../utils/sunWindowsGraph.js';
+import { skyPillWord } from '../utils/skyNow.js';
 
 // 480px wide at most: axis labels then render at roughly 11–15px from 390px phones up.
 const MAX_WIDTH = 'max-w-[480px]';
@@ -11,10 +12,12 @@ const MAX_WIDTH = 'max-w-[480px]';
  * its own headline from layoutSunWindows on the same input.
  * The SVG's text scales with its width, so the graph is capped at MAX_WIDTH
  * (left-aligned) to keep labels readable on a desktop-width sheet.
+ * `sky` is today's sky-now verdict (skyNow.js): while rain or cloud blocks the
+ * sun, the "Now" pill says so instead of "in sun" (rain also replaces "in shade").
  */
 export default function SunWindowsGraph({
   windows, date, timezone = 'Australia/Melbourne', now, axisStart, axisEnd, sunrise, sunset,
-  variant = 'full', footer, className = '', showSummary = true,
+  variant = 'full', footer, className = '', showSummary = true, sky = null,
 }) {
   const id = `sun-windows-${useId().replace(/:/g, '')}`;
   const mini = variant === 'mini';
@@ -29,6 +32,9 @@ export default function SunWindowsGraph({
   const incomplete = !unavailable && layout.invalidWindowCount > 0;
   const summary = unavailable ? 'Sun times unavailable' : layout.accessibleSummary;
   const marker = !unavailable && layout.now;
+  const skyWord = marker?.withinAxis ? skyPillWord(sky) : null;
+  const blockedWord = skyWord && (sky.kind === 'rain' || marker.inWindow) ? skyWord : null;
+  const inSunNow = Boolean(marker?.inWindow) && !blockedWord;
 
   const graph = (
     <svg role="img" aria-label={summary} data-sun-graph={variant}
@@ -165,8 +171,8 @@ export default function SunWindowsGraph({
       {layout && (
         <div className={`mb-2 flex flex-wrap items-center justify-between gap-2 text-caption font-semibold text-slate-600 ${showSummary ? 'mt-1' : ''}`}>
           <p><time dateTime={layout.date}>{layout.dateLabel}</time> · {layout.timezoneLabel}</p>
-          {marker && <span data-now-pill="true" className={`rounded-pill px-2 py-1 font-semibold ${marker.inWindow ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
-            {marker.withinAxis ? `Now · ${marker.inWindow ? 'in sun' : 'in shade'}` : 'Now · outside shown hours'}
+          {marker && <span data-now-pill="true" className={`rounded-pill px-2 py-1 font-semibold ${inSunNow ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-700'}`}>
+            {marker.withinAxis ? `Now · ${blockedWord ?? (marker.inWindow ? 'in sun' : 'in shade')}` : 'Now · outside shown hours'}
           </span>}
         </div>
       )}

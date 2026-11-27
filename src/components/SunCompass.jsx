@@ -10,15 +10,18 @@ const ARC_RADIUS = 42, SUN_RADIUS = 58;
 /**
  * A compass of the building: one arc per side, gold where the modelled direct
  * sun reaches it now, with the sun marked on its bearing. The list beside it
- * carries the same facts in words; the drawing is decorative.
+ * carries the same facts in words; the drawing is decorative. `sky` is the
+ * sky-now verdict: while rain or cloud blocks the sun, no side is drawn or
+ * worded as in the sun now.
  */
-export default function SunCompass({ rooms, venue, date = null, now, wind = null }) {
+export default function SunCompass({ rooms, venue, date = null, now, wind = null, sky = null }) {
+    const blocksSun = sky?.blocksSun === true;
     const view = useMemo(() => sunCompassView({
-        rooms, venue, date, now,
+        rooms, venue, date, now, sky: { blocksSun },
         titleFor: (room) => {
             try { return stayRoomDisplay(venue, room, { now })?.title ?? null; } catch { return null; }
         },
-    }), [rooms, venue, date, now]);
+    }), [rooms, venue, date, now, blocksSun]);
     if (!view) return null;
     const sunAt = view.sun ? compassPointAt(view.sun.bearing, SUN_RADIUS) : null;
     const rayFrom = view.sun ? compassPointAt(view.sun.bearing, 20) : null;
@@ -39,7 +42,7 @@ export default function SunCompass({ rooms, venue, date = null, now, wind = null
                     return <text key={letter} x={point.x} y={point.y} className="ss-compass__cardinal">{letter}</text>;
                 })}
                 {view.sides.map(side => (
-                    <path key={side.id} d={compassArcPath(side.bearing, view.spread, ARC_RADIUS)} className="ss-compass__side" data-state={side.state} />
+                    <path key={side.id} d={compassArcPath(side.bearing, view.spread, ARC_RADIUS)} className="ss-compass__side" data-state={side.display} />
                 ))}
                 {windTip ? (
                     <g className="ss-compass__wind">
@@ -62,10 +65,11 @@ export default function SunCompass({ rooms, venue, date = null, now, wind = null
                 <ul className="ss-compass__list">
                     {view.ranked.map(side => (
                         <li key={side.id}>
-                            <i data-state={side.state} aria-hidden="true" />
+                            <i data-state={side.display} aria-hidden="true" />
                             <span>
                                 <strong>{side.title}</strong>
-                                <span>{side.status}{side.totalMinutes > 0 ? ` · ${side.total}${view.live ? ' today' : ''}` : ''}</span>
+                                {/* Under a blocked sky the total is clear-sky sun, not today's. */}
+                                <span>{side.status}{side.totalMinutes > 0 ? ` · ${side.total}${view.live && !view.blocked ? ' today' : ''}` : ''}</span>
                                 {windFrom !== null && sideWind(side.bearing, windFrom) ? <span className="ss-compass__side-wind" data-side-wind={sideWind(side.bearing, windFrom).key}>{sideWind(side.bearing, windFrom).text}</span> : null}
                             </span>
                         </li>

@@ -30,7 +30,7 @@ test('sun report puts best sides first and keeps year and season details accessi
   await expect(page.locator('#root')).toHaveJSProperty('inert', true);
 
   const summary = report.locator('.ss-sun-report__summary');
-  await expect(summary.getByRole('heading', { name: 'Best side today', exact: true })).toBeVisible();
+  await expect(summary.getByRole('heading', { name: 'Best side on a clear day', exact: true })).toBeVisible();
   const moments = summary.getByRole('listitem');
   await expect(moments).toHaveCount(4);
   for (const [index, title] of ['Morning coffee', 'Long lunch', 'Afternoon', 'Sunset drinks'].entries()) {

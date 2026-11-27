@@ -54,7 +54,7 @@ const TopBar = ({ weather, onFiltersOpen, comfort, searchQuery = '', onSearchCha
     const detailsId = useId();
     const windView = presentWind(weather);
     const filtersUi = resolveFiltersControls();
-    const summary = headerWeatherSummary(weather, { windView, comfort });
+    const summary = headerWeatherSummary(weather, { windView, comfort, now: now ?? new Date() });
     const hasDetails = summary.details.length > 0;
     const weatherOpen = open && !hidden && !showSuggestions && hasDetails;
     const previewLabel = homePreviewLabel({ minutes: previewMinutes, now, weather });

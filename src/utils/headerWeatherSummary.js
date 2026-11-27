@@ -2,10 +2,15 @@
  * Plain-language weather for the compact header.
  *
  * The bar shows one line ("22° · Sunny") and keeps wind, rain, cloud and
- * comfort in a details row the user opens on tap.
+ * comfort in a details row the user opens on tap. Rain in the bar follows the
+ * shared sky-now verdict (skyNow.js), so it can't say "Overcast" while the
+ * list says rain is likely.
  */
+import { getWeatherFromOpenMeteoCode } from './weatherService.js';
+import { citySkyNow } from './venueSun.js';
 
 const PLACEHOLDER = '–';
+const RAIN_WORDS = /rain|drizzle|shower|thunder|storm/i;
 
 function finite(value) {
     if (value == null || value === '') return null;
@@ -46,10 +51,31 @@ export function rainChancePercent(weather) {
 }
 
 /**
- * @param {object|null} weather OpenWeather-shaped weather from WeatherContext.
- * @param {{ windView?: { speedKmh?: number|null, gustKmh?: number|null }, comfort?: { label?: string }|null }} [extra]
+ * The bar's sky word from the sky-now verdict:
+ * - rain in the current reading: the reading's own word ("Rain showers",
+ *   "Drizzle", "Thunderstorm"), or "Raining" when its code isn't a rain code;
+ * - a rainy forecast hour with a dry reading: "Rain likely";
+ * - otherwise the reading's word, or this hour's forecast code once the
+ *   reading is from an earlier hour. A rain code the verdict doesn't count
+ *   as rain (passing drizzle at a low chance) names the cloud instead.
  */
-export function headerWeatherSummary(weather, { windView = null, comfort = null } = {}) {
+function skyWord(weather, sky) {
+    const reading = sentenceCase(weather.weather?.[0]?.description);
+    if (!sky) return reading;
+    if (sky.rain === 'likely') return 'Rain likely';
+    if (sky.rain === 'raining') return RAIN_WORDS.test(reading) ? reading : 'Raining';
+    const word = !sky.readingIsCurrent && sky.code != null
+        ? sentenceCase(getWeatherFromOpenMeteoCode(sky.code).description)
+        : reading;
+    if (RAIN_WORDS.test(word)) return describeCloud(sky.cloud ?? weather.clouds?.all) ?? 'Cloudy';
+    return word;
+}
+
+/**
+ * @param {object|null} weather OpenWeather-shaped weather from WeatherContext.
+ * @param {{ windView?: { speedKmh?: number|null, gustKmh?: number|null }, comfort?: { label?: string }|null, now?: Date }} [extra]
+ */
+export function headerWeatherSummary(weather, { windView = null, comfort = null, now = new Date() } = {}) {
     if (!weather) {
         return {
             temperature: ' ',
@@ -69,7 +95,8 @@ export function headerWeatherSummary(weather, { windView = null, comfort = null 
         };
     }
     const temp = finite(weather.main?.temp);
-    const condition = sentenceCase(weather.weather?.[0]?.description) || PLACEHOLDER;
+    const sky = citySkyNow(weather, { now });
+    const condition = skyWord(weather, sky) || PLACEHOLDER;
     const speed = finite(windView?.speedKmh);
     const gust = finite(windView?.gustKmh);
     const cloud = finite(weather.clouds?.all);
@@ -87,7 +114,8 @@ export function headerWeatherSummary(weather, { windView = null, comfort = null 
             },
             {
                 label: 'Rain',
-                value: `${rainChancePercent(weather)}% chance`,
+                // This hour's chance, the one the verdict above was read from.
+                value: `${sky?.rainChance ?? rainChancePercent(weather)}% chance`,
                 note: null,
             },
             {

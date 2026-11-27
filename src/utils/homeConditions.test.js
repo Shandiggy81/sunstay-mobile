@@ -12,8 +12,9 @@ test('conditions: real weather only, wet beats cold beats windy', () => {
     assert.equal(homeConditions({ source: 'open-meteo' }), null);
     assert.equal(homeConditions(wx()), 'fair');
     assert.equal(homeConditions(wx({ precipitation: 0.4 })), 'wet');
-    assert.equal(homeConditions(wx({ precipProbability: 60 })), 'wet');
-    assert.equal(homeConditions(wx({ precipProbability: 59 })), 'fair');
+    // The list's rain threshold (RAIN_CHANCE_PCT), so the sheet and the rows agree.
+    assert.equal(homeConditions(wx({ precipProbability: 50 })), 'wet');
+    assert.equal(homeConditions(wx({ precipProbability: 49 })), 'fair');
     assert.equal(homeConditions(wx({ weather: [{ main: 'Drizzle' }] })), 'wet');
     assert.equal(homeConditions(wx({ apparentTemp: 9, precipitation: 1, windKmh: 40 })), 'wet');
     assert.equal(homeConditions(wx({ apparentTemp: 10, windKmh: 40 })), 'cold');
@@ -84,16 +85,19 @@ test('ranking lifts comfort and keeps the sun order within a tier', () => {
 
 test('clause is honest about what is declared', () => {
     const all = [plain, heaters, covered, fire, indoor];
-    assert.equal(conditionsClause(all, 'wet'), 'rain about · 3 cosy and dry');
+    // Present tense only with rain in the current reading (skyNow.js).
+    assert.equal(conditionsClause(all, 'wet', { rain: 'raining' }), 'raining · 3 cosy and dry');
+    assert.equal(conditionsClause(all, 'wet', { rain: 'likely' }), 'rain likely · 3 cosy and dry');
+    assert.equal(conditionsClause(all, 'wet'), 'rain likely · 3 cosy and dry', 'unknown rain is the weaker claim');
     assert.equal(conditionsClause(all, 'cold'), 'chilly out · 3 with heating');
     assert.equal(conditionsClause([windbreak, plain], 'windy'), 'windy · 1 sheltered');
-    assert.equal(conditionsClause([plain], 'wet'), 'rain about');
+    assert.equal(conditionsClause([plain], 'wet', { rain: 'raining' }), 'raining');
     assert.equal(conditionsClause(all, 'grey'), 'overcast · 3 cosy');
     assert.equal(conditionsClause([plain], 'grey'), 'overcast');
     assert.equal(conditionsClause(all, 'fair'), null);
     assert.equal(conditionsClause(all, null), null);
     const many = Array.from({ length: 1200 }, (_, i) => ({ id: i, heating: 'fireplace' }));
-    assert.equal(conditionsClause(many, 'wet'), 'rain about · 1,200 cosy and dry');
+    assert.equal(conditionsClause(many, 'wet', { rain: 'likely' }), 'rain likely · 1,200 cosy and dry');
 });
 
 test('sort chip names the comfort order only when it applies', async () => {

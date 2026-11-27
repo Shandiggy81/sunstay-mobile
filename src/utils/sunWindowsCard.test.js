@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardSunWindows, forecastForSunWindows, rainDuringSun, roundedSunDay } from './sunWindowsCard.js';
+import { cardSunWindows, clearSkyTotal, forecastForSunWindows, forecastSunMinutes, rainDuringSun, roundedSunDay } from './sunWindowsCard.js';
 import { outdoorSunSummary } from './outdoorSunSummary.js';
 import { layoutSunWindows } from './sunWindowsGraph.js';
 import { outdoorSunDay } from './sunMoments.js';
@@ -195,6 +195,8 @@ describe('rainDuringSun', () => {
         const rainNow = forecast((h) => (h === 11 ? 'rain' : 'sun'));
         rainNow.hours[11].rainChance = 80;
         assert.equal(rainDuringSun({ forecast: rainNow, sun }).title, 'Rain likely now');
+        // With rain in the current reading it is raining, as the tile above it says.
+        assert.equal(rainDuringSun({ forecast: { ...rainNow, now: { kind: 'rain', rain: 'raining' } }, sun }).title, 'Raining now');
     });
 
     it('says "possible" under the 50% rain chance and leaves out unknown chances', () => {
@@ -217,5 +219,45 @@ describe('rainDuringSun', () => {
         assert.equal(rainDuringSun({ forecast: null, sun }), null);
         assert.equal(rainDuringSun({ forecast: { hasHourly: false, hours: [] }, sun }), null);
         assert.equal(rainDuringSun({ forecast: forecast(rainFrom1, { nowHour: null }), sun }), null);
+    });
+});
+
+describe('forecastSunMinutes and clearSkyTotal', () => {
+    /** deriveSunForecast-shaped hours: `kindAt(hour)` for each venue-local hour. */
+    const forecastFor = (kindAt) => ({ hasHourly: true, hours: Array.from({ length: 24 }, (_, hour) => ({ hour, kind: kindAt(hour) })) });
+    // 10:30am to 1:15pm: 2h 45m of clear-sky sun.
+    const windows = [{ start: at('10:30:00'), end: at('13:15:00') }];
+    const rainAt11 = forecastFor((h) => (h === 11 ? 'rain' : 'sun'));
+
+    it('counts only the window minutes that fall in forecast sun hours', () => {
+        assert.equal(forecastSunMinutes({ windows, forecast: rainAt11, timeZone: TIMEZONE }), 30 + 60 + 15);
+        assert.equal(forecastSunMinutes({ windows, forecast: rainAt11, timeZone: TIMEZONE, from: at('12:30:00').getTime() }), 45);
+        assert.equal(forecastSunMinutes({ windows, forecast: forecastFor(() => 'cloud'), timeZone: TIMEZONE }), 0);
+        // Hours without a forecast are not counted as sun.
+        assert.equal(forecastSunMinutes({ windows, forecast: forecastFor((h) => (h === 12 ? 'sun' : 'day')), timeZone: TIMEZONE }), 60);
+        assert.equal(forecastSunMinutes({ windows, forecast: null }), null);
+        assert.equal(forecastSunMinutes({ windows, forecast: { hasHourly: false, hours: [] } }), null);
+        // Numbers (epoch ms) work as well as Dates, as cardSunWindows gives them.
+        assert.equal(forecastSunMinutes({ windows: [{ start: at('10:30:00').getTime(), end: at('11:00:00').getTime() }], forecast: rainAt11, timeZone: TIMEZONE }), 30);
+    });
+
+    it('a clear-sky total reads "today" only when the forecast gives all of it', () => {
+        assert.deepEqual(clearSkyTotal({ totalMinutes: 165, windows, forecast: forecastFor(() => 'sun'), timeZone: TIMEZONE }),
+            { clearSky: false, forecastMinutes: 165, forecastText: null });
+        assert.deepEqual(clearSkyTotal({ totalMinutes: 165, windows, forecast: forecastFor(() => 'rain'), timeZone: TIMEZONE }),
+            { clearSky: true, forecastMinutes: 0, forecastText: 'No direct sun forecast today' });
+        assert.deepEqual(clearSkyTotal({ totalMinutes: 165, windows, forecast: rainAt11, timeZone: TIMEZONE }),
+            { clearSky: true, forecastMinutes: 105, forecastText: 'About 1h 45m forecast today' });
+        // No forecast to check it with: still a clear-sky figure, with nothing to add.
+        assert.deepEqual(clearSkyTotal({ totalMinutes: 165, windows, forecast: null, timeZone: TIMEZONE }),
+            { clearSky: true, forecastMinutes: null, forecastText: null });
+        assert.deepEqual(clearSkyTotal({ totalMinutes: 0, windows: [], forecast: forecastFor(() => 'sun') }),
+            { clearSky: false, forecastMinutes: null, forecastText: null });
+    });
+
+    it('engine windows to the millisecond: an all-sun forecast gives the total back', () => {
+        const result = clearSkyTotal({ totalMinutes: ENGINE_DAY.totalMinutes, windows: ENGINE_DAY.windows, forecast: forecastFor(() => 'sun'), timeZone: TIMEZONE });
+        assert.equal(result.clearSky, false);
+        assert.ok(Math.abs(result.forecastMinutes - ENGINE_DAY.totalMinutes) <= 1);
     });
 });

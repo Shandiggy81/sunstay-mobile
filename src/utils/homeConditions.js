@@ -1,27 +1,30 @@
 import { finiteOrNull } from './finiteOrNull.js';
 import { normaliseTag } from './venueOfferings.js';
 import { warmthForVenue } from './tonightFeel.js';
+import { rainClauseWord } from './skyNow.js';
+import { citySkyNow } from './venueSun.js';
 
 /**
  * What the weather is doing right now, for the home sheet. A grey, wet, cold
  * or windy day should lead with somewhere comfortable, not "0 in full sun".
  *
- * Reads the normalised Open-Meteo object from weatherService (current
- * precipitation in mm, precipProbability for this hour, apparentTemp in °C,
- * windKmh and windGusts in km/h). Demo, unavailable or errored weather gives
- * null, so nothing is claimed without a real forecast.
+ * Wet is the shared sky-now verdict (skyNow.js): rain in the current reading
+ * or a rainy forecast hour, the same rule the list and the cards word.
+ * The rest reads the normalised Open-Meteo object from weatherService
+ * (apparentTemp in °C, windKmh and windGusts in km/h). Demo, unavailable or
+ * errored weather gives null, so nothing is claimed without a real forecast.
  */
-export const WET_PRECIP_MM = 0.1;
-export const WET_PROBABILITY = 60;
 export const COLD_FEELS_LIKE = 10;
 export const WINDY_KMH = 30;
 export const WINDY_GUSTS_KMH = 50;
 export const GREY_CLOUD_PCT = 85;
 
-const WET_MAINS = new Set(['Rain', 'Drizzle', 'Thunderstorm']);
-
-/** @returns {'wet'|'cold'|'windy'|'grey'|'fair'|null} */
-export function homeConditions(weather) {
+/**
+ * @param {object|null} weather WeatherContext weather
+ * @param {{ now?: Date, sky?: ReturnType<typeof citySkyNow> }} [options] `sky` when the caller already has it
+ * @returns {'wet'|'cold'|'windy'|'grey'|'fair'|null}
+ */
+export function homeConditions(weather, { now = new Date(), sky } = {}) {
     if (!weather || weather.source === 'demo' || weather.unavailable || weather.error) return null;
     const precipitation = finiteOrNull(weather.precipitation);
     const probability = finiteOrNull(weather.precipProbability);
@@ -31,7 +34,8 @@ export function homeConditions(weather) {
     const main = weather.weather?.[0]?.main;
     if (precipitation == null && probability == null && feels == null && wind == null && !main) return null;
 
-    if ((precipitation ?? 0) >= WET_PRECIP_MM || (probability ?? 0) >= WET_PROBABILITY || WET_MAINS.has(main)) return 'wet';
+    const verdict = sky === undefined ? citySkyNow(weather, { now }) : sky;
+    if (verdict?.rain) return 'wet';
     if (feels != null && feels <= COLD_FEELS_LIKE) return 'cold';
     if ((wind ?? 0) >= WINDY_KMH || (gusts ?? 0) >= WINDY_GUSTS_KMH) return 'windy';
     // A dull daytime sky: "0 in full sun" is true but reads like bad news.
@@ -159,14 +163,15 @@ export function rankForConditions(venues, kind) {
 /**
  * The clause after the venue count on the home sheet, or null to keep the
  * existing sun clause. Counts only venues with declared comfort facts.
+ * `rain` is the sky-now verdict's rain ('raining' | 'likely'): a wet clause
+ * says "raining" only with rain in the current reading, else "rain likely".
  */
-export function conditionsClause(venues, kind) {
+export function conditionsClause(venues, kind, { rain = null } = {}) {
     if (!['wet', 'cold', 'windy', 'grey'].includes(kind)) return null;
     // A grey day keeps the sun order but counts the same cosy venues as a wet one.
     const countKind = kind === 'grey' ? 'wet' : kind;
     const n = (Array.isArray(venues) ? venues : []).filter(venue => comfortTier(venue, countKind) > 0).length;
-    // "Rain about" is true whether it is falling now or likely this hour.
-    const lead = { wet: 'rain about', cold: 'chilly out', windy: 'windy', grey: 'overcast' }[kind];
+    const lead = { wet: rainClauseWord(rain), cold: 'chilly out', windy: 'windy', grey: 'overcast' }[kind];
     if (n === 0) return lead;
     const what = { wet: 'cosy and dry', cold: 'with heating', windy: 'sheltered', grey: 'cosy' }[kind];
     return `${lead} · ${n.toLocaleString('en-AU')} ${what}`;
