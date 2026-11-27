@@ -8,7 +8,10 @@ Moved from CLAUDE.md. Update this file, not CLAUDE.md, when a risk is verified o
 - `OwnerDashboard` has no sign-in gate and cannot persist owner edits; `sunstay-admin` has sign-in
   but no venue editing. Real owner editing needs an authenticated, server-side write path.
 - `chat-sunny` accepts the public anon key as its bearer token. Its limits (`limits.js`) are per
-  instance and in memory, so they cap bursts but are not a global quota.
+  instance and in memory, so they cap bursts but are not a global quota. The global one is its
+  daily cap (`dailyCap.js`, approved 2026-11-25): 500 asks reach Gemini per Melbourne day, counted
+  in `chat_sunny_daily_usage`, which only the service role can change. When that check fails, the
+  ask still goes to Gemini and the function logs `chat-sunny daily cap check skipped`.
 - Mapbox tokens and a Supabase publishable key appear in earlier Git history.
 - `src/index.css` still has 45 `backdrop-filter` lines; Xweather radar, cloud tiles and the comfort
   heatmap are optional map layers.
@@ -31,6 +34,8 @@ Moved from CLAUDE.md. Update this file, not CLAUDE.md, when a risk is verified o
 - Whether Gemini quota or rate limits protect `chat-sunny`. (Production verified 2026-10-11: the
   hardening migration is applied, `venues` has only a public SELECT policy with RLS on, and the
   deployed `chat-sunny` has `verify_jwt = true`.)
+- Whether migration `20261125140000_chat_sunny_daily_usage` is applied in production. Until it is,
+  the daily cap fails open, and the function logs show `daily cap check skipped http_404`.
 - Whether the Mapbox token is URL-restricted and whether keys from Git history have been rotated.
 - Whether `VITE_SENTRY_DSN` is set in Netlify so Sentry events are actually sent.
 

@@ -10,7 +10,7 @@ const remoteReply = 'Fixture reply: try a rooftop in Fitzroy.';
 const launcher = page => page.getByRole('button', { name: 'Ask Sunny', exact: true });
 const quickReplies = dialog => dialog.getByRole('group', { name: 'Quick replies' }).getByRole('button');
 
-async function boot(page, baseURL) {
+async function boot(page, baseURL, { chatSunny = { json: { reply: remoteReply, toolCalls: [] } } } = {}) {
   const posts = [];
   await page.clock.setFixedTime(NOW);
   await page.context().routeWebSocket('**', socket => socket.close());
@@ -25,7 +25,7 @@ async function boot(page, baseURL) {
       if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
       if (request.method() === 'POST') {
         posts.push(request.postDataJSON());
-        return route.fulfill({ json: { reply: remoteReply, toolCalls: [] }, headers });
+        return route.fulfill({ ...chatSunny, headers });
       }
     }
     return route.abort('blockedbyclient');
@@ -123,6 +123,34 @@ test('Sunny replies locally to chip and fireplace asks and sends only the detail
   await expect(dialog).toHaveCount(0);
   await expect(launcher(page)).toBeFocused();
 });
+
+for (const [width, height] of [[390, 844], [320, 568]]) {
+  test.describe(`Sunny at the daily Gemini cap, ${width}x${height}`, () => {
+    test.use({ viewport: { width, height } });
+
+    test('says so calmly, and the chips still answer on the phone', async ({ page, baseURL }, testInfo) => {
+      const posts = await boot(page, baseURL, {
+        chatSunny: { status: 429, json: { reply: '', toolCalls: [], error: 'daily_cap' } },
+      });
+      const dialog = await openChat(page);
+      const log = dialog.getByRole('log');
+      const input = dialog.getByRole('textbox', { name: 'Message Sunny' });
+      await input.fill('rooftop bars in Fitzroy');
+      await input.press('Enter');
+      const line = log.getByText("Sunny's had a big day — tap a suggestion below, or ask me again tomorrow ☀️", { exact: true });
+      await expect(line).toBeVisible();
+      await expect(log.getByText(/^I'm not sure about that one/)).toHaveCount(0);
+      expect(posts).toHaveLength(1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      expect(await line.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await capture(page, testInfo, `sunny-daily-cap-${width}`);
+
+      await quickReplies(dialog).first().tap();
+      await expect(log.getByText('Good call. These have the views for sunset.')).toBeVisible();
+      expect(posts).toHaveLength(1);
+    });
+  });
+}
 
 for (const [width, height] of [[390, 844], [320, 568], [1440, 900]]) {
   test.describe(`Sunny chat at ${width}x${height}`, () => {

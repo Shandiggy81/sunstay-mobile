@@ -362,12 +362,17 @@ export function toLlmMessages(uiMessages) {
 /**
  * A chat line for postChatSunny errors the guest should see, or null to let
  * the widget fall back to its keyword replies (network down, Gemini outage).
- * chat-sunny returns 429 when a caller hits its rate limit and 413 when a
- * request is over its size limits.
+ * chat-sunny returns 429 when a caller hits its rate limit or the day's
+ * Gemini cap is used up (code 'daily_cap'), and 413 when a request is over
+ * its size limits.
  *
  * @param {string|null|undefined} error postChatSunny's `error`, e.g. 'http_429'
+ * @param {string|null|undefined} [code] the `error` chat-sunny put in its body, e.g. 'daily_cap'
  */
-export function friendlyChatError(error) {
+export function friendlyChatError(error, code) {
+    if (error === 'http_429' && code === 'daily_cap') {
+        return "Sunny's had a big day — tap a suggestion below, or ask me again tomorrow ☀️";
+    }
     if (error === 'http_429') return 'Sunny needs a breather — try again in a minute ☀️';
     if (error === 'http_413') return "That one's a bit long for me — try a shorter question?";
     return null;

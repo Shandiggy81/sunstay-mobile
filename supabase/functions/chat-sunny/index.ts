@@ -8,6 +8,7 @@
  * Secret:  GEMINI_API_KEY (alias GOOGLE_API_KEY). Optional GEMINI_MODEL.
  *          Default gemini-2.5-flash, then gemini-2.5-flash-lite, gemini-2.0-flash,
  *          gemini-flash-latest, gemini-1.5-flash (free-tier model ids retire often).
+ *          Optional CHAT_SUNNY_DAILY_CAP (whole number; 0 turns Gemini off).
  *
  * Response contract (stable, this is what the app consumes):
  *   {
@@ -29,6 +30,13 @@
  * 12 messages, a message over 2000 chars or sunnyContext over 24 KB → 413.
  * Replies are capped at 512 output tokens.
  *
+ * Daily cap (dailyCap.js): 500 asks a day reach Gemini, counted across every
+ * instance per Melbourne day (reset at local midnight) in
+ * public.chat_sunny_daily_usage through chat_sunny_take_daily_slot, with the
+ * platform's SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Past it → 429
+ * daily_cap with Retry-After until midnight. If the check fails, the ask goes
+ * through and the reason is logged.
+ *
  * Deploy:
  *   supabase functions deploy chat-sunny --project-ref fksuqgvsazoxarocmaii
  *   supabase secrets set GEMINI_API_KEY=... --project-ref fksuqgvsazoxarocmaii
@@ -38,6 +46,7 @@
 
 import { followUpAfterToolsBody, geminiDiagnostics, geminiModelChain, generationConfigFor, shouldTryNextModel, textOnlyRetryBody } from './geminiModels.js';
 import { contextVenues, replyForToolCalls, tidyReply, withLinkedVenues } from './sunnyReply.js';
+import { dailyCapFromEnv, takeDailySlot } from './dailyCap.js';
 import {
   MAX_BODY_BYTES,
   MAX_OUTPUT_TOKENS,
@@ -273,6 +282,22 @@ Deno.serve(async (req) => {
   if (limitError) {
     return json({ reply: '', toolCalls: [], error: limitError }, 413);
   }
+
+  // Every path from here calls Gemini, so the ask takes a slot from today's
+  // cap now (dailyCap.js).
+  const slot = await takeDailySlot({
+    supabaseUrl: Deno.env.get('SUPABASE_URL'),
+    serviceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+    cap: dailyCapFromEnv(Deno.env.get('CHAT_SUNNY_DAILY_CAP')),
+  });
+  if (!slot.ok) {
+    return json(
+      { reply: '', toolCalls: [], error: 'daily_cap' },
+      429,
+      { 'Retry-After': String(slot.retryAfterSec) },
+    );
+  }
+  if (slot.skipped) console.error('chat-sunny daily cap check skipped', slot.skipped, slot.detail ?? '');
 
   const messages = sanitizeMessages(body?.messages);
   const sunnyContext = body?.sunnyContext && typeof body.sunnyContext === 'object'
