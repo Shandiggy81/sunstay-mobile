@@ -9,10 +9,15 @@ import { cardSunWindows } from '../utils/sunWindowsCard.js';
 import { sunSourceConfidence } from '../utils/sunSourceConfidence.js';
 import { partnerOutdoorSpace } from '../utils/partnerVenueControls.js';
 import { roomSunOptions } from '../utils/stayRanking.js';
+import { citySkyNow } from '../utils/venueSun.js';
+import { useWeather } from '../context/WeatherContext.jsx';
 
 /** The same engine and provenance as the guest card; no geometry means no graph. */
 export default function PartnerSunToday({ venue, now }) {
     const { horizon, geometryConfidence } = useVenueSunProfile(venue.id);
+    // Today's sky (skyNow.js), so the graph's "Now" pill never says "in sun" in rain.
+    const { weather } = useWeather();
+    const sky = useMemo(() => citySkyNow(weather, { now }), [weather, now]);
     const space = partnerOutdoorSpace(venue);
     const timeZone = venue.timeZone ?? venue.timezone ?? DEFAULT_TIME_ZONE;
     let date;
@@ -37,6 +42,6 @@ export default function PartnerSunToday({ venue, now }) {
             <p>{room ? `${room.name} · ${room.hasBalcony ? 'balcony' : 'outdoor'} facade` : `${space.label.charAt(0).toUpperCase() + space.label.slice(1)} · venue’s mapped point`}</p>
         </div></div>
         {source && <div className="ss-partner-source"><DataBadge kind={source.kind} source={source.basis} /><p>{source.line}</p></div>}
-        <SunWindowsGraph {...sun} now={now} footer={room ? 'Modelled facade exposure. Outdoor access and shading need venue confirmation.' : 'Awnings, umbrellas and trees aren’t included, so covered tables may get less sun.'} />
+        <SunWindowsGraph {...sun} now={now} sky={sky} footer={room ? 'Modelled facade exposure. Outdoor access and shading need venue confirmation.' : 'Awnings, umbrellas and trees aren’t included, so covered tables may get less sun.'} />
     </section>;
 }

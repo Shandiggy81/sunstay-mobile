@@ -42,7 +42,9 @@ describe('deriveSunForecast', () => {
     assert.equal(f.hours[13].kind, 'sun');
     assert.equal(f.nextSunHour, 12);
     assert.equal(f.sunMinutesLeft, 7 * 60 + 40);
-    assert.equal(f.headline.text, 'Rain now · sun from 12pm');
+    // No rain in a current reading: the hour's forecast makes it likely, not falling.
+    assert.equal(f.now.rain, 'likely');
+    assert.equal(f.headline.text, 'Rain likely now · sun from 12pm');
   });
 
   it('clear afternoon: direct sun runs to sunset and the headline counts what is left', () => {
@@ -72,14 +74,37 @@ describe('deriveSunForecast', () => {
     assert.equal(Math.round(f.nowHour * 60), 9 * 60);
   });
 
-  it('uses the hourly forecast over a flickering 15-minute rain reading', () => {
+  it('a reading taken in an earlier hour does not decide now', () => {
+    // Weather is fetched once per page load: this reading is from 10am (index 34 is 13 Oct 10:00).
     const f = deriveSunForecast({
       ...base,
-      hourly: rainyMorningClearAfternoon,
+      hourly: { ...rainyMorningClearAfternoon, _currentIndex: 34 },
       now: at(15),
       current: { isRaining: true, cloudCover: 90 },
     });
     assert.equal(f.now.kind, 'sun');
+    assert.equal(f.now.rain, null);
+    assert.equal(f.now.readingIsCurrent, false);
+    assert.equal(f.sunMinutesLeft, 4 * 60 + 40);
+  });
+
+  it('rain in this hour\'s reading is rain now, whatever the hour\'s forecast says', () => {
+    // Index 39 is 13 Oct 15:00, the hour the reading was taken in.
+    const f = deriveSunForecast({
+      ...base,
+      hourly: { ...rainyMorningClearAfternoon, _currentIndex: 39 },
+      now: at(15, 20),
+      current: { isRaining: true, cloudCover: 90 },
+    });
+    assert.equal(f.now.kind, 'rain');
+    assert.equal(f.now.rain, 'raining');
+    assert.equal(f.now.readingIsCurrent, true);
+    // The rest of the 3pm hour is not sun; 4pm onwards still is.
+    assert.equal(f.hours[15].kind, 'rain');
+    assert.equal(f.hours[16].kind, 'sun');
+    assert.equal(f.sunMinutesLeft, 3 * 60 + 40);
+    assert.equal(f.nextSunHour, 16);
+    assert.equal(f.headline.text, 'Raining now · sun from 4pm');
   });
 
   it('accepts sunrise and sunset instants and converts them to Melbourne time', () => {
@@ -184,5 +209,49 @@ describe('heroSunChip', () => {
   it('returns null without an hourly forecast so the card keeps its fallback', () => {
     assert.equal(heroSunChip(deriveSunForecast({ ...base, hourly: null, utcOffsetSeconds: AEDT, now: at(12) })), null);
     assert.equal(heroSunChip(null), null);
+  });
+});
+
+describe('now.rain: the one rain verdict (skyNow.js words it)', () => {
+  const overcast95 = hourlyFor(() => ({ cloud: 100, rain: 95, code: 3 }));
+
+  it('a 95% hour with a dry reading is likely, not raining (the reported "Overcast" vs "Raining")', () => {
+    const f = deriveSunForecast({ ...base, hourly: overcast95, now: at(15), current: { isRaining: false } });
+    assert.equal(f.now.kind, 'rain');
+    assert.equal(f.now.rain, 'likely');
+    assert.equal(f.now.rainChance, 95);
+    assert.equal(f.now.code, 3);
+  });
+
+  it('is set at night too, so the header can say it after dark', () => {
+    const night = deriveSunForecast({ ...base, hourly: overcast95, now: at(22) });
+    assert.equal(night.now.kind, 'night');
+    assert.equal(night.now.rain, 'likely');
+    const wet = deriveSunForecast({ ...base, hourly: hourlyFor(() => ({ cloud: 20, rain: 0 })), now: at(22), current: { isRaining: true } });
+    assert.equal(wet.now.rain, 'raining');
+  });
+
+  it('a rain code counts from a 30% chance; drizzle codes and low chances never do', () => {
+    const showers = hourlyFor(() => ({ cloud: 80, rain: 30, code: 80 }));
+    assert.equal(deriveSunForecast({ ...base, hourly: showers, now: at(12) }).now.rain, 'likely');
+    const passing = hourlyFor(() => ({ cloud: 80, rain: 20, code: 80 }));
+    assert.equal(deriveSunForecast({ ...base, hourly: passing, now: at(12) }).now.rain, null);
+    const drizzle = hourlyFor(() => ({ cloud: 80, rain: 40, code: 53 }));
+    assert.equal(deriveSunForecast({ ...base, hourly: drizzle, now: at(12) }).now.rain, null);
+  });
+
+  it("without an hourly forecast, the reading's own chance decides likely", () => {
+    const likely = deriveSunForecast({ ...base, hourly: null, utcOffsetSeconds: AEDT, now: at(12), current: { rainChance: 70 } });
+    assert.equal(likely.now.rain, 'likely');
+    assert.equal(likely.now.kind, 'rain');
+    assert.equal(likely.now.rainChance, 70);
+    const dry = deriveSunForecast({ ...base, hourly: null, utcOffsetSeconds: AEDT, now: at(12), current: { rainChance: 40 } });
+    assert.equal(dry.now.rain, null);
+  });
+
+  it('a shaded venue stays shaded in rain, so no sun time is promised past the buildings', () => {
+    const f = deriveSunForecast({ ...base, hourly: rainyMorningClearAfternoon, now: at(10), shaded: true });
+    assert.equal(f.now.kind, 'shaded');
+    assert.equal(f.now.rain, 'likely');
   });
 });

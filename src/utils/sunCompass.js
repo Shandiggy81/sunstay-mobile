@@ -27,19 +27,25 @@ export function compassArcPath(bearing, spread, radius) {
 const STATE_ORDER = { now: 0, later: 1, some: 1, done: 2, none: 3 };
 
 /**
- * @param {{ rooms: object[], venue: object, date?: string|null, now?: Date, titleFor?: (room: object) => string|null }} input
+ * @param {{ rooms: object[], venue: object, date?: string|null, now?: Date, titleFor?: (room: object) => string|null,
+ *   sky?: { blocksSun?: boolean }|null }} input
  *   `date` is a venue-local YYYY-MM-DD; when it is not today the compass has no "now".
- * @returns {null | { live: boolean, night: boolean, date: string, sun: {bearing:number, altitude:number}|null,
+ *   `sky` is the sky-now verdict (skyNow.js). While rain or cloud blocks the
+ *   sun, the live sides' times are told as clear-sky sun, not "In sun".
+ * @returns {null | { live: boolean, night: boolean, blocked: boolean, date: string, sun: {bearing:number, altitude:number}|null,
  *   spread: number, buildingRotation: number, sides: object[], ranked: object[] }}
- *   null when fewer than two sides can be modelled.
+ *   null when fewer than two sides can be modelled. Each side's `display` is
+ *   the state to draw: a side in its clear-sky window under a blocked sky is
+ *   drawn as 'some' (gets sun on a clear day), not gold for "sun now".
  */
-export function sunCompassView({ rooms, venue, date = null, now = new Date(), titleFor = null } = {}) {
+export function sunCompassView({ rooms, venue, date = null, now = new Date(), titleFor = null, sky = null } = {}) {
     const lat = Number(venue?.lat), lng = Number(venue?.lng);
     if (!Array.isArray(rooms) || venue?.lat == null || venue?.lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
     const timeZone = venue?.timeZone ?? venue?.timezone ?? DEFAULT_TIME_ZONE;
     let today;
     try { today = venueLocalDate(now, timeZone); } catch { return null; }
     const day = date ?? today, live = day === today, at = new Date(now).getTime();
+    const blocked = live && sky?.blocksSun === true;
 
     const sides = [];
     rooms.forEach((room, index) => {
@@ -54,12 +60,13 @@ export function sunCompassView({ rooms, venue, date = null, now = new Date(), ti
         const next = live ? daily.windows.find(window => window.start.getTime() > at) : null;
         const state = daily.totalMinutes <= 0 ? 'none' : !live ? 'some' : current ? 'now' : next ? 'later' : 'done';
         const status = state === 'none' ? 'No direct sun'
-            : state === 'now' ? `In sun until ${formatGuestTime(current.end, timeZone)}`
-                : state === 'later' ? `Sun from ${formatGuestTime(next.start, timeZone)}`
+            : state === 'now' ? `${blocked ? 'Clear-sky sun' : 'In sun'} until ${formatGuestTime(current.end, timeZone)}`
+                : state === 'later' ? `${blocked ? 'Clear-sky sun' : 'Sun'} from ${formatGuestTime(next.start, timeZone)}`
                     : state === 'done' ? 'Sun has left this side' : 'Gets direct sun';
         const direction = ['North', 'North-east', 'East', 'South-east', 'South', 'South-west', 'West', 'North-west'][Math.round(bearing / 45) % 8];
         sides.push({
             id: room?.id ?? `side-${index}`, title: titleFor?.(room) || `${direction} side`, bearing, state, status,
+            display: blocked && state === 'now' ? 'some' : state,
             totalMinutes: daily.totalMinutes, total: formatSunDuration(daily.totalMinutes),
         });
     });
@@ -75,7 +82,7 @@ export function sunCompassView({ rooms, venue, date = null, now = new Date(), ti
     let tightest = 360;
     for (const a of sides) for (const b of sides) if (a !== b) tightest = Math.min(tightest, angularDifference(a.bearing, b.bearing));
     return {
-        live, night: live && !sun, date: day, sun,
+        live, night: live && !sun, blocked, date: day, sun,
         spread: Math.max(6, Math.min(36, tightest / 2 - 6)),
         buildingRotation: round(sides[0].bearing % 90),
         sides,

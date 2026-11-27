@@ -12,10 +12,11 @@
  *
  * @module utils/sunWindowsCard
  */
-import { formatHour, RAIN_CHANCE_PCT } from './sunForecastState.js';
-import { venueHour } from './venueTime.js';
+import { formatDuration, formatHour, RAIN_CHANCE_PCT } from './sunForecastState.js';
+import { venueHour, venueUtcOffsetSeconds } from './venueTime.js';
 
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
 
 function instantMs(value) {
     if (value instanceof Date) return value.getTime();
@@ -120,6 +121,62 @@ export function forecastForSunWindows({ forecast, sun }) {
     const sunShare = kinds.filter((k) => k === 'sun').length / kinds.length;
     const kind = kinds.includes('rain') ? 'rain' : sunShare >= 0.75 ? 'sun' : sunShare > 0 ? 'mixed' : 'cloud';
     return { kind, text: SKY_TEXT[kind] };
+}
+
+/**
+ * Minutes of clear-sky sun windows that the forecast also gives direct sun:
+ * the part of each window that falls in a deriveSunForecast hour of kind
+ * 'sun' (venue-local hour slots). Cloud, rain and hours without a forecast
+ * count as no sun. `from` (epoch ms) counts only what is still to come.
+ *
+ * @param {{ windows: Array<{ start: Date|number, end: Date|number }>|null, forecast: object|null,
+ *   timeZone?: string, from?: number|null }} input
+ * @returns {number|null} minutes, or null without an hourly forecast
+ */
+export function forecastSunMinutes({ windows, forecast, timeZone = 'Australia/Melbourne', from = null } = {}) {
+    if (!forecast?.hasHourly || !Array.isArray(forecast.hours) || !Array.isArray(windows)) return null;
+    let total = 0;
+    for (const window of windows) {
+        const end = instantMs(window?.end);
+        let t = instantMs(window?.start);
+        if (!Number.isFinite(t) || !Number.isFinite(end)) continue;
+        if (Number.isFinite(from)) t = Math.max(t, from);
+        while (t < end) {
+            // Step to the next venue-local hour; the offset is re-read each hour for daylight saving.
+            const offset = venueUtcOffsetSeconds(new Date(t), timeZone) * 1000;
+            const local = t + offset;
+            const stop = Math.min(end, (Math.floor(local / HOUR) + 1) * HOUR - offset);
+            if (forecast.hours[new Date(local).getUTCHours()]?.kind === 'sun') total += (stop - t) / MINUTE;
+            t = stop;
+        }
+    }
+    return total;
+}
+
+/**
+ * How a clear-sky sun total for today reads beside the forecast. The total
+ * is buildings and the sun's path on a clear day; when the forecast gives
+ * this spot less sun than that (or there is no forecast to check it with),
+ * the figure is labelled "on a clear day" and the forecast's own amount is
+ * said beside it. A fully sunny forecast leaves the wording as "today".
+ *
+ * @param {{ totalMinutes: number, windows: Array<object>|null, forecast: object|null, timeZone?: string }} input
+ * @returns {{ clearSky: boolean, forecastMinutes: number|null, forecastText: string|null }}
+ *   forecastText: "No direct sun forecast today" or "About 3h forecast today", null when it adds nothing
+ */
+export function clearSkyTotal({ totalMinutes, windows, forecast, timeZone = 'Australia/Melbourne' } = {}) {
+    const total = Number.isFinite(totalMinutes) ? Math.max(0, totalMinutes) : 0;
+    if (total <= 0) return { clearSky: false, forecastMinutes: null, forecastText: null };
+    const minutes = forecastSunMinutes({ windows, forecast, timeZone });
+    if (minutes == null) return { clearSky: true, forecastMinutes: null, forecastText: null };
+    const forecastMinutes = Math.round(minutes);
+    // Rounding: windows that are all sunny give the total back to within a minute.
+    if (forecastMinutes >= Math.round(total) - 1) return { clearSky: false, forecastMinutes, forecastText: null };
+    return {
+        clearSky: true,
+        forecastMinutes,
+        forecastText: forecastMinutes > 0 ? `About ${formatDuration(forecastMinutes)} forecast today` : 'No direct sun forecast today',
+    };
 }
 
 /**

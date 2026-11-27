@@ -32,8 +32,8 @@ test('the home sheet clause icon matches its words', () => {
     const cosy = [{ hasCozy: true }, {}];
     const sunny = mapHomeSummary([100, 90, 60]);
     // The weather condition leads, day or night.
-    assert.deepEqual(homeSheetClause({ venues: cosy, condition: 'wet', summary: sunny }), { text: 'rain about · 1 cosy and dry', icon: 'rain' });
-    assert.deepEqual(homeSheetClause({ venues: cosy, condition: 'wet', summary: sunny, night: true }), { text: 'rain about · 1 cosy and dry', icon: 'rain' });
+    assert.deepEqual(homeSheetClause({ venues: cosy, condition: 'wet', summary: sunny, rain: 'raining' }), { text: 'raining · 1 cosy and dry', icon: 'rain' });
+    assert.deepEqual(homeSheetClause({ venues: cosy, condition: 'wet', summary: sunny, night: true, rain: 'likely' }), { text: 'rain likely · 1 cosy and dry', icon: 'rain' });
     assert.deepEqual(homeSheetClause({ venues: [], condition: 'cold', summary: sunny }), { text: 'chilly out', icon: 'jacket' });
     assert.deepEqual(homeSheetClause({ venues: [], condition: 'windy', summary: sunny }), { text: 'windy', icon: 'windsock' });
     assert.deepEqual(homeSheetClause({ venues: [], condition: 'grey', summary: sunny }), { text: 'overcast', icon: 'cloud' });

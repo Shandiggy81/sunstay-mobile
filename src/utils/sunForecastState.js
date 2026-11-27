@@ -9,8 +9,13 @@
  *
  * An hour counts as direct sun only when the sun is up for it and the
  * forecast for that hour is neither rainy nor cloudy. Rain comes from the
- * hourly forecast, not the 15-minute `current.precipitation` reading, so it
- * holds steady for the hour instead of flickering with passing showers.
+ * hourly forecast, so it holds steady for the hour instead of flickering with
+ * passing showers. The one exception is the current hour while its reading
+ * has rain: then it is raining now, whatever the hour's forecast says.
+ *
+ * `now.rain` is the one rain verdict every screen words (skyNow.js):
+ * 'raining' when the current reading has rain, 'likely' when the reading is
+ * dry but this hour's forecast is rain, otherwise null. It is set at night too.
  */
 
 import { SUNNY_CLEARNESS } from './skyClearness.js';
@@ -46,6 +51,20 @@ function isCloudyHour({ cloud, clearness }) {
 function finite(value) {
   const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
   return typeof n === 'number' && Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Whether the current reading (weatherService's `current` block) describes
+ * this hour. Weather is fetched once per page load, so in a long session the
+ * reading is from an earlier hour and must not decide "now".
+ * weatherService marks the reading's hour with `hourly._currentIndex`; without
+ * that marker the caller's reading is taken to be for now.
+ */
+function readingIsForNow(hourly, dayKey, nowHour) {
+  const index = hourly?._currentIndex;
+  const iso = Number.isInteger(index) && Array.isArray(hourly?.time) ? hourly.time[index] : null;
+  if (typeof iso !== 'string') return true;
+  return iso.startsWith(dayKey) && Number(iso.slice(11, 13)) === Math.floor(nowHour);
 }
 
 function wallClock(date, offsetSeconds) {
@@ -107,8 +126,9 @@ function minutesOfSun(hours, from, to) {
  * @param {Date|number} input.sunrise Sunrise instant, or a wall-clock decimal hour.
  * @param {Date|number} input.sunset Sunset instant, or a wall-clock decimal hour.
  * @param {boolean} [input.shaded] The venue's surroundings block the sun now.
- * @param {{ cloudCover?: number, isRaining?: boolean }} [input.current]
- *   Used only when there is no hourly data for this hour.
+ * @param {{ cloudCover?: number, clearness?: number, isRaining?: boolean, rainChance?: number }} [input.current]
+ *   The current reading. `isRaining` (rain in the reading) makes the current
+ *   hour rain; the rest is used only when there is no hourly data for this hour.
  */
 export function deriveSunForecast({
   hourly = null,
@@ -151,13 +171,25 @@ export function deriveSunForecast({
   });
   const hasHourly = byHour.size > 0;
 
+  // Rain now, by one rule: "raining" needs rain in the current reading; a
+  // rainy forecast hour with a dry reading is only "likely".
+  const nowSlot = Math.min(23, Math.max(0, Math.floor(nowHour)));
+  const readingNow = readingIsForNow(hourly, dayKey, nowHour);
+  const forecastNow = byHour.get(nowSlot);
+  const raining = readingNow && current?.isRaining === true;
+  const rainLikely = forecastNow
+    ? isRainyHour(forecastNow)
+    : readingNow && (finite(current?.rainChance) ?? 0) >= RAIN_CHANCE_PCT;
+  const rain = raining ? 'raining' : rainLikely ? 'likely' : null;
+
   const hours = [];
   for (let hour = 0; hour < 24; hour += 1) {
     const f = byHour.get(hour) ?? {};
     const daylight = hasDaylight && hour + 1 > sunriseHour && hour < sunsetHour;
     let kind = 'night';
     if (daylight) {
-      if (!byHour.has(hour)) kind = 'day';
+      if (hour === nowSlot && raining) kind = 'rain';
+      else if (!byHour.has(hour)) kind = 'day';
       else if (isRainyHour(f)) kind = 'rain';
       else if (isCloudyHour(f)) kind = 'cloud';
       else kind = 'sun';
@@ -166,15 +198,18 @@ export function deriveSunForecast({
   }
 
   const isSunUp = hasDaylight && nowHour >= sunriseHour && nowHour < sunsetHour;
-  const slotNow = hours[Math.min(23, Math.floor(nowHour))];
+  const slotNow = hours[nowSlot];
   let nowKind;
   if (!isSunUp) nowKind = 'night';
+  // Shade first: the forecast can't say when the buildings stop blocking the
+  // sun, so a shaded venue never gets a rain line that promises sun later.
   else if (shaded) nowKind = 'shaded';
+  else if (rain) nowKind = 'rain';
   else if (slotNow.kind !== 'day') nowKind = slotNow.kind;
-  else if (current?.isRaining) nowKind = 'rain';
-  else if (finite(current?.clearness) != null) nowKind = current.clearness < SUNNY_CLEARNESS ? 'cloud' : 'sun';
-  else if ((finite(current?.cloudCover) ?? 0) > 75) nowKind = 'cloud';
+  else if (readingNow && finite(current?.clearness) != null) nowKind = current.clearness < SUNNY_CLEARNESS ? 'cloud' : 'sun';
+  else if (readingNow && (finite(current?.cloudCover) ?? 0) > 75) nowKind = 'cloud';
   else nowKind = 'unknown';
+  const rainChanceNow = slotNow.rainChance ?? (readingNow ? finite(current?.rainChance) : null);
 
   const dayEnd = hasDaylight ? sunsetHour : 0;
   const sunMinutesToday = hasHourly && hasDaylight ? minutesOfSun(hours, sunriseHour, sunsetHour) : null;
@@ -204,16 +239,21 @@ export function deriveSunForecast({
     sunsetHour,
     isSunUp,
     hours,
-    now: { kind: nowKind, cloud: slotNow.cloud, rainChance: slotNow.rainChance },
+    // `code` is this hour's forecast weather code; `readingIsCurrent` says
+    // whether the current reading is from this hour (see readingIsForNow).
+    now: {
+      kind: nowKind, cloud: slotNow.cloud, rainChance: rainChanceNow, rain,
+      code: forecastNow?.code ?? null, readingIsCurrent: readingNow,
+    },
     sunMinutesToday,
     sunMinutesLeft,
     sunUntil,
     nextSunHour,
-    headline: buildHeadline({ nowKind, nowHour, sunriseHour, sunsetHour, hasDaylight, hasHourly, sunMinutesLeft, nextSunHour }),
+    headline: buildHeadline({ nowKind, rain, nowHour, sunriseHour, sunsetHour, hasDaylight, hasHourly, sunMinutesLeft, nextSunHour }),
   };
 }
 
-function buildHeadline({ nowKind, nowHour, sunriseHour, sunsetHour, hasDaylight, hasHourly, sunMinutesLeft, nextSunHour }) {
+function buildHeadline({ nowKind, rain, nowHour, sunriseHour, sunsetHour, hasDaylight, hasHourly, sunMinutesLeft, nextSunHour }) {
   if (!hasDaylight) return { text: 'Sun times unavailable', emoji: '🌤️', tone: 'muted' };
   if (nowHour >= sunsetHour) return { text: 'Sun has set for the day', emoji: '🌙', tone: 'night' };
   if (nowHour < sunriseHour) return { text: `Sun's up at ${formatHour(sunriseHour)}`, emoji: '🌅', tone: 'muted' };
@@ -232,7 +272,8 @@ function buildHeadline({ nowKind, nowHour, sunriseHour, sunsetHour, hasDaylight,
     ? ` · sun from ${formatHour(nextSunHour)}`
     : '';
   if (nowKind === 'rain') {
-    return { text: left > 0 ? `Rain now${later}` : 'Rain about · no direct sun left today', emoji: '🌧️', tone: 'muted' };
+    const word = rain === 'raining' ? 'Raining' : 'Rain likely';
+    return { text: left > 0 ? `${word} now${later}` : `${word} · no direct sun left today`, emoji: '🌧️', tone: 'muted' };
   }
   if (left > 0) {
     return { text: `${formatDuration(left)} of direct sun left today${later}`, emoji: '🌤️', tone: 'muted' };

@@ -36,6 +36,12 @@ const VERDICTS = {
         orange: 'After dark, windy', red: 'After dark, very windy',
     },
 };
+// A rain hour whose rain is forecast but not in the current reading
+// (`rainLikely`, skyNow.js): only rain in the reading is told as happening.
+const RAIN_LIKELY_VERDICTS = {
+    green: 'Rain likely, but calm', light: 'Rain likely, light wind', yellow: 'Rain likely and breezy',
+    orange: 'Rain likely and windy', red: 'Rain likely and windy',
+};
 // Sunny and not windy: the hours worth pointing a guest to.
 const GOOD_WIND = new Set(['green', 'light', 'yellow']);
 
@@ -46,6 +52,7 @@ function validEntry(entry) {
         && entry.sunFraction >= 0 && entry.sunFraction <= 1
         && (entry.skyClearness == null || (Number.isFinite(entry.skyClearness) && entry.skyClearness >= 0 && entry.skyClearness <= 1))
         && (entry.rain == null || typeof entry.rain === 'boolean')
+        && (entry.rainLikely == null || typeof entry.rainLikely === 'boolean')
         && entry.windKmh >= 0
         && (entry.windFrom === null || Number.isFinite(entry.windFrom))
         && typeof entry.isDaylight === 'boolean'
@@ -110,10 +117,11 @@ export function outdoorHourStates(hours) {
  * The caller must pass every remaining hour of the venue's day through to
  * nightfall, because "for the rest of the day" is decided from this array.
  * Lookahead ends at a missing/invalid reading or the next local day.
- * `rain: true` on a daylight hour reads as rain whatever the shade or cloud.
+ * `rain: true` on a daylight hour reads as rain whatever the shade or cloud;
+ * with `rainLikely: true` its verdict is worded as forecast ("Rain likely, but calm").
  * `detail` is `sunSentence` and `feelsSentence` joined, for callers that have
  * a more precise sun sentence of their own.
- * @param {{ hours: Array<{ hour: number, sunFraction: number, skyClearness?: number|null, rain?: boolean|null, windLevel: 'green'|'light'|'yellow'|'orange'|'red', windKmh: number, feelsLike: number, windFrom: number|null, isDaylight: boolean }>, index: number }} input
+ * @param {{ hours: Array<{ hour: number, sunFraction: number, skyClearness?: number|null, rain?: boolean|null, rainLikely?: boolean|null, windLevel: 'green'|'light'|'yellow'|'orange'|'red', windKmh: number, feelsLike: number, windFrom: number|null, isDaylight: boolean }>, index: number }} input
  * @returns {{ state: 'sun'|'part'|'shade'|'cloud'|'rain'|'dawn'|'dark', verdict: string, detail: string, sunSentence: string, feelsSentence: string, changeHour: number|null, slots: Array<{ hour: number, label: string, words: string, good: boolean }> }|null}
  */
 export function outdoorVerdict(input = {}) {
@@ -149,7 +157,7 @@ export function outdoorVerdict(input = {}) {
 
     return {
         state,
-        verdict: VERDICTS[state][entry.windLevel],
+        verdict: (state === 'rain' && entry.rainLikely === true ? RAIN_LIKELY_VERDICTS : VERDICTS[state])[entry.windLevel],
         detail: `${sun} ${feelsSentence}`,
         sunSentence: sun,
         feelsSentence,

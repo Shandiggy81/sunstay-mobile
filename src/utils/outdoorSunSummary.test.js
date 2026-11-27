@@ -108,10 +108,11 @@ describe('outdoorSunSummary', () => {
         const cloudy = outdoorSunSummary({ daily: DAY, forecast: { now: { kind: 'cloud' } }, now, timeZone: TZ });
         assert.equal(cloudy.kind, 'cloud');
         assert.equal(cloudy.statText, 'Cloudy now');
-        assert.equal(cloudy.sentence, "Cloud is blocking the sun right now. 1h 8m of today's 1h 28m sun window at this venue is still to come.");
+        // No hourly forecast to check the rest of the window with: it is told as clear-sky sun.
+        assert.equal(cloudy.sentence, "Cloud is blocking the sun right now. 1h 8m of today's 1h 28m clear-sky sun at this venue is still to come.");
         const rain = outdoorSunSummary({ daily: DAY, forecast: { now: { kind: 'rain' } }, now, timeZone: TZ });
-        assert.equal(rain.statText, 'Rain now');
-        assert.match(rain.sentence, /^Rain about right now\./);
+        assert.equal(rain.statText, 'Rain likely');
+        assert.match(rain.sentence, /^Rain likely right now\./);
     });
 
     it('works without a forecast (missing weather)', () => {
@@ -141,6 +142,95 @@ describe('outdoorSunSummary', () => {
             assert.equal(s.totalMinutes, moments.totalMinutes);
             assert.ok(s.remainingMinutes <= s.totalMinutes, `at ${h}`);
         }
+    });
+});
+
+/** Today's forecast from one slot per local hour ({ rain, code, cloud }) and an optional current reading. */
+function forecastWith(slotFor, now, current = {}) {
+    const time = Array.from({ length: 24 }, (_, h) => `2026-10-19T${String(h).padStart(2, '0')}:00`);
+    const slots = time.map((_, h) => ({ rain: 0, code: 0, cloud: 0, ...slotFor(h) }));
+    return deriveSunForecast({
+        hourly: {
+            time,
+            cloud_cover: slots.map(s => s.cloud),
+            precipitation_probability: slots.map(s => s.rain),
+            weather_code: slots.map(s => s.code),
+        },
+        utcOffsetSeconds: OFFSET,
+        now,
+        sunrise: 6 + 22 / 60,
+        sunset: 19 + 44 / 60,
+        current,
+    });
+}
+const RAIN_ALL_DAY = () => ({ rain: 95, code: 3, cloud: 100 });
+
+describe('outdoorSunSummary against the forecast (sky-now verdict)', () => {
+    it('rain likely in the sun window: no clear-sky sun is promised', () => {
+        const now = at(12, 30);
+        const s = outdoorSunSummary({ daily: DAY, forecast: forecastWith(RAIN_ALL_DAY, now), now, timeZone: TZ });
+        assert.equal(s.state, 'sun-now');
+        assert.equal(s.kind, 'rain');
+        assert.equal(s.statText, 'Rain likely');
+        assert.equal(s.sentence, 'Rain likely right now. No direct sun is forecast here for the rest of today.');
+    });
+
+    it('rain in the reading is "Raining", and only the forecast\'s sunny part of the window is still to come', () => {
+        const now = at(12, 30);
+        // A dry forecast for the noon hour, but the current reading has rain; sun from 1pm.
+        const forecast = forecastWith(h => (h === 12 ? { rain: 20, code: 3, cloud: 90 } : {}), now, { isRaining: true });
+        const s = outdoorSunSummary({ daily: DAY, forecast, now, timeZone: TZ });
+        assert.equal(s.statText, 'Raining');
+        assert.equal(s.sentence, 'Raining right now. About 38m of sun is forecast here later today.');
+        assert.equal(venueStatTiles({ venue: {}, forecast, sunNow: s })[0].value, 'Raining');
+    });
+
+    it("rain wins over the buildings' shade, and the sun still to come is the forecast's", () => {
+        const now = at(11);
+        const forecast = forecastWith(h => (h === 11 ? { rain: 80, code: 61, cloud: 100 } : {}), now);
+        const s = outdoorSunSummary({ daily: DAY, forecast, now, timeZone: TZ });
+        assert.equal(s.state, 'shaded-now');
+        assert.equal(s.kind, 'rain');
+        assert.equal(s.sentence, 'Rain likely right now. About 1h 28m of sun is forecast here later today.');
+        assert.equal(venueStatTiles({ venue: {}, forecast, sunNow: s })[0].value, 'Rain likely · 80%');
+    });
+
+    it("cloud while shaded keeps the buildings' answer", () => {
+        const now = at(11);
+        const s = outdoorSunSummary({ daily: DAY, forecast: forecastWith(h => (h === 11 ? { cloud: 100, code: 3 } : {}), now), now, timeZone: TZ });
+        assert.equal(s.state, 'shaded-now');
+        assert.equal(s.statText, 'Sun from 12:10pm');
+    });
+
+    it('after the last window in rain: rain leads, with no sun promised', () => {
+        const now = at(15);
+        const s = outdoorSunSummary({ daily: DAY, forecast: forecastWith(RAIN_ALL_DAY, now), now, timeZone: TZ });
+        assert.equal(s.state, 'shaded-rest');
+        assert.equal(s.kind, 'rain');
+        assert.equal(s.sentence, 'Rain likely right now. Buildings shade this venue for the rest of today.');
+    });
+
+    it('a day the forecast cuts short is never told as "had about 1h 28m of direct sun"', () => {
+        const dawn = at(5);
+        assert.equal(outdoorSunSummary({ daily: DAY, forecast: forecastWith(RAIN_ALL_DAY, dawn), now: dawn, timeZone: TZ }).sentence,
+            "The sun's up at 6:22am. No direct sun is forecast here today.");
+        const night = at(21);
+        assert.equal(outdoorSunSummary({ daily: DAY, forecast: forecastWith(RAIN_ALL_DAY, night), now: night, timeZone: TZ }).sentence,
+            'The sun has set for today.');
+        // Sun forecast for the 1pm hour only: 38 of the window's 88 minutes.
+        const partly = forecastWith(h => (h === 13 ? {} : { rain: 90, code: 61, cloud: 100 }), night);
+        assert.equal(outdoorSunSummary({ daily: DAY, forecast: partly, now: night, timeZone: TZ }).sentence,
+            'The sun has set. About 38m of direct sun was forecast here today.');
+        const afternoon = at(16);
+        const wetNoon = forecastWith(h => (h === 12 ? { rain: 90, code: 61, cloud: 100 } : {}), afternoon);
+        assert.equal(outdoorSunSummary({ daily: DAY, forecast: wetNoon, now: afternoon, timeZone: TZ }).sentence,
+            'Shaded by nearby buildings for the rest of today. About 38m of direct sun was forecast here today.');
+    });
+
+    it('a fully sunny forecast keeps the wording unchanged', () => {
+        const now = at(21);
+        assert.equal(outdoorSunSummary({ daily: DAY, forecast: clearForecast(now), now, timeZone: TZ }).sentence,
+            'The sun has set. This venue had about 1h 28m of direct sun today.');
     });
 });
 

@@ -6,7 +6,6 @@ import React, { useState, useRef, useCallback, useMemo, useEffect, Suspense, laz
 import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { MicroclimateProvider, useVenueMicroclimate, useMicroclimateActions, useMicroclimateState } from './context/MicroclimateContext';
 import { lookupMicroclimateEntry, markerScoreFromMicroclimate, readMicroclimate } from './utils/microclimate';
-import { deriveSunForecast } from './utils/sunForecastState';
 import { forecastKindAt, isVenueInDirectSun, matchesTagFilters } from './utils/venueFilters';
 import { scoreDisplayState } from './utils/scoreDisplay.js';
 import { liveWarmth, liveWarmthNote } from './utils/venueFeaturePin.js';
@@ -69,7 +68,7 @@ import { getComfortLevel } from './utils/weatherService';
 import { getSunData } from './utils/getSunData';
 import { sortVenuesBySunstayScore } from './utils/sortVenuesBySunstayScore';
 import { venueDisplayScore } from './utils/venueDisplayScore';
-import { isNightAt, listSunStatus, venueFeelsLike, venueSunForecast } from './utils/venueSun';
+import { citySkyNow, isNightAt, listSunStatus, MELBOURNE_CBD, venueFeelsLike, venueSunForecast } from './utils/venueSun';
 import { venueConditionChips } from './utils/venueConditionChips';
 import { keyAmenities, venueMatchesAmenityFilter } from './utils/venueAmenities';
 import { venueIcon } from './utils/clayIcons';
@@ -377,7 +376,7 @@ const VenueListCard = memo(({ venue, isSelected, onVenueSelect, weather, stayMom
                     {stayRow && <button type="button" className="ss-stay-compare-toggle" aria-pressed={compared} disabled={!compared && compareFull} onClick={e => { e.stopPropagation(); onCompare(venue.id); }}>Compare</button>}
                     {scoreVisual && !stayRow && (badgeState !== 'score' ? (
                         // After dark every score is 0, and in rain it is near 0: both read like a bad venue.
-                        <div className="ss-vlc-badge" style={{ background: '#e2e8f0', color: '#334155' }} title={badgeState === 'rain' ? 'Raining: no direct sun' : 'After dark'}>
+                        <div className="ss-vlc-badge" style={{ background: '#e2e8f0', color: '#334155' }} title={badgeState === 'rain' ? 'Rain: no direct sun' : 'After dark'}>
                             <ClayIcon name={badgeState === 'rain' ? 'rain' : 'night'} size={18} />
                             <span>{badgeState === 'rain' ? 'Rain' : 'Night'}</span>
                         </div>
@@ -792,15 +791,9 @@ const AppContent = () => {
     };
     const sunnyForecastKind = useMemo(() => {
         if (!sunnyFilterActive) return null;
-        const sun = getSunData(-37.8136, 144.9631);
-        return forecastKindAt(deriveSunForecast({
-            timeZone: DEFAULT_TIME_ZONE,
-            hourly: weather?.hourly,
-            utcOffsetSeconds: weather?.utcOffsetSeconds,
-            sunrise: sun?.sunriseDate,
-            sunset: sun?.sunsetDate,
-        }), listTodMinutes);
-    }, [sunnyFilterActive, weather?.hourly, weather?.utcOffsetSeconds, listTodMinutes]);
+        // The same CBD forecast as the list's rain badges, current reading included.
+        return forecastKindAt(venueSunForecast({ venue: MELBOURNE_CBD, weather }), listTodMinutes);
+    }, [sunnyFilterActive, weather, listTodMinutes]);
     // Sun down at the list's time (Melbourne CBD sunrise and sunset), shared by
     // the sheet line, list badges and map pins so they always agree. Sunrise and
     // sunset come from the sun's position, so this works without live weather.
@@ -942,7 +935,9 @@ const AppContent = () => {
     // Wet, cold or windy right now: venues with declared warmth or shelter lead,
     // sun order within each tier. Fine weather, Stays and an explicit Sunny
     // filter keep the pure sun order.
-    const homeCondition = useMemo(() => homeConditions(weather), [weather]);
+    // The sky now (skyNow.js): the same rain verdict the header, list rows and cards word.
+    const citySky = useMemo(() => citySkyNow(weather, { now: new Date(homeNow) }), [weather, homeNow]);
+    const homeCondition = useMemo(() => homeConditions(weather, { sky: citySky }), [weather, citySky]);
     const listCondition = staysActive || sunnyFilterActive ? null : homeCondition;
     const sortedVenues = useMemo(
         () => staysActive ? includeNonStayResults(listVenues, rankedStays) : rankForConditions(sortVenuesBySunstayScore(listVenues, (venue) => venueDisplayScore(venue, {
@@ -1017,7 +1012,7 @@ const AppContent = () => {
     // venues) instead of "0 in full sun". The clause and its icon are picked
     // together, so rain or night never sits beside a sun.
     const comfortSort = useMemo(() => comfortSortLabel(listVenues, listCondition), [listVenues, listCondition]);
-    const homeClause = useMemo(() => homeSheetClause({ venues: listVenues, condition: listCondition, summary: homeSummary, night: cityNight }), [listVenues, listCondition, homeSummary, cityNight]);
+    const homeClause = useMemo(() => homeSheetClause({ venues: listVenues, condition: listCondition, summary: homeSummary, night: cityNight, rain: citySky?.rain ?? null }), [listVenues, listCondition, homeSummary, cityNight, citySky]);
     const peekDragged = useRef(false);
     const showAllChip = (className) => (
         <button

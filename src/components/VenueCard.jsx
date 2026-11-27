@@ -64,6 +64,7 @@ import ScoreRing from './common/ScoreRing.jsx';
 import { venueCardSunSection } from '../utils/venueCardSunFlow.js';
 import { canShowHotelSunReport } from '../utils/hotelSunReportRoute.js';
 import { hourlyStrip, isNightAt, sunSentence, venueFeelsLike, venueSunForecast } from '../utils/venueSun';
+import { skyNow } from '../utils/skyNow.js';
 import { forecastKindAt } from '../utils/venueFilters';
 import { scoreDisplayState } from '../utils/scoreDisplay.js';
 import { venueAccessFacts } from '../utils/venueAccess.js';
@@ -546,6 +547,8 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
   const hours = useMemo(() => hourlyStrip(liveWeather, { now, forecast, timeZone: venueTimeZone }), [liveWeather, now, forecast, venueTimeZone]);
   const tonight = useMemo(() => tonightFeel({ venue, weather: liveWeather, now }), [venue, liveWeather, now]);
   const sentence = sunSentence(forecast);
+  // The sky now (rain in the reading, rain likely, cloud), worded the same on every part of the card.
+  const skyNowView = skyNow(forecast);
   const nowIcon = hours[0]?.icon ?? weatherIconName(null, { isNight: !forecast.isSunUp });
   // Sun down at the score's time (the scrubber, like the list): show "Night", not 0.
   const nightAtScoreTime = isNightAt(forecast, todMinutes);
@@ -627,7 +630,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
     shade: shadeByHour({ windows: outdoorDay?.windows ?? null, curve: microclimateEntry?.sun_hour_fraction ?? null, timeZone: venueTimeZone }),
     windRows: dayWind.rows,
     // What the tiles show for this moment, so "now" cannot disagree with them.
-    live: { sunKind: (outdoorSummary ?? forecast.now)?.kind ?? null, sunFraction: resolveSunFraction(microclimateEntry, null), windKmh: windNow?.kmh ?? null, feelsLike, windFrom: dayWind.direction, windSource: dayWind.factor?.source ?? null },
+    live: { sunKind: (outdoorSummary ?? forecast.now)?.kind ?? null, rain: skyNowView?.rain ?? null, sunFraction: resolveSunFraction(microclimateEntry, null), windKmh: windNow?.kmh ?? null, feelsLike, windFrom: dayWind.direction, windSource: dayWind.factor?.source ?? null },
     selectedMinutes: todMinutes,
     nowSliderMinutes: localTimeToSliderMinutes(now),
   }) : null;
@@ -807,7 +810,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                             See the sun report
                           </button>
                         ) : null}
-                        <SunCompass rooms={roomTypes} venue={venue} date={stayMatch?.daily?.date ?? todayKey} now={now}
+                        <SunCompass rooms={roomTypes} venue={venue} date={stayMatch?.daily?.date ?? todayKey} now={now} sky={skyNowView}
                           wind={liveWeather ? { from: finite(liveWeather.windDirection ?? liveWeather.wind?.deg), kmh: finite(liveWeather.wind?.speed) == null ? null : liveWeather.wind.speed * 3.6 } : null} />
                         <RoomIntelligencePanel roomIntelligence={roomIntelligence} />
                         {/* The compass above already says each side in a line, so only the sunniest side opens in full. */}
@@ -833,7 +836,7 @@ function VenueCard({ venue, weather, onClose, onCenter, onOpenSunReport, setShow
                       <ForecastErrorBoundary>
                         <section aria-labelledby={headingIds.moments} className="flex flex-col gap-3">
                           <h3 id={headingIds.moments} className={SECTION_TITLE}>{typedMoments ? SUN_CARD_TYPES[typedMoments].title : 'Sun moments today'}</h3>
-                          <SunMomentsPanel daily={outdoorDay} summary={outdoorMoments} timeZone={venueTimeZone} now={now} label="sun at this venue" compact />
+                          <SunMomentsPanel daily={outdoorDay} summary={outdoorMoments} timeZone={venueTimeZone} now={now} label="sun at this venue" forecast={forecast} compact />
                         </section>
                       </ForecastErrorBoundary>
                     ) : null}

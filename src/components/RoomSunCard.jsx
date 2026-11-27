@@ -129,7 +129,7 @@ export default function RoomSunCard({ room, venue, date, highlighted = false, fo
 
       {daily ? (
         <div className="flex flex-col gap-3">
-          <SunMomentsPanel daily={daily} summary={sunMomentsFromDay({ daily, forecast, timeZone })} timeZone={timeZone} now={now} label={`potential ${exposureLabel}`} dayLabel={daily.date === venueLocalDate(now, timeZone) ? 'today' : `on ${formatGuestDate(`${daily.date}T12:00:00Z`, 'UTC')}`} />
+          <SunMomentsPanel daily={daily} summary={sunMomentsFromDay({ daily, forecast, timeZone })} timeZone={timeZone} now={now} label={`potential ${exposureLabel}`} dayLabel={daily.date === venueLocalDate(now, timeZone) ? 'today' : `on ${formatGuestDate(`${daily.date}T12:00:00Z`, 'UTC')}`} forecast={forecast} />
           {daily.partSunMinutes > 0 ? (
             <p className="text-secondary font-semibold leading-relaxed text-slate-600" data-balcony-roof-note>
               {daily.fullSunMinutes > 0

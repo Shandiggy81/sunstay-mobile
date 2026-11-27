@@ -32,9 +32,10 @@ async function boot(page, baseURL, now, forecast = weather) {
   return errors;
 }
 
-test('home sheet: "rain about" sits beside the rain icon, not a sun', async ({ page, baseURL }) => {
+// Rain is in the current reading here, so the sheet says it is raining (skyNow.js).
+test('home sheet: "raining" sits beside the rain icon, not a sun', async ({ page, baseURL }) => {
   const errors = await boot(page, baseURL, melbourne(11), rainy);
-  await expect(clause(page)).toHaveText(/^rain about/);
+  await expect(clause(page)).toHaveText(/^raining · /);
   await expect(clause(page).locator('img')).toHaveAttribute('src', clayIcon('rain'));
   expect(errors, 'Unhandled browser errors').toEqual([]);
 });

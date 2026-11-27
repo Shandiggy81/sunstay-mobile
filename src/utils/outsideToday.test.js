@@ -177,6 +177,19 @@ describe('outsideToday', () => {
         assert.equal(raining.verdict.state, 'rain');
     });
 
+    it('words a rainy now as "Rain likely" unless the reading has rain (sky-now verdict)', () => {
+        const hourly = hourlyBlock({ rainChance: hour => (hour === 11 ? 95 : 5) });
+        const likely = outsideToday({ forecast: forecastAt(11, hourly), windRows: rowsFor(hourly), live: { sunKind: 'rain', rain: 'likely' } });
+        assert.equal(likely.verdict.state, 'rain');
+        assert.equal(likely.verdict.headline, 'Rain likely, light wind');
+        assert.equal(likely.spoken, 'Now: Rain likely, light wind');
+        const falling = outsideToday({ forecast: forecastAt(11, hourly), windRows: rowsFor(hourly), live: { sunKind: 'rain', rain: 'raining' } });
+        assert.equal(falling.verdict.headline, 'Rain with a light wind');
+        // Another hour is a forecast either way, so it keeps the plain words.
+        const later = outsideToday({ forecast: forecastAt(9, hourly), windRows: rowsFor(hourly), live: { sunKind: 'sun', rain: null }, selectedMinutes: 11 * 60 });
+        assert.equal(later.verdict.headline, 'Rain with a light wind');
+    });
+
     it('uses the card’s live wind and feels-like for now, and the rows for other hours', () => {
         const hourly = hourlyBlock({ wind: hour => (hour >= 14 ? 60 : 20) });
         const live = { sunKind: 'sun', windKmh: 34.4, feelsLike: 12.2, windFrom: 200, windSource: 'type' };

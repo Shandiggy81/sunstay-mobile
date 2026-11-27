@@ -105,7 +105,7 @@ function shortNames(rooms) {
 }
 
 /**
- * "Best side today": every moment with its window and the side with the most
+ * "Best side on a clear day": every moment with its window and the side with the most
  * direct sun then, from the report's summary. `side` is null when no side
  * gets direct sun at that time today, and drops a level every side shares.
  * `fit` is momentFit for that side, and `sun` says when its sun comes, ending
@@ -207,12 +207,14 @@ export function sharedEvidence(rooms) {
 
 /**
  * Section wording for the report's mode: a room-type report lists room types
- * ("City View King"), so it never says "side of the building".
+ * ("City View King"), so it never says "side of the building". The report is
+ * the sun's path and buildings, not a forecast, so its best side is the best
+ * on a clear day: it never reads as today's weather.
  */
 export function reportWords(mode) {
     return mode === STAY_SUN_MODES.ROOM_TYPES
-        ? { best: 'Best room today', list: 'Each room type', unit: 'room type' }
-        : { best: 'Best side today', list: 'Each side of the building', unit: 'side' };
+        ? { best: 'Best room on a clear day', list: 'Each room type', unit: 'room type' }
+        : { best: 'Best side on a clear day', list: 'Each side of the building', unit: 'side' };
 }
 
 /**
